@@ -1,0 +1,47 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model EventService {
+  id       Int     @id @default(autoincrement())
+  vendorId Int?
+  Vendor   Vendor? @relation(fields: [vendorId], references: [id])
+}
+
+model User {
+  id     Int     @id @default(autoincrement())
+  Vendor Vendor?
+}
+
+model Vendor {
+  id                 Int                      @id @default(autoincrement())
+  userId             Int                      @unique
+  businessName       String
+  description        String?
+  city               String
+  area               String
+  serviceRadiusKm    Int?
+  verificationStatus VendorVerificationStatus @default(PENDING)
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime
+  EventService       EventService[]
+  User               User                     @relation(fields: [userId], references: [id])
+  VendorService      VendorService[]
+}
+
+model VendorService {
+  id       Int    @id @default(autoincrement())
+  vendorId Int
+  Vendor   Vendor @relation(fields: [vendorId], references: [id])
+}
+
+enum VendorVerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
