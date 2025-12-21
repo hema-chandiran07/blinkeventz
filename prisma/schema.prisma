@@ -1,23 +1,23 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
-model EventService {
-  id       Int     @id @default(autoincrement())
-  vendorId Int?
-  Vendor   Vendor? @relation(fields: [vendorId], references: [id])
-}
-
+//////////////////////////////////////////////////////
+// USER (TEMP – will be expanded later)
+//////////////////////////////////////////////////////
 model User {
   id     Int     @id @default(autoincrement())
-  Vendor Vendor?
+  vendor Vendor?
 }
 
+//////////////////////////////////////////////////////
+// VENDOR
+//////////////////////////////////////////////////////
 model Vendor {
   id                 Int                      @id @default(autoincrement())
   userId             Int                      @unique
@@ -27,21 +27,68 @@ model Vendor {
   area               String
   serviceRadiusKm    Int?
   verificationStatus VendorVerificationStatus @default(PENDING)
-  createdAt          DateTime                 @default(now())
-  updatedAt          DateTime
-  EventService       EventService[]
-  User               User                     @relation(fields: [userId], references: [id])
-  VendorService      VendorService[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User            @relation(fields: [userId], references: [id])
+  services VendorService[]
 }
 
+//////////////////////////////////////////////////////
+// VENDOR SERVICE
+//////////////////////////////////////////////////////
 model VendorService {
-  id       Int    @id @default(autoincrement())
-  vendorId Int
-  Vendor   Vendor @relation(fields: [vendorId], references: [id])
+  id           Int                @id @default(autoincrement())
+  vendorId     Int
+
+  name         String
+  serviceType  ServiceType
+  pricingModel VendorPricingModel
+  baseRate     Int
+
+  minGuests    Int?
+  maxGuests    Int?
+
+  description  String?
+  inclusions   String?
+  exclusions   String?
+
+  isActive     Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vendor Vendor @relation(fields: [vendorId], references: [id])
+
+  @@index([vendorId])
 }
 
+//////////////////////////////////////////////////////
+// ENUMS
+//////////////////////////////////////////////////////
 enum VendorVerificationStatus {
   PENDING
-  APPROVED
+  VERIFIED
   REJECTED
+  SUSPENDED
+}
+
+enum ServiceType {
+  CATERING
+  DECOR
+  PHOTOGRAPHY
+  MAKEUP
+  DJ
+  MUSIC
+  CAR_RENTAL
+  PRIEST
+  OTHER
+}
+
+enum VendorPricingModel {
+  PER_EVENT
+  PER_PERSON
+  PER_DAY
+  PACKAGE
 }
