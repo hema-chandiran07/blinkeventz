@@ -13,6 +13,7 @@ datasource db {
 model User {
   id     Int     @id @default(autoincrement())
   vendor Vendor?
+  Cart   Cart[]
 }
 
 //////////////////////////////////////////////////////
@@ -39,29 +40,75 @@ model Vendor {
 // VENDOR SERVICE
 //////////////////////////////////////////////////////
 model VendorService {
-  id           Int                @id @default(autoincrement())
-  vendorId     Int
+  id       Int @id @default(autoincrement())
+  vendorId Int
 
   name         String
   serviceType  ServiceType
   pricingModel VendorPricingModel
   baseRate     Int
 
-  minGuests    Int?
-  maxGuests    Int?
+  minGuests Int?
+  maxGuests Int?
 
-  description  String?
-  inclusions   String?
-  exclusions   String?
+  description String?
+  inclusions  String?
+  exclusions  String?
 
-  isActive     Boolean @default(true)
+  isActive Boolean @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  vendor Vendor @relation(fields: [vendorId], references: [id])
+  vendor    Vendor     @relation(fields: [vendorId], references: [id])
+  cartItems CartItem[]
 
   @@index([vendorId])
+}
+
+//////////////////////////////////////////////////////////////////
+//CART 
+/////////////////////////////////////////////////////////////////
+
+model Cart {
+  id        Int        @id @default(autoincrement())
+  user      User       @relation(fields: [userId], references: [id])
+  userId    Int
+  status    CartStatus @default(ACTIVE)
+  items     CartItem[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+//////////////////////////////////////////////////////////////////
+//CART ITEM
+/////////////////////////////////////////////////////////////////
+
+model CartItem {
+  id     Int  @id @default(autoincrement())
+  cart   Cart @relation(fields: [cartId], references: [id])
+  cartId Int
+
+  itemType ItemType
+
+  venueId         Int?
+  vendorServiceId Int?
+  addonId         Int?
+
+  vendorService VendorService? @relation(fields: [vendorServiceId], references: [id])
+
+  date       DateTime?
+  timeSlot   String?
+  quantity   Int       @default(1)
+  unitPrice  Int
+  totalPrice Int
+  meta       Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([cartId])
+  @@index([vendorServiceId])
 }
 
 //////////////////////////////////////////////////////
@@ -91,4 +138,16 @@ enum VendorPricingModel {
   PER_PERSON
   PER_DAY
   PACKAGE
+}
+
+enum CartStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum ItemType {
+  VENUE
+  VENDOR_SERVICE
+  ADDON
 }
