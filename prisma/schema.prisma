@@ -142,8 +142,10 @@ enum VendorPricingModel {
 
 enum CartStatus {
   ACTIVE
+  LOCKED
   COMPLETED
   CANCELLED
+  EXPIRED
 }
 
 enum ItemType {

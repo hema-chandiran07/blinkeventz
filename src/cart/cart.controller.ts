@@ -12,10 +12,7 @@ export class CartController {
   }
 
   @Post(':cartId/items')
-  addItem(
-    @Param('cartId') cartId: string,
-    @Body() dto: AddCartItemDto,
-  ) {
+  addItem(@Param('cartId') cartId: string, @Body() dto: AddCartItemDto) {
     return this.cartService.addItem(+cartId, dto);
   }
 

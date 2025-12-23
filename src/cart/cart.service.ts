@@ -1,12 +1,13 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AddCartItemDto } from './dto/add-cart-item.dto';
-import { CartStatus, ItemType } from '@prisma/client';
+import { CartStatus } from '@prisma/client';
 
 @Injectable()
 export class CartService {
   constructor(private readonly prisma: PrismaService) {}
 
+  // 1️⃣ Get or Create Active Cart
   async getOrCreateCart(userId: number) {
     let cart = await this.prisma.cart.findFirst({
       where: { userId, status: CartStatus.ACTIVE },
@@ -23,6 +24,7 @@ export class CartService {
     return cart;
   }
 
+  // 2️⃣ Add Item to Cart
   async addItem(cartId: number, dto: AddCartItemDto) {
     const totalPrice = dto.unitPrice * dto.quantity;
 
@@ -30,8 +32,8 @@ export class CartService {
       data: {
         cartId,
         itemType: dto.itemType,
-        vendorServiceId: dto.vendorServiceId,
         venueId: dto.venueId,
+        vendorServiceId: dto.vendorServiceId,
         addonId: dto.addonId,
         quantity: dto.quantity,
         unitPrice: dto.unitPrice,
@@ -41,12 +43,14 @@ export class CartService {
     });
   }
 
+  // 3️⃣ Remove Cart Item
   async removeItem(cartItemId: number) {
     return this.prisma.cartItem.delete({
       where: { id: cartItemId },
     });
   }
 
+  // 4️⃣ Get Cart with Items
   async getCart(cartId: number) {
     return this.prisma.cart.findUnique({
       where: { id: cartId },
@@ -54,6 +58,7 @@ export class CartService {
     });
   }
 
+  // 5️⃣ Checkout
   async checkout(cartId: number) {
     const cart = await this.prisma.cart.findUnique({
       where: { id: cartId },
