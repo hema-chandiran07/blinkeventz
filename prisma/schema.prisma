@@ -111,6 +111,30 @@ model CartItem {
   @@index([vendorServiceId])
 }
 
+//////////////////////////////////////////////////////////////////
+//PAYMENTS
+/////////////////////////////////////////////////////////////////
+model Payment {
+  id                Int           @id @default(autoincrement())
+  userId            Int
+  cartId            Int
+  provider          PaymentProvider
+  providerOrderId   String        @unique   // ✅ ADD THIS
+  providerPaymentId String?
+  signature         String?
+  amount            Int
+  currency          String        @default("INR")
+  status            PaymentStatus
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@index([cartId])
+}
+
+
+
+
+
 //////////////////////////////////////////////////////
 // ENUMS
 //////////////////////////////////////////////////////
@@ -152,4 +176,17 @@ enum ItemType {
   VENUE
   VENDOR_SERVICE
   ADDON
+}
+
+enum PaymentStatus {
+  PENDING        // order created, not paid
+  AUTHORIZED     // payment authorized
+  SUCCESS        // payment captured
+  FAILED         // payment failed
+  REFUNDED       // refunded
+}
+
+
+enum PaymentProvider {
+  RAZORPAY
 }

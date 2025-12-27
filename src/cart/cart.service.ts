@@ -1,14 +1,14 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AddCartItemDto } from './dto/add-cart-item.dto';
-import { CartStatus } from '@prisma/client';
+import { CartStatus, CartItem } from '@prisma/client';
+import { CartWithItems, CheckoutResponse } from './cart.types';
 
 @Injectable()
 export class CartService {
   constructor(private readonly prisma: PrismaService) {}
 
-  // 1️⃣ Get or Create Active Cart
-  async getOrCreateCart(userId: number) {
+  async getOrCreateCart(userId: number): Promise<CartWithItems> {
     let cart = await this.prisma.cart.findFirst({
       where: { userId, status: CartStatus.ACTIVE },
       include: { items: true },
@@ -24,16 +24,15 @@ export class CartService {
     return cart;
   }
 
-  // 2️⃣ Add Item to Cart
-  async addItem(cartId: number, dto: AddCartItemDto) {
+  async addItem(cartId: number, dto: AddCartItemDto): Promise<CartItem> {
     const totalPrice = dto.unitPrice * dto.quantity;
 
     return this.prisma.cartItem.create({
       data: {
         cartId,
         itemType: dto.itemType,
-        venueId: dto.venueId,
         vendorServiceId: dto.vendorServiceId,
+        venueId: dto.venueId,
         addonId: dto.addonId,
         quantity: dto.quantity,
         unitPrice: dto.unitPrice,
@@ -43,23 +42,20 @@ export class CartService {
     });
   }
 
-  // 3️⃣ Remove Cart Item
-  async removeItem(cartItemId: number) {
+  async removeItem(cartItemId: number): Promise<CartItem> {
     return this.prisma.cartItem.delete({
       where: { id: cartItemId },
     });
   }
 
-  // 4️⃣ Get Cart with Items
-  async getCart(cartId: number) {
+  async getCart(cartId: number): Promise<CartWithItems | null> {
     return this.prisma.cart.findUnique({
       where: { id: cartId },
       include: { items: true },
     });
   }
 
-  // 5️⃣ Checkout
-  async checkout(cartId: number) {
+  async checkout(cartId: number): Promise<CheckoutResponse> {
     const cart = await this.prisma.cart.findUnique({
       where: { id: cartId },
       include: { items: true },
@@ -70,7 +66,7 @@ export class CartService {
     }
 
     const totalAmount = cart.items.reduce(
-      (sum, item) => sum + item.totalPrice,
+      (sum: number, item: CartItem) => sum + item.totalPrice,
       0,
     );
 
@@ -80,7 +76,7 @@ export class CartService {
     });
 
     return {
-      cartId,
+      cartId: cart.id,
       totalAmount,
       itemsCount: cart.items.length,
       status: 'CHECKOUT_SUCCESS',
