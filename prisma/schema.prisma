@@ -115,25 +115,53 @@ model CartItem {
 //PAYMENTS
 /////////////////////////////////////////////////////////////////
 model Payment {
-  id                Int           @id @default(autoincrement())
+  id                Int             @id @default(autoincrement())
   userId            Int
   cartId            Int
   provider          PaymentProvider
-  providerOrderId   String        @unique   // ✅ ADD THIS
+  providerOrderId   String          @unique
   providerPaymentId String?
   signature         String?
   amount            Int
-  currency          String        @default("INR")
+  currency          String          @default("INR")
   status            PaymentStatus
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
 
   @@index([cartId])
 }
 
+//////////////////////////////////////////////////////
+// TEMP EVENT (DEV-B TEMPORARY)
+//////////////////////////////////////////////////////
+model TempEvent {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  eventDate DateTime
+  city      String
+  area      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
+  expressRequest ExpressRequest?
+}
 
+//////////////////////////////////////////////////////
+// ExpresssRequest
+//////////////////////////////////////////////////////
+model ExpressRequest {
+  id          Int             @id @default(autoincrement())
+  tempEventId Int             @unique
+  planType    ExpressPlanType
+  status      ExpressStatus   @default(PENDING)
+  startedAt   DateTime
+  expiresAt   DateTime
+  expressFee  Int // paise
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
 
+  tempEvent TempEvent @relation(fields: [tempEventId], references: [id])
+}
 
 //////////////////////////////////////////////////////
 // ENUMS
@@ -179,14 +207,26 @@ enum ItemType {
 }
 
 enum PaymentStatus {
-  PENDING        // order created, not paid
-  AUTHORIZED     // payment authorized
-  SUCCESS        // payment captured
-  FAILED         // payment failed
-  REFUNDED       // refunded
+  PENDING // order created, not paid
+  AUTHORIZED // payment authorized
+  SUCCESS // payment captured
+  FAILED // payment failed
+  REFUNDED // refunded
 }
-
 
 enum PaymentProvider {
   RAZORPAY
+}
+
+enum ExpressPlanType {
+  FIXED
+  CUSTOMIZED
+}
+
+enum ExpressStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  EXPIRED
+  CANCELLED
 }
