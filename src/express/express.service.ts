@@ -2,14 +2,18 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateExpressDto } from './dto/create-express.dto';
 import { ExpressStatus } from '@prisma/client';
+import {
+  EXPRESS_BASE_FEE,
+  EXPRESS_SLA_HOURS,
+  EXPRESS_PAID_ENABLED,
+} from './express.constants';
+import { getMinHoursForExpressByArea } from './express.rules';
+
 
 @Injectable()
 export class ExpressService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /**
-   * CREATE EXPRESS 50 REQUEST
-   */
   async create(dto: CreateExpressDto) {
     const tempEvent = await this.prisma.tempEvent.findUnique({
       where: { id: dto.tempEventId },
@@ -21,53 +25,45 @@ export class ExpressService {
     }
 
     if (tempEvent.expressRequest) {
-      throw new BadRequestException('Express already created for this event');
+      throw new BadRequestException('Express already created');
     }
 
-    // ⏱️ 6 hours rule
+    // ⏱ Time validation
     const now = new Date();
     const eventDate = new Date(tempEvent.eventDate);
     const diffHours =
       (eventDate.getTime() - now.getTime()) / (1000 * 60 * 60);
 
-    if (diffHours < 6) {
+    const minHours = getMinHoursForExpressByArea(tempEvent.area);
+
+    if (diffHours < minHours) {
       throw new BadRequestException(
-        'Express not allowed less than 6 hrs',
+        `Express requires minimum ${minHours} hours before event`,
       );
     }
 
-    // 💰 Express pricing (can be config driven later)
-    const expressFee = dto.planType === 'FIXED' ? 50000 : 80000;
-
-    const startedAt = now;
-    const expiresAt = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour SLA
+    // 💰 Fee logic (FREE now, paid later)
+    const expressFee = EXPRESS_PAID_ENABLED
+      ? EXPRESS_BASE_FEE[dto.planType]
+      : 0;
 
     return this.prisma.expressRequest.create({
       data: {
         tempEventId: dto.tempEventId,
         planType: dto.planType,
         status: ExpressStatus.PENDING,
-        startedAt,
-        expiresAt,
+        startedAt: now,
+        expiresAt: new Date(
+          now.getTime() + EXPRESS_SLA_HOURS * 60 * 60 * 1000,
+        ),
         expressFee,
       },
     });
   }
 
-  /**
-   * GET EXPRESS BY TEMP EVENT
-   */
   async getByTempEvent(tempEventId: number) {
-    const express = await this.prisma.expressRequest.findUnique({
+    return this.prisma.expressRequest.findUnique({
       where: { tempEventId },
     });
-
-    if (!express) {
-      throw new BadRequestException(
-        'No express request found for this event',
-      );
-    }
-
-    return express;
   }
 }

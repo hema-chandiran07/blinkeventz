@@ -5,6 +5,7 @@ import { CartModule } from './cart/cart.module';
 import { PaymentsModule } from './payments/payments.module';
 import { ExpressModule } from './express/express.module';
 import { TempEventModule } from './temp-event/temp-event.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { TempEventModule } from './temp-event/temp-event.module';
     PaymentsModule,
     ExpressModule,
     TempEventModule,
+    ScheduleModule.forRoot(), 
   ],
 })
 export class AppModule {}
