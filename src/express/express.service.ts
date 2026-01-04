@@ -9,7 +9,6 @@ import {
 } from './express.constants';
 import { getMinHoursForExpressByArea } from './express.rules';
 
-
 @Injectable()
 export class ExpressService {
   constructor(private readonly prisma: PrismaService) {}
@@ -28,6 +27,10 @@ export class ExpressService {
       throw new BadRequestException('Express already created');
     }
 
+    if (!tempEvent.eventDate) {
+      throw new BadRequestException('Event date missing');
+    }
+
     // ⏱ Time validation
     const now = new Date();
     const eventDate = new Date(tempEvent.eventDate);
@@ -42,7 +45,7 @@ export class ExpressService {
       );
     }
 
-    // 💰 Fee logic (FREE now, paid later)
+    // 💰 Fee logic
     const expressFee = EXPRESS_PAID_ENABLED
       ? EXPRESS_BASE_FEE[dto.planType]
       : 0;

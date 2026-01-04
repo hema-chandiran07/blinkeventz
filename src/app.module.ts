@@ -3,6 +3,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { VendorsModule } from './vendors/vendors.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { TempEventModule } from './temp-event/temp-event.module';
 import { EventsModule } from './events/events.module';
 import { VenuesModule } from './venues/venues.module';
 import { AvailabilityModule } from './venues/availability/availability.module';

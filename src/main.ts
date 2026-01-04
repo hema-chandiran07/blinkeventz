@@ -1,17 +1,13 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
-import 'dotenv/config';
 import { ValidationPipe } from '@nestjs/common';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import 'dotenv/config';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  const config = new DocumentBuilder()
-    .setTitle('BlinkEventz API')
-    .setDescription('Backend APIs for BlinkEventz')
-    .setVersion('1.0')
+  // ✅ Global validation (production standard)
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -20,9 +16,10 @@ async function bootstrap() {
     }),
   );
 
-  const config = new DocumentBuilder()
+  // ✅ Swagger configuration
+  const swaggerConfig = new DocumentBuilder()
     .setTitle('BlinkEventz API')
-    .setDescription('API documentation')
+    .setDescription('Backend APIs for BlinkEventz')
     .setVersion('1.0')
     .addBearerAuth(
       {
@@ -34,9 +31,12 @@ async function bootstrap() {
     )
     .build();
 
-  const document = SwaggerModule.createDocument(app, config);
+  const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('api', app, document);
 
   await app.listen(3000);
+  console.log('🚀 Server running at http://localhost:3000');
+  console.log('📘 Swagger available at http://localhost:3000/api');
 }
+
 bootstrap();
