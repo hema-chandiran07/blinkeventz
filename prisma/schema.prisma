@@ -7,179 +7,207 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role {
-  CUSTOMER
-  VENDOR
-  VENUE_OWNER
-  ADMIN
-  EVENT_MANAGER
-  SUPPORT
-}
 
-model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String?  @unique
-  phone     String?  @unique
-  passwordHash String
-  role      Role     @default(CUSTOMER)
-  isActive  Boolean  @default(true)
+//////////////////////////////////////////////////////
+// VENDOR
+//////////////////////////////////////////////////////
+model Vendor {
+  id                 Int                      @id @default(autoincrement())
+  userId             Int                      @unique
+  businessName       String
+  description        String?
+  city               String
+  area               String
+  serviceRadiusKm    Int?
+  verificationStatus VendorVerificationStatus @default(PENDING)
 
-  // Profiles
-  customerProfile CustomerProfile?
-  //vendor          Vendor?
-
-  // Relations
-  venues        Venue[]
-  bookings      Booking[]
-  //payments      Payment[]
-  //notifications Notification[]
-  //auditLogs     AuditLog[]
-   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  user     User            @relation(fields: [userId], references: [id])
+  services VendorService[]
 }
 
-model CustomerProfile {
-  id       Int  @id @default(autoincrement())
-  userId   Int  @unique
-  user     User @relation(fields: [userId], references: [id])
+//////////////////////////////////////////////////////
+// VENDOR SERVICE
+//////////////////////////////////////////////////////
+model VendorService {
+  id       Int @id @default(autoincrement())
+  vendorId Int
 
-  preferredCity String?
-  notes         String?
-}
+  name         String
+  serviceType  ServiceType
+  pricingModel VendorPricingModel
+  baseRate     Int
 
-enum VenueType {
-  HALL
-  MANDAPAM
-  LAWN
-  RESORT
-  BANQUET
-}
+  minGuests Int?
+  maxGuests Int?
 
-enum VenueStatus {
-  PENDING_APPROVAL
-  ACTIVE
-  INACTIVE
-  SUSPENDED
-  DELISTED
-}
-
-model Venue {
-  id        Int @id @default(autoincrement())
-
-  ownerId Int
-  owner   User @relation(fields: [ownerId], references: [id])
-
-  name        String
-  type        VenueType
   description String?
-  address     String
-  city        String
-  area        String
-  pincode     String
+  inclusions  String?
+  exclusions  String?
 
-  capacityMin Int
-  capacityMax Int
-
-  basePriceMorning Int?
-  basePriceEvening Int?
-  basePriceFullDay Int?
-
-  amenities String?
-  policies  String?
-
-  status VenueStatus @default(PENDING_APPROVAL)
-
-  photos       VenuePhoto[]
-  availability AvailabilitySlot[]
-  //events       Event[]
+  isActive Boolean @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-}
-model VenuePhoto {
-  id      Int @id @default(autoincrement())
-  venueId Int
-  venue   Venue @relation(fields: [venueId], references: [id])
 
-  url     String
-  isCover Boolean @default(false)
+  vendor    Vendor     @relation(fields: [vendorId], references: [id])
+  cartItems CartItem[]
 
-  createdAt DateTime @default(now())
+  @@index([vendorId])
 }
 
-enum EntityType {
-  VENUE
-  VENDOR
-}
+//////////////////////////////////////////////////////////////////
+//CART 
+/////////////////////////////////////////////////////////////////
 
-enum SlotStatus {
-  AVAILABLE
-  BOOKED
-  BLOCKED
-  HOLD
-}
-
-model AvailabilitySlot {
-  id        Int @id @default(autoincrement())
-
-  entityType EntityType
-  entityId   Int
-
-  date     DateTime
-  timeSlot String // MORNING / EVENING / FULL_DAY
-  status   SlotStatus @default(AVAILABLE)
-
-  venue Venue? @relation(fields: [entityId], references: [id])
-  bookings Booking[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([entityType, entityId, date, timeSlot])
-}
-
-model Booking {
-  id        Int      @id @default(autoincrement())
+model Cart {
+  id        Int        @id @default(autoincrement())
+  user      User       @relation(fields: [userId], references: [id])
   userId    Int
-  slotId    Int
+  status    CartStatus @default(ACTIVE)
+  items     CartItem[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+//////////////////////////////////////////////////////////////////
+//CART ITEM
+/////////////////////////////////////////////////////////////////
+
+model CartItem {
+  id     Int  @id @default(autoincrement())
+  cart   Cart @relation(fields: [cartId], references: [id])
+  cartId Int
+
+  itemType ItemType
+
+  venueId         Int?
+  vendorServiceId Int?
+  addonId         Int?
+    
+  vendorService VendorService? @relation(fields: [vendorServiceId], references: [id])
+
+  date       DateTime?
+  timeSlot   String?
+  quantity   Int       @default(1)
+  unitPrice  Int
+  totalPrice Int
+  meta       Json?
+
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id])
-  slot AvailabilitySlot @relation(fields: [slotId], references: [id])
+  @@index([cartId])
+  @@index([vendorServiceId])
 }
 
-model KycDocument {
-  id         Int        @id @default(autoincrement())
+//////////////////////////////////////////////////////////////////
+//PAYMENTS
+/////////////////////////////////////////////////////////////////
+model Payment {
+  id                Int             @id @default(autoincrement())
+  userId            Int
+  cartId            Int
+  provider          PaymentProvider
+  providerOrderId   String          @unique
+  providerPaymentId String?
+  signature         String?
+  amount            Int
+  currency          String          @default("INR")
+  status            PaymentStatus
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
 
-  userId     Int
-  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  docType    KycDocType
-  docNumber  String     // ENCRYPTED at application level
-  docFileUrl String     // S3 / Cloudinary URL
-
-  status     KycStatus  @default(PENDING)
-  verifiedAt DateTime?
-
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
-
-  @@index([userId])
-  @@unique([userId, docType]) // One document type per user
+  @@index([cartId])
 }
 
-enum KycDocType {
-  AADHAAR
-  PAN
-  PASSPORT
-  DRIVING_LICENSE
+
+
+//////////////////////////////////////////////////////
+// ExpresssRequest
+//////////////////////////////////////////////////////
+model ExpressRequest {
+  id          Int             @id @default(autoincrement())
+  tempEventId Int             @unique
+  planType    ExpressPlanType
+  status      ExpressStatus   @default(PENDING)
+  startedAt   DateTime
+  expiresAt   DateTime
+  expressFee  Int // paise
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  tempEvent TempEvent @relation(fields: [tempEventId], references: [id])
 }
 
-enum KycStatus {
+//////////////////////////////////////////////////////
+// ENUMS
+//////////////////////////////////////////////////////
+enum VendorVerificationStatus {
   PENDING
   VERIFIED
   REJECTED
+  SUSPENDED
+}
+
+enum ServiceType {
+  CATERING
+  DECOR
+  PHOTOGRAPHY
+  MAKEUP
+  DJ
+  MUSIC
+  CAR_RENTAL
+  PRIEST
+  OTHER
+}
+
+enum VendorPricingModel {
+  PER_EVENT
+  PER_PERSON
+  PER_DAY
+  PACKAGE
+}
+
+enum CartStatus {
+  ACTIVE
+  LOCKED
+  COMPLETED
+  CANCELLED
+  EXPIRED
+}
+
+enum ItemType {
+  VENUE
+  VENDOR_SERVICE
+  ADDON
+}
+
+enum PaymentStatus {
+  PENDING // order created, not paid
+  AUTHORIZED // payment authorized
+  SUCCESS // payment captured
+  FAILED // payment failed
+  REFUNDED // refunded
+}
+
+enum PaymentProvider {
+  RAZORPAY
+}
+
+enum ExpressPlanType {
+  FIXED
+  CUSTOMIZED
+}
+
+enum ExpressStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  EXPIRED
+  CANCELLED
 }
 
 
