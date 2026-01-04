@@ -7,14 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-//////////////////////////////////////////////////////
-// USER (TEMP – will be expanded later)
-//////////////////////////////////////////////////////
-model User {
-  id     Int     @id @default(autoincrement())
-  vendor Vendor?
-  Cart   Cart[]
-}
 
 //////////////////////////////////////////////////////
 // VENDOR
@@ -131,20 +123,7 @@ model Payment {
   @@index([cartId])
 }
 
-//////////////////////////////////////////////////////
-// TEMP EVENT (DEV-B TEMPORARY)
-//////////////////////////////////////////////////////
-model TempEvent {
-  id        Int      @id @default(autoincrement())
-  userId    Int
-  eventDate DateTime
-  city      String
-  area      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 
-  expressRequest ExpressRequest?
-}
 
 //////////////////////////////////////////////////////
 // ExpresssRequest
@@ -230,3 +209,5 @@ enum ExpressStatus {
   EXPIRED
   CANCELLED
 }
+
+
