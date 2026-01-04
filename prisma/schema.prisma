@@ -94,7 +94,7 @@ model CartItem {
   venueId         Int?
   vendorServiceId Int?
   addonId         Int?
-
+    
   vendorService VendorService? @relation(fields: [vendorServiceId], references: [id])
 
   date       DateTime?
