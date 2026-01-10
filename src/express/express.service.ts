@@ -53,6 +53,7 @@ export class ExpressService {
     return this.prisma.expressRequest.create({
       data: {
         tempEventId: dto.tempEventId,
+        userId: tempEvent.userId,
         planType: dto.planType,
         status: ExpressStatus.PENDING,
         startedAt: now,
