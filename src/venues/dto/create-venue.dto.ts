@@ -1,48 +1,71 @@
+import { ApiProperty } from '@nestjs/swagger';
 import { IsString, IsEnum, IsOptional, IsNumber } from 'class-validator';
 import { VenueType } from '@prisma/client';
 
 export class CreateVenueDto {
+  @ApiProperty({ example: 'Royal Palace', default: 'My Venue' })
   @IsString()
-  name: string;
+  name: string = 'My Venue';
 
+  @ApiProperty({ enum: VenueType, example: VenueType.BANQUET })
   @IsEnum(VenueType)
   type: VenueType;
 
+  @ApiProperty({ example: 'Luxury wedding venue', default: '' })
   @IsString()
-  description: string;
+  description: string = '';
 
+  @ApiProperty({ example: 'MG Road', default: '' })
   @IsString()
-  address: string;
+  address: string = '';
 
+  @ApiProperty({ example: 'Bangalore', default: 'Unknown City' })
   @IsString()
-  city: string;
+  city: string = 'Unknown City';
 
+  @ApiProperty({ example: 'Indiranagar', default: '' })
   @IsString()
-  area: string;
+  area: string = '';
 
+  @ApiProperty({ example: '560038', default: '000000' })
   @IsString()
-  pincode: string;
+  pincode: string = '000000';
 
+  @ApiProperty({ example: 100, default: 50 })
   @IsNumber()
-  capacityMin: number;
+  capacityMin: number = 50;
 
+  @ApiProperty({ example: 500, default: 200 })
   @IsNumber()
-  capacityMax: number;
+  capacityMax: number = 200;
 
+  @ApiProperty({ example: 50000, default: 0 })
   @IsNumber()
-  basePriceMorning: number;
+  basePriceMorning: number = 0;
 
+  @ApiProperty({ example: 80000, default: 0 })
   @IsNumber()
-  basePriceEvening: number;
+  basePriceEvening: number = 0;
 
+  @ApiProperty({ example: 120000, default: 0 })
   @IsNumber()
-  basePriceFullDay: number;
+  basePriceFullDay: number = 0;
 
+  @ApiProperty({
+    example: 'Parking, AC, Power backup',
+    default: '',
+    required: false,
+  })
   @IsOptional()
   @IsString()
-  amenities?: string;   // ✅ STRING
+  amenities?: string = '';
 
+  @ApiProperty({
+    example: 'No smoking allowed',
+    default: '',
+    required: false,
+  })
   @IsOptional()
   @IsString()
-  policies?: string;
+  policies?: string = '';
 }

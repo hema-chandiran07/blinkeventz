@@ -125,6 +125,10 @@ enum KycStatus {
   VERIFIED
   REJECTED
 }
+enum AuthProvider {
+  LOCAL
+  GOOGLE
+}
 
 enum AIPlanStatus {
   GENERATED
@@ -136,35 +140,33 @@ enum AIPlanStatus {
 //////////////////////////////////////////////////////
 // USER
 //////////////////////////////////////////////////////
-
 model User {
-  id           Int     @id @default(autoincrement())
-  name         String
-  email        String? @unique
-  phone        String? @unique
-  passwordHash String
-  role         Role    @default(CUSTOMER)
-  isActive     Boolean @default(true)
+  id            Int      @id @default(autoincrement())
+  name          String
+  email         String?  @unique
+  phone         String?  @unique
 
-  // Profiles
+  passwordHash  String?     // 👈 make OPTIONAL
+  googleId      String? @unique  
+
+  role          Role     @default(CUSTOMER)
+  isActive      Boolean  @default(true)
+//profiles
   customerProfile CustomerProfile?
   vendor          Vendor?
-
-  // Relations
-  venues   Venue[]
-  bookings Booking[]
-  payments Payment[]
-  aiPlans  AIPlan[]
-  //notifications Notification[]
-  //auditLogs     AuditLog[]
-
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  Cart           Cart[]
-  KycDocument    KycDocument[]
-  TempEvent      TempEvent[]
-  ExpressRequest ExpressRequest[]
+//Relations
+  venues        Venue[]
+  bookings      Booking[]
+  payments      Payment[]
+  Cart          Cart[]
+  KycDocument   KycDocument[]
+  TempEvent     TempEvent[]
+//auditLogs AuditLog[]
+//notifications Nortifications[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
+
 
 model CustomerProfile {
   id     Int  @id @default(autoincrement())

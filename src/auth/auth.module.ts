@@ -1,30 +1,30 @@
 import { Module } from '@nestjs/common';
-import { JwtModule } from '@nestjs/jwt';
-import { PassportModule } from '@nestjs/passport';
-
+import { ConfigModule, ConfigService } from '@nestjs/config'; // 1. Import these
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
-import { JwtStrategy } from './jwt.strategy';
+import { JwtModule } from '@nestjs/jwt';
 import { PrismaModule } from '../prisma/prisma.module';
+import { GoogleStrategy } from './strategies/google.strategy';
 
 @Module({
   imports: [
+    // 2. Add ConfigModule here so GoogleStrategy can find ConfigService
+    ConfigModule, 
+    
     PrismaModule,
-
-    // 🔴 THIS IS REQUIRED
-    PassportModule.register({ defaultStrategy: 'jwt' }),
-
-    JwtModule.register({
-      secret: process.env.JWT_SECRET,
-      signOptions: { expiresIn: '1h' },
+    
+    // 3. Update to registerAsync. This ensures ConfigService is ready before reading the secret.
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: async (configService: ConfigService) => ({
+        secret: configService.get<string>('JWT_SECRET'),
+        signOptions: { expiresIn: '7d' },
+      }),
     }),
   ],
-  providers: [
-    AuthService,
-
-    // 🔴 THIS REGISTERS THE "jwt" STRATEGY
-    JwtStrategy,
-  ],
   controllers: [AuthController],
+  providers: [AuthService, GoogleStrategy],
+  exports: [AuthService, JwtModule], // Good practice to export these
 })
 export class AuthModule {}

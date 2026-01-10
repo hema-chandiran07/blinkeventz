@@ -50,5 +50,9 @@ approveVenue(@Param('id') id: string) {
 getMyVenues(@Req() req: any) {
   return this.venuesService.getVenuesByOwner(req.user.userId);
 }
-
+@UseGuards(JwtAuthGuard)
+@Get('me')
+getProfile(@Req() req) {
+  return req.user;
+}
 }
