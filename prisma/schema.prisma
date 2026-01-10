@@ -126,6 +126,13 @@ enum KycStatus {
   REJECTED
 }
 
+enum AIPlanStatus {
+  GENERATED
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
 //////////////////////////////////////////////////////
 // USER
 //////////////////////////////////////////////////////
@@ -147,14 +154,16 @@ model User {
   venues   Venue[]
   bookings Booking[]
   payments Payment[]
+  aiPlans  AIPlan[]
   //notifications Notification[]
   //auditLogs     AuditLog[]
 
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  Cart        Cart[]
-  KycDocument KycDocument[]
-  TempEvent   TempEvent[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  Cart           Cart[]
+  KycDocument    KycDocument[]
+  TempEvent      TempEvent[]
+  ExpressRequest ExpressRequest[]
 }
 
 model CustomerProfile {
@@ -337,6 +346,33 @@ model CartItem {
 }
 
 //////////////////////////////////////////////////////
+// AI PLAN
+//////////////////////////////////////////////////////
+
+model AIPlan {
+  id          Int  @id @default(autoincrement())
+  userId      Int
+  tempEventId Int?
+
+  budget     Int
+  city       String
+  area       String
+  guestCount Int
+
+  planJson Json
+  status   AIPlanStatus @default(GENERATED)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User       @relation(fields: [userId], references: [id])
+  tempEvent TempEvent? @relation(fields: [tempEventId], references: [id])
+
+  @@index([userId])
+  @@index([tempEventId])
+}
+
+//////////////////////////////////////////////////////
 // PAYMENTS
 //////////////////////////////////////////////////////
 
@@ -366,6 +402,7 @@ model Payment {
 //////////////////////////////////////////////////////
 model ExpressRequest {
   id          Int             @id @default(autoincrement())
+  userId      Int
   tempEventId Int             @unique
   planType    ExpressPlanType
   status      ExpressStatus   @default(PENDING)
@@ -376,6 +413,9 @@ model ExpressRequest {
   updatedAt   DateTime        @updatedAt
 
   tempEvent TempEvent @relation(fields: [tempEventId], references: [id])
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@index([userId])
 }
 
 //////////////////////////////////////////////////////
@@ -419,4 +459,5 @@ model TempEvent {
   updatedAt DateTime @updatedAt
 
   expressRequest ExpressRequest?
+  aiPlans        AIPlan[]
 }
