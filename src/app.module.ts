@@ -1,4 +1,8 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config'; // <--- 1. Import this
+import { ScheduleModule } from '@nestjs/schedule';
+
+// Modules
 import { PrismaModule } from './prisma/prisma.module';
 import { VendorsModule } from './vendors/vendors.module';
 import { AuthModule } from './auth/auth.module';
@@ -11,12 +15,17 @@ import { BookingModule } from './venues/booking/booking.module';
 import { CartModule } from './cart/cart.module';
 import { PaymentsModule } from './payments/payments.module';
 import { ExpressModule } from './express/express.module';
-import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
+    // 2. Add ConfigModule and make it global so AuthModule can use it
+    ConfigModule.forRoot({
+      isGlobal: true, 
+    }),
+    
+    ScheduleModule.forRoot(),
     PrismaModule,
-     AuthModule,
+    AuthModule, // <--- AuthModule handles the strategies and controllers now
     UsersModule,
     VenuesModule,
     AvailabilityModule,
@@ -26,7 +35,10 @@ import { ScheduleModule } from '@nestjs/schedule';
     PaymentsModule,
     ExpressModule,
     TempEventModule,
-    ScheduleModule.forRoot(), 
   ],
+  // 3. REMOVED AuthService, GoogleStrategy, and AuthController from here.
+  // They belong inside 'AuthModule', not here.
+  providers: [], 
+  controllers: [],
 })
 export class AppModule {}

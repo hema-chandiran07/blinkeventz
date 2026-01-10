@@ -77,10 +77,15 @@ export class AuthService {
       throw new BadRequestException('Invalid credentials');
     }
 
-    const isPasswordValid = await bcrypt.compare(
-      dto.password,
-      user.passwordHash,
-    );
+    if (!user.passwordHash) {
+  throw new BadRequestException('Please login using Google');
+}
+
+const isPasswordValid = await bcrypt.compare(
+  dto.password,
+  user.passwordHash,
+);
+
 
     if (!isPasswordValid) {
       throw new BadRequestException('Invalid credentials');
@@ -94,5 +99,46 @@ export class AuthService {
     return {
       accessToken: this.jwtService.sign(payload),
     };
+  }async googleLogin(googleUser: {
+  email: string;
+  name: string;
+  picture: string;
+  sub: string; // This is the Google ID from the strategy
+}) {
+  // 1. Try to find the user by googleId FIRST
+  let user = await this.prisma.user.findUnique({
+    where: { googleId: googleUser.sub },
+  });
+
+  // 2. If not found by googleId, check by email
+  if (!user) {
+    user = await this.prisma.user.findUnique({
+      where: { email: googleUser.email },
+    });
+
+    // 3. If found by email but no googleId linked, link it now
+    if (user) {
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: { googleId: googleUser.sub },
+      });
+    }
   }
+
+  // 4. If still no user, create a new one
+  if (!user) {
+    user = await this.prisma.user.create({
+      data: {
+        email: googleUser.email,
+        name: googleUser.name,
+        googleId: googleUser.sub, // Save the ID here
+        role: Role.CUSTOMER,
+        passwordHash: null,
+      },
+    });
+  }
+
+  const payload = { sub: user.id, role: user.role };
+  return { accessToken: this.jwtService.sign(payload) };
+}
 }

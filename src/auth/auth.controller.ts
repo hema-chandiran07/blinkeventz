@@ -33,4 +33,18 @@ export class AuthController {
   me(@Req() req: any) {
     return req.user;
   }
+  // 🚀 Redirect to Google
+@Get('google')
+@UseGuards(AuthGuard('google'))
+googleAuth() {
+  // redirects to Google
+}
+
+// 🎯 Google callback
+@Get('google/callback')
+@UseGuards(AuthGuard('google'))
+async googleAuthCallback(@Req() req) {
+  return this.authService.googleLogin(req.user);
+}
+
 }
