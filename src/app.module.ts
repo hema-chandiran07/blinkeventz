@@ -15,6 +15,7 @@ import { BookingModule } from './venues/booking/booking.module';
 import { CartModule } from './cart/cart.module';
 import { PaymentsModule } from './payments/payments.module';
 import { ExpressModule } from './express/express.module';
+import { AIPlannerModule } from './ai-planner/ai-planner.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { ExpressModule } from './express/express.module';
     UsersModule,
     VenuesModule,
     AvailabilityModule,
+    AIPlannerModule,
     BookingModule,
     VendorsModule,
     CartModule,
