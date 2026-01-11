@@ -15,7 +15,7 @@ export class AIPlannerService {
     private readonly aiProvider: AIProviderService,
   ) {}
 
-  async createPlan(dto: CreateAIPlanDto) {
+  async createPlan(userId:number, dto: CreateAIPlanDto) {
     if (dto.budget <= 0) {
       throw new BadRequestException('Budget must be greater than zero');
     }
@@ -29,7 +29,7 @@ export class AIPlannerService {
 
     return this.prisma.aIPlan.create({
       data: {
-        userId: dto.userId,
+        userId,
         tempEventId: dto.tempEventId,
         budget: dto.budget,
         city: dto.city,

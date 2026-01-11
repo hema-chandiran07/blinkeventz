@@ -6,10 +6,12 @@ import { CreateVendorServiceDto } from './dto/create-vendor-service.dto';
 export class VendorServicesService {
   constructor(private prisma: PrismaService) {}
 
-  create(dto: CreateVendorServiceDto) {
+  create(userId: number, dto: CreateVendorServiceDto) {
     return this.prisma.vendorService.create({
       data: {
-        vendorId: dto.vendorId,
+        vendor: {
+          connect: { userId }, // 🔥 link vendor via userId
+        },
         name: dto.name,
         serviceType: dto.serviceType,
         pricingModel: dto.pricingModel,
@@ -22,6 +24,8 @@ export class VendorServicesService {
       },
     });
   }
+
+
 
   findByVendor(vendorId: number) {
     return this.prisma.vendorService.findMany({

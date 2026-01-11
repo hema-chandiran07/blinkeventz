@@ -1,8 +1,9 @@
+// src/payments/payments.service.ts
 import { Injectable, BadRequestException } from '@nestjs/common';
 import Razorpay from 'razorpay';
 import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
-import { PaymentProvider, PaymentStatus } from '@prisma/client';
+import { PaymentProvider, PaymentStatus, CartStatus } from '@prisma/client';
 
 @Injectable()
 export class PaymentsService {
@@ -15,11 +16,41 @@ export class PaymentsService {
     });
   }
 
-  // STEP 1: Create Razorpay Order
-  async createOrder(userId: number, cartId: number, amount: number) {
-    // amount must be in paise
+  // =============================
+  // STEP 1: CREATE ORDER
+  // =============================
+  async createOrder(userId: number, cartId: number) {
+    const cart = await this.prisma.cart.findUnique({
+      where: { id: cartId },
+      include: { items: true },
+    });
+
+    if (!cart || cart.userId !== userId) {
+      throw new BadRequestException('Invalid cart');
+    }
+
+    if (cart.status !== CartStatus.ACTIVE) {
+      throw new BadRequestException('Cart is not active');
+    }
+
+    if (cart.items.length === 0) {
+      throw new BadRequestException('Cart is empty');
+    }
+
+    // 💰 Calculate amount securely from DB
+    const amount = cart.items.reduce(
+      (sum, item) => sum + item.totalPrice,
+      0,
+    );
+
+    // 🔒 Lock cart before payment
+    await this.prisma.cart.update({
+      where: { id: cartId },
+      data: { status: CartStatus.LOCKED },
+    });
+
     const order = await this.razorpay.orders.create({
-      amount,
+      amount, // paise
       currency: 'INR',
       receipt: `cart_${cartId}`,
     });
@@ -43,15 +74,33 @@ export class PaymentsService {
     };
   }
 
-  // STEP 2: Confirm Payment
-  async confirmPayment(dto: {
-    cartId: number;
-    razorpayOrderId: string;
-    razorpayPaymentId: string;
-    razorpaySignature: string;
-  }) {
-    const body = `${dto.razorpayOrderId}|${dto.razorpayPaymentId}`;
+  // =============================
+  // STEP 2: CONFIRM PAYMENT
+  // =============================
+  async confirmPayment(
+    userId: number,
+    dto: {
+      cartId: number;
+      razorpayOrderId: string;
+      razorpayPaymentId: string;
+      razorpaySignature: string;
+    },
+  ) {
+    const payment = await this.prisma.payment.findUnique({
+      where: { providerOrderId: dto.razorpayOrderId },
+      include: { cart: true },
+    });
 
+    if (!payment || payment.userId !== userId) {
+      throw new BadRequestException('Payment not found');
+    }
+
+    if (payment.status === PaymentStatus.SUCCESS) {
+      throw new BadRequestException('Payment already completed');
+    }
+
+    // 🔐 Verify signature
+    const body = `${dto.razorpayOrderId}|${dto.razorpayPaymentId}`;
     const expectedSignature = crypto
       .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET!)
       .update(body)
@@ -61,10 +110,9 @@ export class PaymentsService {
       throw new BadRequestException('Invalid payment signature');
     }
 
-    const payment = await this.prisma.payment.update({
-      where: {
-        providerOrderId: dto.razorpayOrderId,
-      },
+    // ✅ Update payment
+    await this.prisma.payment.update({
+      where: { id: payment.id },
       data: {
         providerPaymentId: dto.razorpayPaymentId,
         signature: dto.razorpaySignature,
@@ -72,7 +120,12 @@ export class PaymentsService {
       },
     });
 
-    // IMPORTANT: cart completion will be done by Dev A (Events module)
+    // ✅ Complete cart
+    await this.prisma.cart.update({
+      where: { id: payment.cartId },
+      data: { status: CartStatus.COMPLETED },
+    });
+
     return {
       success: true,
       paymentId: payment.id,

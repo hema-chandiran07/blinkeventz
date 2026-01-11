@@ -1,4 +1,5 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+// src/express/express.service.ts
+import { Injectable, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateExpressDto } from './dto/create-express.dto';
 import { ExpressStatus } from '@prisma/client';
@@ -13,7 +14,7 @@ import { getMinHoursForExpressByArea } from './express.rules';
 export class ExpressService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(dto: CreateExpressDto) {
+  async createForUser(userId: number, dto: CreateExpressDto) {
     const tempEvent = await this.prisma.tempEvent.findUnique({
       where: { id: dto.tempEventId },
       include: { expressRequest: true },
@@ -21,6 +22,11 @@ export class ExpressService {
 
     if (!tempEvent) {
       throw new BadRequestException('Temp event not found');
+    }
+
+    // 🔐 Ownership check
+    if (tempEvent.userId !== userId) {
+      throw new ForbiddenException('Access denied');
     }
 
     if (tempEvent.expressRequest) {
@@ -52,8 +58,8 @@ export class ExpressService {
 
     return this.prisma.expressRequest.create({
       data: {
-        tempEventId: dto.tempEventId,
-        userId: tempEvent.userId,
+        tempEventId: tempEvent.id,
+        userId,
         planType: dto.planType,
         status: ExpressStatus.PENDING,
         startedAt: now,
@@ -65,9 +71,17 @@ export class ExpressService {
     });
   }
 
-  async getByTempEvent(tempEventId: number) {
-    return this.prisma.expressRequest.findUnique({
+  async getByTempEventForUser(userId: number, tempEventId: number) {
+    const express = await this.prisma.expressRequest.findUnique({
       where: { tempEventId },
     });
+
+    if (!express) return null;
+
+    if (express.userId !== userId) {
+      throw new ForbiddenException('Access denied');
+    }
+
+    return express;
   }
 }

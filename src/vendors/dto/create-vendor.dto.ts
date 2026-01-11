@@ -6,9 +6,7 @@ export class CreateVendorDto {
     example: 12,
     description: 'User ID of the vendor (must be an existing user)',
   })
-  @IsInt()
-  @Min(1)
-  userId: number;
+
  @ApiProperty({
     example: 'Royal Catering Services',
     description: 'Vendor business name',

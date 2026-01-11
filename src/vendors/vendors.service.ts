@@ -7,10 +7,10 @@ import { VendorVerificationStatus } from '@prisma/client';
 export class VendorsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async createVendor(dto: CreateVendorDto) {
+  async createVendor(userId:number,dto: CreateVendorDto) {
     return this.prisma.vendor.create({
       data: {
-        userId: dto.userId,
+       userId,
         businessName: dto.businessName,
         description: dto.description,
         city: dto.city,

@@ -1,3 +1,4 @@
+// src/cart/cart.service.ts
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AddCartItemDto } from './dto/add-cart-item.dto';
@@ -16,7 +17,7 @@ export class CartService {
 
     if (!cart) {
       cart = await this.prisma.cart.create({
-        data: { userId },
+        data: { userId, status: CartStatus.ACTIVE },
         include: { items: true },
       });
     }
@@ -24,40 +25,56 @@ export class CartService {
     return cart;
   }
 
-  async addItem(cartId: number, dto: AddCartItemDto): Promise<CartItem> {
-    const totalPrice = dto.unitPrice * dto.quantity;
+  async getActiveCart(userId: number) {
+    return this.prisma.cart.findFirst({
+      where: { userId, status: CartStatus.ACTIVE },
+      include: { items: true },
+    });
+  }
+
+  async addItemForUser(userId: number, dto: AddCartItemDto) {
+    const cart = await this.getOrCreateCart(userId);
+
+    if (cart.status !== CartStatus.ACTIVE) {
+      throw new BadRequestException('Cart is locked');
+    }
 
     return this.prisma.cartItem.create({
       data: {
-        cartId,
+        cartId: cart.id,
         itemType: dto.itemType,
         vendorServiceId: dto.vendorServiceId,
         venueId: dto.venueId,
         addonId: dto.addonId,
         quantity: dto.quantity,
         unitPrice: dto.unitPrice,
-        totalPrice,
+        totalPrice: dto.unitPrice * dto.quantity,
         meta: dto.meta,
       },
     });
   }
 
-  async removeItem(cartItemId: number): Promise<CartItem> {
-    return this.prisma.cartItem.delete({
+  async removeItem(userId: number, cartItemId: number) {
+    const item = await this.prisma.cartItem.findUnique({
       where: { id: cartItemId },
+      include: { cart: true },
     });
+
+    if (!item || item.cart.userId !== userId) {
+      throw new BadRequestException('Unauthorized');
+    }
+
+    if (item.cart.status !== CartStatus.ACTIVE) {
+      throw new BadRequestException('Cart is locked');
+    }
+
+    return this.prisma.cartItem.delete({ where: { id: cartItemId } });
   }
 
-  async getCart(cartId: number): Promise<CartWithItems | null> {
-    return this.prisma.cart.findUnique({
-      where: { id: cartId },
-      include: { items: true },
-    });
-  }
-
-  async checkout(cartId: number): Promise<CheckoutResponse> {
-    const cart = await this.prisma.cart.findUnique({
-      where: { id: cartId },
+  async checkoutByUser(userId: number): Promise<CheckoutResponse> {
+    // 🔒 Step 1: Lock cart
+    const cart = await this.prisma.cart.findFirst({
+      where: { userId, status: CartStatus.ACTIVE },
       include: { items: true },
     });
 
@@ -65,13 +82,22 @@ export class CartService {
       throw new BadRequestException('Cart is empty');
     }
 
+    await this.prisma.cart.update({
+      where: { id: cart.id },
+      data: { status: CartStatus.LOCKED },
+    });
+
+    // 🔢 Step 2: Calculate total
     const totalAmount = cart.items.reduce(
-      (sum: number, item: CartItem) => sum + item.totalPrice,
+      (sum, item) => sum + item.totalPrice,
       0,
     );
 
+    // 💳 Step 3: (Later → payment integration)
+
+    // ✅ Step 4: Complete cart
     await this.prisma.cart.update({
-      where: { id: cartId },
+      where: { id: cart.id },
       data: { status: CartStatus.COMPLETED },
     });
 

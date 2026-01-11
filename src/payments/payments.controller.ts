@@ -1,32 +1,49 @@
-import { Controller, Post, Body } from '@nestjs/common';
+// src/payments/payments.controller.ts
+import {
+  Controller,
+  Post,
+  Body,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { ApiTags } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import type { AuthRequest } from '../auth/auth-request.interface';
 
 @ApiTags('Payments')
-@Controller('payments') // 👈 this is important
+@UseGuards(JwtAuthGuard)
+@Controller('payments')
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
+  // ✅ Create payment order for logged-in user
   @Post('create-order')
-  async createOrder(@Body() body: {
-    userId: number;
-    cartId: number;
-    amount: number;
-  }) {
+  createOrder(
+    @Req() req: AuthRequest,
+    @Body() body: { cartId: number },
+  ) {
     return this.paymentsService.createOrder(
-      body.userId,
+      req.user.userId,
       body.cartId,
-      body.amount,
     );
   }
 
+  // ✅ Confirm payment
   @Post('confirm')
-  async confirm(@Body() body: {
-    cartId: number;
-    razorpayOrderId: string;
-    razorpayPaymentId: string;
-    razorpaySignature: string;
-  }) {
-    return this.paymentsService.confirmPayment(body);
+  confirm(
+    @Req() req: AuthRequest,
+    @Body()
+    body: {
+      cartId: number;
+      razorpayOrderId: string;
+      razorpayPaymentId: string;
+      razorpaySignature: string;
+    },
+  ) {
+    return this.paymentsService.confirmPayment(
+      req.user.userId,
+      body,
+    );
   }
 }

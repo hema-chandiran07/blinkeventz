@@ -1,35 +1,53 @@
-import { Controller, Post, Get, Delete, Param, Body } from '@nestjs/common';
+// src/cart/cart.controller.ts
+import {
+  Controller,
+  Post,
+  Get,
+  Delete,
+  Param,
+  Body,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { CartService } from './cart.service';
 import { AddCartItemDto } from './dto/add-cart-item.dto';
 import { ApiTags } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import type { AuthRequest } from '../auth/auth-request.interface';
 
 @ApiTags('Cart')
+@UseGuards(JwtAuthGuard)
 @Controller('cart')
 export class CartController {
   constructor(private readonly cartService: CartService) {}
 
-  @Post(':userId')
-  getOrCreate(@Param('userId') userId: string) {
-    return this.cartService.getOrCreateCart(+userId);
+  // ✅ Get or create cart for logged-in user
+  @Post()
+  getOrCreate(@Req() req: AuthRequest) {
+    return this.cartService.getOrCreateCart(req.user.userId);
   }
 
-  @Post(':cartId/items')
-  addItem(@Param('cartId') cartId: string, @Body() dto: AddCartItemDto) {
-    return this.cartService.addItem(+cartId, dto);
+  @Post('items')
+  addItem(@Req() req: AuthRequest, @Body() dto: AddCartItemDto) {
+    return this.cartService.addItemForUser(req.user.userId, dto);
   }
 
-  @Delete('items/:cartItemId')
-  removeItem(@Param('cartItemId') cartItemId: string) {
-    return this.cartService.removeItem(+cartItemId);
+@Delete('items/:cartItemId')
+removeItem(
+  @Req() req: AuthRequest,
+  @Param('cartItemId') cartItemId: string,
+) {
+  return this.cartService.removeItem(req.user.userId, +cartItemId);
+}
+
+
+  @Get()
+  getMyCart(@Req() req: AuthRequest) {
+    return this.cartService.getActiveCart(req.user.userId);
   }
 
-  @Get(':cartId')
-  getCart(@Param('cartId') cartId: string) {
-    return this.cartService.getCart(+cartId);
-  }
-
-  @Post(':cartId/checkout')
-  checkout(@Param('cartId') cartId: string) {
-    return this.cartService.checkout(+cartId);
+  @Post('checkout')
+  checkout(@Req() req: AuthRequest) {
+    return this.cartService.checkoutByUser(req.user.userId);
   }
 }
