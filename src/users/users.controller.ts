@@ -3,9 +3,9 @@ import { Role } from '../common/enums/role.enum';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Controller, Get, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import{ApiTags} from '@nestjs/swagger';
+import{ApiBearerAuth, ApiTags} from '@nestjs/swagger';
 @ApiTags('USER')
-
+@ApiBearerAuth()
 @Controller('user')
 export class UsersController {
 

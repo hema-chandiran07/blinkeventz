@@ -3,7 +3,9 @@ import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { AuthGuard } from '@nestjs/passport';
-import{ApiTags} from '@nestjs/swagger';
+import{ApiBearerAuth,ApiTags} from '@nestjs/swagger';
+import type { AuthRequest } from './auth-request.interface';
+import { JwtAuthGuard } from './jwt-auth.guard';
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
@@ -28,9 +30,10 @@ export class AuthController {
   }
 
   // 👤 Logged-in user info
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Get('me')
-  me(@Req() req: any) {
+  me(@Req() req: AuthRequest) {
     return req.user;
   }
   // 🚀 Redirect to Google

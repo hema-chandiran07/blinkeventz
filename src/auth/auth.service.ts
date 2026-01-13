@@ -93,45 +93,43 @@ const isPasswordValid = await bcrypt.compare(
 
     const payload = {
       sub: user.id,
+      email: user.email,
       role: user.role,
     };
 
     return {
       accessToken: this.jwtService.sign(payload),
     };
-  }async googleLogin(googleUser: {
+  }
+  async googleLogin(googleUser: {
+  googleId: string;
   email: string;
   name: string;
-  picture: string;
-  sub: string; // This is the Google ID from the strategy
+  picture?: string;
 }) {
-  // 1. Try to find the user by googleId FIRST
   let user = await this.prisma.user.findUnique({
-    where: { googleId: googleUser.sub },
+    where: { googleId: googleUser.googleId },
   });
 
-  // 2. If not found by googleId, check by email
   if (!user) {
     user = await this.prisma.user.findUnique({
       where: { email: googleUser.email },
     });
 
-    // 3. If found by email but no googleId linked, link it now
-    if (user) {
+    if (user && !user.googleId) {
       user = await this.prisma.user.update({
         where: { id: user.id },
-        data: { googleId: googleUser.sub },
+        data: { googleId: googleUser.googleId },
       });
     }
   }
 
-  // 4. If still no user, create a new one
   if (!user) {
     user = await this.prisma.user.create({
       data: {
         email: googleUser.email,
         name: googleUser.name,
-        googleId: googleUser.sub, // Save the ID here
+        googleId: googleUser.googleId,
         role: Role.CUSTOMER,
         passwordHash: null,
       },
@@ -139,6 +137,9 @@ const isPasswordValid = await bcrypt.compare(
   }
 
   const payload = { sub: user.id, role: user.role };
-  return { accessToken: this.jwtService.sign(payload) };
+
+  return {
+    accessToken: this.jwtService.sign(payload),
+  };
 }
 }

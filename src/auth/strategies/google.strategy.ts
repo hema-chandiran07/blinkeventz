@@ -1,39 +1,38 @@
 import { PassportStrategy } from '@nestjs/passport';
-import { Strategy, VerifyCallback } from 'passport-google-oauth20';
-import { Injectable } from '@nestjs/common';
+import { Strategy, Profile } from 'passport-google-oauth20';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
-  constructor(private configService: ConfigService) {
+  constructor(private readonly config: ConfigService) {
     super({
-      clientID: configService.get<string>('GOOGLE_CLIENT_ID')!,
-      clientSecret: configService.get<string>('GOOGLE_CLIENT_SECRET')!,
-      callbackURL: configService.get<string>('GOOGLE_CALLBACK_URL')!,
+      clientID: config.get<string>('GOOGLE_CLIENT_ID')!,
+      clientSecret: config.get<string>('GOOGLE_CLIENT_SECRET')!,
+      callbackURL: config.get<string>('GOOGLE_CALLBACK_URL')!,
       scope: ['email', 'profile'],
+      passReqToCallback: true, // ✅ REQUIRED (important)
     });
   }
 
   async validate(
+    req: any,               // ✅ REQUIRED when passReqToCallback = true
     accessToken: string,
     refreshToken: string,
-    profile: any,
-    done: VerifyCallback,
+    profile: Profile,
+    done: Function,
   ) {
     const email = profile.emails?.[0]?.value;
-    const firstName = profile.name?.givenName;
-    const lastName = profile.name?.familyName;
-    const picture = profile.photos?.[0]?.value;
 
     if (!email) {
-     return done(new Error('No email from Google'), false);
-
+      return done(new UnauthorizedException('Google account has no email'), false);
     }
 
     const user = {
       email,
-      name: `${firstName ?? ''} ${lastName ?? ''}`.trim(),
-      picture,
+      name: profile.displayName,
+      picture: profile.photos?.[0]?.value,
+      googleId: profile.id,
     };
 
     done(null, user);
