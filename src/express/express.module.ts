@@ -2,11 +2,14 @@ import { Module } from '@nestjs/common';
 import { ExpressService } from './express.service';
 import { ExpressController } from './express.controller';
 import { PrismaModule } from '../prisma/prisma.module';
-import { TempEventModule } from '../temp-event/temp-event.module';
+import { EventsModule } from '../events/events.module';
 import { ExpressCron } from './express.cron';
 
 @Module({
-  imports: [PrismaModule, TempEventModule],
+  imports: [
+    PrismaModule,
+    EventsModule, // ✅ REAL events, not temp
+  ],
   controllers: [ExpressController],
   providers: [ExpressService, ExpressCron],
 })

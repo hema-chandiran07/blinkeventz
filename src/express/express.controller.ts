@@ -25,9 +25,9 @@ export class ExpressController {
     return this.service.createForUser(req.user.userId, dto);
   }
 
-  @Get('temp-event/:id')
-  getByTempEvent(@Req() req: AuthRequest, @Param('id') id: string) {
-    return this.service.getByTempEventForUser(
+  @Get('event/:id')
+  getByEvent(@Req() req: AuthRequest, @Param('id') id: string) {
+    return this.service.getByEventForUser(
       req.user.userId,
       +id,
     );

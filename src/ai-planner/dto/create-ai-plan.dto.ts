@@ -26,5 +26,5 @@ export class CreateAIPlanDto {
 
   @IsOptional()
   @IsInt()
-  tempEventId?: number;
+  eventId?: number;
 }

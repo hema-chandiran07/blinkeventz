@@ -15,35 +15,38 @@ export class ExpressService {
   constructor(private readonly prisma: PrismaService) {}
 
   async createForUser(userId: number, dto: CreateExpressDto) {
-    const tempEvent = await this.prisma.tempEvent.findUnique({
-      where: { id: dto.tempEventId },
+    const Event = await this.prisma.event.findUnique({
+      where: { id: dto.EventId },
       include: { expressRequest: true },
     });
 
-    if (!tempEvent) {
-      throw new BadRequestException('Temp event not found');
+    if (!Event) {
+      throw new BadRequestException(' event not found');
     }
 
     // 🔐 Ownership check
-    if (tempEvent.userId !== userId) {
+    if (Event.userId !== userId) {
       throw new ForbiddenException('Access denied');
     }
 
-    if (tempEvent.expressRequest) {
+    if (Event.expressRequest) {
       throw new BadRequestException('Express already created');
     }
 
-    if (!tempEvent.eventDate) {
+    if (!Event.date) {
       throw new BadRequestException('Event date missing');
     }
 
     // ⏱ Time validation
     const now = new Date();
-    const eventDate = new Date(tempEvent.eventDate);
+    const eventDate = new Date(Event.date);
     const diffHours =
       (eventDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+if (!Event.area) {
+  throw new BadRequestException('Event area is required for express booking');
+}
 
-    const minHours = getMinHoursForExpressByArea(tempEvent.area);
+    const minHours = getMinHoursForExpressByArea(Event.area);
 
     if (diffHours < minHours) {
       throw new BadRequestException(
@@ -58,7 +61,7 @@ export class ExpressService {
 
     return this.prisma.expressRequest.create({
       data: {
-        tempEventId: tempEvent.id,
+        EventId: Event.id,
         userId,
         planType: dto.planType,
         status: ExpressStatus.PENDING,
@@ -71,9 +74,9 @@ export class ExpressService {
     });
   }
 
-  async getByTempEventForUser(userId: number, tempEventId: number) {
+  async getByEventForUser(userId: number, EventId: number) {
     const express = await this.prisma.expressRequest.findUnique({
-      where: { tempEventId },
+      where: { EventId },
     });
 
     if (!express) return null;

@@ -109,7 +109,7 @@ export class AIPlannerService {
     const plan = await this.prisma.aIPlan.create({
       data: {
         userId,
-        tempEventId: dto.tempEventId,
+        EventId: dto.eventId ?? null,
         budget: dto.budget,
         city: dto.city,
         area: dto.area,
@@ -146,7 +146,7 @@ export class AIPlannerService {
       area: existingPlan.area,
       guestCount: existingPlan.guestCount,
       eventType: 'Regenerated',
-      tempEventId: existingPlan.tempEventId ?? undefined,
+      eventId: existingPlan.EventId ?? undefined,
     });
   }
 
