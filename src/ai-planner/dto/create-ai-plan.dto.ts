@@ -1,16 +1,15 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsInt, IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
+import { IsInt, IsOptional, IsString, Min } from 'class-validator';
 
 export class CreateAIPlanDto {
-  @ApiProperty({ example: 10, required: false })
-  @IsOptional()
-  @IsInt()
-  tempEventId?: number;
-
   @ApiProperty({ example: 500000 })
   @IsInt()
-  @Min(1)
+  @Min(1000)
   budget: number;
+
+  @ApiProperty({ example: 'Wedding' })
+  @IsString()
+  eventType: string;
 
   @ApiProperty({ example: 'Chennai' })
   @IsString()
@@ -24,4 +23,8 @@ export class CreateAIPlanDto {
   @IsInt()
   @Min(1)
   guestCount: number;
+
+  @IsOptional()
+  @IsInt()
+  tempEventId?: number;
 }

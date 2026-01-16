@@ -1,14 +1,14 @@
-// src/ai-planner/ai-planner.module.ts
 import { Module } from '@nestjs/common';
-
 import { AIPlannerController } from './ai-planner.controller';
 import { AIPlannerService } from './ai-planner.service';
-import { AIProviderService } from './ai/ai-provider.service';
+import { OpenAIProvider } from './providers/openai.provider';
 import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [
+    PrismaModule, 
+  ],
   controllers: [AIPlannerController],
-  providers: [AIPlannerService, AIProviderService],
+  providers: [AIPlannerService, OpenAIProvider],
 })
 export class AIPlannerModule {}

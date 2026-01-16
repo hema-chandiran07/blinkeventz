@@ -2,42 +2,46 @@ import {
   Controller,
   Post,
   Body,
-  Param,
-  Req,
   UseGuards,
+  Req,
+  Param,
 } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
-import type { AuthRequest } from '../auth/auth-request.interface';
-
 import { AIPlannerService } from './ai-planner.service';
-import { CreateAIPlanDto } from './dto/create-ai-plan.dto';
-import { AcceptAIPlanDto } from './dto/accept-ai-plan.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CreateAIPlanDto } from './dto/create-ai-plan.dto';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('AI Planner')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('ai-planner')
-@UseGuards(JwtAuthGuard)
 export class AIPlannerController {
-  constructor(private readonly aiPlannerService: AIPlannerService) {}
+  constructor(private service: AIPlannerService) {}
 
-@Post('generate')
-@UseGuards(JwtAuthGuard)
-generate(
-  @Req() req: AuthRequest & { user: { id: number } },
-  @Body() dto: CreateAIPlanDto,
-) {
-  return this.aiPlannerService.generatePlan(dto, req.user.userId);
-}
-  @Post(':id/regenerate')
-  regenerate(@Param('id') id: string) {
-    return this.aiPlannerService.regeneratePlan(+id);
+  // Generate AI Plan
+  @Post('generate')
+  generate(@Req() req, @Body() dto: CreateAIPlanDto) {
+    return this.service.generatePlan(req.user.userId, dto);
   }
 
+  // Regenerate AI Plan
+  @Post(':id/regenerate')
+  regenerate(@Req() req, @Param('id') id: number) {
+    return this.service.regenerate(Number(id), req.user.userId);
+  }
+
+  // 🔥 Match vendors from AI plan
+  @Post(':id/vendors')
+  matchVendors(@Param('id') id: number) {
+    return this.service.matchVendorsFromPlan(Number(id));
+  }
+
+  // 🔥 Accept AI plan & create cart
   @Post(':id/accept')
-  accept(
-    @Param('id') id: string,
-    @Body() dto: AcceptAIPlanDto,
-  ) {
-    return this.aiPlannerService.acceptPlan(+id, dto.accept);
+  acceptPlan(@Req() req, @Param('id') id: number) {
+    return this.service.createCartFromAIPlan(
+      req.user.userId,
+      Number(id),
+    );
   }
 }
