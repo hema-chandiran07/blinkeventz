@@ -66,6 +66,44 @@ export class AuthService {
       userId: user.id,
     };
   }
+  // Vendor Registration
+ async registerVendor(dto: RegisterDto) {
+  const existingUser = await this.prisma.user.findUnique({
+    where: { email: dto.email },
+  });
+
+  if (existingUser) {
+    throw new BadRequestException('Email already exists');
+  }
+
+  const hashedPassword = await bcrypt.hash(dto.password, 10);
+
+  // 1️⃣ Create USER with VENDOR role
+  const user = await this.prisma.user.create({
+    data: {
+      name: dto.name,
+      email: dto.email,
+      passwordHash: hashedPassword,
+      role: Role.VENDOR,
+    },
+  });
+
+  // 2️⃣ Create VENDOR PROFILE (THIS IS CRITICAL)
+  await this.prisma.vendor.create({
+    data: {
+      userId: user.id,
+      businessName: dto.name,
+      city: 'NOT_SET',
+      area: 'NOT_SET',
+    },
+  });
+
+  return {
+    message: 'Vendor registered successfully',
+    userId: user.id,
+  };
+}
+
 
   // 🔐 Login
   async login(dto: LoginDto) {
@@ -135,8 +173,11 @@ const isPasswordValid = await bcrypt.compare(
       },
     });
   }
-
-  const payload = { sub: user.id, role: user.role };
+const payload = {
+  sub: user.id,
+  email: user.email,
+  role: user.role,
+};
 
   return {
     accessToken: this.jwtService.sign(payload),

@@ -4,7 +4,9 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { CacheModule } from '@nestjs/cache-manager';
 import { ThrottlerModule } from '@nestjs/throttler';
 import Redis from 'ioredis';
-
+import { APP_GUARD } from '@nestjs/core';
+import { JwtAuthGuard } from './auth/jwt-auth.guard';
+import { RolesGuard } from './common/guards/roles.guard';
 // Feature Modules (UNCHANGED)
 import { PrismaModule } from './prisma/prisma.module';
 import { VendorsModule } from './vendors/vendors.module';
@@ -94,6 +96,17 @@ import { AIPlannerModule } from './ai-planner/ai-planner.module';
     PaymentsModule,
     ExpressModule,
      EventsModule 
+  ],
+   // 🔐 GLOBAL SECURITY LAYER
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
+    },
   ],
 })
 export class AppModule {}

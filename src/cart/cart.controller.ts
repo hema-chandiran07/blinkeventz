@@ -11,12 +11,16 @@ import {
 } from '@nestjs/common';
 import { CartService } from './cart.service';
 import { AddCartItemDto } from './dto/add-cart-item.dto';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth,ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { AuthRequest } from '../auth/auth-request.interface';
-
+import { Roles } from '../common/decorators/roles.decorator';
+import { Role } from '../common/enums/role.enum';
+import { RolesGuard } from '../common/guards/roles.guard';
+@ApiBearerAuth() 
 @ApiTags('Cart')
-@UseGuards(JwtAuthGuard)
+@Roles(Role.CUSTOMER)
+@UseGuards(JwtAuthGuard,RolesGuard)
 @Controller('cart')
 export class CartController {
   constructor(private readonly cartService: CartService) {}

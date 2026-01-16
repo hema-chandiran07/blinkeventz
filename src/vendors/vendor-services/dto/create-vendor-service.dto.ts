@@ -3,9 +3,6 @@ import { IsEnum, IsInt, IsOptional, IsString } from 'class-validator';
 import { ServiceType, VendorPricingModel } from '@prisma/client';
 
 export class CreateVendorServiceDto {
-  @ApiProperty({ example: 1 })
-  @IsInt()
-  vendorId: number;
   @ApiProperty({ example: 'Wedding Photography' })
   @IsString()
   name: string;
