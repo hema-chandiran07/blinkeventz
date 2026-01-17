@@ -159,6 +159,53 @@ enum EventServiceStatus {
   CANCELLED
 }
 
+enum NotificationType {
+  BOOKING_CONFIRMED
+  BOOKING_CANCELLED
+  PAYMENT_SUCCESS
+  PAYMENT_FAILED
+  VENDOR_APPROVED
+  VENDOR_REJECTED
+  VENUE_APPROVED
+  VENUE_REJECTED
+  SERVICE_APPROVED
+  SERVICE_REJECTED
+  EVENT_REMINDER
+  EVENT_CANCELLED
+  SYSTEM_ALERT
+  OTHER
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+  SMS
+  WHATSAPP
+  PUSH
+}
+
+enum NotificationStatus {
+  PENDING // created, not processed
+  PROCESSING // picked by queue
+  SENT // at least one delivery sent
+  PARTIAL // some channels failed
+  FAILED // all channels failed
+}
+
+enum DeliveryStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
+}
+
+enum NotificationPriority {
+  LOW
+  NORMAL
+  HIGH
+  CRITICAL
+}
+
 //////////////////////////////////////////////////////
 // USER
 //////////////////////////////////////////////////////
@@ -171,26 +218,27 @@ model User {
   passwordHash String? // 👈 make OPTIONAL
   googleId     String? @unique
 
-  role            Role             @default(CUSTOMER)
-  isActive        Boolean          @default(true)
+  role                    Role                     @default(CUSTOMER)
+  isActive                Boolean                  @default(true)
   //profiles
-  customerProfile CustomerProfile?
-  vendor          Vendor?
+  customerProfile         CustomerProfile?
+  vendor                  Vendor?
   //Relations
-  customerEvents  Event[]          @relation("CustomerEvents")
-  managedEvents   Event[]          @relation("ManagedEvents")
-  venues          Venue[]
-  bookings        Booking[]
-  payments        Payment[]
-  Cart            Cart[]
-  KycDocument     KycDocument[]
-  Event           Event[]
+  customerEvents          Event[]                  @relation("CustomerEvents")
+  managedEvents           Event[]                  @relation("ManagedEvents")
+  venues                  Venue[]
+  bookings                Booking[]
+  payments                Payment[]
+  Cart                    Cart[]
+  KycDocument             KycDocument[]
+  Event                   Event[]
   //auditLogs AuditLog[]
-  //notifications Nortifications[]
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  AIPlan          AIPlan[]
-  ExpressRequest  ExpressRequest[]
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+  AIPlan                  AIPlan[]
+  ExpressRequest          ExpressRequest[]
+  notifications           Notification[]
+  notificationPreferences NotificationPreference[]
 }
 
 model CustomerProfile {
@@ -508,9 +556,9 @@ model Event {
   tax         Int @default(0)
   totalAmount Int
 
-  services EventService[]
-  payments Payment[]
-  //notifications      Notification[]
+  services      EventService[]
+  payments      Payment[]
+  notifications Notification[]
   //auditLogs          AuditLog[]
 
   createdAt DateTime @default(now())
@@ -543,4 +591,79 @@ model EventService {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+//////////////////////////////////////////////////////
+// Notifications
+//////////////////////////////////////////////////////
+
+model Notification {
+  id     Int  @id @default(autoincrement())
+  userId Int
+  user   User @relation(fields: [userId], references: [id])
+
+  eventId Int?
+  event   Event? @relation(fields: [eventId], references: [id])
+
+  type     NotificationType
+  priority NotificationPriority @default(NORMAL)
+
+  title    String
+  message  String
+  metadata Json?
+
+  read   Boolean   @default(false)
+  readAt DateTime?
+
+  status NotificationStatus @default(PENDING)
+
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  deletedAt            DateTime?
+  NotificationDelivery NotificationDelivery[]
+
+  @@index([userId, read])
+  @@index([type])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model NotificationDelivery {
+  id Int @id @default(autoincrement())
+
+  notificationId Int
+  notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  channel  NotificationChannel
+  provider String? // SendGrid, Twilio, Firebase, etc
+
+  status      DeliveryStatus @default(PENDING)
+  attempts    Int            @default(0)
+  maxAttempts Int            @default(3)
+
+  providerRef  String?
+  errorMessage String?
+
+  sentAt      DateTime?
+  deliveredAt DateTime?
+  failedAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([channel, status])
+}
+
+model NotificationPreference {
+  id Int @id @default(autoincrement())
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id])
+
+  type    NotificationType
+  channel NotificationChannel
+
+  enabled Boolean @default(true)
+
+  @@unique([userId, type, channel])
 }

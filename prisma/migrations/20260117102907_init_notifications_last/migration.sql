@@ -46,13 +46,44 @@ CREATE TYPE "KycDocType" AS ENUM ('AADHAAR', 'PAN', 'PASSPORT', 'DRIVING_LICENSE
 -- CreateEnum
 CREATE TYPE "KycStatus" AS ENUM ('PENDING', 'VERIFIED', 'REJECTED');
 
+-- CreateEnum
+CREATE TYPE "AuthProvider" AS ENUM ('LOCAL', 'GOOGLE');
+
+-- CreateEnum
+CREATE TYPE "AIPlanStatus" AS ENUM ('GENERATED', 'ACCEPTED', 'REJECTED', 'EXPIRED');
+
+-- CreateEnum
+CREATE TYPE "EventStatus" AS ENUM ('INQUIRY', 'PENDING_PAYMENT', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED');
+
+-- CreateEnum
+CREATE TYPE "ItemTypeForEvent" AS ENUM ('VENUE', 'VENDOR_SERVICE', 'ADDON');
+
+-- CreateEnum
+CREATE TYPE "EventServiceStatus" AS ENUM ('PENDING', 'CONFIRMED', 'CANCELLED');
+
+-- CreateEnum
+CREATE TYPE "NotificationType" AS ENUM ('BOOKING_CONFIRMED', 'BOOKING_CANCELLED', 'PAYMENT_SUCCESS', 'PAYMENT_FAILED', 'VENDOR_APPROVED', 'VENDOR_REJECTED', 'VENUE_APPROVED', 'VENUE_REJECTED', 'SERVICE_APPROVED', 'SERVICE_REJECTED', 'EVENT_REMINDER', 'EVENT_CANCELLED', 'SYSTEM_ALERT', 'OTHER');
+
+-- CreateEnum
+CREATE TYPE "NotificationChannel" AS ENUM ('IN_APP', 'EMAIL', 'SMS', 'WHATSAPP', 'PUSH');
+
+-- CreateEnum
+CREATE TYPE "NotificationStatus" AS ENUM ('PENDING', 'PROCESSING', 'SENT', 'PARTIAL', 'FAILED');
+
+-- CreateEnum
+CREATE TYPE "DeliveryStatus" AS ENUM ('PENDING', 'SENT', 'DELIVERED', 'FAILED');
+
+-- CreateEnum
+CREATE TYPE "NotificationPriority" AS ENUM ('LOW', 'NORMAL', 'HIGH', 'CRITICAL');
+
 -- CreateTable
 CREATE TABLE "User" (
     "id" SERIAL NOT NULL,
     "name" TEXT NOT NULL,
     "email" TEXT,
     "phone" TEXT,
-    "passwordHash" TEXT NOT NULL,
+    "passwordHash" TEXT,
+    "googleId" TEXT,
     "role" "Role" NOT NULL DEFAULT 'CUSTOMER',
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -199,6 +230,23 @@ CREATE TABLE "CartItem" (
 );
 
 -- CreateTable
+CREATE TABLE "AIPlan" (
+    "id" SERIAL NOT NULL,
+    "userId" INTEGER NOT NULL,
+    "EventId" INTEGER,
+    "budget" INTEGER NOT NULL,
+    "city" TEXT NOT NULL,
+    "area" TEXT NOT NULL,
+    "guestCount" INTEGER NOT NULL,
+    "planJson" JSONB NOT NULL,
+    "status" "AIPlanStatus" NOT NULL DEFAULT 'GENERATED',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "AIPlan_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "Payment" (
     "id" SERIAL NOT NULL,
     "userId" INTEGER NOT NULL,
@@ -212,6 +260,7 @@ CREATE TABLE "Payment" (
     "status" "PaymentStatus" NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "eventId" INTEGER,
 
     CONSTRAINT "Payment_pkey" PRIMARY KEY ("id")
 );
@@ -219,7 +268,8 @@ CREATE TABLE "Payment" (
 -- CreateTable
 CREATE TABLE "ExpressRequest" (
     "id" SERIAL NOT NULL,
-    "tempEventId" INTEGER NOT NULL,
+    "userId" INTEGER NOT NULL,
+    "EventId" INTEGER NOT NULL,
     "planType" "ExpressPlanType" NOT NULL,
     "status" "ExpressStatus" NOT NULL DEFAULT 'PENDING',
     "startedAt" TIMESTAMP(3) NOT NULL,
@@ -247,16 +297,99 @@ CREATE TABLE "KycDocument" (
 );
 
 -- CreateTable
-CREATE TABLE "TempEvent" (
+CREATE TABLE "Event" (
     "id" SERIAL NOT NULL,
-    "userId" INTEGER NOT NULL,
-    "eventDate" TIMESTAMP(3),
+    "customerId" INTEGER NOT NULL,
+    "assignedManagerId" INTEGER,
+    "eventType" TEXT NOT NULL,
+    "title" TEXT,
+    "date" TIMESTAMP(3) NOT NULL,
+    "timeSlot" TEXT NOT NULL,
     "city" TEXT NOT NULL,
-    "area" TEXT NOT NULL,
+    "area" TEXT,
+    "venueId" INTEGER,
+    "guestCount" INTEGER NOT NULL,
+    "status" "EventStatus" NOT NULL DEFAULT 'CONFIRMED',
+    "isExpress" BOOLEAN NOT NULL DEFAULT false,
+    "subtotal" INTEGER NOT NULL,
+    "discount" INTEGER NOT NULL DEFAULT 0,
+    "platformFee" INTEGER NOT NULL DEFAULT 0,
+    "tax" INTEGER NOT NULL DEFAULT 0,
+    "totalAmount" INTEGER NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "userId" INTEGER,
+
+    CONSTRAINT "Event_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "EventService" (
+    "id" SERIAL NOT NULL,
+    "eventId" INTEGER NOT NULL,
+    "itemType" "ItemTypeForEvent" NOT NULL,
+    "venueId" INTEGER,
+    "vendorServiceId" INTEGER,
+    "addonId" INTEGER,
+    "serviceType" "ServiceType",
+    "finalPrice" INTEGER NOT NULL,
+    "notes" TEXT,
+    "status" "EventServiceStatus" NOT NULL DEFAULT 'CONFIRMED',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "TempEvent_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "EventService_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Notification" (
+    "id" SERIAL NOT NULL,
+    "userId" INTEGER NOT NULL,
+    "eventId" INTEGER,
+    "type" "NotificationType" NOT NULL,
+    "priority" "NotificationPriority" NOT NULL DEFAULT 'NORMAL',
+    "title" TEXT NOT NULL,
+    "message" TEXT NOT NULL,
+    "metadata" JSONB,
+    "read" BOOLEAN NOT NULL DEFAULT false,
+    "readAt" TIMESTAMP(3),
+    "status" "NotificationStatus" NOT NULL DEFAULT 'PENDING',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "deletedAt" TIMESTAMP(3),
+
+    CONSTRAINT "Notification_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "NotificationDelivery" (
+    "id" SERIAL NOT NULL,
+    "notificationId" INTEGER NOT NULL,
+    "channel" "NotificationChannel" NOT NULL,
+    "provider" TEXT,
+    "status" "DeliveryStatus" NOT NULL DEFAULT 'PENDING',
+    "attempts" INTEGER NOT NULL DEFAULT 0,
+    "maxAttempts" INTEGER NOT NULL DEFAULT 3,
+    "providerRef" TEXT,
+    "errorMessage" TEXT,
+    "sentAt" TIMESTAMP(3),
+    "deliveredAt" TIMESTAMP(3),
+    "failedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "NotificationDelivery_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "NotificationPreference" (
+    "id" SERIAL NOT NULL,
+    "userId" INTEGER NOT NULL,
+    "type" "NotificationType" NOT NULL,
+    "channel" "NotificationChannel" NOT NULL,
+    "enabled" BOOLEAN NOT NULL DEFAULT true,
+
+    CONSTRAINT "NotificationPreference_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -264,6 +397,9 @@ CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "User_phone_key" ON "User"("phone");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "User_googleId_key" ON "User"("googleId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "CustomerProfile_userId_key" ON "CustomerProfile"("userId");
@@ -284,19 +420,46 @@ CREATE INDEX "CartItem_cartId_idx" ON "CartItem"("cartId");
 CREATE INDEX "CartItem_vendorServiceId_idx" ON "CartItem"("vendorServiceId");
 
 -- CreateIndex
+CREATE INDEX "AIPlan_userId_idx" ON "AIPlan"("userId");
+
+-- CreateIndex
+CREATE INDEX "AIPlan_EventId_idx" ON "AIPlan"("EventId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Payment_providerOrderId_key" ON "Payment"("providerOrderId");
 
 -- CreateIndex
 CREATE INDEX "Payment_cartId_idx" ON "Payment"("cartId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "ExpressRequest_tempEventId_key" ON "ExpressRequest"("tempEventId");
+CREATE UNIQUE INDEX "ExpressRequest_EventId_key" ON "ExpressRequest"("EventId");
+
+-- CreateIndex
+CREATE INDEX "ExpressRequest_userId_idx" ON "ExpressRequest"("userId");
 
 -- CreateIndex
 CREATE INDEX "KycDocument_userId_idx" ON "KycDocument"("userId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "KycDocument_userId_docType_key" ON "KycDocument"("userId", "docType");
+
+-- CreateIndex
+CREATE INDEX "Notification_userId_read_idx" ON "Notification"("userId", "read");
+
+-- CreateIndex
+CREATE INDEX "Notification_type_idx" ON "Notification"("type");
+
+-- CreateIndex
+CREATE INDEX "Notification_status_idx" ON "Notification"("status");
+
+-- CreateIndex
+CREATE INDEX "Notification_createdAt_idx" ON "Notification"("createdAt");
+
+-- CreateIndex
+CREATE INDEX "NotificationDelivery_channel_status_idx" ON "NotificationDelivery"("channel", "status");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "NotificationPreference_userId_type_channel_key" ON "NotificationPreference"("userId", "type", "channel");
 
 -- AddForeignKey
 ALTER TABLE "CustomerProfile" ADD CONSTRAINT "CustomerProfile_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -332,16 +495,58 @@ ALTER TABLE "CartItem" ADD CONSTRAINT "CartItem_cartId_fkey" FOREIGN KEY ("cartI
 ALTER TABLE "CartItem" ADD CONSTRAINT "CartItem_vendorServiceId_fkey" FOREIGN KEY ("vendorServiceId") REFERENCES "VendorService"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "AIPlan" ADD CONSTRAINT "AIPlan_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AIPlan" ADD CONSTRAINT "AIPlan_EventId_fkey" FOREIGN KEY ("EventId") REFERENCES "Event"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "Payment" ADD CONSTRAINT "Payment_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Payment" ADD CONSTRAINT "Payment_cartId_fkey" FOREIGN KEY ("cartId") REFERENCES "Cart"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "ExpressRequest" ADD CONSTRAINT "ExpressRequest_tempEventId_fkey" FOREIGN KEY ("tempEventId") REFERENCES "TempEvent"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Payment" ADD CONSTRAINT "Payment_eventId_fkey" FOREIGN KEY ("eventId") REFERENCES "Event"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ExpressRequest" ADD CONSTRAINT "ExpressRequest_EventId_fkey" FOREIGN KEY ("EventId") REFERENCES "Event"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ExpressRequest" ADD CONSTRAINT "ExpressRequest_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "KycDocument" ADD CONSTRAINT "KycDocument_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "TempEvent" ADD CONSTRAINT "TempEvent_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Event" ADD CONSTRAINT "Event_customerId_fkey" FOREIGN KEY ("customerId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Event" ADD CONSTRAINT "Event_assignedManagerId_fkey" FOREIGN KEY ("assignedManagerId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Event" ADD CONSTRAINT "Event_venueId_fkey" FOREIGN KEY ("venueId") REFERENCES "Venue"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Event" ADD CONSTRAINT "Event_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "EventService" ADD CONSTRAINT "EventService_eventId_fkey" FOREIGN KEY ("eventId") REFERENCES "Event"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "EventService" ADD CONSTRAINT "EventService_venueId_fkey" FOREIGN KEY ("venueId") REFERENCES "Venue"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "EventService" ADD CONSTRAINT "EventService_vendorServiceId_fkey" FOREIGN KEY ("vendorServiceId") REFERENCES "VendorService"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Notification" ADD CONSTRAINT "Notification_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Notification" ADD CONSTRAINT "Notification_eventId_fkey" FOREIGN KEY ("eventId") REFERENCES "Event"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "NotificationDelivery" ADD CONSTRAINT "NotificationDelivery_notificationId_fkey" FOREIGN KEY ("notificationId") REFERENCES "Notification"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "NotificationPreference" ADD CONSTRAINT "NotificationPreference_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

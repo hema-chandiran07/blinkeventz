@@ -7,6 +7,7 @@ import Redis from 'ioredis';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
+import { BullModule } from '@nestjs/bullmq';
 // Feature Modules (UNCHANGED)
 import { PrismaModule } from './prisma/prisma.module';
 import { VendorsModule } from './vendors/vendors.module';
@@ -20,6 +21,7 @@ import { CartModule } from './cart/cart.module';
 import { PaymentsModule } from './payments/payments.module';
 import { ExpressModule } from './express/express.module';
 import { AIPlannerModule } from './ai-planner/ai-planner.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -75,6 +77,13 @@ import { AIPlannerModule } from './ai-planner/ai-planner.module';
         };
       },
     }),
+      // 🐂 BULLMQ (GLOBAL REDIS CONNECTION)
+    BullModule.forRoot({
+      connection: {
+        host: process.env.REDIS_HOST || 'redis',
+        port: Number(process.env.REDIS_PORT) || 6379,
+      },
+    }),
 
     // =====================================================
     // 4️⃣ SCHEDULER
@@ -95,7 +104,8 @@ import { AIPlannerModule } from './ai-planner/ai-planner.module';
     CartModule,
     PaymentsModule,
     ExpressModule,
-     EventsModule 
+     EventsModule,
+     NotificationsModule 
   ],
    // 🔐 GLOBAL SECURITY LAYER
   providers: [
