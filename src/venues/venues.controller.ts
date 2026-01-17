@@ -14,9 +14,9 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { Role } from '../common/enums/role.enum';
 import { VenuesService } from './venues.service';
 import { CreateVenueDto } from './dto/create-venue.dto';
-import{ApiTags} from '@nestjs/swagger';
+import{ApiBearerAuth,ApiTags} from '@nestjs/swagger';
 @ApiTags('Venues')
-
+@ApiBearerAuth() 
 @Controller('venues')
 export class VenuesController {
   constructor(private readonly venuesService: VenuesService) {}

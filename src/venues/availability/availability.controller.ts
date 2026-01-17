@@ -11,9 +11,9 @@ import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '../../common/enums/role.enum';
-import{ApiTags} from '@nestjs/swagger';
+import{ApiBearerAuth,ApiTags} from '@nestjs/swagger';
 @ApiTags('availability')
-
+@ApiBearerAuth()
 @Controller('availability')
 export class AvailabilityController {
   constructor(private availabilityService: AvailabilityService) {}
