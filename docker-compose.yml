@@ -5,7 +5,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 2006
+      POSTGRES_PASSWORD: 21025
       POSTGRES_DB: blinkeventz
     ports:
       - "5432:5432"
