@@ -1,4 +1,10 @@
-import { IsBoolean, IsNotEmpty, IsString, Length } from 'class-validator';
+import {
+  IsBoolean,
+  IsNotEmpty,
+  IsString,
+  Length,
+  Matches,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class AddBankAccountDto {
@@ -7,14 +13,23 @@ export class AddBankAccountDto {
   @IsNotEmpty()
   accountHolder: string;
 
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Bank account number (digits only)',
+  })
   @IsString()
   @Length(9, 18)
+  @Matches(/^\d+$/, {
+    message: 'Account number must contain only digits',
+  })
   accountNumber: string;
 
-  @ApiProperty()
+  @ApiProperty({
+    description: 'IFSC code (e.g. SBIN0001234)',
+  })
   @IsString()
-  @Length(11, 11)
+  @Matches(/^[A-Z]{4}0[A-Z0-9]{6}$/, {
+    message: 'Invalid IFSC code format',
+  })
   ifsc: string;
 
   @ApiProperty()

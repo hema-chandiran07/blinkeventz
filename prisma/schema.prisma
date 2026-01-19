@@ -505,10 +505,10 @@ model ExpressRequest {
 model KycDocument {
   id     Int  @id @default(autoincrement())
   userId Int
-  user   User @relation(fields: [userId], references: [id])
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   docType    KycDocType
-  docNumber  String // 🔐 encrypted at app layer
+  docNumber  String
   docFileUrl String
 
   status     KycStatus @default(PENDING)
@@ -518,8 +518,9 @@ model KycDocument {
   updatedAt DateTime @updatedAt
 
   @@index([userId])
+  @@index([status])
+  @@unique([userId, status], map: "one_active_kyc_per_user")
 }
-
 model BankAccount {
   id     Int  @id @default(autoincrement())
   userId Int
@@ -538,7 +539,18 @@ model BankAccount {
   updatedAt DateTime @updatedAt
 
   @@index([userId])
+  @@index([isVerified])
 }
+model BankWebhookLog {
+  id          Int      @id @default(autoincrement())
+  referenceId String
+  payload     Json
+  status      String
+  createdAt   DateTime @default(now())
+
+  @@index([referenceId])
+}
+
 
 ////////////////////////////////////
 ///Event & EventServices

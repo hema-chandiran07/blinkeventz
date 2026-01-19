@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SubmitKycDto } from './dto/submit-kyc.dto';
 import { KycStatus, BankAccount } from '@prisma/client';
@@ -18,6 +22,20 @@ export class KycService {
     dto: SubmitKycDto,
     file: Express.Multer.File,
   ) {
+    // ✅ Check if KYC already exists (PENDING or APPROVED)
+ const active = await this.prisma.kycDocument.findFirst({
+  where: {
+    userId,
+    status: {
+      in: [KycStatus.PENDING, KycStatus.VERIFIED],
+    },
+  },
+});
+
+if (active) {
+  throw new BadRequestException('KYC already submitted');
+}
+
     const fileUrl = `https://cdn.yourapp.com/kyc/${file.originalname}`;
 
     return this.prisma.kycDocument.create({
@@ -75,24 +93,26 @@ export class KycService {
 
     return accounts;
   }
-  // kyc.service.ts (ADD BELOW existing methods)
 
-async updateKycStatus(
-  kycId: number,
-  status: KycStatus,
-) {
-  const kyc = await this.prisma.kycDocument.findUnique({
-    where: { id: kycId },
-  });
+  // ----------------------
+  // Admin / Update Methods
+  // ----------------------
 
-  if (!kyc) {
-    throw new NotFoundException('KYC record not found');
+  async updateKycStatus(
+    kycId: number,
+    status: KycStatus,
+  ) {
+    const kyc = await this.prisma.kycDocument.findUnique({
+      where: { id: kycId },
+    });
+
+    if (!kyc) {
+      throw new NotFoundException('KYC record not found');
+    }
+
+    return this.prisma.kycDocument.update({
+      where: { id: kycId },
+      data: { status },
+    });
   }
-
-  return this.prisma.kycDocument.update({
-    where: { id: kycId },
-    data: { status },
-  });
-}
-
 }

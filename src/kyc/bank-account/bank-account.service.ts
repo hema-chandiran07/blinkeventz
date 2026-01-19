@@ -1,38 +1,54 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AddBankAccountDto } from '../dto/add-bank-account.dto';
 import { BankAccount } from '@prisma/client';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class BankAccountService {
   constructor(private prisma: PrismaService) {}
 
   async addBankAccount(
-  userId: number,
-  dto: AddBankAccountDto,
-) {
-  return this.prisma.bankAccount.create({
-    data: {
-      accountHolder: dto.accountHolder, // ✅ REQUIRED
+    userId: number,
+    dto: AddBankAccountDto,
+  ): Promise<BankAccount> {
 
-      accountNumber: dto.accountNumber,
-      ifsc: dto.ifsc,
-      bankName: dto.bankName,
-      branchName: dto.branchName,
+    // ✅ Check if a verified bank account already exists
+    const existing = await this.prisma.bankAccount.findFirst({
+      where: {
+        userId,
+        isVerified: true,
+      },
+    });
 
-      referenceId: crypto.randomUUID(),
+    if (existing) {
+      throw new BadRequestException(
+        'Verified bank account already exists',
+      );
+    }
 
-      user: {
-        connect: {
-          id: userId,
+    // ✅ Create new bank account
+    return this.prisma.bankAccount.create({
+      data: {
+        accountHolder: dto.accountHolder,
+        accountNumber: dto.accountNumber,
+        ifsc: dto.ifsc,
+        bankName: dto.bankName,
+        branchName: dto.branchName,
+        referenceId: crypto.randomUUID(),
+
+        user: {
+          connect: {
+            id: userId,
+          },
         },
       },
-    },
-  });
-}
-
+    });
+  }
 
   async getBankAccounts(userId: number): Promise<BankAccount[]> {
-    return this.prisma.bankAccount.findMany({ where: { userId } });
+    return this.prisma.bankAccount.findMany({
+      where: { userId },
+    });
   }
 }

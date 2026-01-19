@@ -2,11 +2,12 @@ import { Controller, Get, Post, Body, Req,Param } from '@nestjs/common';
 import { KycService } from './kyc.service';
 import { AddBankAccountDto } from './dto/add-bank-account.dto';
 import { Request } from 'express';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiTags,ApiBearerAuth } from '@nestjs/swagger';
 
 interface AuthRequest extends Request {
   user: { id: string };
 }
+@ApiBearerAuth()
 @ApiTags('Bank')
 @Controller('bank-accounts')
 export class BankAccountController {
