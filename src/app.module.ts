@@ -22,6 +22,7 @@ import { PaymentsModule } from './payments/payments.module';
 import { ExpressModule } from './express/express.module';
 import { AIPlannerModule } from './ai-planner/ai-planner.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { KycModule } from './kyc/kyc.module';
 
 @Module({
   imports: [
@@ -105,7 +106,8 @@ import { NotificationsModule } from './notifications/notifications.module';
     PaymentsModule,
     ExpressModule,
      EventsModule,
-     NotificationsModule 
+     NotificationsModule,
+     KycModule
   ],
    // 🔐 GLOBAL SECURITY LAYER
   providers: [

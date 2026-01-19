@@ -231,6 +231,7 @@ model User {
   payments                Payment[]
   Cart                    Cart[]
   KycDocument             KycDocument[]
+  bankAccounts            BankAccount[]
   Event                   Event[]
   //auditLogs AuditLog[]
   createdAt               DateTime                 @default(now())
@@ -502,14 +503,13 @@ model ExpressRequest {
 //////////////////////////////////////////////////////
 
 model KycDocument {
-  id Int @id @default(autoincrement())
-
+  id     Int  @id @default(autoincrement())
   userId Int
-  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User @relation(fields: [userId], references: [id])
 
   docType    KycDocType
-  docNumber  String // ENCRYPTED at application level
-  docFileUrl String // S3 / Cloudinary URL
+  docNumber  String // 🔐 encrypted at app layer
+  docFileUrl String
 
   status     KycStatus @default(PENDING)
   verifiedAt DateTime?
@@ -517,7 +517,26 @@ model KycDocument {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([userId, docType]) // One document type per user
+  @@index([userId])
+}
+
+model BankAccount {
+  id     Int  @id @default(autoincrement())
+  userId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  accountHolder String
+  accountNumber String
+  ifsc          String
+  bankName      String
+  branchName    String?
+
+  referenceId String  @unique
+  isVerified  Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([userId])
 }
 

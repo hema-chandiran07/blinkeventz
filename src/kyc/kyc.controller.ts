@@ -15,7 +15,6 @@ import { KycService } from './kyc.service';
 import { SubmitKycDto } from './dto/submit-kyc.dto';
 import { ApiBody } from '@nestjs/swagger';
 
-
 @ApiTags('KYC')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)

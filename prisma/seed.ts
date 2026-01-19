@@ -4,6 +4,7 @@ import * as bcrypt from 'bcrypt';
 const prisma = new PrismaClient();
 
 async function main() {
+  console.log("Prisma seed started")
   const passwordHash = await bcrypt.hash('admin123', 10);
 
   await prisma.user.create({
