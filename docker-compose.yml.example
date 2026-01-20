@@ -1,3 +1,5 @@
+version: "3.8"
+
 services:
   postgres:
     image: postgres:15
@@ -5,7 +7,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 21025
+      POSTGRES_PASSWORD: password
       POSTGRES_DB: blinkeventz
     ports:
       - "5432:5432"
@@ -21,7 +23,7 @@ services:
 
   api:
     build:
-      context: .
+      context: ./blinkeventz-backend
       dockerfile: Dockerfile
     container_name: blinkeventz-api
     restart: unless-stopped
@@ -34,7 +36,7 @@ services:
       - postgres
       - redis
     volumes:
-      - .:/app
+      - ./blinkeventz-backend:/app
       - /app/node_modules
     command: npm run start:dev
 

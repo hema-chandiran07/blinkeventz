@@ -58,3 +58,8 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 /generated/prisma
 
 /generated/prisma
+# Docker volumes
+postgres_data
+
+/*/node_modules/
+/*/dist/

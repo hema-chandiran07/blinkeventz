@@ -4,7 +4,7 @@ FROM node:20-alpine
 # ---- Set working directory ----
 WORKDIR /app
 
-# ---- Install dependencies first (layer caching) ----
+# ---- Install dependencies first ----
 COPY package*.json ./
 RUN npm install
 
@@ -18,4 +18,4 @@ RUN npx prisma generate
 EXPOSE 3000
 
 # ---- Start in dev mode ----
-CMD ["npm", "run", "start:dev"]
+CMD npx prisma migrate deploy && npm run start:dev
