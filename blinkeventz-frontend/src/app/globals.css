@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+:root {
+  --background: #fdf4ff; /* very light pink/purple */
+  --foreground: #171717;
+  --primary: #d946ef; /* pink-500 */
+  --secondary: #9333ea; /* purple-600 */
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-secondary: var(--secondary);
+}
+
+body {
+  background: linear-gradient(to bottom right, #fdf4ff, #faf5ff);
+  color: var(--foreground);
+  min-height: 100vh;
+}

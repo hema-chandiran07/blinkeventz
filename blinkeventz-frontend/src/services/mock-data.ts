@@ -1,0 +1,97 @@
+import { Venue, Vendor, Event } from "@/types";
+
+export const MOCK_VENUES: Venue[] = [
+  {
+    id: "1",
+    name: "Grand Ballroom Hotel",
+    description: "A luxurious ballroom perfect for weddings and large corporate events.",
+    address: "123 Main St",
+    city: "New York",
+    capacity: 500,
+    price: 5000,
+    priceUnit: "per_day",
+    images: ["https://images.unsplash.com/photo-1519167758481-83f550bb49b3?ixlib=rb-4.0.3&auto=format&fit=crop&w=2098&q=80"],
+    amenities: ["WiFi", "Parking", "Catering", "AV Equipment"],
+    rating: 4.8,
+    ownerId: "owner1",
+  },
+  {
+    id: "2",
+    name: "Sunset Garden",
+    description: "Beautiful outdoor garden venue for intimate gatherings.",
+    address: "456 Park Ave",
+    city: "Los Angeles",
+    capacity: 150,
+    price: 2500,
+    priceUnit: "per_day",
+    images: ["https://images.unsplash.com/photo-1464366400600-7168b8af003f?ixlib=rb-4.0.3&auto=format&fit=crop&w=2098&q=80"],
+    amenities: ["Outdoor", "Parking", "Lighting"],
+    rating: 4.6,
+    ownerId: "owner2",
+  },
+  {
+    id: "3",
+    name: "City Conference Center",
+    description: "Modern conference rooms in the heart of the city.",
+    address: "789 Business Rd",
+    city: "Chicago",
+    capacity: 1000,
+    price: 8000,
+    priceUnit: "per_day",
+    images: ["https://images.unsplash.com/photo-1517457373958-b7bdd4587205?ixlib=rb-4.0.3&auto=format&fit=crop&w=2098&q=80"],
+    amenities: ["WiFi", "AV Equipment", "Catering", "Accessibility"],
+    rating: 4.5,
+    ownerId: "owner3",
+  },
+];
+
+export const MOCK_VENDORS: Vendor[] = [
+  {
+    id: "1",
+    name: "Delicious Catering",
+    description: "Full-service catering for all occasions.",
+    serviceType: "Catering",
+    city: "New York",
+    priceRange: "₹₹₹",
+    images: ["https://images.unsplash.com/photo-1555244162-803834f70033?ixlib=rb-4.0.3&auto=format&fit=crop&w=2098&q=80"],
+    rating: 4.9,
+    ownerId: "vendor1",
+  },
+  {
+    id: "2",
+    name: "Memories Photography",
+    description: "Capturing your special moments.",
+    serviceType: "Photography",
+    city: "Los Angeles",
+    priceRange: "₹₹",
+    images: ["https://images.unsplash.com/photo-1516035069371-29a1b244cc32?ixlib=rb-4.0.3&auto=format&fit=crop&w=2098&q=80"],
+    rating: 4.7,
+    ownerId: "vendor2",
+  },
+];
+
+export const MOCK_EVENTS: Event[] = [
+  {
+    id: "1",
+    customerId: "cust1",
+    name: "Smith Wedding",
+    date: "2024-06-15",
+    guestCount: 200,
+    city: "New York",
+    status: "planning",
+    vendorIds: ["1"],
+    totalCost: 12000,
+  },
+  {
+    id: "2",
+    customerId: "cust1",
+    name: "Corporate Annual Meet",
+    date: "2024-09-20",
+    guestCount: 500,
+    city: "Chicago",
+    status: "booked",
+    venueId: "3",
+    vendorIds: [],
+    totalCost: 15000,
+  }
+];
