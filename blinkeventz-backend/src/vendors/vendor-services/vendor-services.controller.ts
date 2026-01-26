@@ -38,3 +38,5 @@ export class VendorServicesController {
     return this.vendorServicesService.deactivate(+id);
   }
 }
+.
+03366
