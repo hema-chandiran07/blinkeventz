@@ -1,9 +1,9 @@
-import { NotificationType } from '../enums/notification-type.enum';
+import { NotificationChannel, NotificationPriority } from '@prisma/client';
 
 export class NotificationEvent {
   constructor(
-    public readonly userId: number,
-    public readonly type: NotificationType,
-    public readonly payload: Record<string, any>,
+    public readonly notificationId: number,
+    public readonly channel: NotificationChannel,
+    public readonly priority: NotificationPriority,
   ) {}
 }

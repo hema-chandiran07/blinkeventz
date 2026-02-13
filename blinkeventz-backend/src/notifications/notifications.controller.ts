@@ -1,23 +1,43 @@
-import { Controller, Post, Body,UseGuards} from '@nestjs/common';
-import { ApiTags ,ApiBearerAuth} from '@nestjs/swagger';
+import {
+  Controller,
+  Post,
+  Body,
+  Req,
+  Param,
+  ParseIntPipe,
+  UseGuards,
+} from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
-import { CreateNotificationDto } from './dto/create-notifications.dto';
-import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
-import { RolesGuard } from 'src/common/guards/roles.guard';
-import { Roles } from 'src/common/decorators/roles.decorator';
-import { Role } from 'src/common/enums/role.enum';
-
+import { SendNotificationDto } from './dto/send-notification.dto';
+import { ApiBearerAuth,ApiTags } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { Role } from '../common/enums/role.enum';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { NotificationActionDto } from './dto/notification-action.dto';
+@ApiBearerAuth() 
 @ApiTags('Notifications')
-@ApiBearerAuth()
+@UseGuards(JwtAuthGuard,RolesGuard)
 @Controller('notifications')
-@UseGuards(JwtAuthGuard, RolesGuard)
 export class NotificationsController {
   constructor(private readonly service: NotificationsService) {}
 
-  @Post()
-  @Roles(Role.ADMIN,Role.SUPPORT, Role.EVENT_MANAGER)
-  async create(@Body() dto: CreateNotificationDto) {
+  @Post('send')
+  @Roles(Role.ADMIN, Role.EVENT_MANAGER, Role.SUPPORT)
+  async send(@Body() dto: SendNotificationDto) {
     await this.service.send(dto);
     return { success: true };
   }
+
+  @Post('action')
+  @Roles(
+    Role.CUSTOMER,
+    Role.VENDOR,
+    Role.VENUE_OWNER,
+  )
+  async action(@Req() req, @Body() dto: NotificationActionDto) {
+    await this.service.handleAction(req.user.id, dto);
+    return { success: true };
+  }
 }
+

@@ -1,23 +1,22 @@
+import { InjectQueue } from '@nestjs/bull';
 import { Injectable } from '@nestjs/common';
-import { InjectQueue } from '@nestjs/bullmq';
-import { Queue } from 'bullmq';
+import type { Queue } from 'bull';
 
 @Injectable()
 export class NotificationQueue {
   constructor(
-    @InjectQueue('notifications')
+    @InjectQueue('notifications') // ✅ MUST MATCH MODULE
     private readonly queue: Queue,
   ) {}
 
-  async add(data: any) {
-    await this.queue.add('send-notification', data, {
+  async add(data: {
+    notificationId: number;
+    channel: 'EMAIL' | 'SMS' | 'WHATSAPP' | 'PUSH';
+  }) {
+    await this.queue.add('send', data, {
       attempts: 3,
-      backoff: {
-        type: 'exponential',
-        delay: 3000,
-      },
+      backoff: { type: 'exponential', delay: 3000 },
       removeOnComplete: true,
-      removeOnFail: false,
     });
   }
 }

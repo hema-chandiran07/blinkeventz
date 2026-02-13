@@ -7,7 +7,7 @@ import Redis from 'ioredis';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
-import { BullModule } from '@nestjs/bullmq';
+import { BullModule } from '@nestjs/bull';
 // Feature Modules (UNCHANGED)
 import { PrismaModule } from './prisma/prisma.module';
 import { VendorsModule } from './vendors/vendors.module';
@@ -80,11 +80,12 @@ import { KycModule } from './kyc/kyc.module';
     }),
       // 🐂 BULLMQ (GLOBAL REDIS CONNECTION)
     BullModule.forRoot({
-      connection: {
+      redis: {
         host: process.env.REDIS_HOST || 'redis',
         port: Number(process.env.REDIS_PORT) || 6379,
       },
     }),
+    
 
     // =====================================================
     // 4️⃣ SCHEDULER

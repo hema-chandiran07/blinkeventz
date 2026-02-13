@@ -1,41 +1,49 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Job } from 'bullmq';
+import { Processor, Process } from '@nestjs/bull';
+import type { Job } from 'bull';
+import { PrismaService } from '../../prisma/prisma.service';
 import { EmailProvider } from '../providers/email.provider';
 import { SmsProvider } from '../providers/sms.provider';
 import { WhatsappProvider } from '../providers/whatsapp.provider';
-import { InAppProvider } from '../providers/inapp.provider';
-import { NotificationChannel } from '../enums/notification-channel.enum';
 
-@Processor('notifications')
-export class NotificationProcessor extends WorkerHost {
+@Processor('notifications') // ✅ SAME NAME
+export class NotificationProcessor {
   constructor(
+    private readonly prisma: PrismaService,
     private readonly email: EmailProvider,
     private readonly sms: SmsProvider,
     private readonly whatsapp: WhatsappProvider,
-    private readonly inApp: InAppProvider,
+  ) {}
+
+  @Process('send')
+  async handle(
+    job: Job<{
+      notificationId: number;
+      channel: 'EMAIL' | 'SMS' | 'WHATSAPP' | 'PUSH';
+    }>,
   ) {
-    super();
-  }
+    const { notificationId, channel } = job.data;
 
-  async process(job: Job) {
-    const data = job.data;
+    const notification = await this.prisma.notification.findUnique({
+      where: { id: notificationId },
+      include: { user: true },
+    });
 
-    switch (data.channel) {
-      case NotificationChannel.EMAIL:
-        await this.email.send(data.to, data.title, data.message);
+    if (!notification || !notification.user) return;
+
+    const { user, title, message } = notification;
+
+    switch (channel) {
+      case 'EMAIL':
+        if (user.email) await this.email.send(user.email, title, message);
         break;
 
-      case NotificationChannel.SMS:
-        await this.sms.send(data.to, data.message);
+      case 'SMS':
+        if (user.phone) await this.sms.send(user.phone, message);
         break;
 
-      case NotificationChannel.WHATSAPP:
-        await this.whatsapp.send(data.to, data.message);
+      case 'WHATSAPP':
+        if (user.phone) await this.whatsapp.send(user.phone, message);
         break;
-
-      case NotificationChannel.IN_APP:
-      default:
-        await this.inApp.send(data);
     }
   }
 }

@@ -1,31 +1,37 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsEnum, IsInt, IsOptional, IsObject, IsString } from 'class-validator';
-import { NotificationType } from '../enums/notification-type.enum';
-import { NotificationChannel } from '../enums/notification-channel.enum';
+import {NotificationType, NotificationChannel,  NotificationPriority,} from '@prisma/client';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateNotificationDto {
-  @ApiProperty()
+  @ApiProperty({ example: 12 })
   @IsInt()
   userId: number;
 
-  @ApiProperty({ enum: NotificationType })
   @IsEnum(NotificationType)
+  @ApiProperty({ enum: NotificationType, example: 'BOOKING_CONFIRMED' })
   type: NotificationType;
 
-  @ApiPropertyOptional({ enum: NotificationChannel })
-  @IsEnum(NotificationChannel)
-  channel: NotificationChannel = NotificationChannel.IN_APP;
-
-  @ApiProperty()
   @IsString()
+  @ApiPropertyOptional({ example: 'Booking Confirmed' })
   title: string;
 
-  @ApiProperty()
   @IsString()
+  @ApiPropertyOptional({ example: 'Your booking is confirmed' })
   message: string;
 
-  @ApiPropertyOptional()
+  @IsOptional()
+  @ApiPropertyOptional({ enum: NotificationPriority })
+  @IsEnum(NotificationPriority)
+  priority?: NotificationPriority = NotificationPriority.NORMAL;
+
   @IsOptional()
   @IsObject()
+  @ApiPropertyOptional({
+    example: { bookingId: 44 }
+  })
   metadata?: Record<string, any>;
+
+  @IsOptional()
+  @ApiPropertyOptional({ example: 9 })
+  eventId?: number;
 }
