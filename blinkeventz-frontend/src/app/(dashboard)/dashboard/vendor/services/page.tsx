@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Plus, Edit, Trash2 } from "lucide-react";
 
 export default function VendorServicesPage() {
-  const [services, setServices] = useState<any[]>([]);
+  const [services, setServices] = useState<unknown[]>([]);
 
   useEffect(() => {
     getMyServices().then(setServices);
@@ -27,16 +27,18 @@ export default function VendorServicesPage() {
           <p className="text-gray-500 text-sm">No services added yet</p>
         )}
 
-        {services.map((service, i) => (
+        {services.map((service, i) => {
+          const s = service as { name?: string; description?: string };
+          return (
           <Card key={i}>
             <CardContent className="p-6">
               <div className="flex justify-between items-start">
                 <div>
                   <h3 className="text-xl font-bold text-gray-900">
-                    {service.name ?? "Service"}
+                    {s.name ?? "Service"}
                   </h3>
                   <p className="text-gray-500">
-                    {service.description ?? "—"}
+                    {s.description ?? "—"}
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -54,7 +56,8 @@ export default function VendorServicesPage() {
               </div>
             </CardContent>
           </Card>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

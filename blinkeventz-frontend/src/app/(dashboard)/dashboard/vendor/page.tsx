@@ -8,8 +8,8 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { Calendar, CheckCircle2, DollarSign, Clock } from "lucide-react";
 
 export default function VendorDashboard() {
-  const [services, setServices] = useState<any[]>([]);
-  const [bookings, setBookings] = useState<any[]>([]);
+  const [services, setServices] = useState<unknown[]>([]);
+  const [bookings, setBookings] = useState<unknown[]>([]);
 
   useEffect(() => {
     getMyServices().then(setServices);

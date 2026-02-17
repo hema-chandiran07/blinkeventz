@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
 export default function VendorProfilePage() {
-  const [vendor, setVendor] = useState<any>(null);
+  const [vendor, setVendor] = useState<unknown>(null);
 
   useEffect(() => {
     getMyVendor().then(setVendor);
@@ -26,12 +26,12 @@ export default function VendorProfilePage() {
         <CardContent className="space-y-4">
           <div>
             <Label>Business Name</Label>
-            <Input defaultValue={vendor?.businessName ?? ""} />
+            <Input defaultValue={(vendor as { businessName?: string })?.businessName ?? ""} />
           </div>
 
           <div>
             <Label>Description</Label>
-            <Textarea defaultValue={vendor?.description ?? ""} />
+            <Textarea defaultValue={(vendor as { description?: string })?.description ?? ""} />
           </div>
 
           <Button>Update Profile</Button>

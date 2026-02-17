@@ -13,16 +13,17 @@ import { notFound } from "next/navigation";
 import { getVendorById, getVendorServices } from "@/lib/vendors";
 
 interface VendorDetailPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 export default async function VendorDetailPage({
   params,
 }: VendorDetailPageProps) {
-  const vendor = await getVendorById(params.id);
-  const services = await getVendorServices(params.id);
+  const { id } = await params;
+  const vendor = await getVendorById(id);
+  const services = await getVendorServices(id);
 
   if (!vendor) {
     notFound();
@@ -83,20 +84,20 @@ export default async function VendorDetailPage({
             <h2 className="text-xl font-bold mb-4">Services Offered</h2>
 
             <div className="space-y-4">
-              {services.map((service: any) => (
+              {services.map((service: unknown) => (
                 <div
-                  key={service.id}
+                  key={(service as { id: string }).id}
                   className="flex justify-between p-4 rounded-xl border bg-white"
                 >
                   <div>
-                    <h3 className="font-semibold">{service.name}</h3>
+                    <h3 className="font-semibold">{(service as { name: string }).name}</h3>
                     <p className="text-sm text-gray-500">
-                      {service.description || service.serviceType}
+                      {(service as { description?: string; serviceType?: string }).description || (service as { serviceType?: string }).serviceType}
                     </p>
                   </div>
 
                   <div className="font-semibold text-purple-600">
-                    ₹{service.baseRate}
+                    ₹{(service as { baseRate: number }).baseRate}
                   </div>
                 </div>
               ))}

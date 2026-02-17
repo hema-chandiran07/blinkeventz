@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState } from "react";
 import { useRouter } from "next/navigation";
 
 // Define user roles
@@ -26,23 +26,21 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const router = useRouter();
-
-  // Load user from local storage on mount
-  useEffect(() => {
+  const [user, setUser] = useState<User | null>(() => {
+    if (typeof window === "undefined") return null;
     const storedUser = localStorage.getItem("blinkeventz_user");
     if (storedUser) {
       try {
-        setUser(JSON.parse(storedUser));
+        return JSON.parse(storedUser);
       } catch (error) {
         console.error("Failed to parse user from local storage", error);
         localStorage.removeItem("blinkeventz_user");
       }
     }
-    setIsLoading(false);
-  }, []);
+    return null;
+  });
+  const [isLoading] = useState(false);
+  const router = useRouter();
 
   const login = (email: string, role: UserRole) => {
     // Simulate login - in a real app, this would verify credentials

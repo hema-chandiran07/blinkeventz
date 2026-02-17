@@ -5,7 +5,7 @@ import { VendorCard } from "@/components/vendors/vendor-card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
-import { getVendors } from "@/lib/vendors";
+import { getVendors, type Vendor } from "@/lib/vendors";
 
 /**
  * Prisma reference:
@@ -24,7 +24,7 @@ import { getVendors } from "@/lib/vendors";
  */
 
 export default function VendorsPage() {
-  const [vendors, setVendors] = useState<any[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [loading, setLoading] = useState(true);
@@ -58,7 +58,7 @@ export default function VendorsPage() {
     const matchesType =
       typeFilter === "all" ||
       vendor.services?.some(
-        (service: any) => service.serviceType === typeFilter
+        (service) => service.serviceType === typeFilter
       );
 
     return matchesSearch && matchesType;
@@ -68,7 +68,7 @@ export default function VendorsPage() {
   const serviceTypes = Array.from(
     new Set(
       vendors.flatMap(
-        (v) => v.services?.map((s: any) => s.serviceType) || []
+        (v) => v.services?.map((s) => s.serviceType) || []
       )
     )
   );

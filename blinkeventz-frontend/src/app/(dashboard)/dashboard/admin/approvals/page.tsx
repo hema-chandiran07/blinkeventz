@@ -13,7 +13,7 @@ export default function AdminApprovalsPage() {
             <CardContent className="p-6">
               <div className="flex flex-col md:flex-row justify-between gap-4">
                 <div>
-                    <h3 className="text-lg font-bold text-gray-900">New Vendor Registration: "Elite Catering"</h3>
+                    <h3 className="text-lg font-bold text-gray-900">New Vendor Registration: &quot;Elite Catering&quot;</h3>
                     <p className="text-sm text-gray-500 mb-2">Submitted by Jane Smith • 2 hours ago</p>
                     <p className="text-gray-700">Premium catering service specializing in corporate events and weddings. Based in New York.</p>
                 </div>

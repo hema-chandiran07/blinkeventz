@@ -99,7 +99,7 @@ export default async function VenueDetailPage({ params }: VenueDetailPageProps) 
             </div>
 
             <p className="mt-4 text-center text-xs text-gray-500">
-              You won't be charged yet
+              You won&apos;t be charged yet
             </p>
           </div>
         </div>

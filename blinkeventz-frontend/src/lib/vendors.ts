@@ -6,9 +6,13 @@ import api from "@/lib/api";
 export interface Vendor {
   id: string;
   businessName: string;
+  name?: string;
   description?: string;
   city?: string;
+  area?: string;
   priceRange?: string;
+  verificationStatus?: string;
+  services?: VendorService[];
 }
 
 export interface VendorService {
@@ -16,6 +20,9 @@ export interface VendorService {
   title: string;
   description: string;
   price: number;
+  name?: string;
+  serviceType?: string;
+  baseRate?: number;
 }
 
 /* ================= PUBLIC ================= */
@@ -23,6 +30,18 @@ export interface VendorService {
 // Used in /(public)/vendors/page.tsx
 export const getVendors = async (): Promise<Vendor[]> => {
   const res = await api.get("/vendors");
+  return Array.isArray(res.data) ? res.data : [];
+};
+
+// Used in /(public)/vendors/[id]/page.tsx
+export const getVendorById = async (id: string): Promise<Vendor | null> => {
+  const res = await api.get(`/vendors/${id}`);
+  return res.data ?? null;
+};
+
+// Used in /(public)/vendors/[id]/page.tsx
+export const getVendorServices = async (id: string): Promise<VendorService[]> => {
+  const res = await api.get(`/vendors/${id}/services`);
   return Array.isArray(res.data) ? res.data : [];
 };
 
