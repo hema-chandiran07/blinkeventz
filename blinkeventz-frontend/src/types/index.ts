@@ -65,3 +65,59 @@ export interface Booking {
   status: 'pending' | 'confirmed' | 'rejected' | 'completed' | 'cancelled';
   price: number;
 }
+
+// Cart & Checkout Types
+export interface CartItem {
+  id: string;
+  type: 'venue' | 'vendor' | 'service';
+  name: string;
+  description: string;
+  price: number;
+  image?: string;
+  quantity?: number;
+  metadata?: {
+    date?: string;
+    guestCount?: number;
+    serviceType?: string;
+    city?: string;
+    [key: string]: unknown;
+  };
+}
+
+export interface CartSummary {
+  subtotal: number;
+  taxes: number;
+  serviceFee: number;
+  total: number;
+}
+
+export type PaymentMethod = 'upi' | 'card' | 'netbanking' | 'wallet';
+export type UPIProvider = 'gpay' | 'phonepe' | 'paytm' | 'bhim';
+export type WalletProvider = 'paytm' | 'phonepe' | 'amazonpay' | 'mobikwik';
+export type BankCode = 'HDFC' | 'ICICI' | 'SBI' | 'AXIS' | 'KOTAK' | 'IDFC' | 'YES';
+
+export interface CheckoutFormData {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  paymentMethod: PaymentMethod;
+  upiProvider?: UPIProvider;
+  upiId?: string;
+  walletProvider?: WalletProvider;
+  bankCode?: BankCode;
+  cardNumber?: string;
+  expiry?: string;
+  cvc?: string;
+}
+
+export interface CheckoutErrors {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  upiId?: string;
+  cardNumber?: string;
+  expiry?: string;
+  cvc?: string;
+}

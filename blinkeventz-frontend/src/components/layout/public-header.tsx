@@ -3,19 +3,19 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Menu, X, ShoppingCart, ChevronDown } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { useAuth } from "@/context/auth-context";
 
 export function PublicHeader() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isVenuesOpen, setIsVenuesOpen] = useState(false);
   const [isVendorsOpen, setIsVendorsOpen] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
+  const isMounted = useSyncExternalStore(
+    () => () => {}, // noop unsubscribe
+    () => true,     // getSnapshot returns true on client
+    () => false     // getServerSnapshot returns false on server
+  );
   const { user, isAuthenticated, logout } = useAuth();
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   const getDashboardLink = () => {
     if (!user) return "/dashboard/customer";
