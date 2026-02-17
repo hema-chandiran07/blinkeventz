@@ -95,6 +95,34 @@ const mockVendors: Vendor[] = [
   }
 ];
 
+/* ================= IMAGE HELPERS ================= */
+// Fallback images for vendors without images
+export const getVendorImage = (vendor: Vendor): string => {
+  const imageMap: Record<string, string> = {
+    "1": "https://images.unsplash.com/photo-1555244162-803834f70033?w=800&q=80", // Catering - Annapurna
+    "2": "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800&q=80", // Photography - LensCraft
+    "3": "https://images.unsplash.com/photo-1519225421980-715cb0202128?w=800&q=80", // Decoration - Floral Dreams
+    "4": "https://images.unsplash.com/photo-1516280440614-6697288d5d38?w=800&q=80", // DJ - Akhil
+    "5": "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=800&q=80", // Makeup - Glam Squad
+    "6": "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=800&q=80", // Bakery - Sweet Bites
+    "7": "https://images.unsplash.com/photo-1596230672094-9c8a5b6a7b6e?w=800&q=80", // Mehendi - Zainab
+    "8": "https://images.unsplash.com/photo-1501612780327-45045538702b?w=800&q=80", // Live Band - Sangeetha
+    "9": "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=800&q=80", // Event Planner - Eventz
+    "10": "https://images.unsplash.com/photo-1555244162-803834f70033?w=800&q=80", // Catering - Traditional Touch
+    "11": "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800&q=80", // Photography - Picture Perfect
+    "12": "https://images.unsplash.com/photo-1519225421980-715cb0202128?w=800&q=80", // Decoration - Royal
+    "13": "https://images.unsplash.com/photo-1516280440614-6697288d5d38?w=800&q=80", // DJ - BollyWood Beats
+    "14": "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=800&q=80", // Makeup - Bridal Glow
+    "15": "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=800&q=80", // Bakery - Cake Couture
+    "16": "https://images.unsplash.com/photo-1596230672094-9c8a5b6a7b6e?w=800&q=80", // Mehendi - Rangoli
+    "17": "https://images.unsplash.com/photo-1501612780327-45045538702b?w=800&q=80", // Live Band - Fusion
+    "18": "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=800&q=80", // Event Planner - Dream Weddings
+    "19": "https://images.unsplash.com/photo-1555244162-803834f70033?w=800&q=80", // Catering - Spice Garden
+    "20": "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800&q=80", // Photography - Candid Moments
+  };
+  return imageMap[vendor.id] || "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=800&q=80";
+};
+
 /* ================= PUBLIC ================= */
 
 // Used in /(public)/vendors/page.tsx

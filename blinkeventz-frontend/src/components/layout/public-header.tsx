@@ -2,20 +2,26 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Menu, X, ShoppingCart, ChevronDown } from "lucide-react";
+import { Menu, X, ShoppingCart, ChevronDown, ArrowLeft } from "lucide-react";
 import { useState, useSyncExternalStore } from "react";
 import { useAuth } from "@/context/auth-context";
+import { useRouter } from "next/navigation";
 
 export function PublicHeader() {
+  const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isVenuesOpen, setIsVenuesOpen] = useState(false);
   const [isVendorsOpen, setIsVendorsOpen] = useState(false);
   const isMounted = useSyncExternalStore(
-    () => () => {}, // noop unsubscribe
-    () => true,     // getSnapshot returns true on client
-    () => false     // getServerSnapshot returns false on server
+    () => () => {},
+    () => true,
+    () => false
   );
   const { user, isAuthenticated, logout } = useAuth();
+
+  const handleGoBack = () => {
+    router.back();
+  };
 
   const getDashboardLink = () => {
     if (!user) return "/dashboard/customer";
@@ -30,42 +36,46 @@ export function PublicHeader() {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-purple-100 bg-white/80 backdrop-blur-md">
       <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
-        <Link href="/" className="flex items-center space-x-2">
-          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-pink-500 to-purple-600" />
-          <span className="text-xl font-bold bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent">
-            BlinkEventz
-          </span>
-        </Link>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-gray-600 hover:text-purple-600 hover:bg-purple-50"
+            onClick={handleGoBack}
+            aria-label="Go back"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+
+          <Link href="/" className="flex items-center space-x-2 group">
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-pink-500 to-purple-600 group-hover:scale-110 transition-transform duration-300" />
+            <span className="text-xl font-bold bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent">
+              BlinkEventz
+            </span>
+          </Link>
+        </div>
 
           {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center space-x-6">
+          <Link href="/" className="text-sm font-medium text-gray-700 hover:text-purple-600 transition-colors">
+            Home
+          </Link>
 
           {/* VENUES DROPDOWN */}
           <div
-            className="relative"
-            onMouseEnter={() => setIsVenuesOpen(true)}
+            className="relative group"
           >
             <button
-              onClick={() => setIsVenuesOpen(!isVenuesOpen)}
               className="flex items-center text-sm font-medium text-gray-700 hover:text-purple-600"
             >
               Venues
               <ChevronDown
-                className={`ml-1 h-4 w-4 transition-transform ${
-                  isVenuesOpen ? "rotate-180" : ""
-                }`}
+                className="ml-1 h-4 w-4 transition-transform group-hover:rotate-180"
               />
             </button>
 
             <div
-              className={`absolute left-1/2 -translate-x-1/2 mt-4 w-[750px] rounded-2xl border border-gray-200 bg-white shadow-2xl p-8 grid grid-cols-3 gap-8 z-50 transition-all duration-200 ease-out
-              ${
-                isVenuesOpen
-                  ? "opacity-100 translate-y-0 pointer-events-auto"
-                  : "opacity-0 translate-y-2 pointer-events-none"
-              }`}
-              onMouseEnter={() => setIsVenuesOpen(true)}
-              onMouseLeave={() => setIsVenuesOpen(false)}
+              className="absolute left-1/2 -translate-x-1/2 mt-4 w-[750px] rounded-2xl border border-gray-200 bg-white shadow-2xl p-8 grid grid-cols-3 gap-8 z-50 transition-all duration-200 ease-out opacity-0 invisible group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 translate-y-2"
             >
 
               {/* Column 1 - Venue Types */}
@@ -88,12 +98,12 @@ export function PublicHeader() {
                   Popular Areas in Chennai
                 </h3>
                 <ul className="space-y-3 text-sm text-gray-600">
-                  <li><Link href="/venues?area=T Nagar" className="hover:text-purple-600">T Nagar</Link></li>
-                  <li><Link href="/venues?area=Velachery" className="hover:text-purple-600">Velachery</Link></li>
-                  <li><Link href="/venues?area=Anna Nagar" className="hover:text-purple-600">Anna Nagar</Link></li>
-                  <li><Link href="/venues?area=OMR" className="hover:text-purple-600">OMR</Link></li>
-                  <li><Link href="/venues?area=Adyar" className="hover:text-purple-600">Adyar</Link></li>
-                  <li><Link href="/venues?area=Tambaram" className="hover:text-purple-600">Tambaram</Link></li>
+                  <li><Link href="/venues?area=T Nagar" className="hover:text-purple-600" onClick={() => setIsVenuesOpen(false)}>T Nagar</Link></li>
+                  <li><Link href="/venues?area=Velachery" className="hover:text-purple-600" onClick={() => setIsVenuesOpen(false)}>Velachery</Link></li>
+                  <li><Link href="/venues?area=Anna Nagar" className="hover:text-purple-600" onClick={() => setIsVenuesOpen(false)}>Anna Nagar</Link></li>
+                  <li><Link href="/venues?area=OMR" className="hover:text-purple-600" onClick={() => setIsVenuesOpen(false)}>OMR</Link></li>
+                  <li><Link href="/venues?area=Adyar" className="hover:text-purple-600" onClick={() => setIsVenuesOpen(false)}>Adyar</Link></li>
+                  <li><Link href="/venues?area=Tambaram" className="hover:text-purple-600" onClick={() => setIsVenuesOpen(false)}>Tambaram</Link></li>
                 </ul>
               </div>
 
@@ -103,10 +113,10 @@ export function PublicHeader() {
                   By Event
                 </h3>
                 <ul className="space-y-3 text-sm text-gray-600">
-                  <li><Link href="/venues?event=Wedding" className="hover:text-purple-600">Wedding Venues</Link></li>
-                  <li><Link href="/venues?event=Engagement" className="hover:text-purple-600">Engagement Halls</Link></li>
-                  <li><Link href="/venues?event=Birthday" className="hover:text-purple-600">Birthday Party Halls</Link></li>
-                  <li><Link href="/venues?event=Corporate" className="hover:text-purple-600">Corporate Events</Link></li>
+                  <li><Link href="/venues?event=Wedding" className="hover:text-purple-600" onClick={() => setIsVenuesOpen(false)}>Wedding Venues</Link></li>
+                  <li><Link href="/venues?event=Engagement" className="hover:text-purple-600" onClick={() => setIsVenuesOpen(false)}>Engagement Halls</Link></li>
+                  <li><Link href="/venues?event=Birthday" className="hover:text-purple-600" onClick={() => setIsVenuesOpen(false)}>Birthday Party Halls</Link></li>
+                  <li><Link href="/venues?event=Corporate" className="hover:text-purple-600" onClick={() => setIsVenuesOpen(false)}>Corporate Events</Link></li>
                 </ul>
               </div>
 
@@ -115,6 +125,7 @@ export function PublicHeader() {
                 <Link
                   href="/venues"
                   className="text-sm font-semibold text-purple-600 hover:text-purple-800"
+                  onClick={() => setIsVenuesOpen(false)}
                 >
                   View All Chennai Venues →
                 </Link>
@@ -125,30 +136,19 @@ export function PublicHeader() {
 
           {/* VENDORS DROPDOWN */}
           <div
-            className="relative"
-            onMouseEnter={() => setIsVendorsOpen(true)}
+            className="relative group"
           >
             <button
-              onClick={() => setIsVendorsOpen(!isVendorsOpen)}
               className="flex items-center text-sm font-medium text-gray-700 hover:text-purple-600"
             >
               Vendors
               <ChevronDown
-                className={`ml-1 h-4 w-4 transition-transform ${
-                  isVendorsOpen ? "rotate-180" : ""
-                }`}
+                className="ml-1 h-4 w-4 transition-transform group-hover:rotate-180"
               />
             </button>
 
             <div
-              className={`absolute left-1/2 -translate-x-1/2 mt-4 w-[650px] rounded-2xl border border-gray-200 bg-white shadow-2xl p-8 grid grid-cols-3 gap-8 z-50 transition-all duration-200 ease-out
-              ${
-                isVendorsOpen
-                  ? "opacity-100 translate-y-0 pointer-events-auto"
-                  : "opacity-0 translate-y-2 pointer-events-none"
-              }`}
-              onMouseEnter={() => setIsVendorsOpen(true)}
-              onMouseLeave={() => setIsVendorsOpen(false)}
+              className="absolute left-1/2 -translate-x-1/2 mt-4 w-[650px] rounded-2xl border border-gray-200 bg-white shadow-2xl p-8 grid grid-cols-3 gap-8 z-50 transition-all duration-200 ease-out opacity-0 invisible group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 translate-y-2"
             >
 
   {/* Column 1 */}
@@ -158,17 +158,17 @@ export function PublicHeader() {
     </h3>
     <ul className="space-y-3 text-sm text-gray-600">
       <li>
-        <Link href="/vendors?type=Catering" className="hover:text-purple-600">
+        <Link href="/vendors?type=Catering" className="hover:text-purple-600" onClick={() => setIsVendorsOpen(false)}>
           Catering Services
         </Link>
       </li>
       <li>
-        <Link href="/vendors?type=Bakery" className="hover:text-purple-600">
+        <Link href="/vendors?type=Bakery" className="hover:text-purple-600" onClick={() => setIsVendorsOpen(false)}>
           Cake & Bakery
         </Link>
       </li>
       <li>
-        <Link href="/vendors?type=Beverages" className="hover:text-purple-600">
+        <Link href="/vendors?type=Beverages" className="hover:text-purple-600" onClick={() => setIsVendorsOpen(false)}>
           Beverage Services
         </Link>
       </li>
@@ -182,22 +182,22 @@ export function PublicHeader() {
     </h3>
     <ul className="space-y-3 text-sm text-gray-600">
       <li>
-        <Link href="/vendors?type=Photography" className="hover:text-purple-600">
+        <Link href="/vendors?type=Photography" className="hover:text-purple-600" onClick={() => setIsVendorsOpen(false)}>
           Photography
         </Link>
       </li>
       <li>
-        <Link href="/vendors?type=Videography" className="hover:text-purple-600">
+        <Link href="/vendors?type=Videography" className="hover:text-purple-600" onClick={() => setIsVendorsOpen(false)}>
           Videography
         </Link>
       </li>
       <li>
-        <Link href="/vendors?type=DJ" className="hover:text-purple-600">
+        <Link href="/vendors?type=DJ" className="hover:text-purple-600" onClick={() => setIsVendorsOpen(false)}>
           DJ & Music
         </Link>
       </li>
       <li>
-        <Link href="/vendors?type=LiveBand" className="hover:text-purple-600">
+        <Link href="/vendors?type=LiveBand" className="hover:text-purple-600" onClick={() => setIsVendorsOpen(false)}>
           Live Bands
         </Link>
       </li>
@@ -211,22 +211,22 @@ export function PublicHeader() {
     </h3>
     <ul className="space-y-3 text-sm text-gray-600">
       <li>
-        <Link href="/vendors?type=Decoration" className="hover:text-purple-600">
+        <Link href="/vendors?type=Decoration" className="hover:text-purple-600" onClick={() => setIsVendorsOpen(false)}>
           Decoration
         </Link>
       </li>
       <li>
-        <Link href="/vendors?type=Makeup" className="hover:text-purple-600">
+        <Link href="/vendors?type=Makeup" className="hover:text-purple-600" onClick={() => setIsVendorsOpen(false)}>
           Makeup Artists
         </Link>
       </li>
       <li>
-        <Link href="/vendors?type=Lighting" className="hover:text-purple-600">
+        <Link href="/vendors?type=Lighting" className="hover:text-purple-600" onClick={() => setIsVendorsOpen(false)}>
           Lighting Services
         </Link>
       </li>
       <li>
-        <Link href="/vendors?type=EventPlanner" className="hover:text-purple-600">
+        <Link href="/vendors?type=EventPlanner" className="hover:text-purple-600" onClick={() => setIsVendorsOpen(false)}>
           Event Planners
         </Link>
       </li>
@@ -238,6 +238,7 @@ export function PublicHeader() {
     <Link
       href="/vendors"
       className="text-sm font-semibold text-purple-600 hover:text-purple-800"
+      onClick={() => setIsVendorsOpen(false)}
     >
       View All Vendors →
     </Link>

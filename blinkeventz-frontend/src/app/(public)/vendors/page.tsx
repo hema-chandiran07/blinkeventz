@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { FilterModal, type FilterState } from "@/components/ui/filter-modal";
 import { Search, Utensils, Camera, Sparkles, Music, Scissors, Cake, Star, SlidersHorizontal, X } from "lucide-react";
 import { getVendors, type Vendor } from "@/lib/vendors";
+import { useSearchParams } from "next/navigation";
 
 // Filter configuration with icons
 const FILTER_CONFIG = [
@@ -20,6 +21,7 @@ const FILTER_CONFIG = [
 ];
 
 export default function VendorsPage() {
+  const searchParams = useSearchParams();
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -29,10 +31,17 @@ export default function VendorsPage() {
     minBudget: "",
     maxBudget: "",
     location: "",
+    locations: [],
     useNearMe: false,
     timing: "",
     availability: "any",
+    eventDate: "",
+    eventTime: "",
   });
+
+  // Get filter params from URL
+  const urlType = searchParams.get('type');
+  const currentTypeFilter = urlType || typeFilter;
 
   // 🔹 FETCH VENDORS FROM BACKEND
   useEffect(() => {
@@ -58,27 +67,49 @@ export default function VendorsPage() {
         .includes(searchTerm.toLowerCase()) ||
       vendor.description
         ?.toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      vendor.serviceType
+        ?.toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      vendor.area
+        ?.toLowerCase()
         .includes(searchTerm.toLowerCase());
 
     const matchesType =
-      typeFilter === "all" ||
+      currentTypeFilter === "all" ||
       vendor.services?.some(
-        (service) => service.serviceType === typeFilter
-      );
+        (service) => service.serviceType?.toLowerCase() === currentTypeFilter.toLowerCase()
+      ) ||
+      vendor.serviceType?.toLowerCase().includes(currentTypeFilter.toLowerCase());
 
     // Budget filter
     const matchesBudget = (() => {
       if (!advancedFilters.minBudget && !advancedFilters.maxBudget) return true;
-      const vendorPrice = vendor.services?.[0]?.price || 0;
+      const vendorPrice = vendor.basePrice || vendor.services?.[0]?.price || 0;
       const min = advancedFilters.minBudget ? Number(advancedFilters.minBudget) : 0;
       const max = advancedFilters.maxBudget ? Number(advancedFilters.maxBudget) : Infinity;
       return vendorPrice >= min && vendorPrice <= max;
     })();
 
-    // Location filter
+    // Location filter - support multiple locations
     const matchesLocation = (() => {
-      if (!advancedFilters.location && !advancedFilters.useNearMe) return true;
-      return vendor.city?.toLowerCase().includes(advancedFilters.location.toLowerCase());
+      const selectedLocations = advancedFilters.locations || [];
+      if (selectedLocations.length === 0 && !advancedFilters.location && !advancedFilters.useNearMe) return true;
+      if (advancedFilters.useNearMe) return true;
+      
+      // Check if vendor area matches any selected location
+      if (selectedLocations.length > 0) {
+        return selectedLocations.some(
+          loc => vendor.area?.toLowerCase().includes(loc.toLowerCase()) ||
+                 vendor.city?.toLowerCase().includes(loc.toLowerCase())
+        );
+      }
+      
+      if (advancedFilters.location) {
+        return vendor.area?.toLowerCase().includes(advancedFilters.location.toLowerCase()) ||
+               vendor.city?.toLowerCase().includes(advancedFilters.location.toLowerCase());
+      }
+      return true;
     })();
 
     return matchesSearch && matchesType && matchesBudget && matchesLocation;

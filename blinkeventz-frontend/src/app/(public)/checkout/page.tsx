@@ -16,8 +16,12 @@ import {
   Users,
   MapPin,
   Shield,
+  XCircle,
 } from "lucide-react";
-import { PaymentMethod, UPIProvider, WalletProvider, BankCode, CheckoutFormData, CheckoutErrors } from "@/types";
+import { UPIProvider, WalletProvider, BankCode, CheckoutFormData, CheckoutErrors } from "@/types";
+import { toast } from "sonner";
+import { useCart } from "@/context/cart-context";
+import { useRouter } from "next/navigation";
 
 // Utility function for currency formatting
 const formatCurrency = (amount: number): string => {
@@ -81,8 +85,12 @@ const BANKS: { id: BankCode; name: string }[] = [
 type CheckoutStep = "details" | "confirm" | "payment";
 
 export default function CheckoutPage() {
+  const router = useRouter();
+  const { clearCart } = useCart();
   const [currentStep, setCurrentStep] = useState<CheckoutStep>("details");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [paymentSuccess, setPaymentSuccess] = useState<boolean | null>(null);
+  const [acceptTerms, setAcceptTerms] = useState(false);
 
   const [formData, setFormData] = useState<CheckoutFormData>({
     firstName: "",
@@ -138,6 +146,12 @@ export default function CheckoutPage() {
   };
 
   const handleConfirmBooking = () => {
+    if (!acceptTerms) {
+      toast.error("Please accept the Terms & Conditions", {
+        description: "You need to agree to continue with the payment",
+      });
+      return;
+    }
     setCurrentStep("payment");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -157,14 +171,31 @@ export default function CheckoutPage() {
   const handlePayment = async () => {
     setIsProcessing(true);
 
-    // Simulate Razorpay payment initialization
+    // Simulate payment processing with random success/failure
     setTimeout(() => {
+      // Simulate 80% success rate for demo
+      const isSuccess = Math.random() > 0.2;
+      
+      if (isSuccess) {
+        setPaymentSuccess(true);
+        toast.success("Payment Accepted! 🎉", {
+          description: "Your booking has been confirmed. Check your email for details.",
+          duration: 5000,
+        });
+        clearCart();
+        setTimeout(() => {
+          router.push("/dashboard/customer");
+        }, 2000);
+      } else {
+        setPaymentSuccess(false);
+        toast.error("Payment Rejected", {
+          description: "Your payment could not be processed. Please try again with a different payment method.",
+          duration: 5000,
+        });
+      }
+      
       setIsProcessing(false);
-      // In production: Initialize Razorpay checkout here
-      // const razorpay = new Razorpay({ key: "...", amount: total * 100, ... });
-      // razorpay.open();
-      console.log("Payment initiated with:", formData, "Total:", total);
-    }, 2000);
+    }, 2500);
   };
 
   return (
@@ -503,33 +534,40 @@ export default function CheckoutPage() {
 
             {/* Order Summary */}
             <div className="lg:col-span-1">
-              <Card className="sticky top-24">
-                <CardHeader>
-                  <CardTitle>Order Summary</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Subtotal</span>
-                    <span className="font-medium">{formatCurrency(subtotal)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">GST (18%)</span>
-                    <span className="font-medium">{formatCurrency(taxes)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Platform Fee</span>
-                    <span className="font-medium">{formatCurrency(SERVICE_FEE)}</span>
-                  </div>
-                  <div className="border-t pt-3 flex justify-between font-bold text-lg">
-                    <span>Total</span>
-                    <span className="text-purple-600">{formatCurrency(total)}</span>
-                  </div>
-                </CardContent>
-              </Card>
+              <div className="sticky top-24 space-y-4">
+                <Card className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <CardHeader>
+                    <CardTitle>Order Summary</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Subtotal</span>
+                      <span className="font-medium">{formatCurrency(subtotal)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">GST (18%)</span>
+                      <span className="font-medium">{formatCurrency(taxes)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Platform Fee</span>
+                      <span className="font-medium">{formatCurrency(SERVICE_FEE)}</span>
+                    </div>
+                    <div className="border-t pt-3 flex justify-between font-bold text-lg">
+                      <span>Total</span>
+                      <span className="text-purple-600">{formatCurrency(total)}</span>
+                    </div>
+                  </CardContent>
+                </Card>
 
-              <Button onClick={handleContinueToConfirm} size="lg" className="w-full h-12 text-lg mt-4 shadow-lg">
-                Continue to Confirm <CheckCircle2 className="ml-2 h-5 w-5" />
-              </Button>
+                <Button 
+                  onClick={handleContinueToConfirm} 
+                  size="lg" 
+                  className="w-full h-14 text-lg shadow-lg bg-gradient-to-r from-pink-500 to-purple-600 hover:shadow-xl hover:scale-[1.02] transition-all duration-300"
+                >
+                  Continue to Confirm 
+                  <CheckCircle2 className="ml-2 h-5 w-5" />
+                </Button>
+              </div>
             </div>
           </div>
         )}
@@ -648,18 +686,24 @@ export default function CheckoutPage() {
                   </div>
 
                   {/* Terms */}
-                  <div className="flex items-start gap-2 text-sm text-gray-600">
-                    <input type="checkbox" className="mt-1 h-4 w-4 text-purple-600" />
-                    <span>
+                  <div className="flex items-start gap-3 p-4 bg-purple-50/50 rounded-xl border border-purple-100">
+                    <input 
+                      type="checkbox" 
+                      id="terms-checkbox"
+                      checked={acceptTerms}
+                      onChange={(e) => setAcceptTerms(e.target.checked)}
+                      className="mt-1 h-5 w-5 text-purple-600 rounded border-gray-300 focus:ring-purple-500 cursor-pointer" 
+                    />
+                    <label htmlFor="terms-checkbox" className="text-sm text-gray-700 leading-relaxed cursor-pointer">
                       I confirm that all details are correct and agree to the{" "}
-                      <a href="#" className="text-purple-600 hover:underline">
+                      <a href="#" className="text-purple-600 hover:underline font-medium">
                         Terms & Conditions
                       </a>{" "}
                       and{" "}
-                      <a href="#" className="text-purple-600 hover:underline">
+                      <a href="#" className="text-purple-600 hover:underline font-medium">
                         Cancellation Policy
                       </a>
-                    </span>
+                    </label>
                   </div>
                 </CardContent>
               </Card>
@@ -667,37 +711,69 @@ export default function CheckoutPage() {
 
             {/* Summary & Confirm */}
             <div className="lg:col-span-1">
-              <Card className="sticky top-24">
-                <CardHeader>
-                  <CardTitle>Final Summary</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Subtotal</span>
-                    <span className="font-medium">{formatCurrency(subtotal)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">GST (18%)</span>
-                    <span className="font-medium">{formatCurrency(taxes)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Platform Fee</span>
-                    <span className="font-medium">{formatCurrency(SERVICE_FEE)}</span>
-                  </div>
-                  <div className="border-t pt-3 flex justify-between font-bold text-lg">
-                    <span>Total</span>
-                    <span className="text-purple-600">{formatCurrency(total)}</span>
-                  </div>
-                </CardContent>
-              </Card>
+              <div className="sticky top-24 space-y-4">
+                <Card className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <CardHeader>
+                    <CardTitle>Final Summary</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Subtotal</span>
+                      <span className="font-medium">{formatCurrency(subtotal)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">GST (18%)</span>
+                      <span className="font-medium">{formatCurrency(taxes)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Platform Fee</span>
+                      <span className="font-medium">{formatCurrency(SERVICE_FEE)}</span>
+                    </div>
+                    <div className="border-t pt-3 flex justify-between font-bold text-lg">
+                      <span>Total</span>
+                      <span className="text-purple-600">{formatCurrency(total)}</span>
+                    </div>
+                    
+                    {/* Trust Badges */}
+                    <div className="pt-4 space-y-2">
+                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                        <svg className="h-4 w-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                        <span>Best price guarantee</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                        <svg className="h-4 w-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                        <span>Secure payment via Razorpay</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
 
-              <Button onClick={handleConfirmBooking} size="lg" className="w-full h-12 text-lg mt-4 shadow-lg bg-green-600 hover:bg-green-700">
-                Confirm & Proceed to Payment <Shield className="ml-2 h-5 w-5" />
-              </Button>
+                <Button 
+                  onClick={handleConfirmBooking} 
+                  size="lg" 
+                  className={`w-full h-14 text-lg shadow-lg transition-all duration-300 transform ${
+                    acceptTerms 
+                      ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:shadow-xl hover:scale-[1.02] hover:from-green-700 hover:to-emerald-700' 
+                      : 'bg-gray-300 cursor-not-allowed'
+                  }`}
+                  disabled={!acceptTerms}
+                >
+                  <Shield className="mr-2 h-5 w-5" />
+                  Confirm & Pay {formatCurrency(total)}
+                </Button>
 
-              <Button onClick={handleBack} variant="ghost" className="w-full mt-2">
-                ← Back to Details
-              </Button>
+                <Button 
+                  onClick={handleBack} 
+                  variant="ghost" 
+                  className="w-full h-12 hover:bg-gray-100 transition-all duration-300"
+                >
+                  ← Back to {currentStep === "confirm" ? "Details" : "Payment"}
+                </Button>
+              </div>
             </div>
           </div>
         )}
@@ -705,26 +781,30 @@ export default function CheckoutPage() {
         {/* Step 3: Payment */}
         {currentStep === "payment" && (
           <div className="max-w-2xl mx-auto">
-            <Card>
+            <Card className="animate-in fade-in zoom-in-95 duration-500">
               <CardHeader>
-                <CardTitle className="text-center">Complete Your Payment</CardTitle>
+                <CardTitle className="text-center text-2xl">Complete Your Payment</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="text-center">
-                  <div className="inline-flex items-center justify-center w-20 h-20 bg-purple-100 rounded-full mb-4">
-                    <Shield className="h-10 w-10 text-purple-600" />
+              <CardContent className="space-y-8">
+                <div className="text-center animate-in fade-in slide-in-from-bottom-4 duration-700">
+                  <div className="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-purple-100 to-pink-100 rounded-full mb-6 shadow-lg">
+                    <Shield className="h-12 w-12 text-purple-600" />
                   </div>
                   <h3 className="text-xl font-semibold text-gray-900">Amount to Pay</h3>
-                  <p className="text-4xl font-bold text-purple-600 mt-2">{formatCurrency(total)}</p>
+                  <p className="text-5xl font-bold bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent mt-3">{formatCurrency(total)}</p>
+                  <p className="text-sm text-gray-500 mt-2">Secure payment powered by Razorpay</p>
                 </div>
 
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <h4 className="font-semibold text-gray-700 mb-2">Payment via</h4>
+                <div className="p-5 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-100">
+                  <h4 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                    <Shield className="h-4 w-4 text-purple-600" />
+                    Payment via
+                  </h4>
                   <div className="flex items-center justify-center gap-3">
-                    <div className="h-8 px-3 bg-purple-100 rounded flex items-center justify-center">
+                    <div className="h-10 px-4 bg-white rounded-lg shadow-sm flex items-center justify-center border border-purple-200">
                       <span className="font-bold text-purple-700">Razorpay</span>
                     </div>
-                    <span className="text-gray-600">→</span>
+                    <span className="text-gray-400">→</span>
                     <div className="flex items-center gap-2">
                       {formData.paymentMethod === "upi" && (
                         <>
@@ -759,18 +839,57 @@ export default function CheckoutPage() {
                 <Button
                   onClick={handlePayment}
                   size="lg"
-                  className="w-full h-14 text-xl shadow-lg bg-purple-600 hover:bg-purple-700"
+                  className="w-full h-16 text-xl shadow-xl bg-gradient-to-r from-pink-500 to-purple-600 hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 animate-in fade-in slide-in-from-bottom-4"
                   disabled={isProcessing}
                 >
                   {isProcessing ? (
                     <>
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                      Processing...
+                      <Loader2 className="mr-3 h-6 w-6 animate-spin" />
+                      Processing Payment...
                     </>
                   ) : (
-                    `Pay ${formatCurrency(total)} Securely`
+                    <>
+                      <Shield className="mr-3 h-6 w-6" />
+                      Pay {formatCurrency(total)} Securely
+                    </>
                   )}
                 </Button>
+
+                {/* Payment Status Modal */}
+                {paymentSuccess !== null && (
+                  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-300">
+                    <div className="bg-white rounded-3xl p-8 max-w-md mx-4 shadow-2xl animate-in zoom-in-95 duration-300">
+                      <div className="text-center">
+                        {paymentSuccess ? (
+                          <>
+                            <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4 animate-in zoom-in duration-300">
+                              <CheckCircle2 className="h-12 w-12 text-green-600" />
+                            </div>
+                            <h3 className="text-2xl font-bold text-green-600 mb-2">Payment Successful!</h3>
+                            <p className="text-gray-600 mb-6">Your booking has been confirmed. Redirecting to dashboard...</p>
+                            <div className="w-full bg-green-200 rounded-full h-2 overflow-hidden">
+                              <div className="bg-green-600 h-2 rounded-full animate-[progress_2s_ease-in-out_infinite]" style={{ width: '100%' }} />
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4 animate-in zoom-in duration-300">
+                              <XCircle className="h-12 w-12 text-red-600" />
+                            </div>
+                            <h3 className="text-2xl font-bold text-red-600 mb-2">Payment Failed</h3>
+                            <p className="text-gray-600 mb-6">Your payment could not be processed. Please try again.</p>
+                            <Button 
+                              onClick={() => setPaymentSuccess(null)}
+                              className="w-full h-12 bg-gradient-to-r from-pink-500 to-purple-600 hover:shadow-lg transition-all duration-300"
+                            >
+                              Try Again
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
                   <CheckCircle2 className="h-4 w-4 text-green-500" />

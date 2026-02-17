@@ -13,9 +13,11 @@ export interface Venue {
   name: string;
   description: string;
   address: string;
+  area: string;
   city: string;
   capacity: number;
   price: number;
+  basePrice: number;
   priceUnit: 'per_day' | 'per_hour';
   images: string[];
   amenities: string[];
@@ -26,13 +28,17 @@ export interface Venue {
 export interface Vendor {
   id: string;
   name: string;
+  businessName?: string;
   description: string;
   serviceType: string;
   city: string;
+  area?: string;
   priceRange: string;
+  basePrice?: number;
   images: string[];
   rating: number;
   ownerId: string;
+  verificationStatus?: string;
 }
 
 export interface Service {

@@ -6,19 +6,21 @@ import { VenueCard } from "@/components/venues/venue-card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { FilterModal, type FilterState } from "@/components/ui/filter-modal";
-import { Search, Building, Castle, Trees, Home, Hotel, Star, SlidersHorizontal, X } from "lucide-react";
+import { Search, Building, Hotel, Star, SlidersHorizontal, X } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 
-// Filter configuration with icons
+// Filter configuration with Chennai areas
 const VENUE_FILTER_CONFIG = [
   { id: "all", label: "All", icon: Star },
-  { id: "Chennai", label: "Chennai", icon: Building },
-  { id: "Bangalore", label: "Bangalore", icon: Hotel },
-  { id: "Mumbai", label: "Mumbai", icon: Castle },
-  { id: "Delhi", label: "Delhi", icon: Home },
-  { id: "Hyderabad", label: "Hyderabad", icon: Trees },
+  { id: "T Nagar", label: "T Nagar", icon: Building },
+  { id: "Adyar", label: "Adyar", icon: Hotel },
+  { id: "Velachery", label: "Velachery", icon: Building },
+  { id: "Anna Nagar", label: "Anna Nagar", icon: Hotel },
+  { id: "OMR", label: "OMR", icon: Building },
 ];
 
 export default function VenuesPage() {
+  const searchParams = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
   const [cityFilter, setCityFilter] = useState("all");
   const [showFilterModal, setShowFilterModal] = useState(false);
@@ -26,16 +28,31 @@ export default function VenuesPage() {
     minBudget: "",
     maxBudget: "",
     location: "",
+    locations: [],
     useNearMe: false,
     timing: "",
     availability: "any",
+    eventDate: "",
+    eventTime: "",
   });
 
+  // Get filter params from URL
+  const urlType = searchParams.get('type');
+  const urlArea = searchParams.get('area');
+  const urlEvent = searchParams.get('event');
+
   const filteredVenues = MOCK_VENUES.filter(venue => {
+    // URL param filtering
+    if (urlArea && venue.area !== urlArea) return false;
+    if (urlType && !venue.name.toLowerCase().includes(urlType.toLowerCase())) return false;
+    if (urlEvent && !venue.description.toLowerCase().includes(urlEvent.toLowerCase())) return false;
+
     const matchesSearch = venue.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          venue.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCity = cityFilter === "all" || venue.city === cityFilter;
+                          venue.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          venue.area.toLowerCase().includes(searchTerm.toLowerCase());
     
+    const matchesArea = cityFilter === "all" || venue.area === cityFilter;
+
     // Budget filter
     const matchesBudget = (() => {
       if (!advancedFilters.minBudget && !advancedFilters.maxBudget) return true;
@@ -44,13 +61,28 @@ export default function VenuesPage() {
       return venue.price >= min && venue.price <= max;
     })();
 
-    // Location filter
+    // Location filter - support multiple locations
     const matchesLocation = (() => {
-      if (!advancedFilters.location && !advancedFilters.useNearMe) return true;
-      return venue.city.toLowerCase().includes(advancedFilters.location.toLowerCase());
+      const selectedLocations = advancedFilters.locations || [];
+      if (selectedLocations.length === 0 && !advancedFilters.location && !advancedFilters.useNearMe) return true;
+      if (advancedFilters.useNearMe) return true;
+      
+      // Check if venue area matches any selected location
+      if (selectedLocations.length > 0) {
+        return selectedLocations.some(
+          loc => venue.area.toLowerCase().includes(loc.toLowerCase()) ||
+                 venue.city.toLowerCase().includes(loc.toLowerCase())
+        );
+      }
+      
+      if (advancedFilters.location) {
+        return venue.area.toLowerCase().includes(advancedFilters.location.toLowerCase()) ||
+               venue.city.toLowerCase().includes(advancedFilters.location.toLowerCase());
+      }
+      return true;
     })();
 
-    return matchesSearch && matchesCity && matchesBudget && matchesLocation;
+    return matchesSearch && matchesArea && matchesBudget && matchesLocation;
   });
 
   return (

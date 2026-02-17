@@ -8,9 +8,10 @@ import {
   Phone,
   Globe,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getVendorById, getVendorServices } from "@/lib/vendors";
+import { getVendorById, getVendorServices, getVendorImage } from "@/lib/vendors";
 
 interface VendorDetailPageProps {
   params: Promise<{
@@ -42,33 +43,36 @@ export default async function VendorDetailPage({
       <div className="grid gap-8 lg:grid-cols-3">
         {/* MAIN */}
         <div className="lg:col-span-2 space-y-8">
-          <div className="overflow-hidden rounded-2xl bg-gray-100">
-            <img
-              src="/vendor-placeholder.jpg"
-              alt={vendor.businessName}
-              className="h-[350px] w-full object-cover"
+          <div className="overflow-hidden rounded-2xl bg-gray-100 relative">
+            <Image
+              src={getVendorImage(vendor)}
+              alt={vendor.businessName || vendor.name}
+              fill
+              className="object-cover"
+              priority
+              sizes="(max-width: 1024px) 100vw, 66vw"
             />
           </div>
 
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
             <div>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                {vendor.businessName}
+                {vendor.businessName || vendor.name}
               </h1>
 
               <div className="flex flex-wrap items-center gap-3 mb-4">
                 <Badge className="bg-purple-50 text-purple-700">
-                  {vendor.verificationStatus}
+                  {vendor.verificationStatus || "verified"}
                 </Badge>
 
                 <div className="flex items-center text-gray-500 text-sm">
                   <MapPin className="h-4 w-4 mr-1 text-pink-500" />
-                  {vendor.city}, {vendor.area}
+                  {vendor.area ? `${vendor.area}, ` : ""}{vendor.city}
                 </div>
 
                 <div className="flex items-center bg-yellow-50 px-2 py-0.5 rounded-full text-sm">
                   <Star className="h-3 w-3 fill-yellow-400 text-yellow-400 mr-1" />
-                  4.5
+                  {vendor.rating || 4.5}
                 </div>
               </div>
             </div>
@@ -90,14 +94,14 @@ export default async function VendorDetailPage({
                   className="flex justify-between p-4 rounded-xl border bg-white"
                 >
                   <div>
-                    <h3 className="font-semibold">{(service as { name: string }).name}</h3>
+                    <h3 className="font-semibold">{(service as { name: string }).name || (service as { title: string }).title}</h3>
                     <p className="text-sm text-gray-500">
-                      {(service as { description?: string; serviceType?: string }).description || (service as { serviceType?: string }).serviceType}
+                      {(service as { description?: string; serviceType?: string }).description || (service as { serviceType?: string }).serviceType || (service as { description: string }).description}
                     </p>
                   </div>
 
                   <div className="font-semibold text-purple-600">
-                    ₹{(service as { baseRate: number }).baseRate}
+                    ₹{(service as { baseRate?: number; price?: number }).baseRate?.toLocaleString("en-IN") || (service as { baseRate?: number; price?: number }).price?.toLocaleString("en-IN")}
                   </div>
                 </div>
               ))}

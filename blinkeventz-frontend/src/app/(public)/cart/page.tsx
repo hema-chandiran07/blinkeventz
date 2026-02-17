@@ -4,9 +4,8 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowRight, Trash2, ShoppingBag, Plus, Minus } from "lucide-react";
-import { useState, useEffect } from "react";
-import { CartItem, CartSummary } from "@/types";
-import { MOCK_VENUES, MOCK_VENDORS } from "@/services/mock-data";
+import { useCart } from "@/context/cart-context";
+import { CartSummary } from "@/types";
 
 // Utility function for currency formatting
 const formatCurrency = (amount: number): string => {
@@ -17,96 +16,36 @@ const formatCurrency = (amount: number): string => {
   }).format(amount);
 };
 
-// Mock cart items - will be replaced with context/state management
-const getMockCartItems = (): CartItem[] => {
-  const venues = MOCK_VENUES.slice(0, 1);
-  const vendors = MOCK_VENDORS.slice(0, 1);
-
-  return [
-    ...venues.map((venue) => ({
-      id: `venue-${venue.id}`,
-      type: "venue" as const,
-      name: venue.name,
-      description: venue.description,
-      price: venue.price,
-      image: venue.images[0],
-      metadata: {
-        city: venue.city,
-        capacity: venue.capacity,
-      },
-    })),
-    ...vendors.map((vendor) => ({
-      id: `vendor-${vendor.id}`,
-      type: "vendor" as const,
-      name: vendor.name,
-      description: vendor.description,
-      price: vendor.priceRange === "₹₹₹" ? 15000 : vendor.priceRange === "₹₹" ? 8000 : 5000,
-      image: vendor.images[0],
-      metadata: {
-        serviceType: vendor.serviceType,
-        city: vendor.city,
-      },
-    })),
-  ];
-};
-
 const TAX_RATE = 0.18; // 18% GST
 const SERVICE_FEE = 199;
 
 export default function CartPage() {
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    // Simulate loading cart data
-    const timer = setTimeout(() => {
-      setCartItems(getMockCartItems());
-      setIsLoading(false);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, []);
+  const { items, removeItem, updateQuantity, clearCart } = useCart();
 
   const calculateSummary = (): CartSummary => {
-    const subtotal = cartItems.reduce((sum, item) => sum + item.price * (item.quantity || 1), 0);
+    const subtotal = items.reduce((sum, item) => sum + item.price * (item.quantity || 1), 0);
     const taxes = subtotal * TAX_RATE;
-    const serviceFee = cartItems.length > 0 ? SERVICE_FEE : 0;
+    const serviceFee = items.length > 0 ? SERVICE_FEE : 0;
     const total = subtotal + taxes + serviceFee;
 
     return { subtotal, taxes, serviceFee, total };
   };
 
   const handleRemoveItem = (itemId: string) => {
-    setCartItems((prev) => prev.filter((item) => item.id !== itemId));
+    removeItem(itemId);
   };
 
   const handleUpdateQuantity = (itemId: string, delta: number) => {
-    setCartItems((prev) =>
-      prev.map((item) => {
-        if (item.id === itemId) {
-          const newQuantity = Math.max(1, (item.quantity || 1) + delta);
-          return { ...item, quantity: newQuantity };
-        }
-        return item;
-      })
-    );
+    const item = items.find((i) => i.id === itemId);
+    if (item) {
+      const newQuantity = Math.max(1, (item.quantity || 1) + delta);
+      updateQuantity(itemId, newQuantity);
+    }
   };
 
   const summary = calculateSummary();
 
-  if (isLoading) {
-    return (
-      <div className="container mx-auto px-4 py-8 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4" />
-            <p className="text-gray-600">Loading your cart...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (cartItems.length === 0) {
+  if (items.length === 0) {
     return (
       <div className="container mx-auto px-4 py-8 sm:px-6 lg:px-8">
         <div className="flex flex-col items-center justify-center min-h-[60vh]">
@@ -125,12 +64,17 @@ export default function CartPage() {
 
   return (
     <div className="container mx-auto px-4 py-8 sm:px-6 lg:px-8">
-      <h1 className="text-3xl font-bold text-gray-900 mb-8">Your Event Cart</h1>
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">Your Event Cart</h1>
+        <Button variant="outline" onClick={clearCart} className="text-red-600 hover:text-red-700 hover:bg-red-50">
+          Clear Cart
+        </Button>
+      </div>
 
       <div className="grid gap-8 lg:grid-cols-3">
         {/* Cart Items Section */}
         <div className="lg:col-span-2 space-y-4">
-          {cartItems.map((item) => (
+          {items.map((item) => (
             <Card key={item.id} className="flex flex-row items-center p-4 transition-shadow hover:shadow-md">
               {/* Item Image */}
               <div
@@ -150,7 +94,10 @@ export default function CartPage() {
                 </div>
                 <h3 className="font-semibold text-lg text-gray-900 mt-1">{item.name}</h3>
                 <p className="text-gray-500 text-sm">{item.description}</p>
-                {item.metadata?.city && (
+                {item.metadata?.area && (
+                  <p className="text-gray-400 text-xs mt-1">📍 {item.metadata.area}, {item.metadata.city}</p>
+                )}
+                {!item.metadata?.area && item.metadata?.city && (
                   <p className="text-gray-400 text-xs mt-1">📍 {item.metadata.city}</p>
                 )}
 

@@ -1,6 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { StatusBadge } from "@/components/ui/status-badge";
 import { Calendar, Building2, DollarSign, Clock } from "lucide-react";
 
 export default function VenueDashboard() {

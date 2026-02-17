@@ -1,7 +1,7 @@
 import { MOCK_VENUES } from "@/services/mock-data";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { MapPin, Users, Star, Check, ArrowLeft, Calendar } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -30,11 +30,14 @@ export default async function VenueDetailPage({ params }: VenueDetailPageProps) 
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-8">
           {/* Image Gallery */}
-          <div className="overflow-hidden rounded-2xl bg-gray-100">
-            <img
+          <div className="overflow-hidden rounded-2xl bg-gray-100 relative">
+            <Image
               src={venue.images[0]}
               alt={venue.name}
-              className="h-[400px] w-full object-cover"
+              fill
+              className="object-cover"
+              priority
+              sizes="(max-width: 1024px) 100vw, 66vw"
             />
           </div>
 
@@ -47,10 +50,10 @@ export default async function VenueDetailPage({ params }: VenueDetailPageProps) 
                     <span className="font-bold text-yellow-700">{venue.rating}</span>
                 </div>
             </div>
-            
+
             <div className="flex items-center text-gray-500 mb-6">
               <MapPin className="h-5 w-5 mr-2 text-pink-500" />
-              {venue.address}, {venue.city}
+              {venue.area}, {venue.address}, {venue.city}
             </div>
 
             <p className="text-gray-700 leading-relaxed text-lg">
