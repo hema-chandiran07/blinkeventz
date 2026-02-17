@@ -3,14 +3,19 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Menu, X, ShoppingCart, ChevronDown } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/context/auth-context";
 
 export function PublicHeader() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isVenuesOpen, setIsVenuesOpen] = useState(false);
   const [isVendorsOpen, setIsVendorsOpen] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const { user, isAuthenticated, logout } = useAuth();
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const getDashboardLink = () => {
     if (!user) return "/dashboard/customer";
@@ -244,8 +249,8 @@ export function PublicHeader() {
           <Link href="/plan-event" className="text-sm font-medium text-gray-700 hover:text-purple-600">
             Plan Event
           </Link>
-          
-          {isAuthenticated && (
+
+          {isMounted && isAuthenticated && (
              <Link href={getDashboardLink()} className="text-sm font-medium text-purple-600 hover:text-purple-800 font-bold">
                 Dashboard
              </Link>
@@ -258,13 +263,25 @@ export function PublicHeader() {
               <ShoppingCart className="h-5 w-5 text-gray-700" />
             </Button>
           </Link>
-          
-          {isAuthenticated ? (
-            <div className="flex items-center space-x-4">
-                <span className="text-sm font-medium text-gray-700">Hi, {user?.name}</span>
-                <Button variant="ghost" onClick={logout}>Log out</Button>
-            </div>
+
+          {isMounted ? (
+            isAuthenticated ? (
+              <div className="flex items-center space-x-4">
+                  <span className="text-sm font-medium text-gray-700">Hi, {user?.name}</span>
+                  <Button variant="ghost" onClick={logout}>Log out</Button>
+              </div>
+            ) : (
+              <>
+                <Link href="/login">
+                  <Button variant="ghost">Log in</Button>
+                </Link>
+                <Link href="/register">
+                  <Button>Get Started</Button>
+                </Link>
+              </>
+            )
           ) : (
+            // Placeholder during SSR to match client initial render
             <>
               <Link href="/login">
                 <Button variant="ghost">Log in</Button>
@@ -297,8 +314,8 @@ export function PublicHeader() {
           <Link href="/plan-event" className="block text-sm font-medium text-gray-700 hover:text-purple-600">
             Plan Event
           </Link>
-          
-          {isAuthenticated && (
+
+          {isMounted && isAuthenticated && (
              <Link href={getDashboardLink()} className="block text-sm font-medium text-purple-600 hover:text-purple-800 font-bold">
                 Dashboard
              </Link>
@@ -309,18 +326,29 @@ export function PublicHeader() {
                 <ShoppingCart className="h-5 w-5" />
                 <span>Cart</span>
             </Link>
-            
-            {isAuthenticated ? (
-                <Button variant="ghost" className="w-full justify-start" onClick={logout}>Log out</Button>
+
+            {isMounted ? (
+              isAuthenticated ? (
+                  <Button variant="ghost" className="w-full justify-start" onClick={logout}>Log out</Button>
+              ) : (
+                  <>
+                      <Link href="/login" className="w-full">
+                      <Button variant="ghost" className="w-full justify-start">Log in</Button>
+                      </Link>
+                      <Link href="/register" className="w-full">
+                      <Button className="w-full">Get Started</Button>
+                      </Link>
+                  </>
+              )
             ) : (
-                <>
-                    <Link href="/login" className="w-full">
-                    <Button variant="ghost" className="w-full justify-start">Log in</Button>
-                    </Link>
-                    <Link href="/register" className="w-full">
-                    <Button className="w-full">Get Started</Button>
-                    </Link>
-                </>
+              <>
+                  <Link href="/login" className="w-full">
+                  <Button variant="ghost" className="w-full justify-start">Log in</Button>
+                  </Link>
+                  <Link href="/register" className="w-full">
+                  <Button className="w-full">Get Started</Button>
+                  </Link>
+              </>
             )}
           </div>
         </div>

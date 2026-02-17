@@ -4,30 +4,35 @@ import { useEffect, useState } from "react";
 import { VendorCard } from "@/components/vendors/vendor-card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search } from "lucide-react";
+import { FilterModal, type FilterState } from "@/components/ui/filter-modal";
+import { Search, Utensils, Camera, Sparkles, Music, Scissors, Cake, Star, SlidersHorizontal, X } from "lucide-react";
 import { getVendors, type Vendor } from "@/lib/vendors";
 
-/**
- * Prisma reference:
- * Vendor {
- *   id
- *   businessName
- *   description
- *   city
- *   area
- *   services VendorService[]
- * }
- *
- * VendorService {
- *   serviceType
- * }
- */
+// Filter configuration with icons
+const FILTER_CONFIG = [
+  { id: "all", label: "All", icon: Star },
+  { id: "Catering", label: "Catering", icon: Utensils },
+  { id: "Photography", label: "Photography", icon: Camera },
+  { id: "Decoration", label: "Decoration", icon: Sparkles },
+  { id: "DJ", label: "DJ & Music", icon: Music },
+  { id: "Makeup", label: "Makeup", icon: Scissors },
+  { id: "Bakery", label: "Bakery", icon: Cake },
+];
 
 export default function VendorsPage() {
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [loading, setLoading] = useState(true);
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [advancedFilters, setAdvancedFilters] = useState<FilterState>({
+    minBudget: "",
+    maxBudget: "",
+    location: "",
+    useNearMe: false,
+    timing: "",
+    availability: "any",
+  });
 
   // 🔹 FETCH VENDORS FROM BACKEND
   useEffect(() => {
@@ -61,17 +66,26 @@ export default function VendorsPage() {
         (service) => service.serviceType === typeFilter
       );
 
-    return matchesSearch && matchesType;
+    // Budget filter
+    const matchesBudget = (() => {
+      if (!advancedFilters.minBudget && !advancedFilters.maxBudget) return true;
+      const vendorPrice = vendor.services?.[0]?.price || 0;
+      const min = advancedFilters.minBudget ? Number(advancedFilters.minBudget) : 0;
+      const max = advancedFilters.maxBudget ? Number(advancedFilters.maxBudget) : Infinity;
+      return vendorPrice >= min && vendorPrice <= max;
+    })();
+
+    // Location filter
+    const matchesLocation = (() => {
+      if (!advancedFilters.location && !advancedFilters.useNearMe) return true;
+      return vendor.city?.toLowerCase().includes(advancedFilters.location.toLowerCase());
+    })();
+
+    return matchesSearch && matchesType && matchesBudget && matchesLocation;
   });
 
-  // 🔹 SERVICE TYPES FROM VendorService.serviceType
-  const serviceTypes = Array.from(
-    new Set(
-      vendors.flatMap(
-        (v) => v.services?.map((s) => s.serviceType) || []
-      )
-    )
-  );
+  // 🔹 SERVICE TYPES FROM VendorService.serviceType (kept for compatibility)
+  // const serviceTypes = Array.from(...)
 
   // 🔹 LOADING STATE
   if (loading) {
@@ -85,7 +99,7 @@ export default function VendorsPage() {
   return (
     <div className="container mx-auto px-4 py-8 sm:px-6 lg:px-8">
       {/* HEADER */}
-      <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0 mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">
             Find Top Vendors
@@ -95,33 +109,100 @@ export default function VendorsPage() {
           </p>
         </div>
 
-        {/* SEARCH & FILTER */}
-        <div className="flex flex-col space-y-2 sm:flex-row sm:space-x-2 sm:space-y-0">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-            <Input
-              type="text"
-              placeholder="Search vendors..."
-              className="pl-9 w-full sm:w-[250px]"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-
-          <select
-            className="h-10 w-full sm:w-[180px] rounded-full border border-purple-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
-          >
-            <option value="all">All Services</option>
-            {serviceTypes.map((type) => (
-              <option key={type} value={type}>
-                {type}
-              </option>
-            ))}
-          </select>
+        {/* SEARCH */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Input
+            type="text"
+            placeholder="Search vendors..."
+            className="pl-10 pr-12 py-2 w-full sm:w-[280px] rounded-full border-gray-200 focus:border-purple-400 focus:ring-purple-400"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
       </div>
+
+      {/* FILTER BAR */}
+      <div className="mb-8 flex flex-wrap items-center gap-3">
+        {/* Category Pills */}
+        <div className="flex flex-wrap gap-2 flex-1">
+          {FILTER_CONFIG.slice(0, 5).map((filter) => {
+            const Icon = filter.icon;
+            const isActive = typeFilter === filter.id;
+            return (
+              <button
+                key={filter.id}
+                onClick={() => setTypeFilter(filter.id)}
+                className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ease-out ${
+                  isActive
+                    ? "bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-lg shadow-purple-200 scale-105"
+                    : "bg-white text-gray-700 border border-gray-200 hover:border-purple-300 hover:bg-purple-50 hover:shadow-md"
+                }`}
+              >
+                <Icon className={`h-4 w-4 ${isActive ? "text-white" : "text-gray-500"}`} />
+                <span className="hidden sm:inline">{filter.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Advanced Filter Button */}
+        <Button
+          onClick={() => setShowFilterModal(true)}
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-pink-500 to-purple-600 text-white font-medium shadow-lg shadow-purple-200 hover:shadow-xl hover:scale-105 transition-all duration-300"
+        >
+          <SlidersHorizontal className="h-4 w-4" />
+          <span>Filters</span>
+          {(advancedFilters.minBudget || advancedFilters.maxBudget || advancedFilters.location || advancedFilters.timing) && (
+            <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+          )}
+        </Button>
+      </div>
+
+      {/* Active Filters Summary */}
+      {(advancedFilters.minBudget || advancedFilters.maxBudget || advancedFilters.location || advancedFilters.timing) && (
+        <div className="mb-6 p-4 bg-purple-50 rounded-2xl border border-purple-100">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-medium text-purple-900">Active filters:</span>
+            {advancedFilters.minBudget || advancedFilters.maxBudget ? (
+              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white text-purple-700 text-xs font-medium border border-purple-200">
+                <span>₹{advancedFilters.minBudget || "0"} - ₹{advancedFilters.maxBudget || "∞"}</span>
+              </span>
+            ) : null}
+            {advancedFilters.location ? (
+              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white text-purple-700 text-xs font-medium border border-purple-200">
+                <span>📍 {advancedFilters.location}</span>
+              </span>
+            ) : null}
+            {advancedFilters.timing ? (
+              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white text-purple-700 text-xs font-medium border border-purple-200 capitalize">
+                <span>🕐 {advancedFilters.timing}</span>
+              </span>
+            ) : null}
+            <button
+              onClick={() => setAdvancedFilters({
+                minBudget: "",
+                maxBudget: "",
+                location: "",
+                useNearMe: false,
+                timing: "",
+                availability: "any",
+              })}
+              className="ml-auto text-sm text-purple-600 hover:text-purple-800 font-medium"
+            >
+              Clear all
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* VENDORS GRID */}
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -147,6 +228,15 @@ export default function VendorsPage() {
           </Button>
         </div>
       )}
+
+      {/* FILTER MODAL */}
+      <FilterModal
+        isOpen={showFilterModal}
+        onClose={() => setShowFilterModal(false)}
+        onApply={setAdvancedFilters}
+        currentFilters={advancedFilters}
+        type="vendors"
+      />
     </div>
   );
 }
