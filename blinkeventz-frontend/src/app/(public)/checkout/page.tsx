@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,10 +13,10 @@ import {
   Wallet,
   Loader2,
   Calendar,
-  Users,
-  MapPin,
   Shield,
   XCircle,
+  Briefcase,
+  Clock,
 } from "lucide-react";
 import { UPIProvider, WalletProvider, BankCode, CheckoutFormData, CheckoutErrors } from "@/types";
 import { toast } from "sonner";
@@ -32,7 +32,8 @@ const formatCurrency = (amount: number): string => {
   }).format(amount);
 };
 
-// Mock cart data - will come from cart context
+// Mock cart data for testing (kept for future use)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const MOCK_CART_ITEMS = [
   {
     id: "1",
@@ -84,6 +85,16 @@ const BANKS: { id: BankCode; name: string }[] = [
 
 type CheckoutStep = "details" | "confirm" | "payment";
 
+interface BookingData {
+  type: 'venue' | 'vendor';
+  id: string;
+  name: string;
+  price: number;
+  package?: string;
+  time?: string;
+  service?: string;
+}
+
 export default function CheckoutPage() {
   const router = useRouter();
   const { clearCart } = useCart();
@@ -91,6 +102,7 @@ export default function CheckoutPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState<boolean | null>(null);
   const [acceptTerms, setAcceptTerms] = useState(false);
+  const [bookingData, setBookingData] = useState<BookingData | null>(null);
 
   const [formData, setFormData] = useState<CheckoutFormData>({
     firstName: "",
@@ -109,10 +121,56 @@ export default function CheckoutPage() {
 
   const [errors, setErrors] = useState<CheckoutErrors>({});
 
-  // Calculate totals
-  const subtotal = MOCK_CART_ITEMS.reduce((sum, item) => sum + item.price, 0);
+  // Load booking data from localStorage (from Book Now button)
+  // Using useSyncExternalStore to avoid setState in effect
+  const storedBooking = useSyncExternalStore(
+    (subscribe) => {
+      const handler = () => subscribe();
+      window.addEventListener('storage', handler);
+      return () => window.removeEventListener('storage', handler);
+    },
+    () => localStorage.getItem('blinkeventz_booking'),
+    () => null
+  );
+
+  const bookingDataFromStorage = storedBooking ? JSON.parse(storedBooking) : null;
+  const initialBookingData = bookingData ?? bookingDataFromStorage;
+
+  // Use only booking data from localStorage (no mock cart items)
+  const cartItems = initialBookingData
+    ? [{
+        id: `booking-${initialBookingData.id}`,
+        type: initialBookingData.type,
+        name: initialBookingData.name,
+        description: initialBookingData.type === 'venue'
+          ? `${initialBookingData.package || 'Full Day'} Package`
+          : initialBookingData.service || 'Selected Service',
+        price: initialBookingData.price,
+        image: initialBookingData.type === 'venue'
+          ? 'https://images.unsplash.com/photo-1519167758481-83f550bb49b3?ixlib=rb-4.0.3'
+          : 'https://images.unsplash.com/photo-1555244162-803834f70033?ixlib=rb-4.0.3',
+        metadata: {
+          package: initialBookingData.package,
+          time: initialBookingData.time,
+          service: initialBookingData.service,
+        },
+        quantity: 1,
+      }]
+    : [];
+
+  const subtotal = cartItems.reduce((sum, item) => sum + item.price * (item.quantity || 1), 0);
   const taxes = subtotal * TAX_RATE;
-  const total = subtotal + taxes + SERVICE_FEE;
+  const serviceFee = cartItems.length > 0 ? SERVICE_FEE : 0;
+  const total = subtotal + taxes + serviceFee;
+
+  // Remove booking function
+  const handleRemoveBooking = () => {
+    localStorage.removeItem('blinkeventz_booking');
+    setBookingData(null);
+    toast.info('Booking removed', {
+      description: 'Your selected booking has been removed',
+    });
+  };
 
   const validateContactForm = (): boolean => {
     const newErrors: CheckoutErrors = {};
@@ -139,6 +197,13 @@ export default function CheckoutPage() {
   };
 
   const handleContinueToConfirm = () => {
+    if (cartItems.length === 0) {
+      toast.error('No items in checkout', {
+        description: 'Please select a venue or vendor to proceed with booking',
+        duration: 4000,
+      });
+      return;
+    }
     if (validateContactForm()) {
       setCurrentStep("confirm");
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -146,6 +211,13 @@ export default function CheckoutPage() {
   };
 
   const handleConfirmBooking = () => {
+    if (cartItems.length === 0) {
+      toast.error('No items in checkout', {
+        description: 'Please select a venue or vendor to proceed with booking',
+        duration: 4000,
+      });
+      return;
+    }
     if (!acceptTerms) {
       toast.error("Please accept the Terms & Conditions", {
         description: "You need to agree to continue with the payment",
@@ -169,6 +241,14 @@ export default function CheckoutPage() {
   };
 
   const handlePayment = async () => {
+    // Check if cart has items
+    if (cartItems.length === 0) {
+      toast.error('No items in checkout', {
+        description: 'Please select a venue or vendor to proceed with booking',
+        duration: 4000,
+      });
+      return;
+    }
     // Validate payment details based on selected method
     const newErrors: CheckoutErrors = {};
 
@@ -235,6 +315,7 @@ export default function CheckoutPage() {
           duration: 5000,
         });
         clearCart();
+        localStorage.removeItem('blinkeventz_booking');
         setTimeout(() => {
           router.push("/dashboard/customer");
         }, 2000);
@@ -625,7 +706,7 @@ export default function CheckoutPage() {
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Platform Fee</span>
-                      <span className="font-medium">{formatCurrency(SERVICE_FEE)}</span>
+                      <span className="font-medium">{formatCurrency(serviceFee)}</span>
                     </div>
                     <div className="border-t pt-3 flex justify-between font-bold text-lg">
                       <span>Total</span>
@@ -634,12 +715,17 @@ export default function CheckoutPage() {
                   </CardContent>
                 </Card>
 
-                <Button 
-                  onClick={handleContinueToConfirm} 
-                  size="lg" 
-                  className="w-full h-14 text-lg shadow-lg bg-gradient-to-r from-pink-500 to-purple-600 hover:shadow-xl hover:scale-[1.02] transition-all duration-300"
+                <Button
+                  onClick={handleContinueToConfirm}
+                  size="lg"
+                  disabled={cartItems.length === 0}
+                  className={`w-full h-14 text-lg shadow-lg transition-all duration-300 ${
+                    cartItems.length === 0
+                      ? 'bg-gray-300 cursor-not-allowed'
+                      : 'bg-gradient-to-r from-pink-500 to-purple-600 hover:shadow-xl hover:scale-[1.02]'
+                  }`}
                 >
-                  Continue to Confirm 
+                  Continue to Confirm
                   <CheckCircle2 className="ml-2 h-5 w-5" />
                 </Button>
               </div>
@@ -682,9 +768,20 @@ export default function CheckoutPage() {
 
                   {/* Cart Items */}
                   <div>
-                    <h4 className="font-semibold text-gray-700 mb-3">Selected Services</h4>
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-semibold text-gray-700">Selected Services</h4>
+                      {cartItems.length > 0 && (
+                        <button
+                          onClick={handleRemoveBooking}
+                          className="text-sm text-red-600 hover:text-red-700 hover:bg-red-50 px-3 py-1 rounded-lg transition-colors flex items-center gap-1"
+                        >
+                          <XCircle className="h-4 w-4" />
+                          Remove
+                        </button>
+                      )}
+                    </div>
                     <div className="space-y-3">
-                      {MOCK_CART_ITEMS.map((item) => (
+                      {cartItems.map((item) => (
                         <div key={item.id} className="flex gap-4 p-4 border rounded-lg">
                           <div
                             className="h-20 w-20 bg-gray-200 rounded-lg bg-cover bg-center flex-shrink-0"
@@ -695,38 +792,47 @@ export default function CheckoutPage() {
                               <span className="px-2 py-0.5 text-xs font-medium bg-purple-100 text-purple-700 rounded-full capitalize">
                                 {item.type}
                               </span>
-                              {item.metadata?.serviceType && (
-                                <span className="text-xs text-gray-500">{item.metadata.serviceType}</span>
+                              {item.metadata?.service && (
+                                <span className="text-xs text-gray-500">{item.metadata.service}</span>
                               )}
                             </div>
                             <h5 className="font-semibold text-gray-900">{item.name}</h5>
                             <p className="text-sm text-gray-500">{item.description}</p>
                             <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
-                              {item.metadata?.date && (
+                              {item.metadata?.package && (
                                 <div className="flex items-center gap-1">
                                   <Calendar className="h-3 w-3" />
-                                  <span>{item.metadata.date}</span>
+                                  <span>{item.metadata.package}</span>
                                 </div>
                               )}
-                              {item.metadata?.guestCount && (
+                              {item.metadata?.time && (
                                 <div className="flex items-center gap-1">
-                                  <Users className="h-3 w-3" />
-                                  <span>{item.metadata.guestCount} guests</span>
+                                  <Clock className="h-3 w-3" />
+                                  <span>{item.metadata.time}</span>
                                 </div>
                               )}
-                              {item.metadata?.city && (
+                              {item.metadata?.service && (
                                 <div className="flex items-center gap-1">
-                                  <MapPin className="h-3 w-3" />
-                                  <span>{item.metadata.city}</span>
+                                  <Briefcase className="h-3 w-3" />
+                                  <span>{item.metadata.service}</span>
                                 </div>
                               )}
                             </div>
                           </div>
                           <div className="text-right">
-                            <div className="font-bold text-purple-600">{formatCurrency(item.price)}</div>
+                            <div className="font-bold text-purple-600">{formatCurrency(item.price * (item.quantity || 1))}</div>
+                            {item.quantity && item.quantity > 1 && (
+                              <div className="text-xs text-gray-500">₹{item.price.toLocaleString("en-IN")} × {item.quantity}</div>
+                            )}
                           </div>
                         </div>
                       ))}
+                      {cartItems.length === 0 && (
+                        <div className="text-center py-8 text-gray-500">
+                          <p>No booking selected</p>
+                          <p className="text-sm mt-2">Please select a venue or vendor to proceed with checkout</p>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -802,13 +908,13 @@ export default function CheckoutPage() {
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Platform Fee</span>
-                      <span className="font-medium">{formatCurrency(SERVICE_FEE)}</span>
+                      <span className="font-medium">{formatCurrency(serviceFee)}</span>
                     </div>
                     <div className="border-t pt-3 flex justify-between font-bold text-lg">
                       <span>Total</span>
                       <span className="text-purple-600">{formatCurrency(total)}</span>
                     </div>
-                    
+
                     {/* Trust Badges */}
                     <div className="pt-4 space-y-2">
                       <div className="flex items-center gap-2 text-xs text-gray-500">
