@@ -64,18 +64,21 @@ export function PublicHeader() {
           {/* VENUES DROPDOWN */}
           <div
             className="relative group"
+            onMouseEnter={() => setIsVenuesOpen(true)}
+            onMouseLeave={() => setIsVenuesOpen(false)}
           >
             <button
               className="flex items-center text-sm font-medium text-gray-700 hover:text-purple-600"
+              onClick={() => setIsVenuesOpen(!isVenuesOpen)}
             >
               Venues
               <ChevronDown
-                className="ml-1 h-4 w-4 transition-transform group-hover:rotate-180"
+                className={`ml-1 h-4 w-4 transition-transform ${isVenuesOpen ? 'rotate-180' : 'group-hover:rotate-180'}`}
               />
             </button>
 
             <div
-              className="absolute left-1/2 -translate-x-1/2 mt-4 w-[750px] rounded-2xl border border-gray-200 bg-white shadow-2xl p-8 grid grid-cols-3 gap-8 z-50 transition-all duration-200 ease-out opacity-0 invisible group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 translate-y-2"
+              className={`absolute left-1/2 -translate-x-1/2 mt-4 w-[750px] rounded-2xl border border-gray-200 bg-white shadow-2xl p-8 grid grid-cols-3 gap-8 z-50 transition-all duration-200 ease-out ${isVenuesOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible translate-y-2 group-hover:opacity-100 group-hover:visible group-hover:translate-y-0'}`}
             >
 
               {/* Column 1 - Venue Types */}
@@ -113,10 +116,10 @@ export function PublicHeader() {
                   By Event
                 </h3>
                 <ul className="space-y-3 text-sm text-gray-600">
-                  <li><Link href="/venues?event=Wedding" className="hover:text-purple-600" onClick={() => setIsVenuesOpen(false)}>Wedding Venues</Link></li>
-                  <li><Link href="/venues?event=Engagement" className="hover:text-purple-600" onClick={() => setIsVenuesOpen(false)}>Engagement Halls</Link></li>
-                  <li><Link href="/venues?event=Birthday" className="hover:text-purple-600" onClick={() => setIsVenuesOpen(false)}>Birthday Party Halls</Link></li>
-                  <li><Link href="/venues?event=Corporate" className="hover:text-purple-600" onClick={() => setIsVenuesOpen(false)}>Corporate Events</Link></li>
+                  <li><Link href="/venues?event=Wedding" className="hover:text-purple-600">Wedding Venues</Link></li>
+                  <li><Link href="/venues?event=Engagement" className="hover:text-purple-600">Engagement Halls</Link></li>
+                  <li><Link href="/venues?event=Birthday" className="hover:text-purple-600">Birthday Party Halls</Link></li>
+                  <li><Link href="/venues?event=Corporate" className="hover:text-purple-600">Corporate Events</Link></li>
                 </ul>
               </div>
 
@@ -125,7 +128,6 @@ export function PublicHeader() {
                 <Link
                   href="/venues"
                   className="text-sm font-semibold text-purple-600 hover:text-purple-800"
-                  onClick={() => setIsVenuesOpen(false)}
                 >
                   View All Chennai Venues →
                 </Link>
@@ -137,18 +139,21 @@ export function PublicHeader() {
           {/* VENDORS DROPDOWN */}
           <div
             className="relative group"
+            onMouseEnter={() => setIsVendorsOpen(true)}
+            onMouseLeave={() => setIsVendorsOpen(false)}
           >
             <button
               className="flex items-center text-sm font-medium text-gray-700 hover:text-purple-600"
+              onClick={() => setIsVendorsOpen(!isVendorsOpen)}
             >
               Vendors
               <ChevronDown
-                className="ml-1 h-4 w-4 transition-transform group-hover:rotate-180"
+                className={`ml-1 h-4 w-4 transition-transform ${isVendorsOpen ? 'rotate-180' : 'group-hover:rotate-180'}`}
               />
             </button>
 
             <div
-              className="absolute left-1/2 -translate-x-1/2 mt-4 w-[650px] rounded-2xl border border-gray-200 bg-white shadow-2xl p-8 grid grid-cols-3 gap-8 z-50 transition-all duration-200 ease-out opacity-0 invisible group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 translate-y-2"
+              className={`absolute left-1/2 -translate-x-1/2 mt-4 w-[650px] rounded-2xl border border-gray-200 bg-white shadow-2xl p-8 grid grid-cols-3 gap-8 z-50 transition-all duration-200 ease-out ${isVendorsOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible translate-y-2 group-hover:opacity-100 group-hover:visible group-hover:translate-y-0'}`}
             >
 
   {/* Column 1 */}
@@ -158,17 +163,17 @@ export function PublicHeader() {
     </h3>
     <ul className="space-y-3 text-sm text-gray-600">
       <li>
-        <Link href="/vendors?type=Catering" className="hover:text-purple-600" onClick={() => setIsVendorsOpen(false)}>
+        <Link href="/vendors?type=Catering" className="hover:text-purple-600">
           Catering Services
         </Link>
       </li>
       <li>
-        <Link href="/vendors?type=Bakery" className="hover:text-purple-600" onClick={() => setIsVendorsOpen(false)}>
+        <Link href="/vendors?type=Bakery" className="hover:text-purple-600">
           Cake & Bakery
         </Link>
       </li>
       <li>
-        <Link href="/vendors?type=Beverages" className="hover:text-purple-600" onClick={() => setIsVendorsOpen(false)}>
+        <Link href="/vendors?type=Beverages" className="hover:text-purple-600">
           Beverage Services
         </Link>
       </li>
@@ -182,22 +187,22 @@ export function PublicHeader() {
     </h3>
     <ul className="space-y-3 text-sm text-gray-600">
       <li>
-        <Link href="/vendors?type=Photography" className="hover:text-purple-600" onClick={() => setIsVendorsOpen(false)}>
+        <Link href="/vendors?type=Photography" className="hover:text-purple-600">
           Photography
         </Link>
       </li>
       <li>
-        <Link href="/vendors?type=Videography" className="hover:text-purple-600" onClick={() => setIsVendorsOpen(false)}>
+        <Link href="/vendors?type=Videography" className="hover:text-purple-600">
           Videography
         </Link>
       </li>
       <li>
-        <Link href="/vendors?type=DJ" className="hover:text-purple-600" onClick={() => setIsVendorsOpen(false)}>
+        <Link href="/vendors?type=DJ" className="hover:text-purple-600">
           DJ & Music
         </Link>
       </li>
       <li>
-        <Link href="/vendors?type=LiveBand" className="hover:text-purple-600" onClick={() => setIsVendorsOpen(false)}>
+        <Link href="/vendors?type=LiveBand" className="hover:text-purple-600">
           Live Bands
         </Link>
       </li>
@@ -211,22 +216,22 @@ export function PublicHeader() {
     </h3>
     <ul className="space-y-3 text-sm text-gray-600">
       <li>
-        <Link href="/vendors?type=Decoration" className="hover:text-purple-600" onClick={() => setIsVendorsOpen(false)}>
+        <Link href="/vendors?type=Decoration" className="hover:text-purple-600">
           Decoration
         </Link>
       </li>
       <li>
-        <Link href="/vendors?type=Makeup" className="hover:text-purple-600" onClick={() => setIsVendorsOpen(false)}>
+        <Link href="/vendors?type=Makeup" className="hover:text-purple-600">
           Makeup Artists
         </Link>
       </li>
       <li>
-        <Link href="/vendors?type=Lighting" className="hover:text-purple-600" onClick={() => setIsVendorsOpen(false)}>
+        <Link href="/vendors?type=Lighting" className="hover:text-purple-600">
           Lighting Services
         </Link>
       </li>
       <li>
-        <Link href="/vendors?type=EventPlanner" className="hover:text-purple-600" onClick={() => setIsVendorsOpen(false)}>
+        <Link href="/vendors?type=EventPlanner" className="hover:text-purple-600">
           Event Planners
         </Link>
       </li>
@@ -238,7 +243,6 @@ export function PublicHeader() {
     <Link
       href="/vendors"
       className="text-sm font-semibold text-purple-600 hover:text-purple-800"
-      onClick={() => setIsVendorsOpen(false)}
     >
       View All Vendors →
     </Link>

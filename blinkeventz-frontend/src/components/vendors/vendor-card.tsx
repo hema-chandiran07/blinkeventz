@@ -8,23 +8,11 @@ import { Badge } from "@/components/ui/badge";
 import Image from "next/image";
 import { useCart } from "@/context/cart-context";
 import { useState } from "react";
-import { getVendorImage } from "@/lib/vendors";
+import { getVendorImage, type Vendor } from "@/lib/vendors";
 import { toast } from "sonner";
 
 interface VendorCardProps {
-  vendor: {
-    id: string;
-    name?: string;
-    businessName?: string;
-    description?: string;
-    serviceType?: string;
-    city?: string;
-    area?: string;
-    priceRange?: string;
-    basePrice?: number;
-    images?: string[];
-    rating?: number;
-  };
+  vendor: Vendor;
 }
 
 export function VendorCard({ vendor }: VendorCardProps) {
@@ -33,7 +21,7 @@ export function VendorCard({ vendor }: VendorCardProps) {
   const added = isInCart(`vendor-${vendor.id}`);
 
   const displayName = vendor.name || vendor.businessName || "Vendor";
-  const displayImage = getVendorImage(vendor as { id: string });
+  const displayImage = getVendorImage(vendor);
   const displayRating = vendor.rating || 4.5;
   const displayServiceType = vendor.serviceType || "Service";
   const displayCity = vendor.city || "City";

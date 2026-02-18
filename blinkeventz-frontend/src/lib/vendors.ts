@@ -11,6 +11,9 @@ export interface Vendor {
   city?: string;
   area?: string;
   priceRange?: string;
+  serviceType?: string;
+  basePrice?: number;
+  rating?: number;
   verificationStatus?: string;
   services?: VendorService[];
 }
@@ -35,6 +38,9 @@ const mockVendors: Vendor[] = [
     city: "Chennai",
     area: "T Nagar",
     priceRange: "$$$",
+    serviceType: "Catering",
+    basePrice: 50000,
+    rating: 4.8,
     verificationStatus: "verified",
     services: [{ id: "s1", serviceType: "Catering", title: "Wedding Catering", description: "Full service catering", price: 50000 }]
   },
@@ -46,6 +52,9 @@ const mockVendors: Vendor[] = [
     city: "Chennai",
     area: "Anna Nagar",
     priceRange: "$$",
+    serviceType: "Photography",
+    basePrice: 35000,
+    rating: 4.9,
     verificationStatus: "verified",
     services: [{ id: "s2", serviceType: "Photography", title: "Wedding Photography", description: "Full day coverage", price: 35000 }]
   },
@@ -57,6 +66,9 @@ const mockVendors: Vendor[] = [
     city: "Chennai",
     area: "Velachery",
     priceRange: "$$$",
+    serviceType: "Decoration",
+    basePrice: 75000,
+    rating: 4.7,
     verificationStatus: "verified",
     services: [{ id: "s3", serviceType: "Decoration", title: "Event Decoration", description: "Complete venue decoration", price: 75000 }]
   },
@@ -68,6 +80,9 @@ const mockVendors: Vendor[] = [
     city: "Chennai",
     area: "OMR",
     priceRange: "$$",
+    serviceType: "DJ",
+    basePrice: 25000,
+    rating: 4.5,
     verificationStatus: "pending",
     services: [{ id: "s4", serviceType: "DJ", title: "DJ Services", description: "4 hours DJ performance", price: 25000 }]
   },
@@ -79,6 +94,9 @@ const mockVendors: Vendor[] = [
     city: "Chennai",
     area: "Adyar",
     priceRange: "$$",
+    serviceType: "Makeup",
+    basePrice: 15000,
+    rating: 4.9,
     verificationStatus: "verified",
     services: [{ id: "s5", serviceType: "Makeup", title: "Bridal Makeup", description: "Complete bridal makeup", price: 15000 }]
   },
@@ -90,6 +108,9 @@ const mockVendors: Vendor[] = [
     city: "Chennai",
     area: "Tambaram",
     priceRange: "$",
+    serviceType: "Bakery",
+    basePrice: 8000,
+    rating: 4.6,
     verificationStatus: "verified",
     services: [{ id: "s6", serviceType: "Bakery", title: "Wedding Cake", description: "Custom designed wedding cake", price: 8000 }]
   }

@@ -94,10 +94,10 @@ export default function CartPage() {
                 </div>
                 <h3 className="font-semibold text-lg text-gray-900 mt-1">{item.name}</h3>
                 <p className="text-gray-500 text-sm">{item.description}</p>
-                {item.metadata?.area && (
+                {typeof item.metadata?.area === 'string' && typeof item.metadata?.city === 'string' && (
                   <p className="text-gray-400 text-xs mt-1">📍 {item.metadata.area}, {item.metadata.city}</p>
                 )}
-                {!item.metadata?.area && item.metadata?.city && (
+                {typeof item.metadata?.city === 'string' && typeof item.metadata?.area !== 'string' && (
                   <p className="text-gray-400 text-xs mt-1">📍 {item.metadata.city}</p>
                 )}
 

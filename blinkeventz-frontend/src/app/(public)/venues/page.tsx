@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { MOCK_VENUES } from "@/services/mock-data";
 import { VenueCard } from "@/components/venues/venue-card";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,18 @@ const VENUE_FILTER_CONFIG = [
 ];
 
 export default function VenuesPage() {
+  return (
+    <Suspense fallback={
+      <div className="container mx-auto px-4 py-12 text-center">
+        <p className="text-gray-500">Loading venues...</p>
+      </div>
+    }>
+      <VenuesContent />
+    </Suspense>
+  );
+}
+
+function VenuesContent() {
   const searchParams = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
   const [cityFilter, setCityFilter] = useState("all");
@@ -177,9 +189,12 @@ export default function VenuesPage() {
                 minBudget: "",
                 maxBudget: "",
                 location: "",
+                locations: [],
                 useNearMe: false,
                 timing: "",
                 availability: "any",
+                eventDate: "",
+                eventTime: "",
               })}
               className="ml-auto text-sm text-purple-600 hover:text-purple-800 font-medium"
             >

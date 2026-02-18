@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { VendorCard } from "@/components/vendors/vendor-card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,18 @@ const FILTER_CONFIG = [
 ];
 
 export default function VendorsPage() {
+  return (
+    <Suspense fallback={
+      <div className="container mx-auto px-4 py-12 text-center">
+        <p className="text-gray-500">Loading vendors...</p>
+      </div>
+    }>
+      <VendorsContent />
+    </Suspense>
+  );
+}
+
+function VendorsContent() {
   const searchParams = useSearchParams();
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -223,9 +235,12 @@ export default function VendorsPage() {
                 minBudget: "",
                 maxBudget: "",
                 location: "",
+                locations: [],
                 useNearMe: false,
                 timing: "",
                 availability: "any",
+                eventDate: "",
+                eventTime: "",
               })}
               className="ml-auto text-sm text-purple-600 hover:text-purple-800 font-medium"
             >

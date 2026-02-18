@@ -46,7 +46,7 @@ export default async function VendorDetailPage({
           <div className="overflow-hidden rounded-2xl bg-gray-100 relative">
             <Image
               src={getVendorImage(vendor)}
-              alt={vendor.businessName || vendor.name}
+              alt={vendor.businessName || vendor.name || "Vendor"}
               fill
               className="object-cover"
               priority
@@ -57,7 +57,7 @@ export default async function VendorDetailPage({
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
             <div>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                {vendor.businessName || vendor.name}
+                {vendor.businessName || vendor.name || "Vendor"}
               </h1>
 
               <div className="flex flex-wrap items-center gap-3 mb-4">

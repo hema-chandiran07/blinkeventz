@@ -169,13 +169,65 @@ export default function CheckoutPage() {
   };
 
   const handlePayment = async () => {
+    // Validate payment details based on selected method
+    const newErrors: CheckoutErrors = {};
+
+    if (formData.paymentMethod === "card") {
+      // Validate card details
+      if (!formData.cardNumber || formData.cardNumber.replace(/\s/g, "").length < 16) {
+        newErrors.cardNumber = "Please enter a valid 16-digit card number";
+      }
+      if (!formData.expiry || !/^\d{2}\/\d{2}$/.test(formData.expiry)) {
+        newErrors.expiry = "Please enter a valid expiry date (MM/YY)";
+      }
+      if (!formData.cvc || !/^\d{3,4}$/.test(formData.cvc)) {
+        newErrors.cvc = "Please enter a valid CVC (3-4 digits)";
+      }
+    }
+
+    if (formData.paymentMethod === "upi") {
+      // Validate UPI - either provider selected or UPI ID entered
+      if (!formData.upiProvider && !formData.upiId) {
+        toast.error("Please select a UPI payment method", {
+          description: "Choose a UPI app (Google Pay, PhonePe, etc.) or enter your UPI ID",
+        });
+        return;
+      }
+      if (formData.upiId && !/^[a-zA-Z0-9._-]+@[a-zA-Z]+$/.test(formData.upiId)) {
+        newErrors.upiId = "Please enter a valid UPI ID (e.g., yourname@upi)";
+      }
+    }
+
+    if (formData.paymentMethod === "netbanking" && !formData.bankCode) {
+      toast.error("Please select your bank", {
+        description: "Choose a bank from the list to proceed with net banking",
+      });
+      return;
+    }
+
+    if (formData.paymentMethod === "wallet" && !formData.walletProvider) {
+      toast.error("Please select a wallet", {
+        description: "Choose a wallet provider to proceed",
+      });
+      return;
+    }
+
+    // Set errors if any
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      toast.error("Please fill in all required payment details", {
+        description: "Complete the highlighted fields to continue",
+      });
+      return;
+    }
+
     setIsProcessing(true);
 
     // Simulate payment processing with random success/failure
     setTimeout(() => {
       // Simulate 80% success rate for demo
       const isSuccess = Math.random() > 0.2;
-      
+
       if (isSuccess) {
         setPaymentSuccess(true);
         toast.success("Payment Accepted! 🎉", {
@@ -193,7 +245,7 @@ export default function CheckoutPage() {
           duration: 5000,
         });
       }
-      
+
       setIsProcessing(false);
     }, 2500);
   };
@@ -447,7 +499,9 @@ export default function CheckoutPage() {
                             handleInputChange("upiId", e.target.value);
                             handleInputChange("upiProvider", undefined as unknown as UPIProvider);
                           }}
+                          className={errors.upiId ? "border-red-500" : ""}
                         />
+                        {errors.upiId && <p className="text-xs text-red-500">{errors.upiId}</p>}
                       </div>
                     </div>
                   )}
@@ -456,17 +510,38 @@ export default function CheckoutPage() {
                   {formData.paymentMethod === "card" && (
                     <div className="space-y-4 pt-4 border-t">
                       <div className="space-y-2">
-                        <Label htmlFor="cardNumber">Card Number</Label>
-                        <Input id="cardNumber" placeholder="0000 0000 0000 0000" maxLength={19} />
+                        <Label htmlFor="cardNumber">Card Number *</Label>
+                        <Input
+                          id="cardNumber"
+                          placeholder="0000 0000 0000 0000"
+                          value={formData.cardNumber}
+                          onChange={(e) => handleInputChange("cardNumber", e.target.value)}
+                          maxLength={19}
+                        />
+                        {errors.cardNumber && <p className="text-xs text-red-500">{errors.cardNumber}</p>}
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor="expiry">Expiry Date</Label>
-                          <Input id="expiry" placeholder="MM/YY" maxLength={5} />
+                          <Label htmlFor="expiry">Expiry Date *</Label>
+                          <Input
+                            id="expiry"
+                            placeholder="MM/YY"
+                            value={formData.expiry}
+                            onChange={(e) => handleInputChange("expiry", e.target.value)}
+                            maxLength={5}
+                          />
+                          {errors.expiry && <p className="text-xs text-red-500">{errors.expiry}</p>}
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="cvc">CVC</Label>
-                          <Input id="cvc" placeholder="123" maxLength={4} />
+                          <Label htmlFor="cvc">CVC *</Label>
+                          <Input
+                            id="cvc"
+                            placeholder="123"
+                            value={formData.cvc}
+                            onChange={(e) => handleInputChange("cvc", e.target.value)}
+                            maxLength={4}
+                          />
+                          {errors.cvc && <p className="text-xs text-red-500">{errors.cvc}</p>}
                         </div>
                       </div>
                     </div>

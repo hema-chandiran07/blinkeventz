@@ -4,10 +4,12 @@ import { useEffect, useState } from "react";
 import { getMyServices, getMyBookings } from "@/lib/vendor";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, CheckCircle2, DollarSign, Clock } from "lucide-react";
+import { Calendar, CheckCircle2, DollarSign, Clock, Package } from "lucide-react";
+import { Service, Booking } from "@/types";
 
 export default function VendorDashboard() {
-  const [bookings, setBookings] = useState<unknown[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
 
   useEffect(() => {
     getMyServices().then(setServices);
@@ -26,6 +28,16 @@ export default function VendorDashboard() {
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Total Services</CardTitle>
+            <Package className="h-4 w-4 text-purple-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{services.length}</div>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Total Bookings</CardTitle>
