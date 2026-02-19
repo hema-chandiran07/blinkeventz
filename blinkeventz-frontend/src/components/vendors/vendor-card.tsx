@@ -63,7 +63,8 @@ export function VendorCard({ vendor }: VendorCardProps) {
   };
 
   return (
-    <Card className="overflow-hidden hover:shadow-2xl transition-all duration-300 group h-full flex flex-col border-gray-200 hover:border-purple-300 transform hover:-translate-y-1">
+    <Link href={`/vendors/${vendor.id}`} className="block">
+      <Card className="overflow-hidden hover:shadow-2xl transition-all duration-300 group h-full flex flex-col border-gray-200 hover:border-purple-300 transform hover:-translate-y-1 cursor-pointer">
       <div className="relative h-48 w-full overflow-hidden">
         <Image
           src={displayImage}
@@ -126,5 +127,6 @@ export function VendorCard({ vendor }: VendorCardProps) {
         </div>
       </CardFooter>
     </Card>
+    </Link>
   );
 }

@@ -53,7 +53,8 @@ export function VenueCard({ venue }: VenueCardProps) {
   };
 
   return (
-    <Card className="overflow-hidden hover:shadow-2xl transition-all duration-300 group h-full flex flex-col border-gray-200 hover:border-purple-300 transform hover:-translate-y-1">
+    <Link href={`/venues/${venue.id}`} className="block">
+      <Card className="overflow-hidden hover:shadow-2xl transition-all duration-300 group h-full flex flex-col border-gray-200 hover:border-purple-300 transform hover:-translate-y-1 cursor-pointer">
       <div className="relative h-48 w-full overflow-hidden">
         <Image
           src={venue.images[0]}
@@ -117,5 +118,6 @@ export function VenueCard({ venue }: VenueCardProps) {
         </div>
       </CardFooter>
     </Card>
+    </Link>
   );
 }

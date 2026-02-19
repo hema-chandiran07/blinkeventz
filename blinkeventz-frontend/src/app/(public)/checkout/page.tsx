@@ -17,6 +17,7 @@ import {
   XCircle,
   Briefcase,
   Clock,
+  Trash2,
 } from "lucide-react";
 import { UPIProvider, WalletProvider, BankCode, CheckoutFormData, CheckoutErrors } from "@/types";
 import { toast } from "sonner";
@@ -97,7 +98,7 @@ interface BookingData {
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { clearCart } = useCart();
+  const { items: cartContextItems, clearCart, removeItem } = useCart();
   const [currentStep, setCurrentStep] = useState<CheckoutStep>("details");
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState<boolean | null>(null);
@@ -136,8 +137,8 @@ export default function CheckoutPage() {
   const bookingDataFromStorage = storedBooking ? JSON.parse(storedBooking) : null;
   const initialBookingData = bookingData ?? bookingDataFromStorage;
 
-  // Use only booking data from localStorage (no mock cart items)
-  const cartItems = initialBookingData
+  // Build cart items from both sources: CartContext (Add to Cart) and booking data (Book Now)
+  const bookingCartItem = initialBookingData
     ? [{
         id: `booking-${initialBookingData.id}`,
         type: initialBookingData.type,
@@ -158,6 +159,9 @@ export default function CheckoutPage() {
       }]
     : [];
 
+  // Combine cart items from context (Add to Cart) and booking data (Book Now)
+  const cartItems = [...cartContextItems, ...bookingCartItem];
+
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * (item.quantity || 1), 0);
   const taxes = subtotal * TAX_RATE;
   const serviceFee = cartItems.length > 0 ? SERVICE_FEE : 0;
@@ -167,9 +171,28 @@ export default function CheckoutPage() {
   const handleRemoveBooking = () => {
     localStorage.removeItem('blinkeventz_booking');
     setBookingData(null);
+    clearCart();
     toast.info('Booking removed', {
       description: 'Your selected booking has been removed',
     });
+  };
+
+  // Remove individual item from cart
+  const handleRemoveItem = (itemId: string) => {
+    // If it's a booking item (from Book Now), clear booking data
+    if (itemId.startsWith('booking-')) {
+      localStorage.removeItem('blinkeventz_booking');
+      setBookingData(null);
+      toast.info('Item removed', {
+        description: 'Your selected booking has been removed',
+      });
+    } else {
+      // Remove from cart context (Add to Cart items)
+      removeItem(itemId);
+      toast.info('Item removed from cart', {
+        description: 'The item has been removed from your cart',
+      });
+    }
   };
 
   const validateContactForm = (): boolean => {
@@ -824,6 +847,13 @@ export default function CheckoutPage() {
                             {item.quantity && item.quantity > 1 && (
                               <div className="text-xs text-gray-500">₹{item.price.toLocaleString("en-IN")} × {item.quantity}</div>
                             )}
+                            <button
+                              onClick={() => handleRemoveItem(item.id)}
+                              className="mt-2 text-red-500 hover:text-red-700 hover:bg-red-50 p-1 rounded transition-colors"
+                              aria-label={`Remove ${item.name} from checkout`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
                           </div>
                         </div>
                       ))}
