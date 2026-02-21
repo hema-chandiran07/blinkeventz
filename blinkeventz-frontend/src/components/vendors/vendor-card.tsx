@@ -63,24 +63,25 @@ export function VendorCard({ vendor }: VendorCardProps) {
   };
 
   return (
-    <Link href={`/vendors/${vendor.id}`} className="block">
-      <Card className="overflow-hidden hover:shadow-2xl transition-all duration-300 group h-full flex flex-col border-gray-200 hover:border-purple-300 transform hover:-translate-y-1 cursor-pointer">
-      <div className="relative h-48 w-full overflow-hidden">
-        <Image
-          src={displayImage}
-          alt={displayName}
-          fill
-          className="object-cover transition-transform duration-500 group-hover:scale-110"
-          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-        />
-        <div className="absolute top-3 right-3 bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-full text-xs font-semibold text-purple-700 flex items-center shadow-lg">
-          <Star className="h-3.5 w-3.5 mr-1 fill-yellow-400 text-yellow-400" />
-          {displayRating}
+    <Card className="overflow-hidden hover:shadow-2xl transition-all duration-300 group h-full flex flex-col border-gray-200 hover:border-purple-300 transform hover:-translate-y-1 cursor-pointer">
+      <Link href={`/vendors/${vendor.id}`} className="block">
+        <div className="relative h-48 w-full overflow-hidden">
+          <Image
+            src={displayImage}
+            alt={displayName}
+            fill
+            className="object-cover transition-transform duration-500 group-hover:scale-110"
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          />
+          <div className="absolute top-3 right-3 bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-full text-xs font-semibold text-purple-700 flex items-center shadow-lg">
+            <Star className="h-3.5 w-3.5 mr-1 fill-yellow-400 text-yellow-400" />
+            {displayRating}
+          </div>
+          <div className="absolute top-3 left-3">
+            <Badge className="bg-white/95 text-purple-700 hover:bg-white shadow-md">{displayServiceType}</Badge>
+          </div>
         </div>
-        <div className="absolute top-3 left-3">
-          <Badge className="bg-white/95 text-purple-700 hover:bg-white shadow-md">{displayServiceType}</Badge>
-        </div>
-      </div>
+      </Link>
       <CardContent className="p-5 flex-1">
         <Link href={`/vendors/${vendor.id}`} className="block group">
           <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-purple-600 transition-colors duration-300">{displayName}</h3>
@@ -101,11 +102,9 @@ export function VendorCard({ vendor }: VendorCardProps) {
             size="sm"
             variant="outline"
             className="bg-white hover:bg-purple-50 border-gray-200 hover:border-purple-300"
-            asChild
+            onClick={() => window.location.href = `/vendors/${vendor.id}`}
           >
-            <Link href={`/vendors/${vendor.id}`}>
-              <Eye className="h-4 w-4 mr-1" /> Details
-            </Link>
+            <Eye className="h-4 w-4 mr-1" /> Details
           </Button>
           <Button
             size="sm"
@@ -127,6 +126,5 @@ export function VendorCard({ vendor }: VendorCardProps) {
         </div>
       </CardFooter>
     </Card>
-    </Link>
   );
 }
