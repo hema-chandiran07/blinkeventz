@@ -53,8 +53,7 @@ export function VenueCard({ venue }: VenueCardProps) {
   };
 
   return (
-    <Link href={`/venues/${venue.id}`} className="block">
-      <Card className="overflow-hidden hover:shadow-2xl transition-all duration-300 group h-full flex flex-col border-gray-200 hover:border-purple-300 transform hover:-translate-y-1 cursor-pointer">
+    <Card className="overflow-hidden hover:shadow-2xl transition-all duration-300 group h-full flex flex-col border-gray-200 hover:border-purple-300 transform hover:-translate-y-1 cursor-pointer">
       <div className="relative h-48 w-full overflow-hidden">
         <Image
           src={venue.images[0]}
@@ -69,9 +68,12 @@ export function VenueCard({ venue }: VenueCardProps) {
         </div>
       </div>
       <CardContent className="p-5 flex-1">
-        <Link href={`/venues/${venue.id}`} className="block group">
-          <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-purple-600 transition-colors duration-300">{venue.name}</h3>
-        </Link>
+        <h3 
+          className="text-xl font-bold text-gray-900 mb-2 hover:text-purple-600 transition-colors duration-300 cursor-pointer"
+          onClick={() => window.location.href = `/venues/${venue.id}`}
+        >
+          {venue.name}
+        </h3>
         <div className="flex items-center text-gray-500 text-sm mb-2">
           <MapPin className="h-4 w-4 mr-1 text-pink-500" />
           {venue.area}, {venue.city}
@@ -92,11 +94,9 @@ export function VenueCard({ venue }: VenueCardProps) {
             size="sm"
             variant="outline"
             className="bg-white hover:bg-purple-50 border-gray-200 hover:border-purple-300"
-            asChild
+            onClick={() => window.location.href = `/venues/${venue.id}`}
           >
-            <Link href={`/venues/${venue.id}`}>
-              <Eye className="h-4 w-4 mr-1" /> Details
-            </Link>
+            <Eye className="h-4 w-4 mr-1" /> Details
           </Button>
           <Button
             size="sm"
@@ -118,6 +118,5 @@ export function VenueCard({ venue }: VenueCardProps) {
         </div>
       </CardFooter>
     </Card>
-    </Link>
   );
 }

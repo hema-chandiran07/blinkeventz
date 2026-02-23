@@ -224,7 +224,7 @@ export default async function VendorDetailPage({ params }: VendorDetailPageProps
         </div>
 
         {/* SIDEBAR - Sticky Booking Card */}
-        <VendorBookingSidebar vendor={vendor} services={services} />
+        <VendorBookingSidebar vendor={vendor} />
       </div>
     </div>
   );

@@ -100,6 +100,45 @@ export default function CartPage() {
                 {typeof item.metadata?.city === 'string' && typeof item.metadata?.area !== 'string' && (
                   <p className="text-gray-400 text-xs mt-1">📍 {item.metadata.city}</p>
                 )}
+                
+                {(() => {
+                  const meta = item.metadata as Record<string, unknown> | undefined;
+                  if (!meta || typeof meta !== 'object') return null;
+                  const selectedDate = meta.selectedDate as string | undefined;
+                  const selectedSlot = meta.selectedSlot as string | undefined;
+                  const timeSlotLabel = meta.timeSlotLabel as string | undefined;
+                  const basePrice = meta.basePrice as number | undefined;
+                  const pkg = meta.package as string | undefined;
+                  
+                  if (!selectedDate) return null;
+                  
+                  return (
+                    <div className="mt-2 p-2 bg-green-50 rounded-lg border border-green-200">
+                      <div className="flex items-center gap-2 text-xs text-green-700">
+                        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <span className="font-medium">
+                          {new Date(selectedDate).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric" })}
+                        </span>
+                      </div>
+                      {selectedSlot && (
+                        <div className="flex items-center gap-2 text-xs text-green-700 mt-1">
+                          <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span className="capitalize">{timeSlotLabel || selectedSlot.replace("_", " ")}</span>
+                        </div>
+                      )}
+                      {basePrice && (
+                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-green-200">
+                          <span className="text-xs text-gray-500">Base: ₹{basePrice.toLocaleString("en-IN")}</span>
+                          <span className="text-xs font-semibold text-green-700">You saved: ₹{(basePrice - item.price).toLocaleString("en-IN")}</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Quantity Controls */}
                 <div className="flex items-center gap-3 mt-3">

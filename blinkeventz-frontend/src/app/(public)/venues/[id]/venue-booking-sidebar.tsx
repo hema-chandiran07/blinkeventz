@@ -2,52 +2,46 @@
 
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Mail, Phone, MessageCircle, Shield, Globe, Check, Calendar } from "lucide-react";
+import { Mail, Phone, MessageCircle, Shield, Globe, CheckCircle2, Calendar as CalendarIcon, Clock, DollarSign } from "lucide-react";
 import { AddToCartButton } from "./add-to-cart-button";
 import { BookNowButton } from "./book-now-button";
+import { AvailabilityCalendar, type TimeSlot, type TimeSlotType } from "@/components/venues/availability-calendar";
 import type { Venue } from "@/types";
 
 interface VenueBookingSidebarProps {
   venue: Venue;
 }
 
-const ALL_PACKAGES = [
-  { name: "Morning", time: "6 AM - 12 PM", multiplier: 0.6 },
-  { name: "Evening", time: "4 PM - 10 PM", multiplier: 0.8 },
-  { name: "Full Day", time: "6 AM - 12 AM", multiplier: 1.0 },
-  { name: "Night", time: "8 PM - 2 AM", multiplier: 0.7 },
-];
+const TIME_SLOT_MULTIPLIERS: Record<TimeSlotType, number> = {
+  morning: 0.6,
+  evening: 0.8,
+  full_day: 1.0,
+  night: 0.7,
+};
 
-// Generate random package combinations for each venue based on venue id
-const getPackagesForVenue = (venueId: string) => {
-  const hash = venueId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  const packageCounts = [2, 3, 4]; // Some venues have 2, some 3, some 4 packages
-  const countIndex = hash % packageCounts.length;
-  const packageCount = packageCounts[countIndex];
-  
-  // Different combinations based on hash
-  const combinations: number[][] = [
-    [0, 1], // Morning + Evening
-    [1, 2], // Evening + Full Day
-    [0, 2], // Morning + Full Day
-    [1, 3], // Evening + Night
-    [0, 1, 2], // Morning + Evening + Full Day
-    [0, 1, 3], // Morning + Evening + Night
-    [1, 2, 3], // Evening + Full Day + Night
-    [0, 1, 2, 3], // All packages
-  ];
-  
-  const comboIndex = hash % combinations.length;
-  const selectedIndices = combinations[comboIndex].slice(0, packageCount);
-  return selectedIndices.map(i => ALL_PACKAGES[i]);
+const TIME_SLOT_LABELS: Record<TimeSlotType, string> = {
+  morning: "Morning (6 AM - 12 PM)",
+  evening: "Evening (4 PM - 10 PM)",
+  full_day: "Full Day (6 AM - 12 AM)",
+  night: "Night (8 PM - 2 AM)",
 };
 
 export function VenueBookingSidebar({ venue }: VenueBookingSidebarProps) {
-  const venuePackages = getPackagesForVenue(venue.id);
-  const [selectedPackage, setSelectedPackage] = useState(venuePackages.length > 1 ? 1 : 0);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<TimeSlotType | null>(null);
 
-  const selectedPrice = Math.round(venue.price * venuePackages[selectedPackage].multiplier);
-  const priceUnit = venue.priceUnit === 'per_day' ? 'day' : 'hour';
+  // Calculate dynamic price based on selected time slot
+  const basePrice = venue.basePrice || venue.price || 150000;
+  const selectedPrice = selectedSlot 
+    ? Math.round(basePrice * TIME_SLOT_MULTIPLIERS[selectedSlot])
+    : basePrice;
+
+  const handleDateSelect = (date: Date, slot: TimeSlot) => {
+    setSelectedDate(date);
+    setSelectedSlot(slot.type);
+  };
+
+  const isReadyToBook = selectedDate && selectedSlot;
 
   return (
     <div className="lg:col-span-1">
@@ -56,71 +50,103 @@ export function VenueBookingSidebar({ venue }: VenueBookingSidebarProps) {
         <div className="bg-white rounded-2xl border border-purple-100 p-6 shadow-lg">
           <div className="mb-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Book This Venue</h3>
-            <p className="text-sm text-gray-500">Reserve your date today</p>
+            <p className="text-sm text-gray-500">Select date and time to see pricing</p>
           </div>
 
-          <div className="flex items-center justify-between mb-6 p-4 bg-purple-50 rounded-xl">
-            <div>
-              <div className="text-sm text-gray-500">Starting from</div>
-              <div className="text-2xl font-bold text-purple-600">₹{selectedPrice.toLocaleString("en-IN")}</div>
-              <div className="text-xs text-gray-500 mt-1">{venuePackages[selectedPackage].name} Package</div>
+          {/* Dynamic Pricing Display */}
+          <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-200">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <div className="text-sm text-gray-500">Base Price</div>
+                <div className="text-lg font-semibold text-gray-700">₹{basePrice.toLocaleString("en-IN")}</div>
+              </div>
+              <div className="text-right">
+                <div className="text-sm text-gray-500">Your Price</div>
+                <div className="text-2xl font-bold text-purple-600">₹{selectedPrice.toLocaleString("en-IN")}</div>
+              </div>
             </div>
-            <div className="text-right">
-              <Badge className="bg-green-100 text-green-700 border border-green-200">
-                Available
-              </Badge>
-            </div>
+            
+            {selectedSlot && (
+              <div className="flex items-center gap-2 text-xs text-purple-700 bg-white/50 rounded-lg p-2">
+                <Clock className="h-3 w-3" />
+                <span className="font-medium">{TIME_SLOT_LABELS[selectedSlot]}</span>
+                <span className="ml-auto font-bold">
+                  {Math.round(TIME_SLOT_MULTIPLIERS[selectedSlot] * 100)}% of base
+                </span>
+              </div>
+            )}
           </div>
 
-          {/* Timing Packages */}
-          <div className="grid grid-cols-2 gap-2 mb-6">
-            {venuePackages.map((pkg, index) => (
-              <button
-                key={pkg.name}
-                onClick={() => setSelectedPackage(index)}
-                className={`p-3 rounded-lg border text-center text-xs transition-all ${
-                  selectedPackage === index
-                    ? "bg-gradient-to-br from-purple-50 to-pink-50 border-purple-300 shadow-md scale-105"
-                    : "bg-gray-50 border-gray-200 hover:border-purple-200 hover:bg-purple-50"
-                }`}
-              >
-                <div className={`font-semibold ${selectedPackage === index ? "text-purple-700" : "text-gray-600"}`}>
-                  {pkg.name}
-                </div>
-                <div className={`text-xs mt-1 ${selectedPackage === index ? "text-purple-500" : "text-gray-400"}`}>
-                  {pkg.time}
-                </div>
-              </button>
-            ))}
-          </div>
-
+          {/* Action Buttons */}
           <div className="space-y-3 mb-6">
             <BookNowButton
               venueId={venue.id}
               venueName={venue.name}
               price={selectedPrice}
-              selectedPackage={venuePackages[selectedPackage].name}
-              selectedTime={venuePackages[selectedPackage].time}
+              basePrice={basePrice}
+              selectedTime={selectedSlot ? TIME_SLOT_LABELS[selectedSlot] : undefined}
+              selectedDate={selectedDate}
+              selectedSlot={selectedSlot}
             />
             <AddToCartButton
-              itemId={`venue-${venue.id}-${selectedPackage}`}
+              itemId={`venue-${venue.id}-${selectedDate?.toISOString()}-${selectedSlot}`}
               itemType="venue"
-              itemName={`${venue.name} - ${venuePackages[selectedPackage].name}`}
+              itemName={`${venue.name} - ${selectedSlot ? TIME_SLOT_LABELS[selectedSlot] : 'Booking'}`}
               itemDescription={venue.description || ""}
               itemPrice={selectedPrice}
-              itemImage={venue.images[0]}
+              basePrice={basePrice}
+              itemImage={venue.images?.[0]}
               metadata={{
                 city: venue.city,
                 area: venue.area,
                 capacity: venue.capacity,
                 address: venue.address,
-                package: venuePackages[selectedPackage].name,
-                time: venuePackages[selectedPackage].time,
-                basePrice: venue.price,
-                priceUnit,
+                timeSlot: selectedSlot,
+                timeSlotLabel: selectedSlot ? TIME_SLOT_LABELS[selectedSlot] : undefined,
+                basePrice: basePrice,
+                selectedDate: selectedDate?.toISOString(),
+                selectedSlot,
+                priceUnit: venue.priceUnit,
               }}
+              disabled={!isReadyToBook}
             />
           </div>
+
+          {/* Selection Summary */}
+          {isReadyToBook ? (
+            <div className="p-4 bg-green-50 rounded-xl border border-green-200 mb-4">
+              <div className="flex items-start gap-3">
+                <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-green-900">Selection Ready</p>
+                  <div className="text-xs text-green-700 mt-1 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <CalendarIcon className="h-3 w-3" />
+                      <span>{selectedDate.toLocaleDateString("en-IN", { weekday: "short", year: "numeric", month: "long", day: "numeric" })}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-3 w-3" />
+                      <span>{TIME_SLOT_LABELS[selectedSlot]}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="h-3 w-3" />
+                      <span>₹{selectedPrice.toLocaleString("en-IN")} (Save ₹{(basePrice - selectedPrice).toLocaleString("en-IN")})</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="p-4 bg-blue-50 rounded-xl border border-blue-200 mb-4">
+              <div className="flex items-start gap-3">
+                <CalendarIcon className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-blue-900">Select Date & Time</p>
+                  <p className="text-xs text-blue-700 mt-1">Choose your event date from the calendar below to get dynamic pricing</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="space-y-3 pt-4 border-t text-sm text-gray-600">
             <div className="flex items-center gap-3">
@@ -154,31 +180,40 @@ export function VenueBookingSidebar({ venue }: VenueBookingSidebarProps) {
           </div>
         </div>
 
+        {/* Availability Calendar */}
+        <AvailabilityCalendar
+          venueId={venue.id}
+          basePrice={basePrice}
+          onDateSelect={handleDateSelect}
+          selectedDate={selectedDate}
+          selectedSlot={selectedSlot}
+        />
+
         {/* Trust Badges */}
         <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
           <h4 className="font-semibold text-gray-900 mb-4">Why Book This Venue</h4>
           <div className="space-y-3">
             <div className="flex items-center gap-3">
               <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
-                <Check className="h-4 w-4 text-green-600" />
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
               </div>
               <span className="text-sm text-gray-600">Best Price Guarantee</span>
             </div>
             <div className="flex items-center gap-3">
               <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
-                <Check className="h-4 w-4 text-green-600" />
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
               </div>
               <span className="text-sm text-gray-600">Verified Venue</span>
             </div>
             <div className="flex items-center gap-3">
               <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
-                <Check className="h-4 w-4 text-green-600" />
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
               </div>
               <span className="text-sm text-gray-600">24/7 Support</span>
             </div>
             <div className="flex items-center gap-3">
               <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
-                <Check className="h-4 w-4 text-green-600" />
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
               </div>
               <span className="text-sm text-gray-600">Free Cancellation</span>
             </div>
@@ -198,7 +233,7 @@ export function VenueBookingSidebar({ venue }: VenueBookingSidebarProps) {
               <span>bookings@venue.com</span>
             </div>
             <div className="flex items-center gap-3 text-gray-600">
-              <Calendar className="h-4 w-4 text-purple-500" />
+              <CalendarIcon className="h-4 w-4 text-purple-500" />
               <span>9 AM - 9 PM</span>
             </div>
           </div>

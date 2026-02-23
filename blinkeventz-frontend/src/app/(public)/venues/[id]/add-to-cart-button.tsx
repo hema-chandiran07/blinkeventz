@@ -12,8 +12,10 @@ interface AddToCartButtonProps {
   itemName: string;
   itemDescription: string;
   itemPrice: number;
+  basePrice?: number;
   itemImage?: string;
   metadata?: Record<string, unknown>;
+  disabled?: boolean;
 }
 
 export function AddToCartButton({
@@ -22,8 +24,10 @@ export function AddToCartButton({
   itemName,
   itemDescription,
   itemPrice,
+  basePrice,
   itemImage,
   metadata,
+  disabled = false,
 }: AddToCartButtonProps) {
   const { addItem, removeItem, isInCart } = useCart();
   const [isAdding, setIsAdding] = useState(false);
@@ -44,7 +48,10 @@ export function AddToCartButton({
         description: itemDescription,
         price: itemPrice,
         image: itemImage,
-        metadata,
+        metadata: {
+          ...metadata,
+          basePrice,
+        },
       });
       setTimeout(() => {
         setIsAdding(false);
@@ -63,9 +70,9 @@ export function AddToCartButton({
         added
           ? "bg-red-500 hover:bg-red-600 border-red-500"
           : "bg-white hover:bg-purple-50 border-purple-200 text-purple-700"
-      }`}
+      } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
       onClick={handleAddToCart}
-      disabled={isAdding}
+      disabled={isAdding || disabled}
     >
       {added ? (
         <>
@@ -75,7 +82,7 @@ export function AddToCartButton({
       ) : (
         <>
           <ShoppingCart className="h-5 w-5 mr-2" />
-          {isAdding ? "Adding..." : "Add to Cart"}
+          {isAdding ? "Adding..." : disabled ? "Select Date & Time" : "Add to Cart"}
         </>
       )}
     </Button>

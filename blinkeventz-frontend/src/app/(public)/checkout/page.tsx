@@ -333,7 +333,7 @@ export default function CheckoutPage() {
 
       if (isSuccess) {
         setPaymentSuccess(true);
-        toast.success("Payment Accepted! 🎉", {
+        toast.success("Payment Accepted!", {
           description: "Your booking has been confirmed. Check your email for details.",
           duration: 5000,
         });
@@ -840,6 +840,35 @@ export default function CheckoutPage() {
                                   <span>{item.metadata.service}</span>
                                 </div>
                               )}
+                              {(() => {
+                                const meta = item.metadata as Record<string, unknown> | undefined;
+                                const selectedDate = meta?.selectedDate as string | undefined;
+                                const selectedSlot = meta?.selectedSlot as string | undefined;
+                                const timeSlotLabel = meta?.timeSlotLabel as string | undefined;
+                                const basePrice = meta?.basePrice as number | undefined;
+                                if (!selectedDate) return null;
+                                return (
+                                  <>
+                                    <div className="flex items-center gap-1 text-green-600 font-medium">
+                                      <Calendar className="h-3 w-3" />
+                                      <span>
+                                        {new Date(selectedDate).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric" })}
+                                      </span>
+                                    </div>
+                                    {selectedSlot && (
+                                      <div className="flex items-center gap-1 text-green-600">
+                                        <Clock className="h-3 w-3" />
+                                        <span className="capitalize">{timeSlotLabel || selectedSlot.replace("_", " ")}</span>
+                                      </div>
+                                    )}
+                                    {basePrice && (
+                                      <div className="text-xs text-gray-500 mt-1">
+                                        Base: ₹{basePrice.toLocaleString("en-IN")} → You paid: ₹{item.price.toLocaleString("en-IN")}
+                                      </div>
+                                    )}
+                                  </>
+                                );
+                              })()}
                             </div>
                           </div>
                           <div className="text-right">
