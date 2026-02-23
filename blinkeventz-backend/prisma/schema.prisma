@@ -391,6 +391,76 @@ model NotificationPreference {
   @@unique([userId, type, channel])
 }
 
+model AuditLog {
+  id            BigInt        @id @default(autoincrement())
+  entityType    String
+  entityId      String?
+  action        String
+
+  severity      AuditSeverity
+  source        AuditSource
+
+  actorId       Int?
+  actorEmail    String?
+  actorRole     Role?
+
+  description   String?
+
+  oldValue      Json?
+  newValue      Json?
+  diff          Json?
+  metadata      Json?
+
+  requestId     String?
+  sessionId     String?
+  traceId       String?
+
+  isSensitive   Boolean       @default(false)
+  retentionUntil DateTime?
+
+  occurredAt    DateTime      @default(now())
+  createdAt     DateTime      @default(now())
+
+  @@index([entityType, entityId])
+  @@index([actorId])
+  @@index([severity])
+  @@index([occurredAt])
+}
+
+model AuditOutbox {
+  id          BigInt              @id @default(autoincrement())
+  payload     Json
+  status      AuditOutboxStatus   @default(PENDING)
+  attempts    Int                 @default(0)
+  lastError   String?
+  processedAt DateTime?
+  createdAt   DateTime            @default(now())
+
+  @@index([status])
+}
+
+enum AuditSeverity {
+  LOW
+  INFO
+  WARNING
+  HIGH
+  CRITICAL
+}
+
+enum AuditSource {
+  USER
+  SYSTEM
+  ADMIN
+  SERVICE
+}
+
+enum AuditOutboxStatus {
+  PENDING
+  PROCESSED
+  FAILED
+  DEAD_LETTER
+}
+
 enum Role {
   CUSTOMER
   VENDOR
