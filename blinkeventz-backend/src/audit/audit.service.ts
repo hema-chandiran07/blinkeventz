@@ -14,25 +14,24 @@ export class AuditService {
     try {
       const payload: Prisma.AuditLogCreateInput = {
         entityType: entry.entityType,
-        entityId: entry.entityId,
+        entityId: entry.entityId ?? undefined,
         action: entry.action,
 
         severity: entry.severity ?? AuditSeverity.INFO,
         source: entry.source ?? AuditSource.SYSTEM,
 
-        actorId: entry.actorId,
-        actorEmail: entry.actorEmail,
-        actorRole: entry.actorRole as any, // Role enum compatibility
+        actorId: entry.actorId ?? undefined,
+        actorEmail: entry.actorEmail ?? undefined,
+        actorRole: entry.actorRole as any,
 
-        description: entry.description,
+        description: entry.description ?? undefined,
 
-        // ✅ Prisma-safe JSON handling
         oldValue: this.toPrismaJson(entry.oldValue),
         newValue: this.toPrismaJson(entry.newValue),
         diff: this.toPrismaJson(entry.diff),
         metadata: this.toPrismaJson(entry.metadata),
 
-        retentionUntil: entry.retentionUntil,
+        retentionUntil: entry.retentionUntil ?? undefined,
         occurredAt: new Date(),
       };
 
@@ -42,25 +41,16 @@ export class AuditService {
         },
       });
     } catch (error) {
-      // 🔥 Audit must NEVER break business logic
+      // 🔥 NEVER break business flow
       this.logger.error('Failed to write audit outbox', error);
     }
   }
 
-  /**
-   * Converts undefined / null / object into Prisma-compatible JSON input
-   */
   private toPrismaJson(
     value?: Record<string, unknown> | null,
   ): Prisma.InputJsonValue | typeof Prisma.DbNull | undefined {
-    if (value === undefined) {
-      return undefined;
-    }
-
-    if (value === null) {
-      return Prisma.DbNull;
-    }
-
+    if (value === undefined) return undefined;
+    if (value === null) return Prisma.DbNull;
     return value as Prisma.InputJsonValue;
   }
 }
