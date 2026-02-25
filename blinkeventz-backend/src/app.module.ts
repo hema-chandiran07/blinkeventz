@@ -23,6 +23,7 @@ import { ExpressModule } from './express/express.module';
 import { AIPlannerModule } from './ai-planner/ai-planner.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { KycModule } from './kyc/kyc.module';
+import { AuditModule } from './audit';
 
 @Module({
   imports: [
@@ -108,7 +109,8 @@ import { KycModule } from './kyc/kyc.module';
     ExpressModule,
      EventsModule,
      NotificationsModule,
-     KycModule
+     KycModule,
+     AuditModule
   ],
    // 🔐 GLOBAL SECURITY LAYER
   providers: [

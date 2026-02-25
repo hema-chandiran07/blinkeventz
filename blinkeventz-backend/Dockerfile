@@ -6,7 +6,7 @@ WORKDIR /app
 
 # ---- Install dependencies first ----
 COPY package*.json ./
-RUN npm install
+RUN npm install --legacy-peer-deps
 
 # ---- Copy source code ----
 COPY . .
@@ -18,4 +18,4 @@ RUN npx prisma generate
 EXPOSE 3000
 
 # ---- Start in dev mode ----
-CMD npx prisma migrate deploy && npm run start:dev
+CMD ["sh", "-c", "npx prisma migrate deploy && npm run start:dev"]
