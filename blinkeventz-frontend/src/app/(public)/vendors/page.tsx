@@ -5,26 +5,30 @@ import { VendorCard } from "@/components/vendors/vendor-card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { FilterModal, type FilterState } from "@/components/ui/filter-modal";
-import { Search, Utensils, Camera, Sparkles, Music, Scissors, Cake, Star, SlidersHorizontal, X } from "lucide-react";
-import { getVendors, type Vendor } from "@/lib/vendors";
+import { Search, Utensils, Camera, Sparkles, Music, Scissors, Cake, Star, SlidersHorizontal, X, Loader2, AlertCircle } from "lucide-react";
 import { useSearchParams } from "next/navigation";
+import api from "@/lib/api";
+import { toast } from "sonner";
+import type { Vendor } from "@/types";
+import { motion } from "framer-motion";
 
-// Filter configuration with icons
-const FILTER_CONFIG = [
+// Filter configuration matching Prisma ServiceType enum
+const FILTER_CONFIG: { id: string | 'all'; label: string; icon: any }[] = [
   { id: "all", label: "All", icon: Star },
-  { id: "Catering", label: "Catering", icon: Utensils },
-  { id: "Photography", label: "Photography", icon: Camera },
-  { id: "Decoration", label: "Decoration", icon: Sparkles },
+  { id: "CATERING", label: "Catering", icon: Utensils },
+  { id: "PHOTOGRAPHY", label: "Photography", icon: Camera },
+  { id: "DECOR", label: "Decoration", icon: Sparkles },
   { id: "DJ", label: "DJ & Music", icon: Music },
-  { id: "Makeup", label: "Makeup", icon: Scissors },
-  { id: "Bakery", label: "Bakery", icon: Cake },
+  { id: "MAKEUP", label: "Makeup", icon: Scissors },
+  { id: "BAKERY", label: "Bakery", icon: Cake },
 ];
 
 export default function VendorsPage() {
   return (
     <Suspense fallback={
       <div className="container mx-auto px-4 py-12 text-center">
-        <p className="text-gray-500">Loading vendors...</p>
+        <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-silver-400" />
+        <p className="text-silver-400">Loading vendors...</p>
       </div>
     }>
       <VendorsContent />
@@ -36,7 +40,7 @@ function VendorsContent() {
   const searchParams = useSearchParams();
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [typeFilter, setTypeFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState<string | 'all'>("all");
   const [loading, setLoading] = useState(true);
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [advancedFilters, setAdvancedFilters] = useState<FilterState>({
@@ -55,14 +59,20 @@ function VendorsContent() {
   const urlType = searchParams.get('type');
   const currentTypeFilter = urlType || typeFilter;
 
-  // 🔹 FETCH VENDORS FROM BACKEND
+  // Fetch vendors from backend
   useEffect(() => {
     const fetchVendors = async () => {
       try {
-        const data = await getVendors();
-        setVendors(data);
-      } catch (error) {
+        setLoading(true);
+        const vendorsResponse = await api.get('/vendors');
+        // Filter only verified vendors (Prisma: verificationStatus)
+        const verifiedVendors = (vendorsResponse.data || []).filter((v: Vendor) =>
+          v.verificationStatus === 'VERIFIED'
+        );
+        setVendors(verifiedVendors);
+      } catch (error: any) {
         console.error("Error fetching vendors:", error);
+        toast.error(error?.response?.data?.message || "Failed to load vendors");
       } finally {
         setLoading(false);
       }
@@ -71,218 +81,230 @@ function VendorsContent() {
     fetchVendors();
   }, []);
 
-  // 🔹 FILTER LOGIC (PRISMA‑ALIGNED)
-  const filteredVendors = vendors.filter((vendor) => {
-    const matchesSearch =
-      vendor.businessName
-        ?.toLowerCase()
-        .includes(searchTerm.toLowerCase()) ||
-      vendor.description
-        ?.toLowerCase()
-        .includes(searchTerm.toLowerCase()) ||
-      vendor.serviceType
-        ?.toLowerCase()
-        .includes(searchTerm.toLowerCase()) ||
-      vendor.area
-        ?.toLowerCase()
-        .includes(searchTerm.toLowerCase());
+  // Apply URL filters on mount
+  useEffect(() => {
+    if (urlType) {
+      setTypeFilter(urlType);
+    }
+  }, [urlType]);
 
-    const matchesType =
-      currentTypeFilter === "all" ||
-      vendor.services?.some(
-        (service) => service.serviceType?.toLowerCase() === currentTypeFilter.toLowerCase()
-      ) ||
-      vendor.serviceType?.toLowerCase().includes(currentTypeFilter.toLowerCase());
-
-    // Budget filter
-    const matchesBudget = (() => {
-      if (!advancedFilters.minBudget && !advancedFilters.maxBudget) return true;
-      const vendorPrice = vendor.basePrice || vendor.services?.[0]?.price || 0;
-      const min = advancedFilters.minBudget ? Number(advancedFilters.minBudget) : 0;
-      const max = advancedFilters.maxBudget ? Number(advancedFilters.maxBudget) : Infinity;
-      return vendorPrice >= min && vendorPrice <= max;
-    })();
-
-    // Location filter - support multiple locations
-    const matchesLocation = (() => {
-      const selectedLocations = advancedFilters.locations || [];
-      if (selectedLocations.length === 0 && !advancedFilters.location && !advancedFilters.useNearMe) return true;
-      if (advancedFilters.useNearMe) return true;
-      
-      // Check if vendor area matches any selected location
-      if (selectedLocations.length > 0) {
-        return selectedLocations.some(
-          loc => vendor.area?.toLowerCase().includes(loc.toLowerCase()) ||
-                 vendor.city?.toLowerCase().includes(loc.toLowerCase())
-        );
-      }
-      
-      if (advancedFilters.location) {
-        return vendor.area?.toLowerCase().includes(advancedFilters.location.toLowerCase()) ||
-               vendor.city?.toLowerCase().includes(advancedFilters.location.toLowerCase());
-      }
-      return true;
-    })();
-
-    return matchesSearch && matchesType && matchesBudget && matchesLocation;
+  // Filter vendors based on search and filters
+  const filteredVendors = vendors.filter(vendor => {
+    const matchesSearch = vendor.businessName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         vendor.description?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesType = typeFilter === "all" || 
+                       vendor.services?.some(s => s.serviceType === typeFilter) || 
+                       typeFilter === 'all';
+    return matchesSearch && matchesType;
   });
 
-  // 🔹 SERVICE TYPES FROM VendorService.serviceType (kept for compatibility)
-  // const serviceTypes = Array.from(...)
+  const handleFilterApply = (filters: FilterState) => {
+    setAdvancedFilters(filters);
+  };
 
-  // 🔹 LOADING STATE
-  if (loading) {
-    return (
-      <div className="container mx-auto px-4 py-12 text-center">
-        <p className="text-gray-500">Loading vendors...</p>
-      </div>
-    );
-  }
+  const clearFilters = () => {
+    setAdvancedFilters({
+      minBudget: "",
+      maxBudget: "",
+      location: "",
+      locations: [],
+      useNearMe: false,
+      timing: "",
+      availability: "any",
+      eventDate: "",
+      eventTime: "",
+    });
+    setTypeFilter("all");
+    setSearchTerm("");
+  };
+
+  const hasActiveFilters = typeFilter !== "all" || searchTerm || advancedFilters.minBudget || advancedFilters.maxBudget;
 
   return (
-    <div className="container mx-auto px-4 py-8 sm:px-6 lg:px-8">
-      {/* HEADER */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">
-            Find Top Vendors
-          </h1>
-          <p className="mt-1 text-gray-500">
-            Photographers, Caterers, Decorators, and more.
-          </p>
+    <motion.div
+      className="min-h-screen bg-white"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+    >
+      {/* Hero Section */}
+      <motion.div
+        className="relative bg-gradient-to-r from-black via-silver-950 to-black py-12 border-b border-silver-800"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
+        <div className="absolute inset-0 bg-grid-pattern opacity-[0.05]" />
+        <div className="container mx-auto px-4 relative z-10">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
+            <h1 className="text-4xl font-bold text-white mb-2">
+              Find Expert Vendors
+            </h1>
+            <p className="text-silver-300 text-lg">
+              Connect with trusted professionals for your events
+            </p>
+          </motion.div>
         </div>
+      </motion.div>
 
-        {/* SEARCH */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <Input
-            type="text"
-            placeholder="Search vendors..."
-            className="pl-10 pr-12 py-2 w-full sm:w-[280px] rounded-full border-gray-200 focus:border-purple-400 focus:ring-purple-400"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          {searchTerm && (
-            <button
-              onClick={() => setSearchTerm("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* FILTER BAR */}
-      <div className="mb-8 flex flex-wrap items-center gap-3">
-        {/* Category Pills */}
-        <div className="flex flex-wrap gap-2 flex-1">
-          {FILTER_CONFIG.slice(0, 5).map((filter) => {
-            const Icon = filter.icon;
-            const isActive = typeFilter === filter.id;
-            return (
+      {/* Search and Filters */}
+      <div className="container mx-auto px-4 py-8">
+        <motion.div
+          className="flex flex-col md:flex-row gap-4 items-center justify-between mb-6"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.3 }}
+        >
+          <div className="relative w-full md:w-96">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
+            <Input
+              placeholder="Search vendors..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 bg-white border-neutral-300 text-black placeholder:text-neutral-400"
+            />
+            {searchTerm && (
               <button
+                onClick={() => setSearchTerm("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-black transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowFilterModal(true)}
+              className="border-neutral-300 text-black hover:bg-neutral-50 hover:text-black"
+            >
+              <SlidersHorizontal className="h-4 w-4 mr-2" />
+              Filters
+            </Button>
+            {hasActiveFilters && (
+              <Button
+                variant="ghost"
+                onClick={clearFilters}
+                className="text-neutral-600 hover:text-black"
+              >
+                Clear all
+              </Button>
+            )}
+          </div>
+        </motion.div>
+
+        {/* Filter Pills */}
+        <motion.div
+          className="flex gap-2 overflow-x-auto pb-4 mb-6 scrollbar-thin scrollbar-thumb-neutral-300 scrollbar-track-neutral-100"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.4 }}
+        >
+          {FILTER_CONFIG.map((filter) => {
+            const Icon = filter.icon;
+            return (
+              <motion.button
                 key={filter.id}
                 onClick={() => setTypeFilter(filter.id)}
-                className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ease-out ${
-                  isActive
-                    ? "bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-lg shadow-purple-200 scale-105"
-                    : "bg-white text-gray-700 border border-gray-200 hover:border-purple-300 hover:bg-purple-50 hover:shadow-md"
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all duration-200 border ${
+                  typeFilter === filter.id
+                    ? "bg-gradient-to-r from-black to-silver-800 text-white border-black shadow-lg shadow-black/20"
+                    : "bg-white text-neutral-700 border-neutral-300 hover:bg-neutral-50 hover:text-black"
                 }`}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
               >
-                <Icon className={`h-4 w-4 ${isActive ? "text-white" : "text-gray-500"}`} />
-                <span className="hidden sm:inline">{filter.label}</span>
-              </button>
+                <Icon className="h-4 w-4" />
+                {filter.label}
+              </motion.button>
             );
           })}
-        </div>
+        </motion.div>
 
-        {/* Advanced Filter Button */}
-        <Button
-          onClick={() => setShowFilterModal(true)}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-pink-500 to-purple-600 text-white font-medium shadow-lg shadow-purple-200 hover:shadow-xl hover:scale-105 transition-all duration-300"
+        {/* Results Count */}
+        <motion.div 
+          className="mb-6 flex items-center justify-between"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5, delay: 0.5 }}
         >
-          <SlidersHorizontal className="h-4 w-4" />
-          <span>Filters</span>
-          {(advancedFilters.minBudget || advancedFilters.maxBudget || advancedFilters.location || advancedFilters.timing) && (
-            <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
-          )}
-        </Button>
-      </div>
-
-      {/* Active Filters Summary */}
-      {(advancedFilters.minBudget || advancedFilters.maxBudget || advancedFilters.location || advancedFilters.timing) && (
-        <div className="mb-6 p-4 bg-purple-50 rounded-2xl border border-purple-100">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-medium text-purple-900">Active filters:</span>
-            {advancedFilters.minBudget || advancedFilters.maxBudget ? (
-              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white text-purple-700 text-xs font-medium border border-purple-200">
-                <span>₹{advancedFilters.minBudget || "0"} - ₹{advancedFilters.maxBudget || "∞"}</span>
-              </span>
-            ) : null}
-            {advancedFilters.location ? (
-              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white text-purple-700 text-xs font-medium border border-purple-200">
-                <span>📍 {advancedFilters.location}</span>
-              </span>
-            ) : null}
-            {advancedFilters.timing ? (
-              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white text-purple-700 text-xs font-medium border border-purple-200 capitalize">
-                <span>🕐 {advancedFilters.timing}</span>
-              </span>
-            ) : null}
-            <button
-              onClick={() => setAdvancedFilters({
-                minBudget: "",
-                maxBudget: "",
-                location: "",
-                locations: [],
-                useNearMe: false,
-                timing: "",
-                availability: "any",
-                eventDate: "",
-                eventTime: "",
-              })}
-              className="ml-auto text-sm text-purple-600 hover:text-purple-800 font-medium"
-            >
-              Clear all
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* VENDORS GRID */}
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {filteredVendors.map((vendor) => (
-          <VendorCard key={vendor.id} vendor={vendor} />
-        ))}
-      </div>
-
-      {/* EMPTY STATE */}
-      {filteredVendors.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-lg text-gray-500">
-            No vendors found matching your criteria.
+          <p className="text-silver-400">
+            <span className="text-white font-semibold">{filteredVendors.length}</span> vendors found
           </p>
-          <Button
-            variant="link"
-            onClick={() => {
-              setSearchTerm("");
-              setTypeFilter("all");
-            }}
-          >
-            Clear filters
-          </Button>
-        </div>
-      )}
+        </motion.div>
 
-      {/* FILTER MODAL */}
+        {/* Loading State */}
+        {loading && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="rounded-2xl border border-silver-800 bg-silver-900/50 overflow-hidden">
+                <div className="h-48 bg-silver-800 animate-pulse" />
+                <div className="p-4 space-y-3">
+                  <div className="h-6 bg-silver-800 rounded animate-pulse" />
+                  <div className="h-4 bg-silver-800 rounded w-2/3 animate-pulse" />
+                  <div className="h-4 bg-silver-800 rounded w-1/2 animate-pulse" />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!loading && filteredVendors.length === 0 && (
+          <motion.div 
+            className="text-center py-16"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5 }}
+          >
+            <div className="h-20 w-20 rounded-full bg-silver-800 flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="h-10 w-10 text-silver-500" />
+            </div>
+            <h3 className="text-xl font-semibold text-white mb-2">No vendors found</h3>
+            <p className="text-silver-400 mb-6">
+              Try adjusting your search or filters to find what you&apos;re looking for
+            </p>
+            <Button variant="premium" onClick={clearFilters}>
+              Clear all filters
+            </Button>
+          </motion.div>
+        )}
+
+        {/* Vendors Grid */}
+        {!loading && filteredVendors.length > 0 && (
+          <motion.div 
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+          >
+            {filteredVendors.map((vendor, index) => (
+              <motion.div
+                key={vendor.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: index * 0.05 }}
+              >
+                <VendorCard vendor={vendor} />
+              </motion.div>
+            ))}
+          </motion.div>
+        )}
+      </div>
+
+      {/* Filter Modal */}
       <FilterModal
         isOpen={showFilterModal}
         onClose={() => setShowFilterModal(false)}
-        onApply={setAdvancedFilters}
-        currentFilters={advancedFilters}
+        onApply={handleFilterApply}
         type="vendors"
+        currentFilters={advancedFilters}
       />
-    </div>
+    </motion.div>
   );
 }

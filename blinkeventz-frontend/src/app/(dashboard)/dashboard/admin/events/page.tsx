@@ -105,9 +105,9 @@ export default function AdminEventsPage() {
       CONFIRMED: <Badge className="bg-green-100 text-green-700"><CheckCircle2 className="h-3 w-3 mr-1" />Confirmed</Badge>,
       PENDING_PAYMENT: <Badge className="bg-yellow-100 text-yellow-700"><Clock className="h-3 w-3 mr-1" />Pending Payment</Badge>,
       IN_PROGRESS: <Badge className="bg-blue-100 text-blue-700">In Progress</Badge>,
-      COMPLETED: <Badge className="bg-gray-100 text-gray-700"><CheckCircle2 className="h-3 w-3 mr-1" />Completed</Badge>,
+      COMPLETED: <Badge className="bg-silver-100 text-neutral-800"><CheckCircle2 className="h-3 w-3 mr-1" />Completed</Badge>,
       CANCELLED: <Badge className="bg-red-100 text-red-700"><XCircle className="h-3 w-3 mr-1" />Cancelled</Badge>,
-      INQUIRY: <Badge className="bg-purple-100 text-purple-700">Inquiry</Badge>
+      INQUIRY: <Badge className="bg-silver-100 text-neutral-800">Inquiry</Badge>
     };
     return badges[status] || <Badge>{status}</Badge>;
   };
@@ -123,8 +123,8 @@ export default function AdminEventsPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Global Event Monitoring</h1>
-        <p className="text-gray-500">View and manage all platform events</p>
+        <h1 className="text-3xl font-bold text-black">Global Event Monitoring</h1>
+        <p className="text-neutral-600">View and manage all platform events</p>
       </div>
 
       {/* Stats */}
@@ -133,10 +133,10 @@ export default function AdminEventsPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-500">Total Events</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{stats.total}</p>
+                <p className="text-sm font-medium text-neutral-600">Total Events</p>
+                <p className="text-2xl font-bold text-black mt-1">{stats.total}</p>
               </div>
-              <div className="p-3 rounded-full bg-purple-50 text-purple-600">
+              <div className="p-3 rounded-full bg-silver-100 text-neutral-700">
                 <Calendar className="h-5 w-5" />
               </div>
             </div>
@@ -146,7 +146,7 @@ export default function AdminEventsPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-500">Confirmed</p>
+                <p className="text-sm font-medium text-neutral-600">Confirmed</p>
                 <p className="text-2xl font-bold text-green-600 mt-1">{stats.confirmed}</p>
               </div>
               <div className="p-3 rounded-full bg-green-50 text-green-600">
@@ -159,7 +159,7 @@ export default function AdminEventsPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-500">In Progress</p>
+                <p className="text-sm font-medium text-neutral-600">In Progress</p>
                 <p className="text-2xl font-bold text-blue-600 mt-1">{stats.inProgress}</p>
               </div>
               <div className="p-3 rounded-full bg-blue-50 text-blue-600">
@@ -172,8 +172,8 @@ export default function AdminEventsPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-500">Total Revenue</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">₹{(stats.totalRevenue / 100000).toFixed(2)}L</p>
+                <p className="text-sm font-medium text-neutral-600">Total Revenue</p>
+                <p className="text-2xl font-bold text-black mt-1">₹{(stats.totalRevenue / 100000).toFixed(2)}L</p>
               </div>
               <div className="p-3 rounded-full bg-green-50 text-green-600">
                 <DollarSign className="h-5 w-5" />
@@ -197,9 +197,9 @@ export default function AdminEventsPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="h-48 flex items-center justify-center bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg">
-            <div className="text-center text-gray-500">
-              <TrendingUp className="h-12 w-12 mx-auto mb-3 text-purple-400" />
+          <div className="h-48 flex items-center justify-center bg-gradient-to-r from-silver-50 to-silver-100 rounded-lg">
+            <div className="text-center text-neutral-600">
+              <TrendingUp className="h-12 w-12 mx-auto mb-3 text-silver-300" />
               <p>Revenue analytics chart would display here</p>
               <p className="text-sm">Showing monthly booking trends</p>
             </div>
@@ -212,7 +212,7 @@ export default function AdminEventsPage() {
         <CardContent className="p-4">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-silver-300" />
               <Input
                 placeholder="Search by event or customer..."
                 value={searchQuery}
@@ -223,7 +223,7 @@ export default function AdminEventsPage() {
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="flex h-10 rounded-full border border-purple-200 bg-white px-4 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
+              className="flex h-10 rounded-full border border-silver-200 bg-white px-4 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-600"
             >
               <option value="all">All Status</option>
               <option value="INQUIRY">Inquiry</option>
@@ -245,42 +245,42 @@ export default function AdminEventsPage() {
               <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-xl font-bold text-gray-900">{event.title}</h3>
+                    <h3 className="text-xl font-bold text-black">{event.title}</h3>
                     {getStatusBadge(event.status)}
                   </div>
 
                   <div className="grid sm:grid-cols-4 gap-4 mb-4">
                     <div className="flex items-center gap-2">
-                      <Users className="h-5 w-5 text-gray-400" />
+                      <Users className="h-5 w-5 text-silver-300" />
                       <div>
-                        <p className="text-sm font-medium text-gray-500">Customer</p>
-                        <p className="text-gray-900">{event.customer.name}</p>
+                        <p className="text-sm font-medium text-neutral-600">Customer</p>
+                        <p className="text-black">{event.customer.name}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Calendar className="h-5 w-5 text-gray-400" />
+                      <Calendar className="h-5 w-5 text-silver-300" />
                       <div>
-                        <p className="text-sm font-medium text-gray-500">Date</p>
-                        <p className="text-gray-900">{new Date(event.date).toLocaleDateString("en-IN")}</p>
+                        <p className="text-sm font-medium text-neutral-600">Date</p>
+                        <p className="text-black">{new Date(event.date).toLocaleDateString("en-IN")}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <DollarSign className="h-5 w-5 text-gray-400" />
+                      <DollarSign className="h-5 w-5 text-silver-300" />
                       <div>
-                        <p className="text-sm font-medium text-gray-500">Amount</p>
-                        <p className="text-gray-900">₹{(event.totalAmount / 100000).toFixed(2)}L</p>
+                        <p className="text-sm font-medium text-neutral-600">Amount</p>
+                        <p className="text-black">₹{(event.totalAmount / 100000).toFixed(2)}L</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Users className="h-5 w-5 text-gray-400" />
+                      <Users className="h-5 w-5 text-silver-300" />
                       <div>
-                        <p className="text-sm font-medium text-gray-500">Guests</p>
-                        <p className="text-gray-900">{event.guestCount}</p>
+                        <p className="text-sm font-medium text-neutral-600">Guests</p>
+                        <p className="text-black">{event.guestCount}</p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <div className="flex items-center gap-2 text-sm text-neutral-600">
                     <Clock className="h-4 w-4" />
                     <span>{event.timeSlot}</span>
                     {event.venue && (
@@ -319,7 +319,7 @@ export default function AdminEventsPage() {
                     <Button
                       size="sm"
                       onClick={() => handleUpdateStatus(event.id, "COMPLETED")}
-                      className="bg-gray-600 hover:bg-gray-700"
+                      className="bg-neutral-700 hover:bg-neutral-800"
                     >
                       Complete
                     </Button>

@@ -31,7 +31,7 @@ export function VenueBookingSidebar({ venue }: VenueBookingSidebarProps) {
   const [selectedSlot, setSelectedSlot] = useState<TimeSlotType | null>(null);
 
   // Calculate dynamic price based on selected time slot
-  const basePrice = venue.basePrice || venue.price || 150000;
+  const basePrice = venue.basePriceEvening || venue.basePriceFullDay || venue.basePriceMorning || 150000;
   const selectedPrice = selectedSlot 
     ? Math.round(basePrice * TIME_SLOT_MULTIPLIERS[selectedSlot])
     : basePrice;
@@ -47,27 +47,27 @@ export function VenueBookingSidebar({ venue }: VenueBookingSidebarProps) {
     <div className="lg:col-span-1">
       <div className="sticky top-6 space-y-6">
         {/* Booking Card */}
-        <div className="bg-white rounded-2xl border border-purple-100 p-6 shadow-lg">
+        <div className="bg-white rounded-2xl border border-silver-200 p-6 shadow-lg">
           <div className="mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Book This Venue</h3>
-            <p className="text-sm text-gray-500">Select date and time to see pricing</p>
+            <h3 className="text-lg font-semibold text-black mb-2">Book This Venue</h3>
+            <p className="text-sm text-neutral-600">Select date and time to see pricing</p>
           </div>
 
           {/* Dynamic Pricing Display */}
-          <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-200">
+          <div className="mb-6 p-4 bg-gradient-to-r from-silver-50 to-silver-100 rounded-xl border border-silver-200">
             <div className="flex items-center justify-between mb-3">
               <div>
-                <div className="text-sm text-gray-500">Base Price</div>
-                <div className="text-lg font-semibold text-gray-700">₹{basePrice.toLocaleString("en-IN")}</div>
+                <div className="text-sm text-neutral-600">Base Price</div>
+                <div className="text-lg font-semibold text-neutral-800">₹{basePrice.toLocaleString("en-IN")}</div>
               </div>
               <div className="text-right">
-                <div className="text-sm text-gray-500">Your Price</div>
-                <div className="text-2xl font-bold text-purple-600">₹{selectedPrice.toLocaleString("en-IN")}</div>
+                <div className="text-sm text-neutral-600">Your Price</div>
+                <div className="text-2xl font-bold text-black">₹{selectedPrice.toLocaleString("en-IN")}</div>
               </div>
             </div>
-            
+
             {selectedSlot && (
-              <div className="flex items-center gap-2 text-xs text-purple-700 bg-white/50 rounded-lg p-2">
+              <div className="flex items-center gap-2 text-xs text-neutral-800 bg-white/50 rounded-lg p-2">
                 <Clock className="h-3 w-3" />
                 <span className="font-medium">{TIME_SLOT_LABELS[selectedSlot]}</span>
                 <span className="ml-auto font-bold">
@@ -80,7 +80,7 @@ export function VenueBookingSidebar({ venue }: VenueBookingSidebarProps) {
           {/* Action Buttons */}
           <div className="space-y-3 mb-6">
             <BookNowButton
-              venueId={venue.id}
+              venueId={String(venue.id)}
               venueName={venue.name}
               price={selectedPrice}
               basePrice={basePrice}
@@ -95,18 +95,17 @@ export function VenueBookingSidebar({ venue }: VenueBookingSidebarProps) {
               itemDescription={venue.description || ""}
               itemPrice={selectedPrice}
               basePrice={basePrice}
-              itemImage={venue.images?.[0]}
+              itemImage={venue.photos?.[0]?.url}
               metadata={{
                 city: venue.city,
                 area: venue.area,
-                capacity: venue.capacity,
+                capacity: venue.capacityMax,
                 address: venue.address,
                 timeSlot: selectedSlot,
                 timeSlotLabel: selectedSlot ? TIME_SLOT_LABELS[selectedSlot] : undefined,
                 basePrice: basePrice,
                 selectedDate: selectedDate?.toISOString(),
                 selectedSlot,
-                priceUnit: venue.priceUnit,
               }}
               disabled={!isReadyToBook}
             />
@@ -148,17 +147,17 @@ export function VenueBookingSidebar({ venue }: VenueBookingSidebarProps) {
             </div>
           )}
 
-          <div className="space-y-3 pt-4 border-t text-sm text-gray-600">
+          <div className="space-y-3 pt-4 border-t text-sm text-neutral-700">
             <div className="flex items-center gap-3">
-              <Mail className="h-4 w-4 text-purple-400" />
+              <Mail className="h-4 w-4 text-neutral-600" />
               <span>Schedule a visit</span>
             </div>
             <div className="flex items-center gap-3">
-              <Phone className="h-4 w-4 text-purple-400" />
+              <Phone className="h-4 w-4 text-neutral-600" />
               <span>Contact venue manager</span>
             </div>
             <div className="flex items-center gap-3">
-              <MessageCircle className="h-4 w-4 text-purple-400" />
+              <MessageCircle className="h-4 w-4 text-neutral-600" />
               <span>Free consultation</span>
             </div>
           </div>
@@ -182,7 +181,7 @@ export function VenueBookingSidebar({ venue }: VenueBookingSidebarProps) {
 
         {/* Availability Calendar */}
         <AvailabilityCalendar
-          venueId={venue.id}
+          venueId={String(venue.id)}
           basePrice={basePrice}
           onDateSelect={handleDateSelect}
           selectedDate={selectedDate}
@@ -190,50 +189,50 @@ export function VenueBookingSidebar({ venue }: VenueBookingSidebarProps) {
         />
 
         {/* Trust Badges */}
-        <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-          <h4 className="font-semibold text-gray-900 mb-4">Why Book This Venue</h4>
+        <div className="bg-white rounded-2xl border border-silver-100 p-6 shadow-sm">
+          <h4 className="font-semibold text-black mb-4">Why Book This Venue</h4>
           <div className="space-y-3">
             <div className="flex items-center gap-3">
               <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
                 <CheckCircle2 className="h-4 w-4 text-green-600" />
               </div>
-              <span className="text-sm text-gray-600">Best Price Guarantee</span>
+              <span className="text-sm text-neutral-700">Best Price Guarantee</span>
             </div>
             <div className="flex items-center gap-3">
               <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
                 <CheckCircle2 className="h-4 w-4 text-green-600" />
               </div>
-              <span className="text-sm text-gray-600">Verified Venue</span>
+              <span className="text-sm text-neutral-700">Verified Venue</span>
             </div>
             <div className="flex items-center gap-3">
               <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
                 <CheckCircle2 className="h-4 w-4 text-green-600" />
               </div>
-              <span className="text-sm text-gray-600">24/7 Support</span>
+              <span className="text-sm text-neutral-700">24/7 Support</span>
             </div>
             <div className="flex items-center gap-3">
               <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
                 <CheckCircle2 className="h-4 w-4 text-green-600" />
               </div>
-              <span className="text-sm text-gray-600">Free Cancellation</span>
+              <span className="text-sm text-neutral-700">Free Cancellation</span>
             </div>
           </div>
         </div>
 
         {/* Contact Info */}
-        <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl border border-purple-100 p-6">
-          <h4 className="font-semibold text-gray-900 mb-4">Venue Contact</h4>
+        <div className="bg-gradient-to-br from-silver-50 to-silver-100 rounded-2xl border border-silver-200 p-6">
+          <h4 className="font-semibold text-black mb-4">Venue Contact</h4>
           <div className="space-y-3 text-sm">
-            <div className="flex items-center gap-3 text-gray-600">
-              <Phone className="h-4 w-4 text-purple-500" />
+            <div className="flex items-center gap-3 text-neutral-700">
+              <Phone className="h-4 w-4 text-neutral-700" />
               <span>+91 44 1234 5678</span>
             </div>
-            <div className="flex items-center gap-3 text-gray-600">
-              <Mail className="h-4 w-4 text-purple-500" />
+            <div className="flex items-center gap-3 text-neutral-700">
+              <Mail className="h-4 w-4 text-neutral-700" />
               <span>bookings@venue.com</span>
             </div>
-            <div className="flex items-center gap-3 text-gray-600">
-              <CalendarIcon className="h-4 w-4 text-purple-500" />
+            <div className="flex items-center gap-3 text-neutral-700">
+              <CalendarIcon className="h-4 w-4 text-neutral-700" />
               <span>9 AM - 9 PM</span>
             </div>
           </div>

@@ -7,22 +7,25 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
-import {ApiBearerAuth,ApiTags } from '@nestjs/swagger';
+import {ApiBearerAuth,ApiTags, ApiOperation, ApiBody } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { AuthRequest } from '../auth/auth-request.interface';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Role } from '../common/enums/role.enum';
 import { RolesGuard } from '../common/guards/roles.guard';
-@ApiBearerAuth() 
+import { Public } from '../common/decorators/public.decorator';
+
+@ApiBearerAuth()
 @ApiTags('Payments')
-@Roles(Role.CUSTOMER)
-@UseGuards(JwtAuthGuard,RolesGuard)
 @Controller('payments')
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
-  // ✅ Create payment order for logged-in user
+  // ✅ Create payment order for logged-in user (with cart)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Post('create-order')
+  @ApiOperation({ summary: 'Create Razorpay order for cart' })
+  @ApiBody({ schema: { properties: { cartId: { type: 'number' } } } })
   createOrder(
     @Req() req: AuthRequest,
     @Body() body: { cartId: number },
@@ -33,16 +36,43 @@ export class PaymentsController {
     );
   }
 
+  // ✅ Create payment order (simplified - for checkout without cart)
+  @Public()
+  @Post('create-order-simple')
+  @ApiOperation({ summary: 'Create Razorpay order (simplified)' })
+  @ApiBody({
+    schema: {
+      properties: {
+        amount: { type: 'number' },
+        currency: { type: 'string', default: 'INR' },
+        items: { type: 'array' }
+      }
+    }
+  })
+  createOrderSimple(
+    @Body() body: { amount: number; currency?: string; items?: any[] },
+  ) {
+    return this.paymentsService.createOrderSimple(
+      body.amount,
+      body.currency || 'INR',
+      body.items,
+    );
+  }
+
   // ✅ Confirm payment
+  @UseGuards(JwtAuthGuard)
   @Post('confirm')
+  @ApiOperation({ summary: 'Confirm Razorpay payment' })
   confirm(
     @Req() req: AuthRequest,
     @Body()
     body: {
-      cartId: number;
+      cartId?: number;
       razorpayOrderId: string;
       razorpayPaymentId: string;
       razorpaySignature: string;
+      items?: any[];
+      customerDetails?: any;
     },
   ) {
     return this.paymentsService.confirmPayment(

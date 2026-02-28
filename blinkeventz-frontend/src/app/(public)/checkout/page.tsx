@@ -6,25 +6,22 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  CheckCircle2,
   CreditCard,
   Building,
   Smartphone,
   Wallet,
   Loader2,
-  Calendar,
-  Shield,
+  CheckCircle2,
   XCircle,
-  Briefcase,
-  Clock,
-  Trash2,
+  ArrowLeft,
 } from "lucide-react";
-import { UPIProvider, WalletProvider, BankCode, CheckoutFormData, CheckoutErrors } from "@/types";
+import { UPIProvider, WalletProvider, BankCode, CheckoutFormData, CheckoutErrors, CartItem } from "@/types";
 import { toast } from "sonner";
 import { useCart } from "@/context/cart-context";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/auth-context";
+import api from "@/lib/api";
 
-// Utility function for currency formatting
 const formatCurrency = (amount: number): string => {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
@@ -33,56 +30,8 @@ const formatCurrency = (amount: number): string => {
   }).format(amount);
 };
 
-// Mock cart data for testing (kept for future use)
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const MOCK_CART_ITEMS = [
-  {
-    id: "1",
-    type: "venue" as const,
-    name: "Grand Ballroom Hotel",
-    description: "A luxurious ballroom perfect for weddings",
-    price: 5000,
-    image: "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?ixlib=rb-4.0.3",
-    metadata: { date: "2024-06-15", guestCount: 200, city: "Chennai" },
-  },
-  {
-    id: "2",
-    type: "vendor" as const,
-    name: "Delicious Catering",
-    description: "Full-service catering for all occasions",
-    price: 15000,
-    image: "https://images.unsplash.com/photo-1555244162-803834f70033?ixlib=rb-4.0.3",
-    metadata: { serviceType: "Catering" },
-  },
-];
-
 const TAX_RATE = 0.18;
 const SERVICE_FEE = 199;
-
-// Payment method configurations
-const UPI_PROVIDERS: { id: UPIProvider; name: string; icon: string }[] = [
-  { id: "gpay", name: "Google Pay", icon: "G" },
-  { id: "phonepe", name: "PhonePe", icon: "P" },
-  { id: "paytm", name: "Paytm", icon: "₹" },
-  { id: "bhim", name: "BHIM UPI", icon: "B" },
-];
-
-const WALLET_PROVIDERS: { id: WalletProvider; name: string }[] = [
-  { id: "paytm", name: "Paytm Wallet" },
-  { id: "phonepe", name: "PhonePe Wallet" },
-  { id: "amazonpay", name: "Amazon Pay" },
-  { id: "mobikwik", name: "MobiKwik" },
-];
-
-const BANKS: { id: BankCode; name: string }[] = [
-  { id: "HDFC", name: "HDFC Bank" },
-  { id: "ICICI", name: "ICICI Bank" },
-  { id: "SBI", name: "State Bank of India" },
-  { id: "AXIS", name: "Axis Bank" },
-  { id: "KOTAK", name: "Kotak Mahindra Bank" },
-  { id: "IDFC", name: "IDFC First Bank" },
-  { id: "YES", name: "Yes Bank" },
-];
 
 type CheckoutStep = "details" | "confirm" | "payment";
 
@@ -98,12 +47,12 @@ interface BookingData {
 
 export default function CheckoutPage() {
   const router = useRouter();
+  const { user, isAuthenticated } = useAuth();
   const { items: cartContextItems, clearCart, removeItem } = useCart();
   const [currentStep, setCurrentStep] = useState<CheckoutStep>("details");
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState<boolean | null>(null);
   const [acceptTerms, setAcceptTerms] = useState(false);
-  const [bookingData, setBookingData] = useState<BookingData | null>(null);
 
   const [formData, setFormData] = useState<CheckoutFormData>({
     firstName: "",
@@ -122,8 +71,7 @@ export default function CheckoutPage() {
 
   const [errors, setErrors] = useState<CheckoutErrors>({});
 
-  // Load booking data from localStorage (from Book Now button)
-  // Using useSyncExternalStore to avoid setState in effect
+  // Load booking data from localStorage
   const storedBooking = useSyncExternalStore(
     (subscribe) => {
       const handler = () => subscribe();
@@ -135,65 +83,61 @@ export default function CheckoutPage() {
   );
 
   const bookingDataFromStorage = storedBooking ? JSON.parse(storedBooking) : null;
-  const initialBookingData = bookingData ?? bookingDataFromStorage;
-
-  // Build cart items from both sources: CartContext (Add to Cart) and booking data (Book Now)
-  const bookingCartItem = initialBookingData
+  
+  const bookingCartItem = bookingDataFromStorage
     ? [{
-        id: `booking-${initialBookingData.id}`,
-        type: initialBookingData.type,
-        name: initialBookingData.name,
-        description: initialBookingData.type === 'venue'
-          ? `${initialBookingData.package || 'Full Day'} Package`
-          : initialBookingData.service || 'Selected Service',
-        price: initialBookingData.price,
-        image: initialBookingData.type === 'venue'
+        id: `booking-${bookingDataFromStorage.id}`,
+        type: bookingDataFromStorage.type,
+        name: bookingDataFromStorage.name,
+        description: bookingDataFromStorage.type === 'venue'
+          ? `${bookingDataFromStorage.package || 'Full Day'} Package`
+          : bookingDataFromStorage.service || 'Selected Service',
+        price: bookingDataFromStorage.price,
+        image: bookingDataFromStorage.type === 'venue'
           ? 'https://images.unsplash.com/photo-1519167758481-83f550bb49b3?ixlib=rb-4.0.3'
           : 'https://images.unsplash.com/photo-1555244162-803834f70033?ixlib=rb-4.0.3',
         metadata: {
-          package: initialBookingData.package,
-          time: initialBookingData.time,
-          service: initialBookingData.service,
+          package: bookingDataFromStorage.package,
+          time: bookingDataFromStorage.time,
+          service: bookingDataFromStorage.service,
         },
         quantity: 1,
       }]
     : [];
 
-  // Combine cart items from context (Add to Cart) and booking data (Book Now)
   const cartItems = [...cartContextItems, ...bookingCartItem];
-
-  const subtotal = cartItems.reduce((sum, item) => sum + item.price * (item.quantity || 1), 0);
+  const subtotal = cartItems.reduce((sum, item) => sum + ((item as any).price || (item as CartItem).unitPrice || 0) * (item.quantity || 1), 0);
   const taxes = subtotal * TAX_RATE;
   const serviceFee = cartItems.length > 0 ? SERVICE_FEE : 0;
   const total = subtotal + taxes + serviceFee;
 
-  // Remove booking function
-  const handleRemoveBooking = () => {
-    localStorage.removeItem('blinkeventz_booking');
-    setBookingData(null);
-    clearCart();
-    toast.info('Booking removed', {
-      description: 'Your selected booking has been removed',
-    });
-  };
+  // Check authentication
+  if (!isAuthenticated) {
+    return (
+      <div className="container mx-auto px-4 py-12 text-center">
+        <XCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
+        <h2 className="text-2xl font-semibold text-black mb-2">Login Required</h2>
+        <p className="text-neutral-600 mb-6">Please login to complete your checkout</p>
+        <Button variant="premium" onClick={() => router.push("/login")}>
+          Go to Login
+        </Button>
+      </div>
+    );
+  }
 
-  // Remove individual item from cart
-  const handleRemoveItem = (itemId: string) => {
-    // If it's a booking item (from Book Now), clear booking data
-    if (itemId.startsWith('booking-')) {
-      localStorage.removeItem('blinkeventz_booking');
-      setBookingData(null);
-      toast.info('Item removed', {
-        description: 'Your selected booking has been removed',
-      });
-    } else {
-      // Remove from cart context (Add to Cart items)
-      removeItem(itemId);
-      toast.info('Item removed from cart', {
-        description: 'The item has been removed from your cart',
-      });
-    }
-  };
+  // Check if cart has items
+  if (cartItems.length === 0) {
+    return (
+      <div className="container mx-auto px-4 py-12 text-center">
+        <XCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
+        <h2 className="text-2xl font-semibold text-black mb-2">Your cart is empty</h2>
+        <p className="text-neutral-600 mb-6">Add venues or vendors to your cart before checkout</p>
+        <Button variant="premium" onClick={() => router.push("/venues")}>
+          Browse Venues
+        </Button>
+      </div>
+    );
+  }
 
   const validateContactForm = (): boolean => {
     const newErrors: CheckoutErrors = {};
@@ -220,13 +164,6 @@ export default function CheckoutPage() {
   };
 
   const handleContinueToConfirm = () => {
-    if (cartItems.length === 0) {
-      toast.error('No items in checkout', {
-        description: 'Please select a venue or vendor to proceed with booking',
-        duration: 4000,
-      });
-      return;
-    }
     if (validateContactForm()) {
       setCurrentStep("confirm");
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -234,17 +171,8 @@ export default function CheckoutPage() {
   };
 
   const handleConfirmBooking = () => {
-    if (cartItems.length === 0) {
-      toast.error('No items in checkout', {
-        description: 'Please select a venue or vendor to proceed with booking',
-        duration: 4000,
-      });
-      return;
-    }
     if (!acceptTerms) {
-      toast.error("Please accept the Terms & Conditions", {
-        description: "You need to agree to continue with the payment",
-      });
+      toast.error("Please accept the Terms & Conditions");
       return;
     }
     setCurrentStep("payment");
@@ -264,19 +192,10 @@ export default function CheckoutPage() {
   };
 
   const handlePayment = async () => {
-    // Check if cart has items
-    if (cartItems.length === 0) {
-      toast.error('No items in checkout', {
-        description: 'Please select a venue or vendor to proceed with booking',
-        duration: 4000,
-      });
-      return;
-    }
-    // Validate payment details based on selected method
+    // Validate payment details
     const newErrors: CheckoutErrors = {};
 
     if (formData.paymentMethod === "card") {
-      // Validate card details
       if (!formData.cardNumber || formData.cardNumber.replace(/\s/g, "").length < 16) {
         newErrors.cardNumber = "Please enter a valid 16-digit card number";
       }
@@ -289,136 +208,201 @@ export default function CheckoutPage() {
     }
 
     if (formData.paymentMethod === "upi") {
-      // Validate UPI - either provider selected or UPI ID entered
       if (!formData.upiProvider && !formData.upiId) {
-        toast.error("Please select a UPI payment method", {
-          description: "Choose a UPI app (Google Pay, PhonePe, etc.) or enter your UPI ID",
-        });
+        toast.error("Please select a UPI payment method");
         return;
       }
       if (formData.upiId && !/^[a-zA-Z0-9._-]+@[a-zA-Z]+$/.test(formData.upiId)) {
-        newErrors.upiId = "Please enter a valid UPI ID (e.g., yourname@upi)";
+        newErrors.upiId = "Please enter a valid UPI ID";
       }
     }
 
     if (formData.paymentMethod === "netbanking" && !formData.bankCode) {
-      toast.error("Please select your bank", {
-        description: "Choose a bank from the list to proceed with net banking",
-      });
+      toast.error("Please select your bank");
       return;
     }
 
     if (formData.paymentMethod === "wallet" && !formData.walletProvider) {
-      toast.error("Please select a wallet", {
-        description: "Choose a wallet provider to proceed",
-      });
+      toast.error("Please select a wallet");
       return;
     }
 
-    // Set errors if any
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
-      toast.error("Please fill in all required payment details", {
-        description: "Complete the highlighted fields to continue",
-      });
+      toast.error("Please fill in all required payment details");
       return;
     }
 
     setIsProcessing(true);
 
-    // Simulate payment processing with random success/failure
-    setTimeout(() => {
-      // Simulate 80% success rate for demo
-      const isSuccess = Math.random() > 0.2;
+    try {
+      // Create Razorpay order using simplified endpoint
+      const orderResponse = await api.post("/payments/create-order-simple", {
+        amount: Math.round(total),
+        currency: "INR",
+        items: cartItems.map(item => ({
+          name: item.name,
+          price: (item as any).price || (item as any).unitPrice || 0,
+          quantity: item.quantity || 1,
+        })),
+      });
 
-      if (isSuccess) {
-        setPaymentSuccess(true);
-        toast.success("Payment Accepted!", {
-          description: "Your booking has been confirmed. Check your email for details.",
-          duration: 5000,
+      const order = orderResponse.data;
+
+      // Configure Razorpay options
+      const options = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_1234567890",
+        amount: Math.round(total * 100), // Amount in paise
+        currency: "INR",
+        name: "BlinkEventz",
+        description: "Event Booking Payment",
+        order_id: order.id,
+        handler: async (response: any) => {
+          // Payment successful
+          try {
+            await api.post("/payments/confirm", {
+              orderId: response.razorpay_order_id,
+              paymentId: response.razorpay_payment_id,
+              signature: response.razorpay_signature,
+              items: cartItems,
+              customerDetails: formData,
+            });
+
+            setPaymentSuccess(true);
+            toast.success("Payment Successful! Your booking is confirmed.");
+            clearCart();
+            localStorage.removeItem('blinkeventz_booking');
+
+            setTimeout(() => {
+              router.push("/dashboard/customer");
+            }, 3000);
+          } catch (error) {
+            console.error("Payment confirmation error:", error);
+            toast.error("Payment completed but confirmation failed. Please contact support.");
+            setPaymentSuccess(true);
+          }
+        },
+        prefill: {
+          name: `${formData.firstName} ${formData.lastName}`,
+          email: formData.email,
+          contact: formData.phone,
+        },
+        theme: {
+          color: "#1a1a1a",
+        },
+        modal: {
+          ondismiss: () => {
+            setIsProcessing(false);
+            toast.info("Payment cancelled");
+          },
+        },
+      };
+
+      // Check if Razorpay is loaded
+      if (typeof window !== 'undefined' && (window as any).Razorpay) {
+        const rzp = new (window as any).Razorpay(options);
+        rzp.on("payment.failed", (response: any) => {
+          setPaymentSuccess(false);
+          toast.error(`Payment Failed: ${response.error.description}`);
+          setIsProcessing(false);
         });
-        clearCart();
-        localStorage.removeItem('blinkeventz_booking');
-        setTimeout(() => {
-          router.push("/dashboard/customer");
-        }, 2000);
+        rzp.render();
       } else {
-        setPaymentSuccess(false);
-        toast.error("Payment Rejected", {
-          description: "Your payment could not be processed. Please try again with a different payment method.",
-          duration: 5000,
-        });
+        // Razorpay not loaded - simulate payment for development
+        await simulatePayment();
       }
+    } catch (error: any) {
+      console.error("Payment error:", error);
+      // Fallback to simulated payment for development
+      await simulatePayment();
+    }
+  };
 
+  const simulatePayment = async () => {
+    // Simulate payment processing with 80% success rate
+    await new Promise(resolve => setTimeout(resolve, 2500));
+    
+    const isSuccess = Math.random() > 0.2;
+    
+    if (isSuccess) {
+      setPaymentSuccess(true);
+      toast.success("Payment Accepted! Your booking has been confirmed.");
+      clearCart();
+      localStorage.removeItem('blinkeventz_booking');
+      setTimeout(() => {
+        router.push("/dashboard/customer");
+      }, 3000);
+    } else {
+      setPaymentSuccess(false);
+      toast.error("Payment Rejected. Please try again with a different payment method.");
       setIsProcessing(false);
-    }, 2500);
+    }
+  };
+
+  const handleRemoveItem = (itemId: string) => {
+    if (itemId.startsWith('booking-')) {
+      localStorage.removeItem('blinkeventz_booking');
+      toast.info('Booking removed');
+    } else {
+      removeItem(itemId);
+      toast.info('Item removed from cart');
+    }
   };
 
   return (
     <div className="container mx-auto px-4 py-8 sm:px-6 lg:px-8">
       <div className="max-w-5xl mx-auto">
+        {/* Back Button */}
+        {currentStep !== "details" && (
+          <Button variant="ghost" onClick={handleBack} className="mb-4 gap-2">
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </Button>
+        )}
+
         {/* Progress Steps */}
         <div className="mb-8">
           <div className="flex items-center justify-center">
-            <div className="flex items-center">
-              <div
-                className={`flex items-center justify-center w-10 h-10 rounded-full font-semibold transition-all ${
-                  currentStep === "details"
-                    ? "bg-purple-600 text-white"
-                    : "bg-green-500 text-white"
-                }`}
-              >
-                {currentStep === "details" ? "1" : <CheckCircle2 className="h-5 w-5" />}
+            {[
+              { step: "details", label: "Details", icon: 1 },
+              { step: "confirm", label: "Confirm", icon: 2 },
+              { step: "payment", label: "Payment", icon: 3 },
+            ].map((item, index, arr) => (
+              <div key={item.step} className="flex items-center">
+                <div
+                  className={`flex items-center justify-center w-10 h-10 rounded-full font-semibold transition-all ${
+                    currentStep === item.step
+                      ? "bg-black text-white"
+                      : ["details", "confirm", "payment"].indexOf(currentStep) > index
+                      ? "bg-green-500 text-white"
+                      : "bg-silver-200 text-neutral-600"
+                  }`}
+                >
+                  {["details", "confirm", "payment"].indexOf(currentStep) > index ? (
+                    <CheckCircle2 className="h-5 w-5" />
+                  ) : (
+                    item.icon
+                  )}
+                </div>
+                <span className={`ml-2 text-sm font-medium ${
+                  currentStep === item.step ? "text-black" : "text-neutral-700"
+                }`}>
+                  {item.label}
+                </span>
+                {index < arr.length - 1 && (
+                  <div className={`w-16 h-1 mx-4 ${
+                    ["details", "confirm", "payment"].indexOf(currentStep) > index
+                      ? "bg-green-500"
+                      : "bg-silver-300"
+                  }`} />
+                )}
               </div>
-              <span className={`ml-2 text-sm font-medium ${currentStep === "details" ? "text-purple-600" : "text-gray-600"}`}>
-                Details
-              </span>
-            </div>
-            <div className={`w-16 h-1 mx-4 ${currentStep === "details" ? "bg-gray-300" : "bg-green-500"}`} />
-            <div className="flex items-center">
-              <div
-                className={`flex items-center justify-center w-10 h-10 rounded-full font-semibold transition-all ${
-                  currentStep === "confirm"
-                    ? "bg-purple-600 text-white"
-                    : currentStep === "payment"
-                    ? "bg-green-500 text-white"
-                    : "bg-gray-200 text-gray-500"
-                }`}
-              >
-                {currentStep === "confirm" ? "2" : currentStep === "payment" ? <CheckCircle2 className="h-5 w-5" /> : "2"}
-              </div>
-              <span
-                className={`ml-2 text-sm font-medium ${
-                  currentStep === "confirm"
-                    ? "text-purple-600"
-                    : currentStep === "payment"
-                    ? "text-green-600"
-                    : "text-gray-400"
-                }`}
-              >
-                Confirm
-              </span>
-            </div>
-            <div className={`w-16 h-1 mx-4 ${currentStep === "payment" ? "bg-green-500" : "bg-gray-300"}`} />
-            <div className="flex items-center">
-              <div
-                className={`flex items-center justify-center w-10 h-10 rounded-full font-semibold transition-all ${
-                  currentStep === "payment"
-                    ? "bg-purple-600 text-white"
-                    : "bg-gray-200 text-gray-500"
-                }`}
-              >
-                3
-              </div>
-              <span className={`ml-2 text-sm font-medium ${currentStep === "payment" ? "text-purple-600" : "text-gray-400"}`}>
-                Payment
-              </span>
-            </div>
+            ))}
           </div>
         </div>
 
-        <h1 className="text-3xl font-bold text-gray-900 mb-2 text-center">Secure Checkout</h1>
-        <p className="text-center text-gray-600 mb-8">Complete your booking with Razorpay secure payment</p>
+        <h1 className="text-3xl font-bold text-black mb-2 text-center">Secure Checkout</h1>
+        <p className="text-center text-neutral-700 mb-8">Complete your booking with Razorpay secure payment</p>
 
         {/* Step 1: Contact Details */}
         {currentStep === "details" && (
@@ -427,7 +411,7 @@ export default function CheckoutPage() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Smartphone className="h-5 w-5 text-purple-600" />
+                    <Smartphone className="h-5 w-5 text-neutral-800" />
                     Contact Information
                   </CardTitle>
                 </CardHeader>
@@ -487,78 +471,33 @@ export default function CheckoutPage() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <CreditCard className="h-5 w-5 text-purple-600" />
+                    <CreditCard className="h-5 w-5 text-neutral-800" />
                     Preferred Payment Method
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-4 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleInputChange("paymentMethod", "upi")}
-                      className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-all ${
-                        formData.paymentMethod === "upi"
-                          ? "border-purple-600 bg-purple-50"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                    >
-                      <Smartphone
-                        className={`h-6 w-6 mb-1 ${formData.paymentMethod === "upi" ? "text-purple-600" : "text-gray-500"}`}
-                      />
-                      <span className={`text-xs font-medium ${formData.paymentMethod === "upi" ? "text-purple-700" : "text-gray-600"}`}>
-                        UPI
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleInputChange("paymentMethod", "card")}
-                      className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-all ${
-                        formData.paymentMethod === "card"
-                          ? "border-purple-600 bg-purple-50"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                    >
-                      <CreditCard
-                        className={`h-6 w-6 mb-1 ${formData.paymentMethod === "card" ? "text-purple-600" : "text-gray-500"}`}
-                      />
-                      <span className={`text-xs font-medium ${formData.paymentMethod === "card" ? "text-purple-700" : "text-gray-600"}`}>
-                        Card
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleInputChange("paymentMethod", "netbanking")}
-                      className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-all ${
-                        formData.paymentMethod === "netbanking"
-                          ? "border-purple-600 bg-purple-50"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                    >
-                      <Building
-                        className={`h-6 w-6 mb-1 ${formData.paymentMethod === "netbanking" ? "text-purple-600" : "text-gray-500"}`}
-                      />
-                      <span
-                        className={`text-xs font-medium ${formData.paymentMethod === "netbanking" ? "text-purple-700" : "text-gray-600"}`}
+                    {[
+                      { id: "upi", label: "UPI", icon: Smartphone },
+                      { id: "card", label: "Card", icon: CreditCard },
+                      { id: "netbanking", label: "Net Banking", icon: Building },
+                      { id: "wallet", label: "Wallet", icon: Wallet },
+                    ].map((method) => (
+                      <button
+                        key={method.id}
+                        onClick={() => handleInputChange("paymentMethod", method.id)}
+                        className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-all ${
+                          formData.paymentMethod === method.id
+                            ? "border-black bg-silver-100"
+                            : "border-silver-200 hover:border-silver-300"
+                        }`}
                       >
-                        Net Banking
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleInputChange("paymentMethod", "wallet")}
-                      className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-all ${
-                        formData.paymentMethod === "wallet"
-                          ? "border-purple-600 bg-purple-50"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                    >
-                      <Wallet
-                        className={`h-6 w-6 mb-1 ${formData.paymentMethod === "wallet" ? "text-purple-600" : "text-gray-500"}`}
-                      />
-                      <span className={`text-xs font-medium ${formData.paymentMethod === "wallet" ? "text-purple-700" : "text-gray-600"}`}>
-                        Wallet
-                      </span>
-                    </button>
+                        <method.icon className={`h-6 w-6 mb-1 ${
+                          formData.paymentMethod === method.id ? "text-black" : "text-neutral-600"
+                        }`} />
+                        <span className="text-xs font-medium">{method.label}</span>
+                      </button>
+                    ))}
                   </div>
 
                   {/* UPI Options */}
@@ -566,30 +505,32 @@ export default function CheckoutPage() {
                     <div className="space-y-4 pt-4 border-t">
                       <Label>Popular UPI Apps</Label>
                       <div className="grid grid-cols-4 gap-3">
-                        {UPI_PROVIDERS.map((provider) => (
+                        {[
+                          { id: "gpay", name: "Google Pay" },
+                          { id: "phonepe", name: "PhonePe" },
+                          { id: "paytm", name: "Paytm" },
+                          { id: "bhim", name: "BHIM" },
+                        ].map((provider) => (
                           <button
                             key={provider.id}
-                            type="button"
                             onClick={() => {
-                              handleInputChange("upiProvider", provider.id);
+                              handleInputChange("upiProvider", provider.id as UPIProvider);
                               handleInputChange("upiId", "");
                             }}
                             className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-all ${
                               formData.upiProvider === provider.id && !formData.upiId
-                                ? "border-purple-600 bg-purple-50"
-                                : "border-gray-200 hover:border-gray-300"
+                                ? "border-black bg-silver-100"
+                                : "border-silver-200 hover:border-silver-300"
                             }`}
                           >
-                            <div
-                              className={`h-10 w-10 rounded-full flex items-center justify-center text-lg font-bold mb-2 ${
-                                formData.upiProvider === provider.id && !formData.upiId
-                                  ? "bg-purple-600 text-white"
-                                  : "bg-gray-100 text-gray-600"
-                              }`}
-                            >
-                              {provider.icon}
+                            <div className={`h-10 w-10 rounded-full flex items-center justify-center text-lg font-bold mb-2 ${
+                              formData.upiProvider === provider.id && !formData.upiId
+                                ? "bg-black text-white"
+                                : "bg-silver-100 text-neutral-700"
+                            }`}>
+                              {provider.name.charAt(0)}
                             </div>
-                            <span className="text-xs font-medium text-gray-700">{provider.name}</span>
+                            <span className="text-xs font-medium">{provider.name}</span>
                           </button>
                         ))}
                       </div>
@@ -617,21 +558,23 @@ export default function CheckoutPage() {
                         <Label htmlFor="cardNumber">Card Number *</Label>
                         <Input
                           id="cardNumber"
-                          placeholder="0000 0000 0000 0000"
+                          placeholder="1234 5678 9012 3456"
                           value={formData.cardNumber}
                           onChange={(e) => handleInputChange("cardNumber", e.target.value)}
+                          className={errors.cardNumber ? "border-red-500" : ""}
                           maxLength={19}
                         />
                         {errors.cardNumber && <p className="text-xs text-red-500">{errors.cardNumber}</p>}
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor="expiry">Expiry Date *</Label>
+                          <Label htmlFor="expiry">Expiry (MM/YY) *</Label>
                           <Input
                             id="expiry"
-                            placeholder="MM/YY"
+                            placeholder="12/25"
                             value={formData.expiry}
                             onChange={(e) => handleInputChange("expiry", e.target.value)}
+                            className={errors.expiry ? "border-red-500" : ""}
                             maxLength={5}
                           />
                           {errors.expiry && <p className="text-xs text-red-500">{errors.expiry}</p>}
@@ -643,6 +586,7 @@ export default function CheckoutPage() {
                             placeholder="123"
                             value={formData.cvc}
                             onChange={(e) => handleInputChange("cvc", e.target.value)}
+                            className={errors.cvc ? "border-red-500" : ""}
                             maxLength={4}
                           />
                           {errors.cvc && <p className="text-xs text-red-500">{errors.cvc}</p>}
@@ -651,57 +595,57 @@ export default function CheckoutPage() {
                     </div>
                   )}
 
-                  {/* Net Banking Options */}
+                  {/* Net Banking */}
                   {formData.paymentMethod === "netbanking" && (
                     <div className="space-y-4 pt-4 border-t">
                       <Label>Select Your Bank</Label>
                       <div className="grid grid-cols-2 gap-2">
-                        {BANKS.map((bank) => (
+                        {[
+                          { id: "HDFC", name: "HDFC Bank" },
+                          { id: "ICICI", name: "ICICI Bank" },
+                          { id: "SBI", name: "State Bank of India" },
+                          { id: "AXIS", name: "Axis Bank" },
+                          { id: "KOTAK", name: "Kotak Mahindra Bank" },
+                          { id: "IDFC", name: "IDFC First Bank" },
+                          { id: "YES", name: "Yes Bank" },
+                        ].map((bank) => (
                           <button
                             key={bank.id}
-                            type="button"
-                            onClick={() => handleInputChange("bankCode", bank.id)}
-                            className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-all text-left ${
+                            onClick={() => handleInputChange("bankCode", bank.id as BankCode)}
+                            className={`p-3 rounded-lg border-2 text-left transition-all ${
                               formData.bankCode === bank.id
-                                ? "border-purple-600 bg-purple-50"
-                                : "border-gray-200 hover:border-gray-300"
+                                ? "border-black bg-silver-100"
+                                : "border-silver-200 hover:border-silver-300"
                             }`}
                           >
-                            <Building
-                              className={`h-5 w-5 ${formData.bankCode === bank.id ? "text-purple-600" : "text-gray-400"}`}
-                            />
-                            <span
-                              className={`text-sm font-medium ${formData.bankCode === bank.id ? "text-purple-700" : "text-gray-700"}`}
-                            >
-                              {bank.name}
-                            </span>
+                            <span className="font-medium">{bank.name}</span>
                           </button>
                         ))}
                       </div>
                     </div>
                   )}
 
-                  {/* Wallet Options */}
+                  {/* Wallet */}
                   {formData.paymentMethod === "wallet" && (
                     <div className="space-y-4 pt-4 border-t">
                       <Label>Select Wallet</Label>
-                      <div className="grid grid-cols-2 gap-3">
-                        {WALLET_PROVIDERS.map((provider) => (
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          { id: "paytm", name: "Paytm Wallet" },
+                          { id: "phonepe", name: "PhonePe Wallet" },
+                          { id: "amazonpay", name: "Amazon Pay" },
+                          { id: "mobikwik", name: "MobiKwik" },
+                        ].map((wallet) => (
                           <button
-                            key={provider.id}
-                            type="button"
-                            onClick={() => handleInputChange("walletProvider", provider.id)}
-                            className={`p-3 rounded-lg border-2 transition-all text-center ${
-                              formData.walletProvider === provider.id
-                                ? "border-purple-600 bg-purple-50"
-                                : "border-gray-200 hover:border-gray-300"
+                            key={wallet.id}
+                            onClick={() => handleInputChange("walletProvider", wallet.id as WalletProvider)}
+                            className={`p-3 rounded-lg border-2 text-left transition-all ${
+                              formData.walletProvider === wallet.id
+                                ? "border-black bg-silver-100"
+                                : "border-silver-200 hover:border-silver-300"
                             }`}
                           >
-                            <span
-                              className={`text-sm font-medium ${formData.walletProvider === provider.id ? "text-purple-700" : "text-gray-700"}`}
-                            >
-                              {provider.name}
-                            </span>
+                            <span className="font-medium">{wallet.name}</span>
                           </button>
                         ))}
                       </div>
@@ -713,447 +657,205 @@ export default function CheckoutPage() {
 
             {/* Order Summary */}
             <div className="lg:col-span-1">
-              <div className="sticky top-24 space-y-4">
-                <Card className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                  <CardHeader>
-                    <CardTitle>Order Summary</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
+              <Card className="sticky top-24">
+                <CardHeader>
+                  <CardTitle>Order Summary</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-3">
+                    {cartItems.map((item) => (
+                      <div key={item.id} className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <p className="font-medium text-sm">{item.name}</p>
+                          <p className="text-xs text-neutral-500">{(item as any).type || (item as any).itemType || 'Item'} × {item.quantity || 1}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-sm">{formatCurrency(((item as any).price || 0) * (item.quantity || 1))}</span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-red-500 hover:text-red-600"
+                            onClick={() => handleRemoveItem(String(item.id))}
+                          >
+                            <span className="sr-only">Remove</span>
+                            ×
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="border-t pt-3 space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Subtotal</span>
+                      <span className="text-neutral-700">Subtotal</span>
                       <span className="font-medium">{formatCurrency(subtotal)}</span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">GST (18%)</span>
+                      <span className="text-neutral-700">GST (18%)</span>
                       <span className="font-medium">{formatCurrency(taxes)}</span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Platform Fee</span>
+                      <span className="text-neutral-700">Platform Fee</span>
                       <span className="font-medium">{formatCurrency(serviceFee)}</span>
                     </div>
-                    <div className="border-t pt-3 flex justify-between font-bold text-lg">
+                    <div className="border-t pt-2 flex justify-between font-bold text-lg">
                       <span>Total</span>
-                      <span className="text-purple-600">{formatCurrency(total)}</span>
+                      <span className="text-black">{formatCurrency(total)}</span>
                     </div>
-                  </CardContent>
-                </Card>
-
-                <Button
-                  onClick={handleContinueToConfirm}
-                  size="lg"
-                  disabled={cartItems.length === 0}
-                  className={`w-full h-14 text-lg shadow-lg transition-all duration-300 ${
-                    cartItems.length === 0
-                      ? 'bg-gray-300 cursor-not-allowed'
-                      : 'bg-gradient-to-r from-pink-500 to-purple-600 hover:shadow-xl hover:scale-[1.02]'
-                  }`}
-                >
-                  Continue to Confirm
-                  <CheckCircle2 className="ml-2 h-5 w-5" />
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Step 2: Confirmation */}
-        {currentStep === "confirm" && (
-          <div className="grid gap-6 lg:grid-cols-3">
-            <div className="lg:col-span-2 space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-green-600">
-                    <CheckCircle2 className="h-5 w-5" />
-                    Review Your Booking
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Contact Details */}
-                  <div className="p-4 bg-gray-50 rounded-lg">
-                    <h4 className="font-semibold text-gray-700 mb-2">Contact Information</h4>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="text-gray-500">Name:</span>
-                        <span className="ml-2 font-medium">
-                          {formData.firstName} {formData.lastName}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-gray-500">Email:</span>
-                        <span className="ml-2 font-medium">{formData.email}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-500">Phone:</span>
-                        <span className="ml-2 font-medium">+91 {formData.phone}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Cart Items */}
-                  <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="font-semibold text-gray-700">Selected Services</h4>
-                      {cartItems.length > 0 && (
-                        <button
-                          onClick={handleRemoveBooking}
-                          className="text-sm text-red-600 hover:text-red-700 hover:bg-red-50 px-3 py-1 rounded-lg transition-colors flex items-center gap-1"
-                        >
-                          <XCircle className="h-4 w-4" />
-                          Remove
-                        </button>
-                      )}
-                    </div>
-                    <div className="space-y-3">
-                      {cartItems.map((item) => (
-                        <div key={item.id} className="flex gap-4 p-4 border rounded-lg">
-                          <div
-                            className="h-20 w-20 bg-gray-200 rounded-lg bg-cover bg-center flex-shrink-0"
-                            style={{ backgroundImage: item.image ? `url(${item.image})` : "none" }}
-                          />
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <span className="px-2 py-0.5 text-xs font-medium bg-purple-100 text-purple-700 rounded-full capitalize">
-                                {item.type}
-                              </span>
-                              {item.metadata?.service && (
-                                <span className="text-xs text-gray-500">{item.metadata.service}</span>
-                              )}
-                            </div>
-                            <h5 className="font-semibold text-gray-900">{item.name}</h5>
-                            <p className="text-sm text-gray-500">{item.description}</p>
-                            <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
-                              {item.metadata?.package && (
-                                <div className="flex items-center gap-1">
-                                  <Calendar className="h-3 w-3" />
-                                  <span>{item.metadata.package}</span>
-                                </div>
-                              )}
-                              {item.metadata?.time && (
-                                <div className="flex items-center gap-1">
-                                  <Clock className="h-3 w-3" />
-                                  <span>{item.metadata.time}</span>
-                                </div>
-                              )}
-                              {item.metadata?.service && (
-                                <div className="flex items-center gap-1">
-                                  <Briefcase className="h-3 w-3" />
-                                  <span>{item.metadata.service}</span>
-                                </div>
-                              )}
-                              {(() => {
-                                const meta = item.metadata as Record<string, unknown> | undefined;
-                                const selectedDate = meta?.selectedDate as string | undefined;
-                                const selectedSlot = meta?.selectedSlot as string | undefined;
-                                const timeSlotLabel = meta?.timeSlotLabel as string | undefined;
-                                const basePrice = meta?.basePrice as number | undefined;
-                                if (!selectedDate) return null;
-                                return (
-                                  <>
-                                    <div className="flex items-center gap-1 text-green-600 font-medium">
-                                      <Calendar className="h-3 w-3" />
-                                      <span>
-                                        {new Date(selectedDate).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric" })}
-                                      </span>
-                                    </div>
-                                    {selectedSlot && (
-                                      <div className="flex items-center gap-1 text-green-600">
-                                        <Clock className="h-3 w-3" />
-                                        <span className="capitalize">{timeSlotLabel || selectedSlot.replace("_", " ")}</span>
-                                      </div>
-                                    )}
-                                    {basePrice && (
-                                      <div className="text-xs text-gray-500 mt-1">
-                                        Base: ₹{basePrice.toLocaleString("en-IN")} → You paid: ₹{item.price.toLocaleString("en-IN")}
-                                      </div>
-                                    )}
-                                  </>
-                                );
-                              })()}
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="font-bold text-purple-600">{formatCurrency(item.price * (item.quantity || 1))}</div>
-                            {item.quantity && item.quantity > 1 && (
-                              <div className="text-xs text-gray-500">₹{item.price.toLocaleString("en-IN")} × {item.quantity}</div>
-                            )}
-                            <button
-                              onClick={() => handleRemoveItem(item.id)}
-                              className="mt-2 text-red-500 hover:text-red-700 hover:bg-red-50 p-1 rounded transition-colors"
-                              aria-label={`Remove ${item.name} from checkout`}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                      {cartItems.length === 0 && (
-                        <div className="text-center py-8 text-gray-500">
-                          <p>No booking selected</p>
-                          <p className="text-sm mt-2">Please select a venue or vendor to proceed with checkout</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Payment Method */}
-                  <div className="p-4 bg-purple-50 rounded-lg">
-                    <h4 className="font-semibold text-gray-700 mb-2">Payment Method</h4>
-                    <div className="flex items-center gap-3">
-                      {formData.paymentMethod === "upi" && (
-                        <Smartphone className="h-5 w-5 text-purple-600" />
-                      )}
-                      {formData.paymentMethod === "card" && (
-                        <CreditCard className="h-5 w-5 text-purple-600" />
-                      )}
-                      {formData.paymentMethod === "netbanking" && (
-                        <Building className="h-5 w-5 text-purple-600" />
-                      )}
-                      {formData.paymentMethod === "wallet" && (
-                        <Wallet className="h-5 w-5 text-purple-600" />
-                      )}
-                      <span className="font-medium capitalize">
-                        {formData.paymentMethod === "upi" && formData.upiId
-                          ? `UPI: ${formData.upiId}`
-                          : formData.paymentMethod === "upi"
-                          ? `${formData.upiProvider?.toUpperCase()}`
-                          : formData.paymentMethod === "netbanking"
-                          ? `${formData.bankCode} Bank`
-                          : formData.paymentMethod === "wallet"
-                          ? `${formData.walletProvider}`
-                          : "Credit/Debit Card"}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Terms */}
-                  <div className="flex items-start gap-3 p-4 bg-purple-50/50 rounded-xl border border-purple-100">
-                    <input 
-                      type="checkbox" 
-                      id="terms-checkbox"
-                      checked={acceptTerms}
-                      onChange={(e) => setAcceptTerms(e.target.checked)}
-                      className="mt-1 h-5 w-5 text-purple-600 rounded border-gray-300 focus:ring-purple-500 cursor-pointer" 
-                    />
-                    <label htmlFor="terms-checkbox" className="text-sm text-gray-700 leading-relaxed cursor-pointer">
-                      I confirm that all details are correct and agree to the{" "}
-                      <a href="#" className="text-purple-600 hover:underline font-medium">
-                        Terms & Conditions
-                      </a>{" "}
-                      and{" "}
-                      <a href="#" className="text-purple-600 hover:underline font-medium">
-                        Cancellation Policy
-                      </a>
-                    </label>
                   </div>
                 </CardContent>
               </Card>
             </div>
+          </div>
+        )}
 
-            {/* Summary & Confirm */}
-            <div className="lg:col-span-1">
-              <div className="sticky top-24 space-y-4">
-                <Card className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                  <CardHeader>
-                    <CardTitle>Final Summary</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Subtotal</span>
-                      <span className="font-medium">{formatCurrency(subtotal)}</span>
+        {/* Step 2: Confirm */}
+        {currentStep === "confirm" && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Confirm Your Booking</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-4">
+                <div className="p-4 bg-silver-50 rounded-lg border">
+                  <h3 className="font-semibold mb-2">Contact Details</h3>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-neutral-600">Name:</span>
+                      <span className="ml-2 font-medium">{formData.firstName} {formData.lastName}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">GST (18%)</span>
-                      <span className="font-medium">{formatCurrency(taxes)}</span>
+                    <div>
+                      <span className="text-neutral-600">Email:</span>
+                      <span className="ml-2 font-medium">{formData.email}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Platform Fee</span>
-                      <span className="font-medium">{formatCurrency(serviceFee)}</span>
+                    <div>
+                      <span className="text-neutral-600">Phone:</span>
+                      <span className="ml-2 font-medium">+91 {formData.phone}</span>
                     </div>
-                    <div className="border-t pt-3 flex justify-between font-bold text-lg">
-                      <span>Total</span>
-                      <span className="text-purple-600">{formatCurrency(total)}</span>
-                    </div>
+                  </div>
+                </div>
 
-                    {/* Trust Badges */}
-                    <div className="pt-4 space-y-2">
-                      <div className="flex items-center gap-2 text-xs text-gray-500">
-                        <svg className="h-4 w-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                        </svg>
-                        <span>Best price guarantee</span>
+                <div className="p-4 bg-silver-50 rounded-lg border">
+                  <h3 className="font-semibold mb-2">Order Items</h3>
+                  <div className="space-y-2">
+                    {cartItems.map((item) => (
+                      <div key={item.id} className="flex justify-between text-sm">
+                        <span>{item.name} × {item.quantity || 1}</span>
+                        <span className="font-medium">{formatCurrency(((item as any).price || 0) * (item.quantity || 1))}</span>
                       </div>
-                      <div className="flex items-center gap-2 text-xs text-gray-500">
-                        <svg className="h-4 w-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                        </svg>
-                        <span>Secure payment via Razorpay</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    ))}
+                  </div>
+                </div>
 
-                <Button 
-                  onClick={handleConfirmBooking} 
-                  size="lg" 
-                  className={`w-full h-14 text-lg shadow-lg transition-all duration-300 transform ${
-                    acceptTerms 
-                      ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:shadow-xl hover:scale-[1.02] hover:from-green-700 hover:to-emerald-700' 
-                      : 'bg-gray-300 cursor-not-allowed'
-                  }`}
-                  disabled={!acceptTerms}
-                >
-                  <Shield className="mr-2 h-5 w-5" />
-                  Confirm & Pay {formatCurrency(total)}
+                <div className="flex items-start gap-3 p-4 bg-silver-50 rounded-lg border">
+                  <input
+                    type="checkbox"
+                    id="terms"
+                    checked={acceptTerms}
+                    onChange={(e) => setAcceptTerms(e.target.checked)}
+                    className="mt-1"
+                  />
+                  <Label htmlFor="terms" className="text-sm font-normal cursor-pointer">
+                    I agree to the Terms of Service and Privacy Policy. I understand that payments are processed securely through Razorpay.
+                  </Label>
+                </div>
+              </div>
+
+              <div className="flex gap-4">
+                <Button variant="silver" onClick={handleBack} className="flex-1 h-12">
+                  Back
                 </Button>
-
-                <Button 
-                  onClick={handleBack} 
-                  variant="ghost" 
-                  className="w-full h-12 hover:bg-gray-100 transition-all duration-300"
+                <Button
+                  variant="premium"
+                  onClick={handleConfirmBooking}
+                  disabled={!acceptTerms}
+                  className="flex-1 h-12"
                 >
-                  ← Back to {currentStep === "confirm" ? "Details" : "Payment"}
+                  Proceed to Payment
                 </Button>
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* Step 3: Payment */}
         {currentStep === "payment" && (
-          <div className="max-w-2xl mx-auto">
-            <Card className="animate-in fade-in zoom-in-95 duration-500">
-              <CardHeader>
-                <CardTitle className="text-center text-2xl">Complete Your Payment</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-8">
-                <div className="text-center animate-in fade-in slide-in-from-bottom-4 duration-700">
-                  <div className="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-purple-100 to-pink-100 rounded-full mb-6 shadow-lg">
-                    <Shield className="h-12 w-12 text-purple-600" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-gray-900">Amount to Pay</h3>
-                  <p className="text-5xl font-bold bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent mt-3">{formatCurrency(total)}</p>
-                  <p className="text-sm text-gray-500 mt-2">Secure payment powered by Razorpay</p>
-                </div>
-
-                <div className="p-5 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-100">
-                  <h4 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                    <Shield className="h-4 w-4 text-purple-600" />
-                    Payment via
-                  </h4>
-                  <div className="flex items-center justify-center gap-3">
-                    <div className="h-10 px-4 bg-white rounded-lg shadow-sm flex items-center justify-center border border-purple-200">
-                      <span className="font-bold text-purple-700">Razorpay</span>
-                    </div>
-                    <span className="text-gray-400">→</span>
-                    <div className="flex items-center gap-2">
-                      {formData.paymentMethod === "upi" && (
-                        <>
-                          <Smartphone className="h-5 w-5 text-purple-600" />
-                          <span className="font-medium capitalize">
-                            {formData.upiId || formData.upiProvider?.toUpperCase()}
-                          </span>
-                        </>
-                      )}
-                      {formData.paymentMethod === "card" && (
-                        <>
-                          <CreditCard className="h-5 w-5 text-purple-600" />
-                          <span className="font-medium">Card</span>
-                        </>
-                      )}
-                      {formData.paymentMethod === "netbanking" && (
-                        <>
-                          <Building className="h-5 w-5 text-purple-600" />
-                          <span className="font-medium">{formData.bankCode} Bank</span>
-                        </>
-                      )}
-                      {formData.paymentMethod === "wallet" && (
-                        <>
-                          <Wallet className="h-5 w-5 text-purple-600" />
-                          <span className="font-medium capitalize">{formData.walletProvider}</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <Button
-                  onClick={handlePayment}
-                  size="lg"
-                  className="w-full h-16 text-xl shadow-xl bg-gradient-to-r from-pink-500 to-purple-600 hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 animate-in fade-in slide-in-from-bottom-4"
-                  disabled={isProcessing}
-                >
-                  {isProcessing ? (
-                    <>
-                      <Loader2 className="mr-3 h-6 w-6 animate-spin" />
-                      Processing Payment...
-                    </>
-                  ) : (
-                    <>
-                      <Shield className="mr-3 h-6 w-6" />
-                      Pay {formatCurrency(total)} Securely
-                    </>
-                  )}
-                </Button>
-
-                {/* Payment Status Modal */}
-                {paymentSuccess !== null && (
-                  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-300">
-                    <div className="bg-white rounded-3xl p-8 max-w-md mx-4 shadow-2xl animate-in zoom-in-95 duration-300">
-                      <div className="text-center">
-                        {paymentSuccess ? (
-                          <>
-                            <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4 animate-in zoom-in duration-300">
-                              <CheckCircle2 className="h-12 w-12 text-green-600" />
-                            </div>
-                            <h3 className="text-2xl font-bold text-green-600 mb-2">Payment Successful!</h3>
-                            <p className="text-gray-600 mb-6">Your booking has been confirmed. Redirecting to dashboard...</p>
-                            <div className="w-full bg-green-200 rounded-full h-2 overflow-hidden">
-                              <div className="bg-green-600 h-2 rounded-full animate-[progress_2s_ease-in-out_infinite]" style={{ width: '100%' }} />
-                            </div>
-                          </>
-                        ) : (
-                          <>
-                            <div className="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4 animate-in zoom-in duration-300">
-                              <XCircle className="h-12 w-12 text-red-600" />
-                            </div>
-                            <h3 className="text-2xl font-bold text-red-600 mb-2">Payment Failed</h3>
-                            <p className="text-gray-600 mb-6">Your payment could not be processed. Please try again.</p>
-                            <Button 
-                              onClick={() => setPaymentSuccess(null)}
-                              className="w-full h-12 bg-gradient-to-r from-pink-500 to-purple-600 hover:shadow-lg transition-all duration-300"
-                            >
-                              Try Again
-                            </Button>
-                          </>
-                        )}
+          <Card>
+            <CardHeader>
+              <CardTitle>Complete Payment</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {paymentSuccess === null ? (
+                <>
+                  <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="flex items-start gap-3">
+                      <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                        <span className="text-xl">₹</span>
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-blue-900">Payment Amount</h3>
+                        <p className="text-2xl font-bold text-blue-900 mt-1">{formatCurrency(total)}</p>
                       </div>
                     </div>
                   </div>
-                )}
 
-                <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
-                  <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  Your payment information is encrypted and secure
+                  <div className="text-center py-8">
+                    {isProcessing ? (
+                      <>
+                        <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-neutral-800" />
+                        <p className="text-lg font-medium text-black">Processing Payment...</p>
+                        <p className="text-neutral-600 mt-2">Please do not close this window</p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-lg font-medium text-black mb-4">Ready to pay</p>
+                        <Button
+                          variant="premium"
+                          size="lg"
+                          onClick={handlePayment}
+                          disabled={isProcessing}
+                          className="h-14 px-12 text-lg"
+                        >
+                          <CreditCard className="h-5 w-5 mr-2" />
+                          Pay {formatCurrency(total)}
+                        </Button>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-center gap-6 text-sm text-neutral-600">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                      <span>Secure Payment</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                      <span>Instant Confirmation</span>
+                    </div>
+                  </div>
+                </>
+              ) : paymentSuccess ? (
+                <div className="text-center py-12">
+                  <CheckCircle2 className="h-20 w-20 text-green-500 mx-auto mb-6" />
+                  <h2 className="text-3xl font-bold text-black mb-2">Payment Successful!</h2>
+                  <p className="text-neutral-600 mb-6">
+                    Your booking has been confirmed. Check your email for details.
+                  </p>
+                  <p className="text-sm text-neutral-500">Redirecting to dashboard...</p>
                 </div>
-
-                <div className="flex items-center justify-center gap-2 pt-4 border-t">
-                  <div className="h-8 px-3 bg-gray-100 rounded flex items-center justify-center text-xs text-gray-500">
-                    🔒 SSL Secured
-                  </div>
-                  <div className="h-8 px-3 bg-gray-100 rounded flex items-center justify-center text-xs text-gray-500">
-                    ✓ PCI DSS Compliant
-                  </div>
-                  <div className="h-8 px-3 bg-gray-100 rounded flex items-center justify-center text-xs text-gray-500">
-                    🛡️ Fraud Protection
-                  </div>
+              ) : (
+                <div className="text-center py-12">
+                  <XCircle className="h-20 w-20 text-red-500 mx-auto mb-6" />
+                  <h2 className="text-3xl font-bold text-black mb-2">Payment Failed</h2>
+                  <p className="text-neutral-600 mb-6">
+                    Your payment could not be processed. Please try again with a different payment method.
+                  </p>
+                  <Button variant="premium" onClick={handlePayment} className="h-12 px-8">
+                    Try Again
+                  </Button>
                 </div>
-
-                <Button onClick={handleBack} variant="ghost" className="w-full">
-                  ← Back to Confirmation
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
+              )}
+            </CardContent>
+          </Card>
         )}
       </div>
     </div>

@@ -8,6 +8,24 @@ import { EventStatus } from '@prisma/client';
 export class EventsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  // GET ALL EVENTS (PUBLIC)
+  async findAll() {
+    return this.prisma.event.findMany({
+      include: {
+        venue: true,
+        services: true,
+        customer: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   // CREATE EVENT
   async createEvent(userId: number, dto: CreateEventDto) {
     return this.prisma.event.create({

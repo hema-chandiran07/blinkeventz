@@ -60,8 +60,8 @@ export default function VenueCalendarPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Venue Calendar</h1>
-          <p className="text-gray-500">Manage availability and block dates</p>
+          <h1 className="text-3xl font-bold text-black">Venue Calendar</h1>
+          <p className="text-neutral-600">Manage availability and block dates</p>
         </div>
         <Button 
           onClick={handleBlockSlot} 
@@ -79,10 +79,10 @@ export default function VenueCalendarPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-500">This Month</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">8</p>
+                <p className="text-sm font-medium text-neutral-600">This Month</p>
+                <p className="text-2xl font-bold text-black mt-1">8</p>
               </div>
-              <div className="p-3 rounded-full bg-purple-50 text-purple-600">
+              <div className="p-3 rounded-full bg-silver-100 text-neutral-700">
                 <Calendar className="h-5 w-5" />
               </div>
             </div>
@@ -92,7 +92,7 @@ export default function VenueCalendarPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-500">Blocked Dates</p>
+                <p className="text-sm font-medium text-neutral-600">Blocked Dates</p>
                 <p className="text-2xl font-bold text-red-600 mt-1">{blockedSlots.length}</p>
               </div>
               <div className="p-3 rounded-full bg-red-50 text-red-600">
@@ -105,7 +105,7 @@ export default function VenueCalendarPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-500">Revenue</p>
+                <p className="text-sm font-medium text-neutral-600">Revenue</p>
                 <p className="text-2xl font-bold text-green-600 mt-1">₹4.25L</p>
               </div>
               <div className="p-3 rounded-full bg-green-50 text-green-600">
@@ -142,8 +142,8 @@ export default function VenueCalendarPage() {
           </CardHeader>
           <CardContent>
             {blockedSlots.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <Calendar className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+              <div className="text-center py-8 text-neutral-600">
+                <Calendar className="h-12 w-12 mx-auto mb-3 text-silver-300" />
                 <p>No blocked slots yet</p>
                 <p className="text-sm">Select a date and time to block</p>
               </div>

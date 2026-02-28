@@ -9,6 +9,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { Role } from '@prisma/client';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Public } from '../common/decorators/public.decorator';
 
 @ApiTags('Events')
 @ApiBearerAuth()
@@ -16,6 +17,12 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 @Controller('events')
 export class EventsController {
   constructor(private readonly eventsService: EventsService) {}
+
+  @Public()
+  @Get()
+  findAll() {
+    return this.eventsService.findAll();
+  }
 
   @Roles(Role.CUSTOMER)
   @Post()

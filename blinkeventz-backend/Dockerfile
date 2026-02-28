@@ -1,21 +1,23 @@
-# ---- Base image ----
+# Backend Dockerfile - Development Mode
 FROM node:20-alpine
 
-# ---- Set working directory ----
 WORKDIR /app
 
-# ---- Install dependencies first ----
+# Install dependencies
 COPY package*.json ./
-RUN npm install --legacy-peer-deps
+RUN npm install
 
-# ---- Copy source code ----
+# Copy source code (excluding .env via .dockerignore)
 COPY . .
 
-# ---- Generate Prisma Client ----
+# Generate Prisma Client
 RUN npx prisma generate
 
-# ---- Expose API port ----
+# Expose API port
 EXPOSE 3000
 
-# ---- Start in dev mode ----
-CMD ["sh", "-c", "npx prisma migrate deploy && npm run start:dev"]
+# Set environment
+ENV NODE_ENV=development
+
+# Build and start with ts-node
+CMD ["npx", "ts-node", "-T", "node_modules/.bin/nest", "start"]

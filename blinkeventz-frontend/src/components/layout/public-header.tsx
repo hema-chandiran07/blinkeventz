@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Menu, X, ShoppingCart, ChevronDown, ArrowLeft } from "lucide-react";
 import { useState, useSyncExternalStore } from "react";
 import { useAuth } from "@/context/auth-context";
+import { useCart } from "@/context/cart-context";
 import { useRouter } from "next/navigation";
 
 export function PublicHeader() {
@@ -18,6 +19,8 @@ export function PublicHeader() {
     () => false
   );
   const { user, isAuthenticated, logout } = useAuth();
+  const { getItemCount } = useCart();
+  const cartItemCount = getItemCount();
 
   const handleGoBack = () => {
     router.back();
@@ -34,13 +37,13 @@ export function PublicHeader() {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-purple-100 bg-white/80 backdrop-blur-md">
+    <header className="sticky top-0 z-50 w-full border-b border-silver-200 bg-white/80 backdrop-blur-md">
       <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 text-gray-600 hover:text-purple-600 hover:bg-purple-50"
+            className="h-8 w-8 text-neutral-600 hover:text-black hover:bg-silver-100"
             onClick={handleGoBack}
             aria-label="Go back"
           >
@@ -48,8 +51,8 @@ export function PublicHeader() {
           </Button>
 
           <Link href="/" className="flex items-center space-x-2 group">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-pink-500 to-purple-600 group-hover:scale-110 transition-transform duration-300" />
-            <span className="text-xl font-bold bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent">
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-black to-neutral-900 group-hover:scale-110 transition-transform duration-300" />
+            <span className="text-xl font-bold bg-gradient-to-r from-black to-neutral-900 bg-clip-text text-transparent">
               BlinkEventz
             </span>
           </Link>
@@ -57,7 +60,7 @@ export function PublicHeader() {
 
           {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center space-x-6">
-          <Link href="/" className="text-sm font-medium text-gray-700 hover:text-purple-600 transition-colors">
+          <Link href="/" className="text-sm font-medium text-neutral-700 hover:text-black transition-colors">
             Home
           </Link>
 
@@ -68,7 +71,7 @@ export function PublicHeader() {
             onMouseLeave={() => setIsVenuesOpen(false)}
           >
             <button
-              className="flex items-center text-sm font-medium text-gray-700 hover:text-purple-600"
+              className="flex items-center text-sm font-medium text-neutral-700 hover:text-black"
               onClick={() => setIsVenuesOpen(!isVenuesOpen)}
             >
               Venues
@@ -78,48 +81,48 @@ export function PublicHeader() {
             </button>
 
             <div
-              className={`absolute left-1/2 -translate-x-1/2 mt-4 w-[750px] rounded-2xl border border-gray-200 bg-white shadow-2xl p-8 grid grid-cols-3 gap-8 z-50 transition-all duration-200 ease-out ${isVenuesOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible translate-y-2 group-hover:opacity-100 group-hover:visible group-hover:translate-y-0'}`}
+              className={`absolute left-1/2 -translate-x-1/2 mt-4 w-[750px] rounded-2xl border border-silver-200 bg-white shadow-2xl p-8 grid grid-cols-3 gap-8 z-50 transition-all duration-200 ease-out ${isVenuesOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible translate-y-2 group-hover:opacity-100 group-hover:visible group-hover:translate-y-0'}`}
             >
 
               {/* Column 1 - Venue Types */}
               <div>
-                <h3 className="text-sm font-semibold text-gray-900 mb-4">
+                <h3 className="text-sm font-semibold text-black mb-4">
                   Venue Types
                 </h3>
-                <ul className="space-y-3 text-sm text-gray-600">
-                  <li><Link href="/venues?type=BanquetHall" className="hover:text-purple-600">Banquet Halls</Link></li>
-                  <li><Link href="/venues?type=MarriageHall" className="hover:text-purple-600">Marriage Halls</Link></li>
-                  <li><Link href="/venues?type=BeachVenue" className="hover:text-purple-600">Beach Venues</Link></li>
-                  <li><Link href="/venues?type=Resort" className="hover:text-purple-600">Resorts</Link></li>
-                  <li><Link href="/venues?type=Hotel" className="hover:text-purple-600">Hotels</Link></li>
+                <ul className="space-y-3 text-sm text-neutral-600">
+                  <li><Link href="/venues?type=BanquetHall" className="hover:text-black">Banquet Halls</Link></li>
+                  <li><Link href="/venues?type=MarriageHall" className="hover:text-black">Marriage Halls</Link></li>
+                  <li><Link href="/venues?type=BeachVenue" className="hover:text-black">Beach Venues</Link></li>
+                  <li><Link href="/venues?type=Resort" className="hover:text-black">Resorts</Link></li>
+                  <li><Link href="/venues?type=Hotel" className="hover:text-black">Hotels</Link></li>
                 </ul>
               </div>
 
               {/* Column 2 - Popular Chennai Areas */}
               <div>
-                <h3 className="text-sm font-semibold text-gray-900 mb-4">
+                <h3 className="text-sm font-semibold text-black mb-4">
                   Popular Areas in Chennai
                 </h3>
-                <ul className="space-y-3 text-sm text-gray-600">
-                  <li><Link href="/venues?area=T Nagar" className="hover:text-purple-600" onClick={() => setIsVenuesOpen(false)}>T Nagar</Link></li>
-                  <li><Link href="/venues?area=Velachery" className="hover:text-purple-600" onClick={() => setIsVenuesOpen(false)}>Velachery</Link></li>
-                  <li><Link href="/venues?area=Anna Nagar" className="hover:text-purple-600" onClick={() => setIsVenuesOpen(false)}>Anna Nagar</Link></li>
-                  <li><Link href="/venues?area=OMR" className="hover:text-purple-600" onClick={() => setIsVenuesOpen(false)}>OMR</Link></li>
-                  <li><Link href="/venues?area=Adyar" className="hover:text-purple-600" onClick={() => setIsVenuesOpen(false)}>Adyar</Link></li>
-                  <li><Link href="/venues?area=Tambaram" className="hover:text-purple-600" onClick={() => setIsVenuesOpen(false)}>Tambaram</Link></li>
+                <ul className="space-y-3 text-sm text-neutral-600">
+                  <li><Link href="/venues?area=T Nagar" className="hover:text-black" onClick={() => setIsVenuesOpen(false)}>T Nagar</Link></li>
+                  <li><Link href="/venues?area=Velachery" className="hover:text-black" onClick={() => setIsVenuesOpen(false)}>Velachery</Link></li>
+                  <li><Link href="/venues?area=Anna Nagar" className="hover:text-black" onClick={() => setIsVenuesOpen(false)}>Anna Nagar</Link></li>
+                  <li><Link href="/venues?area=OMR" className="hover:text-black" onClick={() => setIsVenuesOpen(false)}>OMR</Link></li>
+                  <li><Link href="/venues?area=Adyar" className="hover:text-black" onClick={() => setIsVenuesOpen(false)}>Adyar</Link></li>
+                  <li><Link href="/venues?area=Tambaram" className="hover:text-black" onClick={() => setIsVenuesOpen(false)}>Tambaram</Link></li>
                 </ul>
               </div>
 
               {/* Column 3 - Event Categories */}
               <div>
-                <h3 className="text-sm font-semibold text-gray-900 mb-4">
+                <h3 className="text-sm font-semibold text-black mb-4">
                   By Event
                 </h3>
-                <ul className="space-y-3 text-sm text-gray-600">
-                  <li><Link href="/venues?event=Wedding" className="hover:text-purple-600">Wedding Venues</Link></li>
-                  <li><Link href="/venues?event=Engagement" className="hover:text-purple-600">Engagement Halls</Link></li>
-                  <li><Link href="/venues?event=Birthday" className="hover:text-purple-600">Birthday Party Halls</Link></li>
-                  <li><Link href="/venues?event=Corporate" className="hover:text-purple-600">Corporate Events</Link></li>
+                <ul className="space-y-3 text-sm text-neutral-600">
+                  <li><Link href="/venues?event=Wedding" className="hover:text-black">Wedding Venues</Link></li>
+                  <li><Link href="/venues?event=Engagement" className="hover:text-black">Engagement Halls</Link></li>
+                  <li><Link href="/venues?event=Birthday" className="hover:text-black">Birthday Party Halls</Link></li>
+                  <li><Link href="/venues?event=Corporate" className="hover:text-black">Corporate Events</Link></li>
                 </ul>
               </div>
 
@@ -127,7 +130,7 @@ export function PublicHeader() {
               <div className="col-span-3 border-t pt-6">
                 <Link
                   href="/venues"
-                  className="text-sm font-semibold text-purple-600 hover:text-purple-800"
+                  className="text-sm font-semibold text-black hover:text-neutral-800"
                 >
                   View All Chennai Venues →
                 </Link>
@@ -143,7 +146,7 @@ export function PublicHeader() {
             onMouseLeave={() => setIsVendorsOpen(false)}
           >
             <button
-              className="flex items-center text-sm font-medium text-gray-700 hover:text-purple-600"
+              className="flex items-center text-sm font-medium text-neutral-700 hover:text-black"
               onClick={() => setIsVendorsOpen(!isVendorsOpen)}
             >
               Vendors
@@ -153,27 +156,27 @@ export function PublicHeader() {
             </button>
 
             <div
-              className={`absolute left-1/2 -translate-x-1/2 mt-4 w-[650px] rounded-2xl border border-gray-200 bg-white shadow-2xl p-8 grid grid-cols-3 gap-8 z-50 transition-all duration-200 ease-out ${isVendorsOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible translate-y-2 group-hover:opacity-100 group-hover:visible group-hover:translate-y-0'}`}
+              className={`absolute left-1/2 -translate-x-1/2 mt-4 w-[650px] rounded-2xl border border-silver-200 bg-white shadow-2xl p-8 grid grid-cols-3 gap-8 z-50 transition-all duration-200 ease-out ${isVendorsOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible translate-y-2 group-hover:opacity-100 group-hover:visible group-hover:translate-y-0'}`}
             >
 
   {/* Column 1 */}
   <div>
-    <h3 className="text-sm font-semibold text-gray-900 mb-4">
+    <h3 className="text-sm font-semibold text-black mb-4">
       Food & Catering
     </h3>
-    <ul className="space-y-3 text-sm text-gray-600">
+    <ul className="space-y-3 text-sm text-neutral-600">
       <li>
-        <Link href="/vendors?type=Catering" className="hover:text-purple-600">
+        <Link href="/vendors?type=Catering" className="hover:text-black">
           Catering Services
         </Link>
       </li>
       <li>
-        <Link href="/vendors?type=Bakery" className="hover:text-purple-600">
+        <Link href="/vendors?type=Bakery" className="hover:text-black">
           Cake & Bakery
         </Link>
       </li>
       <li>
-        <Link href="/vendors?type=Beverages" className="hover:text-purple-600">
+        <Link href="/vendors?type=Beverages" className="hover:text-black">
           Beverage Services
         </Link>
       </li>
@@ -182,27 +185,27 @@ export function PublicHeader() {
 
   {/* Column 2 */}
   <div>
-    <h3 className="text-sm font-semibold text-gray-900 mb-4">
+    <h3 className="text-sm font-semibold text-black mb-4">
       Media & Entertainment
     </h3>
-    <ul className="space-y-3 text-sm text-gray-600">
+    <ul className="space-y-3 text-sm text-neutral-600">
       <li>
-        <Link href="/vendors?type=Photography" className="hover:text-purple-600">
+        <Link href="/vendors?type=Photography" className="hover:text-black">
           Photography
         </Link>
       </li>
       <li>
-        <Link href="/vendors?type=Videography" className="hover:text-purple-600">
+        <Link href="/vendors?type=Videography" className="hover:text-black">
           Videography
         </Link>
       </li>
       <li>
-        <Link href="/vendors?type=DJ" className="hover:text-purple-600">
+        <Link href="/vendors?type=DJ" className="hover:text-black">
           DJ & Music
         </Link>
       </li>
       <li>
-        <Link href="/vendors?type=LiveBand" className="hover:text-purple-600">
+        <Link href="/vendors?type=LiveBand" className="hover:text-black">
           Live Bands
         </Link>
       </li>
@@ -211,27 +214,27 @@ export function PublicHeader() {
 
   {/* Column 3 */}
   <div>
-    <h3 className="text-sm font-semibold text-gray-900 mb-4">
+    <h3 className="text-sm font-semibold text-black mb-4">
       Event Essentials
     </h3>
-    <ul className="space-y-3 text-sm text-gray-600">
+    <ul className="space-y-3 text-sm text-neutral-600">
       <li>
-        <Link href="/vendors?type=Decoration" className="hover:text-purple-600">
+        <Link href="/vendors?type=Decoration" className="hover:text-black">
           Decoration
         </Link>
       </li>
       <li>
-        <Link href="/vendors?type=Makeup" className="hover:text-purple-600">
+        <Link href="/vendors?type=Makeup" className="hover:text-black">
           Makeup Artists
         </Link>
       </li>
       <li>
-        <Link href="/vendors?type=Lighting" className="hover:text-purple-600">
+        <Link href="/vendors?type=Lighting" className="hover:text-black">
           Lighting Services
         </Link>
       </li>
       <li>
-        <Link href="/vendors?type=EventPlanner" className="hover:text-purple-600">
+        <Link href="/vendors?type=EventPlanner" className="hover:text-black">
           Event Planners
         </Link>
       </li>
@@ -242,7 +245,7 @@ export function PublicHeader() {
   <div className="col-span-3 border-t pt-6 flex justify-between items-center">
     <Link
       href="/vendors"
-      className="text-sm font-semibold text-purple-600 hover:text-purple-800"
+      className="text-sm font-semibold text-black hover:text-neutral-800"
     >
       View All Vendors →
     </Link>
@@ -251,12 +254,12 @@ export function PublicHeader() {
 </div>
           </div>
 
-          <Link href="/plan-event" className="text-sm font-medium text-gray-700 hover:text-purple-600">
+          <Link href="/plan-event" className="text-sm font-medium text-neutral-700 hover:text-black">
             Plan Event
           </Link>
 
           {isMounted && isAuthenticated && (
-             <Link href={getDashboardLink()} className="text-sm font-medium text-purple-600 hover:text-purple-800 font-bold">
+             <Link href={getDashboardLink()} className="text-sm font-medium text-black hover:text-neutral-800 font-bold">
                 Dashboard
              </Link>
           )}
@@ -265,23 +268,28 @@ export function PublicHeader() {
         <div className="hidden md:flex items-center space-x-4">
           <Link href="/cart">
             <Button variant="ghost" size="icon" className="relative">
-              <ShoppingCart className="h-5 w-5 text-gray-700" />
+              <ShoppingCart className="h-5 w-5 text-neutral-700" />
+              {isMounted && cartItemCount > 0 && (
+                <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-black text-white text-xs font-bold flex items-center justify-center">
+                  {cartItemCount > 99 ? '99+' : cartItemCount}
+                </span>
+              )}
             </Button>
           </Link>
 
           {isMounted ? (
             isAuthenticated ? (
               <div className="flex items-center space-x-4">
-                  <span className="text-sm font-medium text-gray-700">Hi, {user?.name}</span>
-                  <Button variant="ghost" onClick={logout}>Log out</Button>
+                  <span className="text-sm font-medium text-neutral-700">Hi, {user?.name}</span>
+                  <Button variant="silver" onClick={logout}>Log out</Button>
               </div>
             ) : (
               <>
                 <Link href="/login">
-                  <Button variant="ghost">Log in</Button>
+                  <Button variant="silver">Log in</Button>
                 </Link>
                 <Link href="/register">
-                  <Button>Get Started</Button>
+                  <Button variant="premium">Get Started</Button>
                 </Link>
               </>
             )
@@ -289,10 +297,10 @@ export function PublicHeader() {
             // Placeholder during SSR to match client initial render
             <>
               <Link href="/login">
-                <Button variant="ghost">Log in</Button>
+                <Button variant="silver">Log in</Button>
               </Link>
               <Link href="/register">
-                <Button>Get Started</Button>
+                <Button variant="premium">Get Started</Button>
               </Link>
             </>
           )}
@@ -309,49 +317,56 @@ export function PublicHeader() {
 
       {/* Mobile Menu */}
       {isMenuOpen && (
-        <div className="md:hidden border-t border-purple-100 bg-white px-4 py-4 space-y-4">
-          <Link href="/venues" className="block text-sm font-medium text-gray-700 hover:text-purple-600">
+        <div className="md:hidden border-t border-silver-200 bg-white px-4 py-4 space-y-4">
+          <Link href="/venues" className="block text-sm font-medium text-neutral-700 hover:text-black">
             Venues
           </Link>
-          <Link href="/vendors" className="block text-sm font-medium text-gray-700 hover:text-purple-600">
+          <Link href="/vendors" className="block text-sm font-medium text-neutral-700 hover:text-black">
             Vendors
           </Link>
-          <Link href="/plan-event" className="block text-sm font-medium text-gray-700 hover:text-purple-600">
+          <Link href="/plan-event" className="block text-sm font-medium text-neutral-700 hover:text-black">
             Plan Event
           </Link>
 
           {isMounted && isAuthenticated && (
-             <Link href={getDashboardLink()} className="block text-sm font-medium text-purple-600 hover:text-purple-800 font-bold">
+             <Link href={getDashboardLink()} className="block text-sm font-medium text-black hover:text-neutral-800 font-bold">
                 Dashboard
              </Link>
           )}
 
           <div className="pt-2 flex flex-col space-y-2">
-             <Link href="/cart" className="w-full flex items-center space-x-2 text-sm font-medium text-gray-700 hover:text-purple-600">
-                <ShoppingCart className="h-5 w-5" />
-                <span>Cart</span>
+             <Link href="/cart" className="w-full flex items-center space-x-2 text-sm font-medium text-neutral-700 hover:text-black">
+                <div className="relative">
+                  <ShoppingCart className="h-5 w-5" />
+                  {cartItemCount > 0 && (
+                    <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-black text-white text-[10px] font-bold flex items-center justify-center">
+                      {cartItemCount > 99 ? '99+' : cartItemCount}
+                    </span>
+                  )}
+                </div>
+                <span>Cart {cartItemCount > 0 && `(${cartItemCount})`}</span>
             </Link>
 
             {isMounted ? (
               isAuthenticated ? (
-                  <Button variant="ghost" className="w-full justify-start" onClick={logout}>Log out</Button>
+                  <Button variant="silver" className="w-full justify-start" onClick={logout}>Log out</Button>
               ) : (
                   <>
                       <Link href="/login" className="w-full">
-                      <Button variant="ghost" className="w-full justify-start">Log in</Button>
+                      <Button variant="silver" className="w-full justify-start">Log in</Button>
                       </Link>
                       <Link href="/register" className="w-full">
-                      <Button className="w-full">Get Started</Button>
+                      <Button variant="premium" className="w-full">Get Started</Button>
                       </Link>
                   </>
               )
             ) : (
               <>
                   <Link href="/login" className="w-full">
-                  <Button variant="ghost" className="w-full justify-start">Log in</Button>
+                  <Button variant="silver" className="w-full justify-start">Log in</Button>
                   </Link>
                   <Link href="/register" className="w-full">
-                  <Button className="w-full">Get Started</Button>
+                  <Button variant="premium" className="w-full">Get Started</Button>
                   </Link>
               </>
             )}

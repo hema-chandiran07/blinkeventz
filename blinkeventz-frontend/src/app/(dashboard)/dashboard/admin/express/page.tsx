@@ -15,8 +15,8 @@ export default function AdminExpressPage() {
                 </Button>
              </Link>
             <div>
-            <h1 className="text-3xl font-bold text-gray-900">Express 50</h1>
-            <p className="text-gray-500">Manage time-sensitive express requests.</p>
+            <h1 className="text-3xl font-bold text-black">Express 50</h1>
+            <p className="text-neutral-600">Manage time-sensitive express requests.</p>
             </div>
         </div>
       </div>
@@ -28,15 +28,15 @@ export default function AdminExpressPage() {
                     <div className="flex items-center justify-between">
                         <div className="space-y-1">
                             <div className="flex items-center space-x-2">
-                                <h3 className="font-bold text-lg text-gray-900">Express Request #{1000 + i}</h3>
+                                <h3 className="font-bold text-lg text-black">Express Request #{1000 + i}</h3>
                                 <StatusBadge status="pending" className="bg-red-100 text-red-700 border-red-200" />
                             </div>
-                            <p className="text-gray-600">Urgent catering requirement for 50 people tomorrow.</p>
+                            <p className="text-neutral-700">Urgent catering requirement for 50 people tomorrow.</p>
                         </div>
                         
                         <div className="flex items-center space-x-6">
                             <div className="text-right">
-                                <div className="text-sm text-gray-500 mb-1">Time Remaining</div>
+                                <div className="text-sm text-neutral-600 mb-1">Time Remaining</div>
                                 <div className="flex items-center text-xl font-bold text-red-600 font-mono">
                                     <Timer className="h-5 w-5 mr-2" />
                                     00:45:2{i}

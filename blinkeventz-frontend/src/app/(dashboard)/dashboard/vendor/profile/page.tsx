@@ -103,8 +103,8 @@ export default function VendorProfilePage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Vendor Profile</h1>
-          <p className="text-gray-500">Create and manage your business identity</p>
+          <h1 className="text-3xl font-bold text-black">Vendor Profile</h1>
+          <p className="text-neutral-600">Create and manage your business identity</p>
         </div>
         <div className="flex gap-2">
           {formData.verified && (
@@ -163,7 +163,7 @@ export default function VendorProfilePage() {
               <div className="space-y-2">
                 <Label htmlFor="businessName">Business Name *</Label>
                 <div className="flex items-center gap-2">
-                  <Store className="h-4 w-4 text-gray-400" />
+                  <Store className="h-4 w-4 text-silver-300" />
                   <Input
                     id="businessName"
                     value={formData.businessName}
@@ -239,7 +239,7 @@ export default function VendorProfilePage() {
               <div className="space-y-2">
                 <Label htmlFor="email">Email Address *</Label>
                 <div className="flex items-center gap-2">
-                  <Mail className="h-4 w-4 text-gray-400" />
+                  <Mail className="h-4 w-4 text-silver-300" />
                   <Input
                     id="email"
                     type="email"
@@ -253,7 +253,7 @@ export default function VendorProfilePage() {
               <div className="space-y-2">
                 <Label htmlFor="phone">Phone Number *</Label>
                 <div className="flex items-center gap-2">
-                  <Phone className="h-4 w-4 text-gray-400" />
+                  <Phone className="h-4 w-4 text-silver-300" />
                   <Input
                     id="phone"
                     value={formData.phone}
@@ -278,7 +278,7 @@ export default function VendorProfilePage() {
               <div className="space-y-2">
                 <Label htmlFor="city">City *</Label>
                 <div className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-gray-400" />
+                  <MapPin className="h-4 w-4 text-silver-300" />
                   <Input
                     id="city"
                     value={formData.city}
@@ -322,7 +322,7 @@ export default function VendorProfilePage() {
               <div className="space-y-2">
                 <Label htmlFor="basePrice">Base Price (₹)</Label>
                 <div className="flex items-center gap-2">
-                  <DollarSign className="h-4 w-4 text-gray-400" />
+                  <DollarSign className="h-4 w-4 text-silver-300" />
                   <Input
                     id="basePrice"
                     type="number"
@@ -370,7 +370,7 @@ export default function VendorProfilePage() {
                      "Not Submitted"}
                   </span>
                 </div>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-neutral-600">
                   Our team will verify your profile within 24-48 hours
                 </p>
               </div>

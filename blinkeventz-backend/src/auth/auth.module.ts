@@ -1,24 +1,23 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config'; // 1. Import these
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtModule } from '@nestjs/jwt';
 import { PrismaModule } from '../prisma/prisma.module';
 import { GoogleStrategy } from './strategies/google.strategy';
+import { FacebookStrategy } from './strategies/facebook.strategy';
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './jwt.strategy';
+import { OtpModule } from './otp.module';
 
 @Module({
   imports: [
-    // 2. Add ConfigModule here so GoogleStrategy can find ConfigService
-    ConfigModule, 
-    
+    ConfigModule,
     PrismaModule,
+    OtpModule,
     PassportModule.register({defaultStrategy:'jwt',
       session:false,
     }),
-    
-    // 3. Update to registerAsync. This ensures ConfigService is ready before reading the secret.
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -29,7 +28,7 @@ import { JwtStrategy } from './jwt.strategy';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, GoogleStrategy,JwtStrategy],
-  exports: [AuthService, JwtModule,PassportModule], // Good practice to export these
+  providers: [AuthService, GoogleStrategy, FacebookStrategy, JwtStrategy],
+  exports: [AuthService, JwtModule, PassportModule],
 })
 export class AuthModule {}

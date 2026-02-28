@@ -1,26 +1,49 @@
 version: "3.8"
 
 services:
+  # =====================================================
+  # PostgreSQL Database
+  # =====================================================
   postgres:
     image: postgres:15
     container_name: blinkeventz-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
+      POSTGRES_PASSWORD: 123
       POSTGRES_DB: blinkeventz
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - blinkeventz-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
+  # =====================================================
+  # Redis Cache
+  # =====================================================
   redis:
     image: redis:7-alpine
     container_name: blinkeventz-redis
     restart: unless-stopped
     ports:
       - "6379:6379"
+    networks:
+      - blinkeventz-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
+  # =====================================================
+  # Backend API (NestJS)
+  # =====================================================
   api:
     build:
       context: ./blinkeventz-backend
@@ -28,18 +51,25 @@ services:
     container_name: blinkeventz-api
     restart: unless-stopped
     env_file:
-      - .env
+      - ./.env
     ports:
       - "3000:3000"
-      - "5555:5555"
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - blinkeventz-network
     volumes:
       - ./blinkeventz-backend:/app
       - /app/node_modules
-    command:sh -c "npx prisma migrate deploy && npm run start:dev"
-    frontend:
+    command: sh -c "npx prisma migrate deploy && npm run start:prod"
+
+  # =====================================================
+  # Frontend (Next.js)
+  # =====================================================
+  frontend:
     build:
       context: ./blinkeventz-frontend
       dockerfile: Dockerfile
@@ -49,15 +79,17 @@ services:
       - "3001:3000"
     env_file:
       - ./blinkeventz-frontend/.env
-    volumes:
-      - ./blinkeventz-frontend:/app
-      - /app/node_modules
-      - /app/.next
     depends_on:
       - api
+    networks:
+      - blinkeventz-network
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:3000
-    command: npm run dev
+      - NEXT_PUBLIC_API_URL=http://api:3000
+      - NODE_ENV=production
 
 volumes:
   postgres_data:
+
+networks:
+  blinkeventz-network:
+    driver: bridge

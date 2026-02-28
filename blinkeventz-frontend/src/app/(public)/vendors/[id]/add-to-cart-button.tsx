@@ -43,16 +43,26 @@ export function AddToCartButton({
       setIsAdding(true);
       addItem({
         id: itemId,
-        type: itemType,
+        itemType: itemType === 'venue' ? 'VENUE' : itemType === 'vendor' ? 'VENDOR_SERVICE' : 'ADDON',
         name: itemName,
         description: itemDescription,
-        price: itemPrice,
+        unitPrice: itemPrice,
+        totalPrice: itemPrice,
         image: itemImage,
-        metadata: {
+        meta: {
           ...metadata,
           basePrice,
         },
-      });
+        cartId: 0,
+        venueId: null,
+        vendorServiceId: null,
+        addonId: null,
+        date: null,
+        timeSlot: null,
+        quantity: 1,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      } as any);
       setTimeout(() => {
         setIsAdding(false);
         toast.success(`${itemName} added to cart!`, {
@@ -69,7 +79,7 @@ export function AddToCartButton({
       className={`w-full h-12 ${
         added
           ? "bg-red-500 hover:bg-red-600 border-red-500"
-          : "bg-white hover:bg-purple-50 border-purple-200 text-purple-700"
+          : "bg-white hover:bg-silver-50 border-silver-200 text-neutral-800"
       } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
       onClick={handleAddToCart}
       disabled={isAdding || disabled}

@@ -35,7 +35,7 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
       break;
     default:
       variant = "secondary";
-      customClass = "bg-gray-100 text-gray-700 hover:bg-gray-200 border-gray-200";
+      customClass = "bg-silver-100 text-neutral-700 hover:bg-silver-200 border-silver-200";
   }
 
   return (

@@ -98,9 +98,9 @@ export function ReviewsSection({ venueId, venueName, initialRating }: ReviewsSec
   };
 
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+    <div className="bg-white rounded-2xl p-6 shadow-sm border border-silver-100">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold text-gray-900">Reviews & Ratings</h2>
+        <h2 className="text-xl font-bold text-black">Reviews & Ratings</h2>
         <div className="flex items-center gap-2">
           <div className="flex">
             {[1, 2, 3, 4, 5].map((star) => (
@@ -109,22 +109,22 @@ export function ReviewsSection({ venueId, venueName, initialRating }: ReviewsSec
                 className={`h-5 w-5 ${
                   star <= Math.round(parseFloat(averageRating))
                     ? 'fill-yellow-400 text-yellow-400'
-                    : 'text-gray-300'
+                    : 'text-silver-300'
                 }`}
               />
             ))}
           </div>
-          <span className="text-lg font-bold text-gray-900">{averageRating}</span>
-          <span className="text-sm text-gray-500">({reviews.length} reviews)</span>
+          <span className="text-lg font-bold text-black">{averageRating}</span>
+          <span className="text-sm text-neutral-600">({reviews.length} reviews)</span>
         </div>
       </div>
 
       {/* Write Review Form */}
-      <form onSubmit={handleSubmitReview} className="mb-8 p-4 bg-purple-50 rounded-xl border border-purple-100">
-        <h3 className="font-semibold text-gray-900 mb-4">Write a Review</h3>
-        
+      <form onSubmit={handleSubmitReview} className="mb-8 p-4 bg-silver-100 rounded-xl border border-silver-200">
+        <h3 className="font-semibold text-black mb-4">Write a Review</h3>
+
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Your Rating</label>
+          <label className="block text-sm font-medium text-neutral-800 mb-2">Your Rating</label>
           <div className="flex gap-2">
             {[1, 2, 3, 4, 5].map((star) => (
               <button
@@ -139,7 +139,7 @@ export function ReviewsSection({ venueId, venueName, initialRating }: ReviewsSec
                   className={`h-8 w-8 ${
                     star <= (hoverRating || newRating)
                       ? 'fill-yellow-400 text-yellow-400'
-                      : 'text-gray-300'
+                      : 'text-silver-300'
                   }`}
                 />
               </button>
@@ -148,7 +148,7 @@ export function ReviewsSection({ venueId, venueName, initialRating }: ReviewsSec
         </div>
 
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Your Name (Optional)</label>
+          <label className="block text-sm font-medium text-neutral-800 mb-2">Your Name (Optional)</label>
           <Input
             value={authorName}
             onChange={(e) => setAuthorName(e.target.value)}
@@ -158,7 +158,7 @@ export function ReviewsSection({ venueId, venueName, initialRating }: ReviewsSec
         </div>
 
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Your Review</label>
+          <label className="block text-sm font-medium text-neutral-800 mb-2">Your Review</label>
           <Textarea
             value={comment}
             onChange={(e) => setComment(e.target.value)}
@@ -170,7 +170,7 @@ export function ReviewsSection({ venueId, venueName, initialRating }: ReviewsSec
 
         <Button
           type="submit"
-          className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+          className="bg-gradient-to-r from-neutral-900 to-black hover:from-neutral-900 hover:to-black"
         >
           <Send className="mr-2 h-4 w-4" />
           Submit Review
@@ -179,9 +179,9 @@ export function ReviewsSection({ venueId, venueName, initialRating }: ReviewsSec
 
       {/* Reviews List */}
       <div className="space-y-4">
-        <h3 className="font-semibold text-gray-900">Recent Reviews</h3>
+        <h3 className="font-semibold text-black">Recent Reviews</h3>
         {reviews.map((review) => (
-          <div key={review.id} className="p-4 bg-gray-50 rounded-xl">
+          <div key={review.id} className="p-4 bg-silver-50 rounded-xl">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <div className="flex">
@@ -191,23 +191,23 @@ export function ReviewsSection({ venueId, venueName, initialRating }: ReviewsSec
                       className={`h-4 w-4 ${
                         i <= review.rating
                           ? 'fill-yellow-400 text-yellow-400'
-                          : 'text-gray-300'
+                          : 'text-silver-300'
                       }`}
                     />
                   ))}
                 </div>
-                <span className="text-sm text-gray-500">{review.date}</span>
+                <span className="text-sm text-neutral-600">{review.date}</span>
               </div>
             </div>
-            <p className="text-gray-700 mb-3">{review.comment}</p>
+            <p className="text-neutral-800 mb-3">{review.comment}</p>
             <div className="flex items-center gap-3">
-              <div className="h-8 w-8 rounded-full bg-purple-200 flex items-center justify-center text-purple-700 font-bold text-sm">
+              <div className="h-8 w-8 rounded-full bg-silver-300 flex items-center justify-center text-neutral-800 font-bold text-sm">
                 {review.author.charAt(0).toUpperCase()}
               </div>
               <div>
-                <div className="font-semibold text-gray-900 text-sm">{review.author}</div>
+                <div className="font-semibold text-black text-sm">{review.author}</div>
                 {review.eventType && (
-                  <div className="text-xs text-gray-500">{review.eventType}</div>
+                  <div className="text-xs text-neutral-600">{review.eventType}</div>
                 )}
               </div>
             </div>

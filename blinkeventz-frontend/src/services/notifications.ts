@@ -259,9 +259,9 @@ export const getNotificationColor = (priority: NotificationPriority): string => 
     case "NORMAL":
       return "bg-blue-50 border-blue-200";
     case "LOW":
-      return "bg-gray-50 border-gray-200";
+      return "bg-silver-50 border-silver-200";
     default:
-      return "bg-gray-50 border-gray-200";
+      return "bg-silver-50 border-silver-200";
   }
 };
 
