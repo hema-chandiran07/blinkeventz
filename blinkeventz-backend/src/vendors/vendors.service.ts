@@ -7,6 +7,45 @@ import { VendorVerificationStatus } from '@prisma/client';
 export class VendorsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  async findAll() {
+    return this.prisma.vendor.findMany({
+      include: {
+        services: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+          }
+        }
+      }
+    });
+  }
+
+  async findById(id: number) {
+    const vendor = await this.prisma.vendor.findUnique({
+      where: { id },
+      include: {
+        services: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+          }
+        }
+      }
+    });
+
+    if (!vendor) {
+      throw new NotFoundException(`Vendor with ID ${id} not found`);
+    }
+
+    return vendor;
+  }
+
   async createVendor(userId:number,dto: CreateVendorDto) {
     return this.prisma.vendor.create({
       data: {

@@ -155,8 +155,8 @@ export default function VendorBookingsPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">My Bookings</h1>
-        <p className="text-gray-500">View and manage your service bookings</p>
+        <h1 className="text-3xl font-bold text-black">My Bookings</h1>
+        <p className="text-neutral-600">View and manage your service bookings</p>
       </div>
 
       {/* Stats */}
@@ -165,10 +165,10 @@ export default function VendorBookingsPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-500">Total Bookings</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{stats.total}</p>
+                <p className="text-sm font-medium text-neutral-600">Total Bookings</p>
+                <p className="text-2xl font-bold text-black mt-1">{stats.total}</p>
               </div>
-              <div className="p-3 rounded-full bg-purple-50 text-purple-600">
+              <div className="p-3 rounded-full bg-silver-100 text-neutral-700">
                 <Calendar className="h-5 w-5" />
               </div>
             </div>
@@ -178,7 +178,7 @@ export default function VendorBookingsPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-500">Pending</p>
+                <p className="text-sm font-medium text-neutral-600">Pending</p>
                 <p className="text-2xl font-bold text-yellow-600 mt-1">{stats.pending}</p>
               </div>
               <div className="p-3 rounded-full bg-yellow-50 text-yellow-600">
@@ -191,7 +191,7 @@ export default function VendorBookingsPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-500">Confirmed</p>
+                <p className="text-sm font-medium text-neutral-600">Confirmed</p>
                 <p className="text-2xl font-bold text-green-600 mt-1">{stats.confirmed}</p>
               </div>
               <div className="p-3 rounded-full bg-green-50 text-green-600">
@@ -204,8 +204,8 @@ export default function VendorBookingsPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-500">Revenue</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">₹{(stats.revenue / 1000).toFixed(0)}K</p>
+                <p className="text-sm font-medium text-neutral-600">Revenue</p>
+                <p className="text-2xl font-bold text-black mt-1">₹{(stats.revenue / 1000).toFixed(0)}K</p>
               </div>
               <div className="p-3 rounded-full bg-green-50 text-green-600">
                 <DollarSign className="h-5 w-5" />
@@ -220,7 +220,7 @@ export default function VendorBookingsPage() {
         <CardContent className="p-4">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-silver-300" />
               <Input
                 placeholder="Search by customer, event, or service..."
                 value={searchQuery}
@@ -231,7 +231,7 @@ export default function VendorBookingsPage() {
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="flex h-10 rounded-full border border-purple-200 bg-white px-4 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
+              className="flex h-10 rounded-full border border-silver-200 bg-white px-4 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-600"
             >
               <option value="all">All Status</option>
               <option value="PENDING">Pending</option>
@@ -251,35 +251,35 @@ export default function VendorBookingsPage() {
               <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-xl font-bold text-gray-900">{booking.event.title}</h3>
+                    <h3 className="text-xl font-bold text-black">{booking.event.title}</h3>
                     {getStatusBadge(booking.status)}
                   </div>
 
                   <div className="grid sm:grid-cols-3 gap-4 mb-4">
                     <div className="flex items-start gap-2">
-                      <Users className="h-5 w-5 text-gray-400 mt-0.5" />
+                      <Users className="h-5 w-5 text-silver-300 mt-0.5" />
                       <div>
-                        <p className="text-sm font-medium text-gray-500">Customer</p>
-                        <p className="text-gray-900">{booking.customer.name}</p>
+                        <p className="text-sm font-medium text-neutral-600">Customer</p>
+                        <p className="text-black">{booking.customer.name}</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-2">
-                      <Calendar className="h-5 w-5 text-gray-400 mt-0.5" />
+                      <Calendar className="h-5 w-5 text-silver-300 mt-0.5" />
                       <div>
-                        <p className="text-sm font-medium text-gray-500">Date</p>
-                        <p className="text-gray-900">{new Date(booking.event.date).toLocaleDateString("en-IN", { weekday: "short", year: "numeric", month: "long", day: "numeric" })}</p>
+                        <p className="text-sm font-medium text-neutral-600">Date</p>
+                        <p className="text-black">{new Date(booking.event.date).toLocaleDateString("en-IN", { weekday: "short", year: "numeric", month: "long", day: "numeric" })}</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-2">
-                      <DollarSign className="h-5 w-5 text-gray-400 mt-0.5" />
+                      <DollarSign className="h-5 w-5 text-silver-300 mt-0.5" />
                       <div>
-                        <p className="text-sm font-medium text-gray-500">Service</p>
-                        <p className="text-gray-900">₹{booking.service.baseRate.toLocaleString("en-IN")}</p>
+                        <p className="text-sm font-medium text-neutral-600">Service</p>
+                        <p className="text-black">₹{booking.service.baseRate.toLocaleString("en-IN")}</p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <div className="flex items-center gap-2 text-sm text-neutral-600">
                     <Clock className="h-4 w-4" />
                     <span>{booking.event.timeSlot}</span>
                     <span>•</span>
@@ -288,8 +288,8 @@ export default function VendorBookingsPage() {
                   </div>
 
                   {booking.notes && (
-                    <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-                      <p className="text-sm text-gray-600 italic">"{booking.notes}"</p>
+                    <div className="mt-3 p-3 bg-silver-50 rounded-lg">
+                      <p className="text-sm text-neutral-700 italic">"{booking.notes}"</p>
                     </div>
                   )}
                 </div>
@@ -342,23 +342,23 @@ export default function VendorBookingsPage() {
                 <h4 className="font-semibold text-lg mb-3">{selectedBooking.event.title}</h4>
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <p className="text-sm font-medium text-gray-500">Event Type</p>
-                    <p className="text-gray-900">{selectedBooking.event.eventType}</p>
+                    <p className="text-sm font-medium text-neutral-600">Event Type</p>
+                    <p className="text-black">{selectedBooking.event.eventType}</p>
                   </div>
                   <div className="space-y-2">
-                    <p className="text-sm font-medium text-gray-500">Date & Time</p>
-                    <p className="text-gray-900">
+                    <p className="text-sm font-medium text-neutral-600">Date & Time</p>
+                    <p className="text-black">
                       {new Date(selectedBooking.event.date).toLocaleDateString("en-IN")}
                     </p>
-                    <p className="text-gray-900">{selectedBooking.event.timeSlot}</p>
+                    <p className="text-black">{selectedBooking.event.timeSlot}</p>
                   </div>
                   <div className="space-y-2">
-                    <p className="text-sm font-medium text-gray-500">Location</p>
-                    <p className="text-gray-900">{selectedBooking.event.area}, {selectedBooking.event.city}</p>
+                    <p className="text-sm font-medium text-neutral-600">Location</p>
+                    <p className="text-black">{selectedBooking.event.area}, {selectedBooking.event.city}</p>
                   </div>
                   <div className="space-y-2">
-                    <p className="text-sm font-medium text-gray-500">Guest Count</p>
-                    <p className="text-gray-900">{selectedBooking.event.guestCount} guests</p>
+                    <p className="text-sm font-medium text-neutral-600">Guest Count</p>
+                    <p className="text-black">{selectedBooking.event.guestCount} guests</p>
                   </div>
                 </div>
               </div>
@@ -368,19 +368,19 @@ export default function VendorBookingsPage() {
                 <h4 className="font-semibold text-lg mb-3">Customer Information</h4>
                 <div className="grid sm:grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <p className="text-sm font-medium text-gray-500">Name</p>
-                    <p className="text-gray-900">{selectedBooking.customer.name}</p>
+                    <p className="text-sm font-medium text-neutral-600">Name</p>
+                    <p className="text-black">{selectedBooking.customer.name}</p>
                   </div>
                   <div className="space-y-2">
-                    <p className="text-sm font-medium text-gray-500">Email</p>
-                    <div className="flex items-center gap-2 text-gray-900">
+                    <p className="text-sm font-medium text-neutral-600">Email</p>
+                    <div className="flex items-center gap-2 text-black">
                       <Mail className="h-4 w-4" />
                       <span>{selectedBooking.customer.email}</span>
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <p className="text-sm font-medium text-gray-500">Phone</p>
-                    <div className="flex items-center gap-2 text-gray-900">
+                    <p className="text-sm font-medium text-neutral-600">Phone</p>
+                    <div className="flex items-center gap-2 text-black">
                       <Phone className="h-4 w-4" />
                       <span>{selectedBooking.customer.phone}</span>
                     </div>
@@ -393,16 +393,16 @@ export default function VendorBookingsPage() {
                 <h4 className="font-semibold text-lg mb-3">Service Details</h4>
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <p className="text-sm font-medium text-gray-500">Service Name</p>
-                    <p className="text-gray-900">{selectedBooking.service.name}</p>
+                    <p className="text-sm font-medium text-neutral-600">Service Name</p>
+                    <p className="text-black">{selectedBooking.service.name}</p>
                   </div>
                   <div className="space-y-2">
-                    <p className="text-sm font-medium text-gray-500">Service Type</p>
+                    <p className="text-sm font-medium text-neutral-600">Service Type</p>
                     <Badge variant="secondary">{selectedBooking.service.serviceType}</Badge>
                   </div>
                   <div className="space-y-2">
-                    <p className="text-sm font-medium text-gray-500">Base Rate</p>
-                    <p className="text-gray-900 font-semibold">₹{selectedBooking.service.baseRate.toLocaleString("en-IN")}</p>
+                    <p className="text-sm font-medium text-neutral-600">Base Rate</p>
+                    <p className="text-black font-semibold">₹{selectedBooking.service.baseRate.toLocaleString("en-IN")}</p>
                   </div>
                 </div>
               </div>
@@ -412,9 +412,9 @@ export default function VendorBookingsPage() {
                 <div>
                   <h4 className="font-semibold text-lg mb-3">Venue Information</h4>
                   <div className="space-y-2">
-                    <p className="text-sm font-medium text-gray-500">Venue Name</p>
-                    <p className="text-gray-900">{selectedBooking.event.venue.name}</p>
-                    <p className="text-sm text-gray-500">{selectedBooking.event.venue.address}</p>
+                    <p className="text-sm font-medium text-neutral-600">Venue Name</p>
+                    <p className="text-black">{selectedBooking.event.venue.name}</p>
+                    <p className="text-sm text-neutral-600">{selectedBooking.event.venue.address}</p>
                   </div>
                 </div>
               )}
@@ -423,8 +423,8 @@ export default function VendorBookingsPage() {
               {selectedBooking.notes && (
                 <div>
                   <h4 className="font-semibold text-lg mb-3">Customer Notes</h4>
-                  <div className="p-4 bg-gray-50 rounded-lg">
-                    <p className="text-gray-700 italic">"{selectedBooking.notes}"</p>
+                  <div className="p-4 bg-silver-50 rounded-lg">
+                    <p className="text-neutral-800 italic">"{selectedBooking.notes}"</p>
                   </div>
                 </div>
               )}

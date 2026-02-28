@@ -1,15 +1,21 @@
+# Frontend Dockerfile - Development Mode
 FROM node:20-alpine
+
 WORKDIR /app
 
-# Copy dependencies first for better caching
+# Install dependencies
 COPY package*.json ./
-RUN npm install --legacy-peer-deps
+RUN npm install
 
-# Copy the rest of the frontend code
+# Copy source code
 COPY . .
 
-# Expose Next.js default port
-EXPOSE 3001
+# Set environment
+ENV NODE_ENV=development
+ENV NEXT_TELEMETRY_DISABLED=1
 
-# Run in development mode
+# Expose port
+EXPOSE 3000
+
+# Start development server
 CMD ["npm", "run", "dev"]

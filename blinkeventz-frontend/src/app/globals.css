@@ -1,116 +1,671 @@
 @import "tailwindcss";
 
+/* ============================================
+   PREMIUM SILVER & WHITE CRM/SaaS THEME
+   Professional, Industrial, Business-Grade UI
+   ============================================ */
+
 :root {
-  --background: #fdf4ff; /* very light pink/purple */
-  --foreground: #171717;
-  --primary: #d946ef; /* pink-500 */
-  --secondary: #9333ea; /* purple-600 */
+  /* Core Colors - Premium Silver & White */
+  --background: #ffffff;
+  --foreground: #0a0a0a;
+  --primary: #0a0a0a;
+  --primary-foreground: #ffffff;
+  --secondary: #f5f5f5;
+  --secondary-foreground: #262626;
+  
+  /* Silver Palette - CRM/SaaS Professional */
+  --silver-950: #0a0a0a;
+  --silver-900: #171717;
+  --silver-800: #262626;
+  --silver-700: #404040;
+  --silver-600: #525252;
+  --silver-500: #737373;
+  --silver-400: #a3a3a3;
+  --silver-300: #d4d4d4;
+  --silver-200: #e5e5e5;
+  --silver-100: #f5f5f5;
+  --silver-50: #fafafa;
+  
+  /* Accent Colors - Business Professional */
+  --accent-silver: #c0c0c0;
+  --accent-chrome: #e8e8e8;
+  --accent-platinum: #e5e4e2;
+  --accent-metallic: #bcc6cc;
+  
+  /* Status Colors - Industrial CRM */
+  --success: #22c55e;
+  --success-bg: rgba(34, 197, 94, 0.1);
+  --warning: #f59e0b;
+  --warning-bg: rgba(245, 158, 11, 0.1);
+  --error: #ef4444;
+  --error-bg: rgba(239, 68, 68, 0.1);
+  --info: #3b82f6;
+  --info-bg: rgba(59, 130, 246, 0.1);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-silver-50: var(--silver-50);
+  --color-silver-100: var(--silver-100);
+  --color-silver-200: var(--silver-200);
+  --color-silver-300: var(--silver-300);
+  --color-silver-400: var(--silver-400);
+  --color-silver-500: var(--silver-500);
+  --color-silver-600: var(--silver-600);
+  --color-silver-700: var(--silver-700);
+  --color-silver-800: var(--silver-800);
+  --color-silver-900: var(--silver-900);
+  --color-silver-950: var(--silver-950);
+  --color-accent-silver: var(--accent-silver);
+  --color-accent-chrome: var(--accent-chrome);
+  --color-accent-platinum: var(--accent-platinum);
+  --color-accent-metallic: var(--accent-metallic);
 }
 
+/* Base Styles - Professional CRM */
 body {
-  background: linear-gradient(to bottom right, #fdf4ff, #faf5ff);
+  background: linear-gradient(135deg, #ffffff 0%, #fafafa 50%, #f5f5f5 100%);
   color: var(--foreground);
   min-height: 100vh;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Custom Animations */
+/* ============================================
+   PREMIUM GRADIENTS - Silver & Black
+   ============================================ */
+
+.bg-gradient-silver-premium {
+  background: linear-gradient(135deg, #1a1a1a 0%, #262626 25%, #404040 50%, #262626 75%, #1a1a1a 100%);
+}
+
+.bg-gradient-silver-horizontal {
+  background: linear-gradient(90deg, #0a0a0a 0%, #1a1a1a 25%, #262626 50%, #1a1a1a 75%, #0a0a0a 100%);
+}
+
+.bg-gradient-silver-radial {
+  background: radial-gradient(ellipse at center, #262626 0%, #1a1a1a 50%, #0a0a0a 100%);
+}
+
+.bg-gradient-silver-glow {
+  background: linear-gradient(135deg, rgba(192, 192, 192, 0.15) 0%, rgba(169, 169, 169, 0.08) 50%, rgba(128, 128, 128, 0.05) 100%);
+}
+
+.bg-gradient-metallic {
+  background: linear-gradient(135deg, #e8e8e8 0%, #c0c0c0 25%, #a3a3a3 50%, #737373 75%, #525252 100%);
+}
+
+.bg-gradient-chrome {
+  background: linear-gradient(135deg, #ffffff 0%, #e8e8e8 25%, #d4d4d4 50%, #a3a3a3 75%, #737373 100%);
+}
+
+.text-gradient-silver {
+  background: linear-gradient(135deg, #e5e5e5 0%, #c0c0c0 50%, #a3a3a3 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-gradient-chrome {
+  background: linear-gradient(135deg, #ffffff 0%, #e8e8e8 50%, #d4d4d4 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-gradient-metallic {
+  background: linear-gradient(135deg, #c0c0c0 0%, #a3a3a3 50%, #737373 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.border-gradient-silver {
+  border: 1px solid rgba(192, 192, 192, 0.2);
+  border-top-color: rgba(229, 229, 229, 0.3);
+  border-bottom-color: rgba(163, 163, 163, 0.15);
+}
+
+.border-gradient-silver-strong {
+  border: 1px solid rgba(192, 192, 192, 0.35);
+  border-top-color: rgba(229, 229, 229, 0.5);
+  border-bottom-color: rgba(163, 163, 163, 0.25);
+}
+
+/* ============================================
+   SHADOWS - Premium Silver CRM
+   ============================================ */
+
+.shadow-silver {
+  box-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(192, 192, 192, 0.08);
+}
+
+.shadow-silver-lg {
+  box-shadow: 0 10px 40px -2px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(192, 192, 192, 0.12);
+}
+
+.shadow-silver-xl {
+  box-shadow: 0 20px 60px -4px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(192, 192, 192, 0.15);
+}
+
+.shadow-silver-glow {
+  box-shadow: 0 0 30px rgba(192, 192, 192, 0.15), inset 0 0 0 1px rgba(192, 192, 192, 0.1);
+}
+
+.shadow-silver-inner {
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.4), inset 0 0 0 1px rgba(192, 192, 192, 0.08);
+}
+
+.shadow-silver-elevation {
+  box-shadow: 
+    0 1px 2px rgba(0, 0, 0, 0.3),
+    0 4px 12px rgba(0, 0, 0, 0.35),
+    0 12px 32px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(192, 192, 192, 0.08);
+}
+
+/* ============================================
+   CUSTOM ANIMATIONS - CRM/SaaS Professional
+   ============================================ */
+
 @keyframes shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 .animate-shimmer {
-  animation: shimmer 1.5s infinite linear;
+  animation: shimmer 2s infinite linear;
+  background: linear-gradient(90deg, #1a1a1a 25%, #262626 50%, #1a1a1a 75%);
+  background-size: 200% 100%;
+}
+
+@keyframes shimmerSilver {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-shimmer-silver {
+  animation: shimmerSilver 2.5s infinite linear;
+  background: linear-gradient(90deg, rgba(192, 192, 192, 0.05) 0%, rgba(192, 192, 192, 0.15) 50%, rgba(192, 192, 192, 0.05) 100%);
+  background-size: 200% 100%;
 }
 
 @keyframes float {
-  0%, 100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
 }
 
 .animate-float {
-  animation: float 3s ease-in-out infinite;
+  animation: float 4s ease-in-out infinite;
+}
+
+@keyframes floatGentle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+.animate-float-gentle {
+  animation: floatGentle 3s ease-in-out infinite;
 }
 
 @keyframes slideInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .animate-slide-in-up {
-  animation: slideInUp 0.5s ease-out forwards;
+  animation: slideInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideInDown {
+  from { opacity: 0; transform: translateY(-24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-slide-in-down {
+  animation: slideInDown 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.animate-slide-in-left {
+  animation: slideInLeft 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.3s ease-out forwards;
+  animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fadeInScale {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.animate-fade-in-scale {
+  animation: fadeInScale 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes scaleIn {
-  from {
-    opacity: 0;
-    transform: scale(0.9);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
 }
 
 .animate-scale-in {
-  animation: scaleIn 0.3s ease-out forwards;
+  animation: scaleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* Smooth scrolling */
+@keyframes scaleOut {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.96); }
+}
+
+.animate-scale-out {
+  animation: scaleOut 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes silverPulse {
+  0%, 100% { 
+    box-shadow: 0 0 0 0 rgba(192, 192, 192, 0.2);
+    border-color: rgba(192, 192, 192, 0.3);
+  }
+  50% { 
+    box-shadow: 0 0 0 8px rgba(192, 192, 192, 0.08);
+    border-color: rgba(192, 192, 192, 0.5);
+  }
+}
+
+.animate-silver-pulse {
+  animation: silverPulse 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes silverGlow {
+  0%, 100% {
+    filter: drop-shadow(0 0 8px rgba(192, 192, 192, 0.3));
+  }
+  50% {
+    filter: drop-shadow(0 0 20px rgba(192, 192, 192, 0.5));
+  }
+}
+
+.animate-silver-glow {
+  animation: silverGlow 3s ease-in-out infinite;
+}
+
+@keyframes progress {
+  0% { width: 0%; }
+  100% { width: 100%; }
+}
+
+.animate-progress {
+  animation: progress 2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes shimmerLine {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.animate-shimmer-line {
+  animation: shimmerLine 1.5s infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin-slow {
+  animation: spin 3s linear infinite;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+.animate-bounce-gentle {
+  animation: bounce 2s ease-in-out infinite;
+}
+
+@keyframes wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-2deg); }
+  75% { transform: rotate(2deg); }
+}
+
+.animate-wiggle {
+  animation: wiggle 0.5s ease-in-out infinite;
+}
+
+/* ============================================
+   GLASSMORPHISM - Premium CRM Effect
+   ============================================ */
+
+.glass-premium {
+  background: rgba(26, 26, 26, 0.6);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(192, 192, 192, 0.12);
+}
+
+.glass-premium-light {
+  background: rgba(40, 40, 40, 0.4);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(192, 192, 192, 0.08);
+}
+
+.glass-premium-dark {
+  background: rgba(10, 10, 10, 0.8);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(192, 192, 192, 0.15);
+}
+
+.glass-card {
+  background: linear-gradient(
+    135deg,
+    rgba(26, 26, 26, 0.7) 0%,
+    rgba(38, 38, 38, 0.5) 100%
+  );
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(192, 192, 192, 0.12);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+/* ============================================
+   SURFACE STYLES - CRM Cards & Panels
+   ============================================ */
+
+.surface-card {
+  background: linear-gradient(135deg, #1a1a1a 0%, #121212 100%);
+  border: 1px solid rgba(192, 192, 192, 0.12);
+  border-top-color: rgba(192, 192, 192, 0.18);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+}
+
+.surface-card-hover {
+  background: linear-gradient(135deg, #1a1a1a 0%, #121212 100%);
+  border: 1px solid rgba(192, 192, 192, 0.12);
+  border-top-color: rgba(192, 192, 192, 0.18);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.surface-card-hover:hover {
+  background: linear-gradient(135deg, #262626 0%, #1a1a1a 100%);
+  border-color: rgba(192, 192, 192, 0.2);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(192, 192, 192, 0.15);
+  transform: translateY(-2px);
+}
+
+.surface-panel {
+  background: linear-gradient(180deg, #1a1a1a 0%, #0a0a0a 100%);
+  border: 1px solid rgba(192, 192, 192, 0.1);
+  box-shadow: inset 0 1px 0 rgba(192, 192, 192, 0.1);
+}
+
+.surface-elevated {
+  background: #1a1a1a;
+  border: 1px solid rgba(192, 192, 192, 0.15);
+  box-shadow: 
+    0 1px 3px rgba(0, 0, 0, 0.3),
+    0 8px 24px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(192, 192, 192, 0.08);
+}
+
+/* ============================================
+   INPUT STYLES - Professional Forms
+   ============================================ */
+
+.input-premium {
+  background: rgba(26, 26, 26, 0.8);
+  border: 1px solid rgba(192, 192, 192, 0.15);
+  border-top-color: rgba(192, 192, 192, 0.2);
+  border-bottom-color: rgba(192, 192, 192, 0.1);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.input-premium:focus {
+  background: rgba(26, 26, 26, 0.95);
+  border-color: rgba(192, 192, 192, 0.3);
+  box-shadow: 0 0 0 3px rgba(192, 192, 192, 0.08);
+  outline: none;
+}
+
+.input-premium::placeholder {
+  color: rgba(163, 163, 163, 0.5);
+}
+
+/* ============================================
+   SCROLLBAR - Premium Silver
+   ============================================ */
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: linear-gradient(to bottom, #0a0a0a, #121212);
+  border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(to bottom, #404040, #262626);
+  border-radius: 8px;
+  border: 2px solid #121212;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(to bottom, #525252, #404040);
+}
+
+::-webkit-scrollbar-corner {
+  background: #0a0a0a;
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #404040 #0a0a0a;
+}
+
+/* ============================================
+   SELECTION - Silver Highlight
+   ============================================ */
+
+::selection {
+  background-color: rgba(192, 192, 192, 0.3);
+  color: #fafafa;
+}
+
+::-moz-selection {
+  background-color: rgba(192, 192, 192, 0.3);
+  color: #fafafa;
+}
+
+/* ============================================
+   UTILITY CLASSES - CRM/SaaS
+   ============================================ */
+
+/* Text utilities */
+.text-balance {
+  text-wrap: balance;
+}
+
+/* Border utilities */
+.border-premium {
+  border: 1px solid rgba(192, 192, 192, 0.15);
+}
+
+.border-premium-strong {
+  border: 1px solid rgba(192, 192, 192, 0.25);
+}
+
+.border-premium-subtle {
+  border: 1px solid rgba(192, 192, 192, 0.08);
+}
+
+/* Ring utilities */
+.ring-premium {
+  box-shadow: 0 0 0 1px rgba(192, 192, 192, 0.1);
+}
+
+.ring-premium-focus {
+  box-shadow: 0 0 0 3px rgba(192, 192, 192, 0.15);
+}
+
+/* Transition utilities */
+.transition-premium {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.transition-smooth {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Hover lift effect */
+.hover-lift {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+              box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+/* ============================================
+   SMOOTH SCROLLING
+   ============================================ */
+
 html {
   scroll-behavior: smooth;
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+/* ============================================
+   FOCUS STYLES - Accessibility
+   ============================================ */
+
+:focus-visible {
+  outline: 2px solid rgba(192, 192, 192, 0.5);
+  outline-offset: 2px;
 }
 
-::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 10px;
+/* ============================================
+   LOADING SKELETON - Premium
+   ============================================ */
+
+.skeleton-premium {
+  background: linear-gradient(
+    90deg,
+    rgba(40, 40, 40, 0.8) 0%,
+    rgba(50, 50, 50, 0.5) 50%,
+    rgba(40, 40, 40, 0.8) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
 }
 
-::-webkit-scrollbar-thumb {
-  background: linear-gradient(to bottom, #d946ef, #9333ea);
-  border-radius: 10px;
+/* ============================================
+   DIVIDER - Silver Line
+   ============================================ */
+
+.divider-silver {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(192, 192, 192, 0.2) 20%,
+    rgba(192, 192, 192, 0.3) 50%,
+    rgba(192, 192, 192, 0.2) 80%,
+    transparent 100%
+  );
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(to bottom, #c026d3, #7e22ce);
+/* ============================================
+   BADGE STYLES - Status Indicators
+   ============================================ */
+
+.badge-premium {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  border: 1px solid rgba(192, 192, 192, 0.15);
+}
+
+.badge-success {
+  background: var(--success-bg);
+  color: var(--success);
+  border-color: rgba(34, 197, 94, 0.2);
+}
+
+.badge-warning {
+  background: var(--warning-bg);
+  color: var(--warning);
+  border-color: rgba(245, 158, 11, 0.2);
+}
+
+.badge-error {
+  background: var(--error-bg);
+  color: var(--error);
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+.badge-info {
+  background: var(--info-bg);
+  color: var(--info);
+  border-color: rgba(59, 130, 246, 0.2);
+}
+
+/* ============================================
+   BACKGROUND PATTERNS - Subtle Textures
+   ============================================ */
+
+.bg-grid-pattern {
+  background-image: 
+    linear-gradient(rgba(192, 192, 192, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(192, 192, 192, 0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+.bg-dot-pattern {
+  background-image: radial-gradient(rgba(192, 192, 192, 0.1) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.bg-line-pattern {
+  background-image: linear-gradient(rgba(192, 192, 192, 0.05) 1px, transparent 1px);
+  background-size: 100% 2px;
 }

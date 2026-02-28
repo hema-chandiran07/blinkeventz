@@ -1,77 +1,201 @@
+"use client";
+
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { 
+  User, 
+  Store, 
+  Building2, 
+  ArrowRight, 
+  CheckCircle2, 
+  Sparkles,
+  Heart,
+  TrendingUp,
+  Shield
+} from "lucide-react";
+
+const roles = [
+  {
+    id: "customer",
+    title: "Customer",
+    description: "Plan your dream events with ease",
+    icon: User,
+    color: "from-blue-500 to-blue-600",
+    bgColor: "bg-blue-50",
+    borderColor: "border-blue-200",
+    features: [
+      "Browse & compare venues",
+      "Find verified vendors",
+      "Manage event bookings",
+      "Track payments & budgets",
+      "Get AI-powered event plans"
+    ],
+    cta: "Sign up as Customer",
+    href: "/register/customer"
+  },
+  {
+    id: "vendor",
+    title: "Vendor",
+    description: "Grow your event services business",
+    icon: Store,
+    color: "from-orange-500 to-orange-600",
+    bgColor: "bg-orange-50",
+    borderColor: "border-orange-200",
+    features: [
+      "List your services",
+      "Manage bookings & calendar",
+      "Connect with customers",
+      "Track earnings & analytics",
+      "Get verified badge"
+    ],
+    cta: "Sign up as Vendor",
+    href: "/register/vendor"
+  },
+  {
+    id: "venue-owner",
+    title: "Venue Owner",
+    description: "Showcase your event spaces",
+    icon: Building2,
+    color: "from-emerald-500 to-emerald-600",
+    bgColor: "bg-emerald-50",
+    borderColor: "border-emerald-200",
+    features: [
+      "List multiple venues",
+      "Manage availability calendar",
+      "Handle bookings & inquiries",
+      "Dynamic pricing tools",
+      "Analytics dashboard"
+    ],
+    cta: "Sign up as Venue Owner",
+    href: "/register/venue-owner"
+  }
+];
 
 export default function RegisterPage() {
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-purple-50/50">
-      <Card className="w-full max-w-md border-purple-100 shadow-xl">
-        <CardHeader className="space-y-1 text-center">
-          <CardTitle className="text-2xl font-bold tracking-tight">Create an account</CardTitle>
-          <CardDescription>
-            Enter your details below to create your account
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-             <div className="space-y-2">
-                <Label htmlFor="firstName">First name</Label>
-                <Input id="firstName" placeholder="John" type="text" />
-             </div>
-             <div className="space-y-2">
-                <Label htmlFor="lastName">Last name</Label>
-                <Input id="lastName" placeholder="Doe" type="text" />
-             </div>
+    <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-silver-50 via-white to-silver-100 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-12">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-neutral-900 text-white text-sm font-medium mb-6">
+            <Sparkles className="h-4 w-4" />
+            Join BlinkEventz Today
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" placeholder="name@example.com" type="email" />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input id="password" type="password" />
-          </div>
-          
-          <div className="space-y-2">
-            <Label>I want to join as a:</Label>
-            <div className="grid grid-cols-3 gap-2">
-                 <Button variant="outline" className="text-xs">Customer</Button>
-                 <Button variant="outline" className="text-xs">Vendor</Button>
-                 <Button variant="outline" className="text-xs">Venue Owner</Button>
-            </div>
-          </div>
+          <h1 className="text-4xl sm:text-5xl font-bold text-black mb-4">
+            Choose Your Journey
+          </h1>
+          <p className="text-xl text-neutral-600 max-w-2xl mx-auto">
+            Whether you're planning an event, offering services, or managing a venue - 
+            we have the perfect tools for you.
+          </p>
+        </div>
 
-          <Button className="w-full mt-4">Create Account</Button>
-          
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-gray-200" />
+        {/* Why Choose Us */}
+        <div className="grid sm:grid-cols-3 gap-6 mb-12">
+          <div className="flex flex-col items-center text-center p-6">
+            <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center mb-4">
+              <Shield className="h-6 w-6 text-green-600" />
             </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-white px-2 text-gray-500">Or continue with</span>
-            </div>
+            <h3 className="font-semibold text-black mb-2">Verified & Trusted</h3>
+            <p className="text-sm text-neutral-600">All vendors and venues are verified for quality assurance</p>
           </div>
+          <div className="flex flex-col items-center text-center p-6">
+            <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center mb-4">
+              <TrendingUp className="h-6 w-6 text-blue-600" />
+            </div>
+            <h3 className="font-semibold text-black mb-2">Grow Your Business</h3>
+            <p className="text-sm text-neutral-600">Reach thousands of customers and grow your revenue</p>
+          </div>
+          <div className="flex flex-col items-center text-center p-6">
+            <div className="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center mb-4">
+              <Heart className="h-6 w-6 text-purple-600" />
+            </div>
+            <h3 className="font-semibold text-black mb-2">Plan with Love</h3>
+            <p className="text-sm text-neutral-600">Create memorable events with our comprehensive tools</p>
+          </div>
+        </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <Button variant="outline" className="w-full">
-               Google
-            </Button>
-            <Button variant="outline" className="w-full">
-               Facebook
-            </Button>
-          </div>
-        </CardContent>
-        <CardFooter className="flex flex-col space-y-2 text-center text-sm text-gray-500">
-            <div>
-                Already have an account?{" "}
-                <Link href="/login" className="font-semibold text-purple-600 hover:text-purple-500">
-                    Sign in
-                </Link>
+        {/* Role Cards */}
+        <div className="grid md:grid-cols-3 gap-8">
+          {roles.map((role) => {
+            const Icon = role.icon;
+            return (
+              <Card 
+                key={role.id}
+                className={`group relative overflow-hidden border-2 ${role.borderColor} hover:shadow-2xl transition-all duration-300 hover:-translate-y-2`}
+              >
+                <CardHeader className="text-center pb-2">
+                  <div className={`inline-flex h-20 w-20 rounded-2xl ${role.bgColor} items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300`}>
+                    <Icon className={`h-10 w-10 bg-gradient-to-br ${role.color} bg-clip-text text-transparent`} style={{ WebkitTextFillColor: 'transparent' }} />
+                  </div>
+                  <CardTitle className="text-2xl font-bold text-black">{role.title}</CardTitle>
+                  <CardDescription className="text-neutral-600">
+                    {role.description}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <ul className="space-y-3">
+                    {role.features.map((feature, index) => (
+                      <li key={index} className="flex items-start gap-3 text-sm text-neutral-700">
+                        <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
+                        <span>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <Link href={role.href} className="block mt-6">
+                    <Button 
+                      variant="premium" 
+                      className="w-full h-12 text-base font-medium shadow-lg hover:shadow-xl transition-all duration-300 group-hover:scale-105"
+                    >
+                      {role.cta}
+                      <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                    </Button>
+                  </Link>
+                  <p className="text-xs text-center text-neutral-500">
+                    Free to get started
+                  </p>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+
+        {/* Already have an account */}
+        <div className="text-center mt-12">
+          <p className="text-neutral-600">
+            Already have an account?{" "}
+            <Link href="/login" className="font-semibold text-neutral-900 hover:underline">
+              Sign in here
+            </Link>
+          </p>
+        </div>
+
+        {/* Trust Badges */}
+        <div className="mt-16 pt-8 border-t border-neutral-200">
+          <p className="text-center text-sm text-neutral-500 mb-6">
+            Trusted by 10,000+ customers, vendors, and venue owners across India
+          </p>
+          <div className="flex flex-wrap justify-center items-center gap-8">
+            <div className="flex items-center gap-2 text-neutral-600">
+              <CheckCircle2 className="h-5 w-5 text-green-500" />
+              <span className="text-sm">Secure & Encrypted</span>
             </div>
-        </CardFooter>
-      </Card>
+            <div className="flex items-center gap-2 text-neutral-600">
+              <CheckCircle2 className="h-5 w-5 text-green-500" />
+              <span className="text-sm">Verified Profiles</span>
+            </div>
+            <div className="flex items-center gap-2 text-neutral-600">
+              <CheckCircle2 className="h-5 w-5 text-green-500" />
+              <span className="text-sm">24/7 Support</span>
+            </div>
+            <div className="flex items-center gap-2 text-neutral-600">
+              <CheckCircle2 className="h-5 w-5 text-green-500" />
+              <span className="text-sm">Free to Start</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

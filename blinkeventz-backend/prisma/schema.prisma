@@ -16,10 +16,14 @@ model User {
   phone                   String?                  @unique
   passwordHash            String?
   googleId                String?                  @unique
+  facebookId              String?                  @unique
   role                    Role                     @default(CUSTOMER)
   isActive                Boolean                  @default(true)
+  isEmailVerified         Boolean                  @default(false)
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
+  passwordResetExpiry     DateTime?
+  passwordResetToken      String?
   AIPlan                  AIPlan[]
   bankAccounts            BankAccount[]
   bookings                Booking[]
@@ -396,34 +400,27 @@ model NotificationPreference {
 }
 
 model AuditLog {
-  id            BigInt        @id @default(autoincrement())
-  entityType    String
-  entityId      String?
-  action        String
-
-  severity      AuditSeverity
-  source        AuditSource
-
-  actorId       Int?
-  actorEmail    String?
-  actorRole     Role?
-
-  description   String?
-
-  oldValue      Json?
-  newValue      Json?
-  diff          Json?
-  metadata      Json?
-
-  requestId     String?
-  sessionId     String?
-  traceId       String?
-
-  isSensitive   Boolean       @default(false)
+  id             BigInt        @id @default(autoincrement())
+  actorId        Int?
+  actorRole      Role?
+  actorEmail     String?
+  entityType     String
+  entityId       String?
+  action         String
+  severity       AuditSeverity
+  source         AuditSource
+  description    String?
+  oldValue       Json?
+  newValue       Json?
+  diff           Json?
+  metadata       Json?
+  occurredAt     DateTime      @default(now())
+  createdAt      DateTime      @default(now())
   retentionUntil DateTime?
-
-  occurredAt    DateTime      @default(now())
-  createdAt     DateTime      @default(now())
+  isSensitive    Boolean       @default(false)
+  requestId      String?
+  sessionId      String?
+  traceId        String?
 
   @@index([entityType, entityId])
   @@index([actorId])
@@ -432,13 +429,13 @@ model AuditLog {
 }
 
 model AuditOutbox {
-  id          BigInt              @id @default(autoincrement())
+  id          BigInt            @id @default(autoincrement())
   payload     Json
-  status      AuditOutboxStatus   @default(PENDING)
-  attempts    Int                 @default(0)
+  status      AuditOutboxStatus @default(PENDING)
+  attempts    Int               @default(0)
   lastError   String?
+  createdAt   DateTime          @default(now())
   processedAt DateTime?
-  createdAt   DateTime            @default(now())
 
   @@index([status])
 }

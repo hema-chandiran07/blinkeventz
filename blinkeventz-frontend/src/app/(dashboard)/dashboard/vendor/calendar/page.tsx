@@ -43,8 +43,8 @@ export default function VendorCalendarPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Service Calendar</h1>
-          <p className="text-gray-500">Manage your availability and bookings</p>
+          <h1 className="text-3xl font-bold text-black">Service Calendar</h1>
+          <p className="text-neutral-600">Manage your availability and bookings</p>
         </div>
         <Button onClick={handleBlockSlot} disabled={!selectedDate || !selectedSlot}>
           <Calendar className="h-4 w-4 mr-2" />
@@ -58,10 +58,10 @@ export default function VendorCalendarPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-500">This Month</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">12</p>
+                <p className="text-sm font-medium text-neutral-600">This Month</p>
+                <p className="text-2xl font-bold text-black mt-1">12</p>
               </div>
-              <div className="p-3 rounded-full bg-purple-50 text-purple-600">
+              <div className="p-3 rounded-full bg-silver-100 text-neutral-700">
                 <Calendar className="h-5 w-5" />
               </div>
             </div>
@@ -71,7 +71,7 @@ export default function VendorCalendarPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-500">Pending</p>
+                <p className="text-sm font-medium text-neutral-600">Pending</p>
                 <p className="text-2xl font-bold text-yellow-600 mt-1">3</p>
               </div>
               <div className="p-3 rounded-full bg-yellow-50 text-yellow-600">
@@ -84,7 +84,7 @@ export default function VendorCalendarPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-500">Revenue</p>
+                <p className="text-sm font-medium text-neutral-600">Revenue</p>
                 <p className="text-2xl font-bold text-green-600 mt-1">₹2.5L</p>
               </div>
               <div className="p-3 rounded-full bg-green-50 text-green-600">
@@ -97,7 +97,7 @@ export default function VendorCalendarPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-500">Availability</p>
+                <p className="text-sm font-medium text-neutral-600">Availability</p>
                 <p className="text-2xl font-bold text-blue-600 mt-1">85%</p>
               </div>
               <div className="p-3 rounded-full bg-blue-50 text-blue-600">
@@ -135,14 +135,14 @@ export default function VendorCalendarPage() {
           <CardContent>
             <div className="space-y-4">
               {services.map((service) => (
-                <div key={service.id} className="p-4 border rounded-lg hover:border-purple-200 transition-colors">
+                <div key={service.id} className="p-4 border rounded-lg hover:border-silver-200 transition-colors">
                   <div className="flex items-start justify-between mb-2">
-                    <h4 className="font-semibold text-gray-900">{service.name}</h4>
+                    <h4 className="font-semibold text-black">{service.name}</h4>
                     <Badge className={service.status === "confirmed" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}>
                       {service.status}
                     </Badge>
                   </div>
-                  <p className="text-sm text-gray-500">{new Date(service.date).toLocaleDateString("en-IN", { weekday: "short", year: "numeric", month: "long", day: "numeric" })}</p>
+                  <p className="text-sm text-neutral-600">{new Date(service.date).toLocaleDateString("en-IN", { weekday: "short", year: "numeric", month: "long", day: "numeric" })}</p>
                 </div>
               ))}
             </div>

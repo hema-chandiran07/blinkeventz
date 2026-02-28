@@ -58,7 +58,7 @@ export function NotificationsBell() {
         <Button
           variant="ghost"
           size="icon"
-          className="relative hover:bg-purple-50"
+          className="relative hover:bg-silver-50"
         >
           <Bell className="h-5 w-5" />
           {unreadCount > 0 && (
@@ -74,8 +74,8 @@ export function NotificationsBell() {
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
           <div>
-            <h3 className="font-semibold text-gray-900">Notifications</h3>
-            <p className="text-xs text-gray-500">
+            <h3 className="font-semibold text-black">Notifications</h3>
+            <p className="text-xs text-neutral-500">
               {unreadCount} unread {unreadCount === 1 ? "notification" : "notifications"}
             </p>
           </div>
@@ -96,13 +96,13 @@ export function NotificationsBell() {
         <ScrollArea className="h-[400px]">
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600" />
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-neutral-600" />
             </div>
           ) : notifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 px-4">
-              <Bell className="h-12 w-12 text-gray-300 mb-3" />
-              <p className="text-gray-500 text-sm">No notifications yet</p>
-              <p className="text-gray-400 text-xs mt-1">
+              <Bell className="h-12 w-12 text-silver-300 mb-3" />
+              <p className="text-neutral-500 text-sm">No notifications yet</p>
+              <p className="text-neutral-400 text-xs mt-1">
                 We&apos;ll notify you when something arrives
               </p>
             </div>
@@ -112,8 +112,8 @@ export function NotificationsBell() {
                 <div
                   key={notification.id}
                   className={cn(
-                    "p-4 hover:bg-gray-50 transition-colors cursor-pointer border-l-4",
-                    !notification.read && "bg-purple-50/50 border-purple-500",
+                    "p-4 hover:bg-silver-50 transition-colors cursor-pointer border-l-4",
+                    !notification.read && "bg-silver-50/50 border-neutral-500",
                     notification.read && "border-transparent"
                   )}
                   onClick={() => markAsRead(notification.id)}
@@ -136,23 +136,23 @@ export function NotificationsBell() {
                           <p
                             className={cn(
                               "text-sm font-medium",
-                              !notification.read ? "text-gray-900" : "text-gray-600"
+                              !notification.read ? "text-black" : "text-neutral-600"
                             )}
                           >
                             {notification.title}
                           </p>
-                          <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                          <p className="text-xs text-neutral-500 mt-1 line-clamp-2">
                             {notification.message}
                           </p>
                         </div>
                         {!notification.read && (
                           <div className="flex-shrink-0">
-                            <div className="w-2 h-2 rounded-full bg-purple-600" />
+                            <div className="w-2 h-2 rounded-full bg-neutral-600" />
                           </div>
                         )}
                       </div>
                       <div className="flex items-center gap-2 mt-2">
-                        <span className="text-xs text-gray-400">
+                        <span className="text-xs text-neutral-400">
                           {new Date(notification.createdAt).toLocaleDateString("en-IN", {
                             month: "short",
                             day: "numeric"
@@ -178,17 +178,17 @@ export function NotificationsBell() {
         </ScrollArea>
 
         {/* Footer */}
-        <div className="p-4 border-t bg-gray-50">
+        <div className="p-4 border-t bg-silver-50">
           <div className="flex items-center justify-between">
             <Link
               href="/dashboard/notifications"
-              className="text-sm text-purple-600 hover:text-purple-700 font-medium"
+              className="text-sm text-neutral-700 hover:text-neutral-800 font-medium"
             >
               View all notifications
             </Link>
             <Link
               href="/dashboard/settings#notifications"
-              className="text-sm text-gray-600 hover:text-gray-700 flex items-center gap-1"
+              className="text-sm text-neutral-600 hover:text-neutral-700 flex items-center gap-1"
             >
               <Settings className="h-3 w-3" />
               Settings

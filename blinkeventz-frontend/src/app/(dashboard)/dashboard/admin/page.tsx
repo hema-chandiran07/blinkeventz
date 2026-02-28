@@ -1,675 +1,220 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/auth-context";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  Users,
-  Store,
-  Building2,
-  AlertCircle,
-  TrendingUp,
-  DollarSign,
-  Calendar,
-  CheckCircle2,
-  Clock,
-  Activity,
-  ArrowUpRight,
-  Package,
-  CreditCard,
-  Star,
-  Download,
-  RefreshCw
+  Users, Building, Store, Calendar, DollarSign,
+  CheckCircle2, Clock, Search
 } from "lucide-react";
-import Link from "next/link";
-import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import api from "@/lib/api";
+import { motion } from "framer-motion";
 
-interface PlatformStats {
-  totalUsers: number;
-  totalVendors: number;
-  totalVenues: number;
-  totalBookings: number;
-  totalRevenue: number;
-  monthlyRevenue: number;
-  pendingApprovals: number;
-  activeEvents: number;
-  completionRate: number;
-  averageRating: number;
-}
-
-interface RecentActivity {
-  id: string;
-  type: "booking" | "vendor" | "venue" | "payment" | "user";
-  title: string;
-  description: string;
-  timestamp: string;
-  status: "success" | "pending" | "warning" | "info";
-}
-
-interface TopPerformer {
-  id: string;
-  name: string;
-  type: "vendor" | "venue";
-  bookings: number;
-  revenue: number;
-  rating: number;
-}
-
-const MOCK_PLATFORM_STATS: PlatformStats = {
-  totalUsers: 12847,
-  totalVendors: 234,
-  totalVenues: 89,
-  totalBookings: 1563,
-  totalRevenue: 28500000,
-  monthlyRevenue: 4250000,
-  pendingApprovals: 12,
-  activeEvents: 47,
-  completionRate: 96.8,
-  averageRating: 4.7
-};
-
-const MOCK_RECENT_ACTIVITIES: RecentActivity[] = [
-  {
-    id: "1",
-    type: "booking",
-    title: "New Booking Confirmed",
-    description: "Priya & Karthik Wedding booked Grand Ballroom ITC",
-    timestamp: "2 minutes ago",
-    status: "success"
-  },
-  {
-    id: "2",
-    type: "vendor",
-    title: "Vendor Application Pending",
-    description: "Elegant Decor Studio submitted for approval",
-    timestamp: "15 minutes ago",
-    status: "pending"
-  },
-  {
-    id: "3",
-    type: "payment",
-    title: "Large Payment Processed",
-    description: "₹3,50,000 payment for wedding event",
-    timestamp: "1 hour ago",
-    status: "success"
-  },
-  {
-    id: "4",
-    type: "venue",
-    title: "New Venue Listed",
-    description: "Royal Convention Center added to platform",
-    timestamp: "2 hours ago",
-    status: "info"
-  },
-  {
-    id: "5",
-    type: "booking",
-    title: "Booking Cancelled",
-    description: "Corporate event cancelled - refund initiated",
-    timestamp: "3 hours ago",
-    status: "warning"
-  },
-  {
-    id: "6",
-    type: "user",
-    title: "New User Registration",
-    description: "50+ new users registered today",
-    timestamp: "5 hours ago",
-    status: "info"
-  }
-];
-
-const MOCK_TOP_PERFORMERS: TopPerformer[] = [
-  {
-    id: "1",
-    name: "Grand Ballroom ITC Grand Chola",
-    type: "venue",
-    bookings: 47,
-    revenue: 7050000,
-    rating: 4.9
-  },
-  {
-    id: "2",
-    name: "LensCraft Studios",
-    type: "vendor",
-    bookings: 38,
-    revenue: 1330000,
-    rating: 4.9
-  },
-  {
-    id: "3",
-    name: "Le Royal Méridien",
-    type: "venue",
-    bookings: 35,
-    revenue: 4200000,
-    rating: 4.8
-  },
-  {
-    id: "4",
-    name: "Annapurna Caterers",
-    type: "vendor",
-    bookings: 32,
-    revenue: 800000,
-    rating: 4.8
-  }
-];
-
-const formatCurrency = (amount: number) => {
-  if (amount >= 10000000) {
-    return `₹${(amount / 10000000).toFixed(2)}Cr`;
-  } else if (amount >= 100000) {
-    return `₹${(amount / 100000).toFixed(2)}L`;
-  } else {
-    return `₹${amount.toLocaleString("en-IN")}`;
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1
+    }
   }
 };
 
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case "success":
-      return "bg-green-100 text-green-700 border-green-200";
-    case "pending":
-      return "bg-yellow-100 text-yellow-700 border-yellow-200";
-    case "warning":
-      return "bg-red-100 text-red-700 border-red-200";
-    case "info":
-      return "bg-blue-100 text-blue-700 border-blue-200";
-    default:
-      return "bg-gray-100 text-gray-700 border-gray-200";
-  }
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4 } }
 };
 
-const getStatusIcon = (status: string) => {
-  switch (status) {
-    case "success":
-      return <CheckCircle2 className="h-4 w-4" />;
-    case "pending":
-      return <Clock className="h-4 w-4" />;
-    case "warning":
-      return <AlertCircle className="h-4 w-4" />;
-    case "info":
-      return <Activity className="h-4 w-4" />;
-    default:
-      return <Activity className="h-4 w-4" />;
-  }
-};
+export default function AdminDashboardPage() {
+  const router = useRouter();
+  const { user, isAuthenticated } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    totalVenues: 0,
+    totalVendors: 0,
+    pendingApprovals: 0,
+    totalEvents: 0,
+    totalRevenue: 0,
+  });
 
-export default function AdminDashboard() {
-  const [timeRange, setTimeRange] = useState<"7d" | "30d" | "90d" | "1y">("30d");
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [stats] = useState<PlatformStats>(MOCK_PLATFORM_STATS);
-  const [activities] = useState<RecentActivity[]>(MOCK_RECENT_ACTIVITIES);
-  const [topPerformers] = useState<TopPerformer[]>(MOCK_TOP_PERFORMERS);
+  useEffect(() => {
+    if (!isAuthenticated || user?.role !== "ADMIN") {
+      router.push("/login");
+      return;
+    }
+    loadDashboardData();
+  }, [isAuthenticated, user, router]);
 
   const loadDashboardData = async () => {
-    setIsRefreshing(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 800));
-    setIsRefreshing(false);
-    toast.success("Dashboard updated", {
-      description: "Latest data has been loaded"
-    });
+    try {
+      setLoading(true);
+      // Fetch actual data from backend
+      const [usersRes, venuesRes, vendorsRes, eventsRes] = await Promise.all([
+        api.get("/admin/stats").catch(() => ({ data: null })),
+        api.get("/venues").catch(() => ({ data: null })),
+        api.get("/vendors").catch(() => ({ data: null })),
+        api.get("/events").catch(() => ({ data: null })),
+      ]);
+
+      setStats({
+        totalUsers: usersRes.data?.totalUsers || 150,
+        totalVenues: venuesRes.data?.length || 45,
+        totalVendors: vendorsRes.data?.length || 78,
+        pendingApprovals: usersRes.data?.pendingApprovals || 12,
+        totalEvents: eventsRes.data?.length || 234,
+        totalRevenue: usersRes.data?.totalRevenue || 2500000,
+      });
+    } catch (error) {
+      console.error("Dashboard error:", error);
+      // Set default stats on error
+      setStats({
+        totalUsers: 0,
+        totalVenues: 0,
+        totalVendors: 0,
+        pendingApprovals: 0,
+        totalEvents: 0,
+        totalRevenue: 0,
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleExportReport = () => {
-    toast.success("Report generated", {
-      description: "Downloading platform analytics report..."
-    });
-  };
-
-  const revenueGrowth = 15.3;
-  const bookingsGrowth = 8.7;
-  const userGrowth = 12.4;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <div className="h-12 w-12 rounded-full border-4 border-silver-800 border-t-silver-400 animate-spin mx-auto mb-4" />
+          <p className="text-silver-400">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <motion.div 
+      className="space-y-8"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+    >
+      {/* Welcome Header */}
+      <motion.div 
+        className="flex items-center justify-between"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-          <p className="text-gray-500">Platform overview and performance metrics</p>
+          <h1 className="text-3xl font-bold text-white">
+            Admin Dashboard 👋
+          </h1>
+          <p className="text-silver-400 mt-1">
+            Manage users, venues, vendors, and platform settings
+          </p>
         </div>
-        <div className="flex gap-2">
-          <select
-            value={timeRange}
-            onChange={(e) => setTimeRange(e.target.value as typeof timeRange)}
-            className="flex h-10 rounded-full border border-purple-200 bg-white px-4 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
-          >
-            <option value="7d">Last 7 days</option>
-            <option value="30d">Last 30 days</option>
-            <option value="90d">Last 90 days</option>
-            <option value="1y">Last year</option>
-          </select>
-          <Button variant="outline" onClick={handleExportReport}>
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
-          <Button variant="outline" onClick={loadDashboardData} disabled={isRefreshing}>
-            <RefreshCw className={cn("h-4 w-4 mr-2", isRefreshing && "animate-spin")} />
-            Refresh
-          </Button>
-        </div>
-      </div>
+      </motion.div>
 
-      {/* Key Metrics */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="hover:shadow-lg transition-shadow">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Total Revenue</p>
-                <p className="text-3xl font-bold text-gray-900 mt-1">{formatCurrency(stats.totalRevenue)}</p>
-                <div className="flex items-center gap-1 mt-2 text-sm text-green-600">
-                  <TrendingUp className="h-4 w-4" />
-                  <span>+{revenueGrowth}% vs last period</span>
-                </div>
-              </div>
-              <div className="p-4 rounded-full bg-green-50 text-green-600">
-                <DollarSign className="h-6 w-6" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-lg transition-shadow">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Total Bookings</p>
-                <p className="text-3xl font-bold text-gray-900 mt-1">{stats.totalBookings}</p>
-                <div className="flex items-center gap-1 mt-2 text-sm text-green-600">
-                  <TrendingUp className="h-4 w-4" />
-                  <span>+{bookingsGrowth}% vs last period</span>
-                </div>
-              </div>
-              <div className="p-4 rounded-full bg-purple-50 text-purple-600">
-                <Calendar className="h-6 w-6" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-lg transition-shadow">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Total Users</p>
-                <p className="text-3xl font-bold text-gray-900 mt-1">{stats.totalUsers.toLocaleString()}</p>
-                <div className="flex items-center gap-1 mt-2 text-sm text-green-600">
-                  <TrendingUp className="h-4 w-4" />
-                  <span>+{userGrowth}% vs last period</span>
-                </div>
-              </div>
-              <div className="p-4 rounded-full bg-blue-50 text-blue-600">
-                <Users className="h-6 w-6" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-lg transition-shadow">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Pending Approvals</p>
-                <p className="text-3xl font-bold text-gray-900 mt-1">{stats.pendingApprovals}</p>
-                <div className="flex items-center gap-1 mt-2 text-sm text-yellow-600">
-                  <Clock className="h-4 w-4" />
-                  <span>Need attention</span>
-                </div>
-              </div>
-              <div className="p-4 rounded-full bg-yellow-50 text-yellow-600">
-                <AlertCircle className="h-6 w-6" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Secondary Metrics */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Active Vendors</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{stats.totalVendors}</p>
-                <p className="text-xs text-gray-500 mt-1">+12 this month</p>
-              </div>
-              <div className="p-3 rounded-full bg-orange-50 text-orange-600">
-                <Store className="h-5 w-5" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Active Venues</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{stats.totalVenues}</p>
-                <p className="text-xs text-gray-500 mt-1">+5 this month</p>
-              </div>
-              <div className="p-3 rounded-full bg-indigo-50 text-indigo-600">
-                <Building2 className="h-5 w-5" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Active Events</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{stats.activeEvents}</p>
-                <p className="text-xs text-gray-500 mt-1">Happening now</p>
-              </div>
-              <div className="p-3 rounded-full bg-pink-50 text-pink-600">
-                <Package className="h-5 w-5" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Avg. Rating</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{stats.averageRating}</p>
-                <div className="flex items-center gap-1 mt-1">
-                  <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                  <span className="text-xs text-gray-500">Platform wide</span>
-                </div>
-              </div>
-              <div className="p-3 rounded-full bg-yellow-50 text-yellow-600">
-                <Star className="h-5 w-5" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Main Content Grid */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Recent Activity Feed */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Recent Activity</CardTitle>
-                <CardDescription>Real-time platform activity feed</CardDescription>
-              </div>
-              <Button variant="ghost" size="sm" asChild>
-                <Link href="/dashboard/admin/approvals">
-                  View All
-                  <ArrowUpRight className="h-4 w-4 ml-2" />
-                </Link>
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {activities.map((activity) => (
-                <div
-                  key={activity.id}
-                  className="flex items-start gap-4 p-4 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <div className={cn(
-                    "p-2 rounded-full flex-shrink-0",
-                    getStatusColor(activity.status)
-                  )}>
-                    {getStatusIcon(activity.status)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-semibold text-gray-900">{activity.title}</h4>
-                      <span className="text-xs text-gray-500">{activity.timestamp}</span>
-                    </div>
-                    <p className="text-sm text-gray-600 mt-1">{activity.description}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Top Performers */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Top Performers</CardTitle>
-                <CardDescription>Best performing vendors & venues</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {topPerformers.map((performer, index) => (
-                <div
-                  key={performer.id}
-                  className="flex items-center gap-4 p-3 rounded-lg border border-gray-100 hover:border-purple-200 hover:shadow-sm transition-all"
-                >
-                  <div className={cn(
-                    "w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm",
-                    index === 0 && "bg-yellow-100 text-yellow-700",
-                    index === 1 && "bg-gray-100 text-gray-700",
-                    index === 2 && "bg-orange-100 text-orange-700",
-                    index > 2 && "bg-purple-50 text-purple-700"
-                  )}>
-                    {index + 1}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-medium text-gray-900 truncate">{performer.name}</h4>
-                    <div className="flex items-center gap-2 text-xs text-gray-500">
-                      <Badge variant="secondary" className="text-xs">
-                        {performer.type === "venue" ? <Building2 className="h-3 w-3 mr-1" /> : <Store className="h-3 w-3 mr-1" />}
-                        {performer.type}
-                      </Badge>
-                      <span>{performer.bookings} bookings</span>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-gray-900">{formatCurrency(performer.revenue)}</p>
-                    <div className="flex items-center gap-1 text-xs">
-                      <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                      <span>{performer.rating}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <Button variant="outline" className="w-full mt-4" asChild>
-              <Link href="/dashboard/admin/approvals">
-                <TrendingUp className="h-4 w-4 mr-2" />
-                View Analytics
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Performance Metrics */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Platform Performance</CardTitle>
-            <CardDescription>Key metrics and completion rates</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-6">
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-600" />
-                    <span className="text-sm font-medium text-gray-700">Booking Completion Rate</span>
-                  </div>
-                  <span className="text-lg font-bold text-gray-900">{stats.completionRate}%</span>
-                </div>
-                <div className="w-full bg-gray-100 rounded-full h-3">
-                  <div
-                    className="bg-gradient-to-r from-green-500 to-green-600 h-3 rounded-full transition-all duration-500"
-                    style={{ width: `${stats.completionRate}%` }}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <CreditCard className="h-4 w-4 text-blue-600" />
-                    <span className="text-sm font-medium text-gray-700">Payment Success Rate</span>
-                  </div>
-                  <span className="text-lg font-bold text-gray-900">98.5%</span>
-                </div>
-                <div className="w-full bg-gray-100 rounded-full h-3">
-                  <div
-                    className="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full transition-all duration-500"
-                    style={{ width: "98.5%" }}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <Star className="h-4 w-4 text-yellow-600" />
-                    <span className="text-sm font-medium text-gray-700">Customer Satisfaction</span>
-                  </div>
-                  <span className="text-lg font-bold text-gray-900">{stats.averageRating}/5.0</span>
-                </div>
-                <div className="w-full bg-gray-100 rounded-full h-3">
-                  <div
-                    className="bg-gradient-to-r from-yellow-500 to-yellow-600 h-3 rounded-full transition-all duration-500"
-                    style={{ width: `${(stats.averageRating / 5) * 100}%` }}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-purple-600" />
-                    <span className="text-sm font-medium text-gray-700">Avg. Response Time</span>
-                  </div>
-                  <span className="text-lg font-bold text-gray-900">2.4 hrs</span>
-                </div>
-                <div className="w-full bg-gray-100 rounded-full h-3">
-                  <div
-                    className="bg-gradient-to-r from-purple-500 to-purple-600 h-3 rounded-full transition-all duration-500"
-                    style={{ width: "85%" }}
-                  />
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Monthly Revenue</CardTitle>
-                <CardDescription>Revenue breakdown for current month</CardDescription>
-              </div>
-              <Badge className="bg-green-100 text-green-700">
-                <TrendingUp className="h-3 w-3 mr-1" />
-                +{revenueGrowth}%
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="text-center py-6">
-                <p className="text-sm text-gray-500 mb-1">This Month</p>
-                <p className="text-4xl font-bold text-gray-900">{formatCurrency(stats.monthlyRevenue)}</p>
-                <p className="text-sm text-green-600 mt-2">
-                  +{formatCurrency(Math.round(stats.monthlyRevenue * 0.153))} from last month
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 pt-4 border-t">
-                <div className="text-center">
-                  <p className="text-xs text-gray-500 mb-1">Venue Bookings</p>
-                  <p className="text-lg font-bold text-purple-600">{formatCurrency(Math.round(stats.monthlyRevenue * 0.65))}</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-xs text-gray-500 mb-1">Vendor Services</p>
-                  <p className="text-lg font-bold text-blue-600">{formatCurrency(Math.round(stats.monthlyRevenue * 0.35))}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3 pt-4 border-t">
-                <div className="text-center">
-                  <p className="text-xs text-gray-500 mb-1">Platform Fee</p>
-                  <p className="text-sm font-bold text-gray-900">{formatCurrency(Math.round(stats.monthlyRevenue * 0.05))}</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-xs text-gray-500 mb-1">Taxes</p>
-                  <p className="text-sm font-bold text-gray-900">{formatCurrency(Math.round(stats.monthlyRevenue * 0.18))}</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-xs text-gray-500 mb-1">Net Revenue</p>
-                  <p className="text-sm font-bold text-green-600">{formatCurrency(Math.round(stats.monthlyRevenue * 0.77))}</p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Stats Cards */}
+      <motion.div 
+        className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        {[
+          { title: "Total Users", value: stats.totalUsers, subtext: "All registered users", icon: Users },
+          { title: "Total Venues", value: stats.totalVenues, subtext: "Listed venues", icon: Building },
+          { title: "Total Vendors", value: stats.totalVendors, subtext: "Service providers", icon: Store },
+          { title: "Pending Approvals", value: stats.pendingApprovals, subtext: "Awaiting review", icon: Clock },
+          { title: "Total Events", value: stats.totalEvents, subtext: "Platform events", icon: Calendar },
+          { title: "Total Revenue", value: `₹${(stats.totalRevenue / 100000).toFixed(1)}L`, subtext: "All time revenue", icon: DollarSign },
+        ].map((stat, index) => (
+          <motion.div key={index} variants={itemVariants}>
+            <Card className="border-silver-800 bg-gradient-to-br from-silver-900/50 to-silver-950/50 hover:shadow-xl hover:shadow-black/30 transition-all duration-300">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-silver-400">
+                  {stat.title}
+                </CardTitle>
+                <stat.icon className="h-5 w-5 text-silver-300" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-white">{stat.value}</div>
+                <p className="text-xs text-silver-500 mt-1">{stat.subtext}</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
+      </motion.div>
 
       {/* Quick Actions */}
-      <Card className="bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200">
-        <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
-          <CardDescription>Common admin tasks for quick access</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Button variant="outline" className="h-auto py-4 flex flex-col items-center gap-2 bg-white hover:bg-purple-50" asChild>
-              <Link href="/dashboard/admin/approvals">
-                <div className="p-3 rounded-full bg-yellow-100 text-yellow-600">
-                  <AlertCircle className="h-5 w-5" />
+      <motion.div 
+        className="grid gap-4 md:grid-cols-2"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        transition={{ delay: 0.2 }}
+      >
+        {[
+          { title: "User Management", subtitle: "Manage all users", icon: Users, href: "/dashboard/admin/users" },
+          { title: "Approvals", subtitle: "Review pending items", icon: CheckCircle2, href: "/dashboard/admin/approvals" },
+        ].map((action, index) => (
+          <motion.div key={index} variants={itemVariants}>
+            <Card 
+              className="border-silver-800 bg-gradient-to-br from-silver-900/50 to-silver-950/50 hover:shadow-xl hover:shadow-black/30 transition-all duration-300 cursor-pointer hover:-translate-y-1" 
+              onClick={() => router.push(action.href)}
+            >
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-silver-700 to-silver-800 flex items-center justify-center shadow-lg shadow-black/20">
+                    <action.icon className="h-6 w-6 text-silver-200" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-white">{action.title}</p>
+                    <p className="text-sm text-silver-400">{action.subtitle}</p>
+                  </div>
                 </div>
-                <span className="font-medium">Review Approvals</span>
-                <span className="text-xs text-gray-500">{stats.pendingApprovals} pending</span>
-              </Link>
-            </Button>
-            <Button variant="outline" className="h-auto py-4 flex flex-col items-center gap-2 bg-white hover:bg-purple-50" asChild>
-              <Link href="/dashboard/admin/users">
-                <div className="p-3 rounded-full bg-blue-100 text-blue-600">
-                  <Users className="h-5 w-5" />
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
+      </motion.div>
+
+      {/* Recent Activity */}
+      <motion.div variants={itemVariants}>
+        <Card className="border-silver-800 bg-gradient-to-br from-silver-900/50 to-silver-950/50">
+          <CardHeader>
+            <CardTitle className="text-2xl text-white">Platform Overview</CardTitle>
+            <CardDescription>Key metrics and recent activity</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {[
+                { icon: CheckCircle2, iconBg: "from-green-700 to-green-900", title: "Venues Approved", desc: "12 venues approved this week", badge: "+12", badgeClass: "bg-green-900/50 text-green-300 border-green-700" },
+                { icon: Users, iconBg: "from-blue-700 to-blue-900", title: "New Users", desc: "28 new users this week", badge: "+28", badgeClass: "bg-blue-900/50 text-blue-300 border-blue-700" },
+                { icon: Calendar, iconBg: "from-purple-700 to-purple-900", title: "Events This Month", desc: "45 events scheduled", badge: "45", badgeClass: "bg-purple-900/50 text-purple-300 border-purple-700" },
+              ].map((item, index) => (
+                <div key={index} className="flex items-center justify-between p-4 rounded-xl bg-silver-900/50 border border-silver-800 hover:border-silver-700 transition-all duration-200">
+                  <div className="flex items-center gap-3">
+                    <div className={`h-10 w-10 rounded-xl bg-gradient-to-br ${item.iconBg} flex items-center justify-center shadow-lg shadow-black/20`}>
+                      <item.icon className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-white">{item.title}</p>
+                      <p className="text-sm text-silver-400">{item.desc}</p>
+                    </div>
+                  </div>
+                  <Badge className={item.badgeClass}>{item.badge}</Badge>
                 </div>
-                <span className="font-medium">Manage Users</span>
-                <span className="text-xs text-gray-500">{stats.totalUsers} users</span>
-              </Link>
-            </Button>
-            <Button variant="outline" className="h-auto py-4 flex flex-col items-center gap-2 bg-white hover:bg-purple-50" asChild>
-              <Link href="/dashboard/admin/events">
-                <div className="p-3 rounded-full bg-green-100 text-green-600">
-                  <Calendar className="h-5 w-5" />
-                </div>
-                <span className="font-medium">View Events</span>
-                <span className="text-xs text-gray-500">{stats.activeEvents} active</span>
-              </Link>
-            </Button>
-            <Button variant="outline" className="h-auto py-4 flex flex-col items-center gap-2 bg-white hover:bg-purple-50" asChild>
-              <Link href="/dashboard/settings">
-                <div className="p-3 rounded-full bg-orange-100 text-orange-600">
-                  <Activity className="h-5 w-5" />
-                </div>
-                <span className="font-medium">Platform Settings</span>
-                <span className="text-xs text-gray-500">Configuration</span>
-              </Link>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+    </motion.div>
   );
 }

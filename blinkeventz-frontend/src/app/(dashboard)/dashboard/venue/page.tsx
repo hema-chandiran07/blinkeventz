@@ -1,422 +1,329 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/auth-context";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import {
-  Calendar,
-  Building2,
-  DollarSign,
-  Clock,
-  TrendingUp,
-  Users,
-  Eye,
-  Plus,
-  Edit2,
-  MapPin,
-  Star,
-  CheckCircle2,
-  AlertCircle
+  Building, Calendar, DollarSign, Plus, Search,
+  CheckCircle2, Clock, Star, MapPin, Settings
 } from "lucide-react";
-import Link from "next/link";
-import { toast } from "sonner";
-import { AvailabilityCalendar } from "@/components/venues/availability-calendar";
-import type { TimeSlot } from "@/components/venues/availability-calendar";
+import api from "@/lib/api";
+import { motion } from "framer-motion";
 
-interface VenueStats {
-  totalBookings: number;
-  pendingInquiries: number;
-  monthlyRevenue: number;
-  totalViews: number;
-  averageRating: number;
-  totalReviews: number;
-  occupancyRate: number;
+interface Venue {
+  id: number;
+  name: string;
+  type: string;
+  city: string;
+  area: string;
+  capacity: number;
+  basePriceEvening: number;
+  status: "PENDING_APPROVAL" | "ACTIVE" | "INACTIVE" | "SUSPENDED" | "DELISTED";
+  createdAt: string;
 }
 
-interface VenueBooking {
-  id: string;
-  customer: string;
-  event: string;
-  date: string;
-  timeSlot: string;
-  amount: number;
-  status: string;
-  guests: number;
+interface DashboardStats {
+  totalVenues: number;
+  activeBookings: number;
+  totalEarnings: number;
+  pendingRequests: number;
 }
 
-const MOCK_VENUE_DATA = {
-  name: "Grand Ballroom ITC Grand Chola",
-  address: "63, Mount Road, Guindy, Chennai",
-  capacity: 2000,
-  basePrice: 150000,
-  stats: {
-    totalBookings: 24,
-    pendingInquiries: 5,
-    monthlyRevenue: 425000,
-    totalViews: 1234,
-    averageRating: 4.8,
-    totalReviews: 89,
-    occupancyRate: 78
-  } as VenueStats,
-  upcomingBookings: [
-    {
-      id: "1",
-      customer: "Rajesh Kumar",
-      event: "Priya & Karthik Wedding",
-      date: "2024-06-15",
-      timeSlot: "08:00 AM - 10:00 PM",
-      amount: 150000,
-      status: "CONFIRMED",
-      guests: 800
-    },
-    {
-      id: "2",
-      customer: "Anita Sharma",
-      event: "Rahul & Sneha Reception",
-      date: "2024-05-20",
-      timeSlot: "06:00 PM - 11:00 PM",
-      amount: 120000,
-      status: "PENDING",
-      guests: 500
-    },
-    {
-      id: "3",
-      customer: "Mohammed Rizwan",
-      event: "Fatima's Engagement",
-      date: "2024-04-28",
-      timeSlot: "04:00 PM - 09:00 PM",
-      amount: 100000,
-      status: "CONFIRMED",
-      guests: 300
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1
     }
-  ] as VenueBooking[]
+  }
 };
 
-export default function VenueDashboard() {
-  const [isLoading, setIsLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [selectedSlot, setSelectedSlot] = useState<"morning" | "evening" | "full_day" | "night" | null>(null);
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4 } }
+};
+
+export default function VenueOwnerDashboardPage() {
+  const router = useRouter();
+  const { user, isAuthenticated } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [venues, setVenues] = useState<Venue[]>([]);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 500);
-  }, []);
-
-  const formatCurrency = (amount: number) => {
-    return `₹${(amount / 100000).toFixed(2)}L`;
-  };
-
-  const formatFullCurrency = (amount: number) => {
-    return `₹${amount.toLocaleString("en-IN")}`;
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-IN", {
-      weekday: "short",
-      month: "short",
-      day: "numeric"
-    });
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "CONFIRMED":
-        return <Badge className="bg-green-100 text-green-700 border-green-200"><CheckCircle2 className="h-3 w-3 mr-1" />Confirmed</Badge>;
-      case "PENDING":
-        return <Badge className="bg-yellow-100 text-yellow-700 border-yellow-200"><Clock className="h-3 w-3 mr-1" />Pending</Badge>;
-      case "COMPLETED":
-        return <Badge className="bg-blue-100 text-blue-700 border-blue-200"><CheckCircle2 className="h-3 w-3 mr-1" />Completed</Badge>;
-      default:
-        return <Badge>{status}</Badge>;
-    }
-  };
-
-  const handleDateSelect = (date: Date, slot: TimeSlot) => {
-    setSelectedDate(date);
-    setSelectedSlot(slot.type);
-    toast.info(`Selected: ${slot.label} on ${date.toLocaleDateString()}`, {
-      description: `Price: ₹${Math.round(MOCK_VENUE_DATA.basePrice * slot.multiplier).toLocaleString("en-IN")}`
-    });
-  };
-
-  const handleBlockSlot = () => {
-    if (!selectedDate || !selectedSlot) {
-      toast.error("Please select a date and time slot first");
+    if (!isAuthenticated) {
+      router.push("/login");
       return;
     }
-    toast.success("Slot blocked successfully", {
-      description: `${selectedDate.toLocaleDateString()} - ${selectedSlot} is now blocked`
-    });
-    setSelectedDate(null);
-    setSelectedSlot(null);
+    if (user?.role !== "VENUE_OWNER") {
+      router.push("/dashboard/venue");
+      return;
+    }
+    loadDashboardData();
+  }, [isAuthenticated, user, router]);
+
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+
+      try {
+        const venuesResponse = await api.get('/venues/my');
+        setVenues(venuesResponse.data || []);
+      } catch (error) {
+        console.warn("Could not fetch venues");
+        setVenues([]);
+      }
+
+      const activeVenues = venues.filter(v => v.status === "ACTIVE").length;
+
+      setStats({
+        totalVenues: activeVenues,
+        activeBookings: 0,
+        totalEarnings: 0,
+        pendingRequests: 0,
+      });
+    } catch {
+      // Set default stats on error
+      setStats({
+        totalVenues: 0,
+        activeBookings: 0,
+        totalEarnings: 0,
+        pendingRequests: 0,
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4" />
-          <p className="text-gray-500">Loading dashboard...</p>
+          <div className="h-12 w-12 rounded-full border-4 border-silver-800 border-t-silver-400 animate-spin mx-auto mb-4" />
+          <p className="text-silver-400">Loading your dashboard...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
+    <motion.div 
+      className="space-y-8"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+    >
       {/* Welcome Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <motion.div 
+        className="flex items-center justify-between"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Venue Dashboard</h1>
-          <p className="text-gray-500">Manage your venue, availability, and bookings</p>
+          <h1 className="text-3xl font-bold text-white">
+            Venue Owner Dashboard 🏢
+          </h1>
+          <p className="text-silver-400 mt-1">
+            Manage your venues and bookings
+          </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" asChild>
-            <Link href="/dashboard/venue/details">
-              <Edit2 className="h-4 w-4 mr-2" />
-              Edit Venue
-            </Link>
+        <motion.div
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          <Button
+            variant="premium"
+            onClick={() => router.push("/dashboard/venue/details")}
+            className="h-12 px-6"
+          >
+            <Plus className="h-5 w-5 mr-2" />
+            Add Venue
           </Button>
-          <Button asChild>
-            <Link href="/dashboard/venue/calendar">
-              <Calendar className="h-4 w-4 mr-2" />
-              Manage Calendar
-            </Link>
-          </Button>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
 
-      {/* Venue Info Card */}
-      <Card className="bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200">
-        <CardContent className="p-6">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div className="flex items-start gap-4">
-              <div className="p-4 rounded-full bg-white shadow-md">
-                <Building2 className="h-8 w-8 text-purple-600" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-gray-900">{MOCK_VENUE_DATA.name}</h2>
-                <div className="flex items-center gap-2 text-gray-600 mt-1">
-                  <MapPin className="h-4 w-4" />
-                  <span>{MOCK_VENUE_DATA.address}</span>
-                </div>
-                <div className="flex items-center gap-4 mt-2">
-                  <div className="flex items-center gap-1">
-                    <Users className="h-4 w-4 text-purple-600" />
-                    <span className="text-sm text-gray-600">Capacity: {MOCK_VENUE_DATA.capacity} guests</span>
+      {/* Stats Cards */}
+      <motion.div 
+        className="grid gap-6 md:grid-cols-2 lg:grid-cols-4"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        {[
+          { title: "Total Venues", value: stats?.totalVenues || 0, subtext: "Active listings", icon: Building },
+          { title: "Active Bookings", value: stats?.activeBookings || 0, subtext: "Pending & confirmed", icon: Calendar },
+          { title: "Total Revenue", value: `₹${(stats?.totalEarnings || 0).toLocaleString()}`, subtext: "All time earnings", icon: DollarSign },
+          { title: "Pending Requests", value: stats?.pendingRequests || 0, subtext: "Awaiting approval", icon: Clock },
+        ].map((stat, index) => (
+          <motion.div key={index} variants={itemVariants}>
+            <Card className="border-silver-800 bg-gradient-to-br from-silver-900/50 to-silver-950/50 hover:shadow-xl hover:shadow-black/30 transition-all duration-300">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-silver-400">
+                  {stat.title}
+                </CardTitle>
+                <stat.icon className="h-5 w-5 text-silver-300" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-white">{stat.value}</div>
+                <p className="text-xs text-silver-500 mt-1">{stat.subtext}</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
+      </motion.div>
+
+      {/* Quick Actions */}
+      <motion.div 
+        className="grid gap-4 md:grid-cols-3"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        transition={{ delay: 0.2 }}
+      >
+        {[
+          { title: "My Venues", subtitle: "Manage properties", icon: Building, href: "/dashboard/venue/details" },
+          { title: "Bookings", subtitle: "View all requests", icon: CheckCircle2, href: "/dashboard/venue/bookings" },
+          { title: "Calendar", subtitle: "Check availability", icon: Calendar, href: "/dashboard/venue/calendar" },
+        ].map((action, index) => (
+          <motion.div key={index} variants={itemVariants}>
+            <Card 
+              className="border-silver-800 bg-gradient-to-br from-silver-900/50 to-silver-950/50 hover:shadow-xl hover:shadow-black/30 transition-all duration-300 cursor-pointer hover:-translate-y-1" 
+              onClick={() => router.push(action.href)}
+            >
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-silver-700 to-silver-800 flex items-center justify-center shadow-lg shadow-black/20">
+                    <action.icon className="h-6 w-6 text-silver-200" />
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                    <span className="text-sm text-gray-600">{MOCK_VENUE_DATA.stats.averageRating} ({MOCK_VENUE_DATA.stats.totalReviews} reviews)</span>
+                  <div>
+                    <p className="font-semibold text-white">{action.title}</p>
+                    <p className="text-sm text-silver-400">{action.subtitle}</p>
                   </div>
                 </div>
-              </div>
-            </div>
-            <div className="text-right">
-              <p className="text-sm text-gray-500">Base Price</p>
-              <p className="text-3xl font-bold text-purple-600">{formatCurrency(MOCK_VENUE_DATA.basePrice)}</p>
-              <p className="text-sm text-gray-500">per day</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
+      </motion.div>
 
-      {/* Stats Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="hover:shadow-lg transition-shadow">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Upcoming Bookings</p>
-                <p className="text-3xl font-bold text-gray-900 mt-1">{MOCK_VENUE_DATA.stats.totalBookings}</p>
-                <div className="flex items-center gap-1 mt-2 text-sm text-green-600">
-                  <TrendingUp className="h-4 w-4" />
-                  <span>+8 this month</span>
-                </div>
-              </div>
-              <div className="p-4 rounded-full bg-purple-50 text-purple-600">
-                <Calendar className="h-6 w-6" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-lg transition-shadow">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Pending Inquiries</p>
-                <p className="text-3xl font-bold text-gray-900 mt-1">{MOCK_VENUE_DATA.stats.pendingInquiries}</p>
-                <div className="flex items-center gap-1 mt-2 text-sm text-yellow-600">
-                  <Clock className="h-4 w-4" />
-                  <span>5 need response</span>
-                </div>
-              </div>
-              <div className="p-4 rounded-full bg-yellow-50 text-yellow-600">
-                <Clock className="h-6 w-6" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-lg transition-shadow">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Monthly Revenue</p>
-                <p className="text-3xl font-bold text-gray-900 mt-1">{formatCurrency(MOCK_VENUE_DATA.stats.monthlyRevenue)}</p>
-                <div className="flex items-center gap-1 mt-2 text-sm text-green-600">
-                  <TrendingUp className="h-4 w-4" />
-                  <span>+15% vs last month</span>
-                </div>
-              </div>
-              <div className="p-4 rounded-full bg-green-50 text-green-600">
-                <DollarSign className="h-6 w-6" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-lg transition-shadow">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Total Views</p>
-                <p className="text-3xl font-bold text-gray-900 mt-1">{MOCK_VENUE_DATA.stats.totalViews.toLocaleString()}</p>
-                <div className="flex items-center gap-1 mt-2 text-sm text-blue-600">
-                  <Eye className="h-4 w-4" />
-                  <span>{MOCK_VENUE_DATA.stats.occupancyRate}% occupancy</span>
-                </div>
-              </div>
-              <div className="p-4 rounded-full bg-blue-50 text-blue-600">
-                <Building2 className="h-6 w-6" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Main Content Grid */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Availability Calendar */}
-        <Card className="lg:col-span-2">
+      {/* Venues List */}
+      <motion.div variants={itemVariants}>
+        <Card className="border-silver-800 bg-gradient-to-br from-silver-900/50 to-silver-950/50">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Availability Calendar</CardTitle>
-                <CardDescription>Manage your venue availability and block dates</CardDescription>
+                <CardTitle className="text-2xl text-white">Your Venues</CardTitle>
+                <CardDescription>
+                  Manage your property listings
+                </CardDescription>
               </div>
-              {selectedDate && selectedSlot && (
-                <Button variant="destructive" size="sm" onClick={handleBlockSlot}>
-                  <AlertCircle className="h-4 w-4 mr-2" />
-                  Block Selected Slot
-                </Button>
-              )}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-silver-500" />
+                <Input
+                  placeholder="Search venues..."
+                  className="pl-9 w-64"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
             </div>
           </CardHeader>
           <CardContent>
-            <AvailabilityCalendar
-              venueId="venue-1"
-              basePrice={MOCK_VENUE_DATA.basePrice}
-              onDateSelect={handleDateSelect}
-              selectedDate={selectedDate}
-              selectedSlot={selectedSlot}
-            />
+            {venues.length === 0 ? (
+              <div className="text-center py-12">
+                <Building className="h-16 w-16 text-silver-600 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-white mb-2">No venues yet</h3>
+                <p className="text-silver-400 mb-6">
+                  Start by adding your first venue listing
+                </p>
+                <Button variant="premium" onClick={() => router.push("/dashboard/venue/details")}>
+                  <Plus className="h-5 w-5 mr-2" />
+                  Add Venue
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {venues.filter(v => v.name.toLowerCase().includes(searchQuery.toLowerCase())).map((venue) => (
+                  <div
+                    key={venue.id}
+                    className="flex items-center justify-between p-4 rounded-xl border border-silver-800 hover:shadow-lg hover:shadow-black/20 hover:border-silver-700 transition-all duration-300 bg-gradient-to-r from-silver-900/30 to-transparent"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-silver-600 to-silver-800 flex items-center justify-center text-white font-bold shadow-lg shadow-black/20">
+                        {venue.name.charAt(0)}
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-white">{venue.name}</h3>
+                        <div className="flex items-center gap-4 text-sm text-silver-400 mt-1">
+                          <span className="flex items-center gap-1">
+                            <MapPin className="h-4 w-4" />
+                            {venue.area}, {venue.city}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <DollarSign className="h-4 w-4" />
+                            ₹{venue.basePriceEvening.toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <Badge className={
+                        venue.status === "ACTIVE" ? "bg-green-900/50 text-green-300 border-green-700" :
+                        venue.status === "PENDING_APPROVAL" ? "bg-yellow-900/50 text-yellow-300 border-yellow-700" :
+                        "bg-silver-800/50 text-silver-300 border-silver-600"
+                      }>
+                        {venue.status.replace("_", " ")}
+                      </Badge>
+                      <Button
+                        variant="silver"
+                        size="sm"
+                        onClick={() => router.push(`/dashboard/venue/details?id=${venue.id}`)}
+                      >
+                        Edit
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
+      </motion.div>
 
-        {/* Upcoming Bookings */}
-        <Card>
+      {/* Tips Section */}
+      <motion.div variants={itemVariants}>
+        <Card className="border-silver-800 bg-gradient-to-br from-silver-900/30 to-silver-950/30">
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Upcoming Bookings</CardTitle>
-                <CardDescription>Next 30 days schedule</CardDescription>
-              </div>
-              <Button variant="outline" size="sm" asChild>
-                <Link href="/dashboard/venue/bookings">View All</Link>
-              </Button>
-            </div>
+            <CardTitle className="text-2xl text-white">Maximize Your Bookings</CardTitle>
+            <CardDescription>Tips for venue success</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {MOCK_VENUE_DATA.upcomingBookings.map((booking) => (
-                <div key={booking.id} className="p-4 border border-gray-100 rounded-lg hover:border-purple-200 hover:shadow-sm transition-all">
-                  <div className="flex items-start justify-between mb-2">
-                    <h4 className="font-semibold text-gray-900">{booking.event}</h4>
-                    {getStatusBadge(booking.status)}
+              {[
+                { icon: Star, title: "Keep Calendar Updated", desc: "Regularly update your availability to avoid booking conflicts and improve customer satisfaction" },
+                { icon: Building, title: "Showcase Your Venue", desc: "Add high-quality photos and detailed descriptions to attract more bookings" },
+              ].map((tip, index) => (
+                <div key={index} className="flex items-start gap-4 p-4 rounded-xl bg-silver-900/50 border border-silver-800">
+                  <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-silver-600 to-silver-800 flex items-center justify-center flex-shrink-0 shadow-lg shadow-black/20">
+                    <tip.icon className="h-5 w-5 text-silver-200" />
                   </div>
-                  <p className="text-sm text-gray-600 mb-2">{booking.customer}</p>
-                  <div className="space-y-1 text-sm">
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <Calendar className="h-4 w-4 text-gray-400" />
-                      <span>{formatDate(booking.date)}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <Clock className="h-4 w-4 text-gray-400" />
-                      <span>{booking.timeSlot}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <Users className="h-4 w-4 text-gray-400" />
-                      <span>{booking.guests} guests</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <DollarSign className="h-4 w-4 text-gray-400" />
-                      <span className="font-semibold">{formatFullCurrency(booking.amount)}</span>
-                    </div>
+                  <div>
+                    <p className="font-semibold text-white">{tip.title}</p>
+                    <p className="text-sm text-silver-400 mt-1">{tip.desc}</p>
                   </div>
                 </div>
               ))}
             </div>
           </CardContent>
         </Card>
-      </div>
-
-      {/* Quick Actions */}
-      <Card className="bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200">
-        <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
-          <CardDescription>Frequently used actions for easy access</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Button variant="outline" className="h-auto py-4 flex flex-col items-center gap-2 bg-white hover:bg-purple-50" asChild>
-              <Link href="/dashboard/venue/details">
-                <div className="p-3 rounded-full bg-purple-100 text-purple-600">
-                  <Edit2 className="h-5 w-5" />
-                </div>
-                <span className="font-medium">Edit Venue Details</span>
-              </Link>
-            </Button>
-            <Button variant="outline" className="h-auto py-4 flex flex-col items-center gap-2 bg-white hover:bg-purple-50" asChild>
-              <Link href="/dashboard/venue/bookings">
-                <div className="p-3 rounded-full bg-green-100 text-green-600">
-                  <Calendar className="h-5 w-5" />
-                </div>
-                <span className="font-medium">View Bookings</span>
-              </Link>
-            </Button>
-            <Button variant="outline" className="h-auto py-4 flex flex-col items-center gap-2 bg-white hover:bg-purple-50" asChild>
-              <Link href="/dashboard/venue/calendar">
-                <div className="p-3 rounded-full bg-blue-100 text-blue-600">
-                  <Clock className="h-5 w-5" />
-                </div>
-                <span className="font-medium">Manage Availability</span>
-              </Link>
-            </Button>
-            <Button variant="outline" className="h-auto py-4 flex flex-col items-center gap-2 bg-white hover:bg-purple-50" asChild>
-              <Link href="/dashboard/settings">
-                <div className="p-3 rounded-full bg-orange-100 text-orange-600">
-                  <DollarSign className="h-5 w-5" />
-                </div>
-                <span className="font-medium">Payment Settings</span>
-              </Link>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

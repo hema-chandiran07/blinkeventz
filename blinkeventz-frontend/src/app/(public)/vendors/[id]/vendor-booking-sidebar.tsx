@@ -46,48 +46,48 @@ export function VendorBookingSidebar({ vendor }: VendorBookingSidebarProps) {
     <div className="lg:col-span-1">
       <div className="sticky top-6 space-y-6">
         {/* Booking Card */}
-        <div className="bg-white rounded-2xl border border-purple-100 p-6 shadow-lg">
+        <div className="bg-white rounded-2xl border border-silver-200 p-6 shadow-lg">
           <div className="mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Book This Vendor</h3>
-            <p className="text-sm text-gray-500">Select date and time to see pricing</p>
+            <h3 className="text-lg font-semibold text-black mb-2">Book This Vendor</h3>
+            <p className="text-sm text-neutral-600">Select date and time to see pricing</p>
           </div>
 
           {/* Vendor Info */}
-          <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-200">
+          <div className="mb-6 p-4 bg-gradient-to-r from-silver-50 to-silver-100 rounded-xl border border-silver-200">
             <div className="flex items-center gap-3 mb-3">
-              <div className="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center">
-                <Star className="h-6 w-6 text-purple-600" />
+              <div className="h-12 w-12 rounded-full bg-silver-200 flex items-center justify-center">
+                <Star className="h-6 w-6 text-neutral-800" />
               </div>
               <div>
-                <p className="font-semibold text-gray-900">{vendor.businessName || vendor.name}</p>
+                <p className="font-semibold text-black">{vendor.businessName || vendor.name}</p>
                 <div className="flex items-center gap-1 text-sm">
                   <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
                   <span className="font-medium">{vendor.rating || 4.5}</span>
-                  <span className="text-gray-500">({vendor.verificationStatus === "VERIFIED" ? "Verified" : "Pending"})</span>
+                  <span className="text-neutral-600">({vendor.verificationStatus === "VERIFIED" ? "Verified" : "Pending"})</span>
                 </div>
               </div>
             </div>
-            <div className="text-xs text-gray-600 flex items-center gap-1">
+            <div className="text-xs text-neutral-700 flex items-center gap-1">
               <Clock className="h-3 w-3" />
               <span>Response time: ~2 hours</span>
             </div>
           </div>
 
           {/* Dynamic Pricing Display */}
-          <div className="mb-6 p-4 bg-purple-50 rounded-xl border border-purple-200">
+          <div className="mb-6 p-4 bg-silver-50 rounded-xl border border-silver-200">
             <div className="flex items-center justify-between mb-3">
               <div>
-                <div className="text-sm text-gray-500">Base Price</div>
-                <div className="text-lg font-semibold text-gray-700">₹{basePrice.toLocaleString("en-IN")}</div>
+                <div className="text-sm text-neutral-600">Base Price</div>
+                <div className="text-lg font-semibold text-neutral-800">₹{basePrice.toLocaleString("en-IN")}</div>
               </div>
               <div className="text-right">
-                <div className="text-sm text-gray-500">Your Price</div>
-                <div className="text-2xl font-bold text-purple-600">₹{selectedPrice.toLocaleString("en-IN")}</div>
+                <div className="text-sm text-neutral-600">Your Price</div>
+                <div className="text-2xl font-bold text-neutral-800">₹{selectedPrice.toLocaleString("en-IN")}</div>
               </div>
             </div>
-            
+
             {selectedSlot && (
-              <div className="flex items-center gap-2 text-xs text-purple-700 bg-white/50 rounded-lg p-2">
+              <div className="flex items-center gap-2 text-xs text-neutral-800 bg-white/50 rounded-lg p-2">
                 <Clock className="h-3 w-3" />
                 <span className="font-medium">{TIME_SLOT_LABELS[selectedSlot]}</span>
                 <span className="ml-auto font-bold">
@@ -167,17 +167,17 @@ export function VendorBookingSidebar({ vendor }: VendorBookingSidebarProps) {
             </div>
           )}
 
-          <div className="space-y-3 pt-4 border-t text-sm text-gray-600">
+          <div className="space-y-3 pt-4 border-t text-sm text-neutral-700">
             <div className="flex items-center gap-3">
-              <Mail className="h-4 w-4 text-purple-400" />
+              <Mail className="h-4 w-4 text-neutral-600" />
               <span>Contact vendor</span>
             </div>
             <div className="flex items-center gap-3">
-              <Phone className="h-4 w-4 text-purple-400" />
+              <Phone className="h-4 w-4 text-neutral-600" />
               <span>Call for consultation</span>
             </div>
             <div className="flex items-center gap-3">
-              <MessageCircle className="h-4 w-4 text-purple-400" />
+              <MessageCircle className="h-4 w-4 text-neutral-600" />
               <span>Free quote</span>
             </div>
           </div>
@@ -209,54 +209,54 @@ export function VendorBookingSidebar({ vendor }: VendorBookingSidebarProps) {
         />
 
         {/* Trust Badges */}
-        <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-          <h4 className="font-semibold text-gray-900 mb-4">Why Book This Vendor</h4>
+        <div className="bg-white rounded-2xl border border-silver-100 p-6 shadow-sm">
+          <h4 className="font-semibold text-black mb-4">Why Book This Vendor</h4>
           <div className="space-y-3">
             <div className="flex items-center gap-3">
               <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
                 <CheckCircle2 className="h-4 w-4 text-green-600" />
               </div>
-              <span className="text-sm text-gray-600">Best Price Guarantee</span>
+              <span className="text-sm text-neutral-700">Best Price Guarantee</span>
             </div>
             <div className="flex items-center gap-3">
               <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
                 <CheckCircle2 className="h-4 w-4 text-green-600" />
               </div>
-              <span className="text-sm text-gray-600">Verified Professional</span>
+              <span className="text-sm text-neutral-700">Verified Professional</span>
             </div>
             <div className="flex items-center gap-3">
               <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
                 <CheckCircle2 className="h-4 w-4 text-green-600" />
               </div>
-              <span className="text-sm text-gray-600">24/7 Support</span>
+              <span className="text-sm text-neutral-700">24/7 Support</span>
             </div>
             <div className="flex items-center gap-3">
               <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
                 <CheckCircle2 className="h-4 w-4 text-green-600" />
               </div>
-              <span className="text-sm text-gray-600">Satisfaction Guaranteed</span>
+              <span className="text-sm text-neutral-700">Satisfaction Guaranteed</span>
             </div>
           </div>
         </div>
 
         {/* Contact Info */}
-        <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl border border-purple-100 p-6">
-          <h4 className="font-semibold text-gray-900 mb-4">Vendor Contact</h4>
+        <div className="bg-gradient-to-br from-silver-50 to-silver-100 rounded-2xl border border-silver-200 p-6">
+          <h4 className="font-semibold text-black mb-4">Vendor Contact</h4>
           <div className="space-y-3 text-sm">
-            <div className="flex items-center gap-3 text-gray-600">
-              <Phone className="h-4 w-4 text-purple-500" />
+            <div className="flex items-center gap-3 text-neutral-700">
+              <Phone className="h-4 w-4 text-neutral-700" />
               <span>+91 98765 43210</span>
             </div>
-            <div className="flex items-center gap-3 text-gray-600">
-              <Mail className="h-4 w-4 text-purple-500" />
+            <div className="flex items-center gap-3 text-neutral-700">
+              <Mail className="h-4 w-4 text-neutral-700" />
               <span>contact@vendor.com</span>
             </div>
-            <div className="flex items-center gap-3 text-gray-600">
-              <Clock className="h-4 w-4 text-purple-500" />
+            <div className="flex items-center gap-3 text-neutral-700">
+              <Clock className="h-4 w-4 text-neutral-700" />
               <span>10 AM - 8 PM</span>
             </div>
-            <div className="flex items-center gap-3 text-gray-600">
-              <MapPin className="h-4 w-4 text-purple-500" />
+            <div className="flex items-center gap-3 text-neutral-700">
+              <MapPin className="h-4 w-4 text-neutral-700" />
               <span>{vendor.area}, {vendor.city}</span>
             </div>
           </div>

@@ -14,9 +14,10 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { Role } from '../common/enums/role.enum';
 import { VenuesService } from './venues.service';
 import { CreateVenueDto } from './dto/create-venue.dto';
-import{ApiBearerAuth,ApiTags} from '@nestjs/swagger';
+import {ApiBearerAuth,ApiTags} from '@nestjs/swagger';
+import { Public } from '../common/decorators/public.decorator';
 @ApiTags('Venues')
-@ApiBearerAuth() 
+@ApiBearerAuth()
 @Controller('venues')
 export class VenuesController {
   constructor(private readonly venuesService: VenuesService) {}
@@ -30,9 +31,25 @@ export class VenuesController {
   }
 
   // 👤 PUBLIC → view approved venues
+  @Public()
   @Get()
   getApprovedVenues() {
     return this.venuesService.getApprovedVenues();
+  }
+
+  // 👤 PUBLIC → view single venue by ID
+  @Public()
+  @Get(':id')
+  getVenueById(@Param('id') id: string) {
+    return this.venuesService.findById(+id);
+  }
+
+  // 👤 PUBLIC → search venues
+  @Public()
+  @Get('search')
+  searchVenues(@Req() req: any) {
+    const query = req.query.q as string;
+    return this.venuesService.searchVenues(query || '');
   }
 
   // 👑 ADMIN → approve venue

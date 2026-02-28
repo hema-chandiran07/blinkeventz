@@ -8,123 +8,162 @@ import { Badge } from "@/components/ui/badge";
 import Image from "next/image";
 import { useCart } from "@/context/cart-context";
 import { useState } from "react";
-import { getVendorImage, type Vendor } from "@/lib/vendors";
 import { toast } from "sonner";
+import type { Vendor, VendorService } from "@/types";
+import { motion } from "framer-motion";
 
 interface VendorCardProps {
   vendor: Vendor;
+  services?: VendorService[];
 }
 
-export function VendorCard({ vendor }: VendorCardProps) {
+export function VendorCard({ vendor, services }: VendorCardProps) {
   const { addItem, removeItem, isInCart } = useCart();
   const [isAdding, setIsAdding] = useState(false);
   const added = isInCart(`vendor-${vendor.id}`);
 
-  const displayName = vendor.name || vendor.businessName || "Vendor";
-  const displayImage = getVendorImage(vendor);
-  const displayRating = vendor.rating || 4.5;
-  const displayServiceType = vendor.services?.[0]?.serviceType || vendor.serviceType || "Service";
-  const displayCity = vendor.city || "City";
-  const displayArea = vendor.area || "";
-  const displayPrice = vendor.basePrice || vendor.services?.[0]?.baseRate || 10000;
+  const vendorServices = services || vendor.services || [];
+  const displayName = vendor.businessName;
+  const displayServiceType = vendorServices[0]?.serviceType || "Service";
+  const displayCity = vendor.city;
+  const displayArea = vendor.area;
+  const displayPrice = vendorServices[0]?.baseRate || 10000;
   const displayDescription = vendor.description || "";
+  const displayRating = 4.5;
+
+  // Get image based on service type (Prisma ServiceType enum)
+  const getImageUrl = () => {
+    const type = displayServiceType.toUpperCase();
+    const imageMap: Record<string, string> = {
+      "CATERING": "https://images.unsplash.com/photo-1555244162-803834f70033?w=800&q=80",
+      "PHOTOGRAPHY": "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800&q=80",
+      "DECOR": "https://images.unsplash.com/photo-1519225421980-715cb0202128?w=800&q=80",
+      "DJ": "https://images.unsplash.com/photo-1516280440614-6697288d5d38?w=800&q=80",
+      "MAKEUP": "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=800&q=80",
+      "BAKERY": "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=800&q=80",
+    };
+    return imageMap[type] || "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=800&q=80";
+  };
+
+  const displayImage = getImageUrl();
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (added) {
       removeItem(`vendor-${vendor.id}`);
-      toast.info(`${displayName} removed from cart`, {
-        description: "Item has been removed from your cart",
-      });
+      toast.info(`${displayName} removed from cart`);
     } else {
       setIsAdding(true);
       addItem({
         id: `vendor-${vendor.id}`,
-        type: "vendor",
+        itemType: 'VENDOR_SERVICE',
         name: displayName,
-        description: displayDescription,
-        price: displayPrice,
-        image: displayImage,
-        metadata: {
-          city: displayCity,
-          area: displayArea,
-          serviceType: displayServiceType,
-          vendorId: vendor.id,
-        },
-      });
-      setTimeout(() => {
-        setIsAdding(false);
-        toast.success(`${displayName} added to cart!`, {
-          description: `₹${displayPrice.toLocaleString("en-IN")} starting from`,
-        });
-      }, 500);
+        unitPrice: displayPrice,
+        totalPrice: displayPrice,
+        vendorServiceId: vendor.id,
+        cartId: 0,
+        venueId: null,
+        addonId: null,
+        date: null,
+        timeSlot: null,
+        quantity: 1,
+        meta: { serviceType: displayServiceType },
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      } as any);
+      toast.success(`${displayName} added to cart`);
+      setIsAdding(false);
     }
   };
 
   return (
-    <Card className="overflow-hidden hover:shadow-2xl transition-all duration-300 group h-full flex flex-col border-gray-200 hover:border-purple-300 transform hover:-translate-y-1 cursor-pointer">
-      <Link href={`/vendors/${vendor.id}`} className="block">
-        <div className="relative h-48 w-full overflow-hidden">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      whileHover={{ y: -4 }}
+      transition={{ duration: 0.3 }}
+    >
+      <Card className="group overflow-hidden border-neutral-200 bg-white hover:shadow-2xl hover:shadow-black/10 hover:border-neutral-300 transition-all duration-300">
+        <div className="relative h-48 overflow-hidden">
           <Image
             src={displayImage}
             alt={displayName}
             fill
-            className="object-cover transition-transform duration-500 group-hover:scale-110"
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            className="object-cover group-hover:scale-110 transition-transform duration-500"
           />
-          <div className="absolute top-3 right-3 bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-full text-xs font-semibold text-purple-700 flex items-center shadow-lg">
+          {/* Gradient overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60" />
+
+          {/* Rating badge */}
+          <div className="absolute top-3 right-3 bg-gradient-to-r from-black to-silver-800 px-2.5 py-1.5 rounded-full text-xs font-semibold text-white flex items-center shadow-lg shadow-black/30 border border-silver-700">
             <Star className="h-3.5 w-3.5 mr-1 fill-yellow-400 text-yellow-400" />
             {displayRating}
           </div>
+
+          {/* Service type badge */}
           <div className="absolute top-3 left-3">
-            <Badge className="bg-white/95 text-purple-700 hover:bg-white shadow-md">{displayServiceType}</Badge>
+            <Badge variant="default" className="bg-black/80 backdrop-blur-sm border-silver-700 text-white">
+              {displayServiceType}
+            </Badge>
           </div>
         </div>
-      </Link>
-      <CardContent className="p-5 flex-1">
-        <Link href={`/vendors/${vendor.id}`} className="block group">
-          <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-purple-600 transition-colors duration-300">{displayName}</h3>
-        </Link>
-        <div className="flex items-center text-gray-500 text-sm mb-4">
-          <MapPin className="h-4 w-4 mr-1 text-pink-500" />
-          {displayArea ? `${displayArea}, ${displayCity}` : displayCity}
-        </div>
-        <p className="text-gray-600 text-sm line-clamp-2">{displayDescription}</p>
-      </CardContent>
-      <CardFooter className="p-5 pt-0 flex items-center justify-between border-t border-gray-100 bg-gray-50/50 mt-auto gap-3">
-        <div>
-          <span className="text-sm font-medium text-gray-500">Starting from</span>
-          <div className="text-lg font-bold text-purple-600">₹{displayPrice.toLocaleString("en-IN")}</div>
-        </div>
-        <div className="flex gap-2" onClick={(e) => e.preventDefault()}>
+
+        <CardContent className="p-4">
+          <h3 className="text-lg font-bold text-black mb-2 group-hover:text-neutral-700 transition-colors line-clamp-1">
+            {displayName}
+          </h3>
+
+          <div className="flex items-center gap-1 text-neutral-600 text-sm mb-3">
+            <MapPin className="h-4 w-4 text-neutral-500" />
+            <span className="line-clamp-1">{displayArea}, {displayCity}</span>
+          </div>
+
+          <p className="text-neutral-600 text-sm line-clamp-2 mb-3 h-10">
+            {displayDescription || `Professional ${displayServiceType.toLowerCase()} services for your special events`}
+          </p>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-xl font-bold text-black">₹{displayPrice.toLocaleString()}</span>
+              <span className="text-sm text-neutral-500"> / from</span>
+            </div>
+          </div>
+        </CardContent>
+
+        <CardFooter className="p-4 pt-0 flex gap-2">
           <Button
-            size="sm"
             variant="outline"
-            className="bg-white hover:bg-purple-50 border-gray-200 hover:border-purple-300"
-            onClick={() => window.location.href = `/vendors/${vendor.id}`}
-          >
-            <Eye className="h-4 w-4 mr-1" /> Details
-          </Button>
-          <Button
             size="sm"
-            variant={added ? "destructive" : "secondary"}
-            className={added ? "bg-red-500 hover:bg-red-600" : "bg-gradient-to-r from-pink-500 to-purple-600 hover:shadow-lg"}
+            className="flex-1 border-neutral-300 text-black hover:bg-neutral-50 hover:text-black"
+            asChild
+          >
+            <Link href={`/vendors/${vendor.id}`}>
+              <Eye className="h-4 w-4 mr-1" />
+              View
+            </Link>
+          </Button>
+
+          <Button
+            variant={added ? "destructive" : "silver"}
+            size="sm"
+            className="flex-1 transition-all duration-200"
             onClick={handleAddToCart}
             disabled={isAdding}
           >
             {added ? (
               <>
-                <X className="h-4 w-4" />
+                <X className="h-4 w-4 mr-1" />
+                Remove
               </>
             ) : (
               <>
-                <ShoppingCart className="h-4 w-4" />
+                <ShoppingCart className="h-4 w-4 mr-1" />
+                Add
               </>
             )}
           </Button>
-        </div>
-      </CardFooter>
-    </Card>
+        </CardFooter>
+      </Card>
+    </motion.div>
   );
 }

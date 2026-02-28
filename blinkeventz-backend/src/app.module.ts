@@ -24,6 +24,7 @@ import { AIPlannerModule } from './ai-planner/ai-planner.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { KycModule } from './kyc/kyc.module';
 import { AuditModule } from './audit';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -53,37 +54,68 @@ import { AuditModule } from './audit';
     CacheModule.registerAsync({
       isGlobal: true,
       useFactory: () => {
-        const redis = new Redis({
-          host: process.env.REDIS_HOST || '127.0.0.1',
-          port: Number(process.env.REDIS_PORT) || 6379,
-        });
+        // Use memory cache if Redis is unavailable
+        const useRedis = process.env.USE_REDIS !== 'false';
+        
+        if (useRedis) {
+          const redis = new Redis({
+            host: process.env.REDIS_HOST || '127.0.0.1',
+            port: Number(process.env.REDIS_PORT) || 6379,
+            lazyConnect: true,
+            retryStrategy: (times) => Math.min(times * 50, 2000),
+          });
+          
+          redis.on('error', (err) => {
+            console.log('⚠️  Redis connection error - falling back to memory cache');
+          });
 
+          return {
+            store: {
+              get: async (key: string) => {
+                const value = await redis.get(key);
+                return value ? JSON.parse(value) : null;
+              },
+              set: async (key: string, value: any, ttl = 300) => {
+                await redis.set(key, JSON.stringify(value), 'EX', ttl);
+              },
+              del: async (key: string) => {
+                await redis.del(key);
+              },
+            },
+          };
+        }
+        
+        // Fallback to memory-only cache
+        const memoryStore = new Map<string, { value: any; expiry: number }>();
         return {
           store: {
             get: async (key: string) => {
-              const value = await redis.get(key);
-              return value ? JSON.parse(value) : null;
+              const item = memoryStore.get(key);
+              if (!item || item.expiry < Date.now()) {
+                memoryStore.delete(key);
+                return null;
+              }
+              return item.value;
             },
             set: async (key: string, value: any, ttl = 300) => {
-              await redis.set(
-                key,
-                JSON.stringify(value),
-                'EX',
-                ttl,
-              );
+              memoryStore.set(key, { value, expiry: Date.now() + ttl * 1000 });
             },
             del: async (key: string) => {
-              await redis.del(key);
+              memoryStore.delete(key);
             },
           },
         };
       },
     }),
-      // 🐂 BULLMQ (GLOBAL REDIS CONNECTION)
+      // 🐂 BULLMQ (GLOBAL REDIS CONNECTION) - Optional
     BullModule.forRoot({
       redis: {
-        host: process.env.REDIS_HOST || 'redis',
+        host: process.env.REDIS_HOST || '127.0.0.1',
         port: Number(process.env.REDIS_PORT) || 6379,
+      },
+      // Disable Bull if Redis is not available
+      defaultJobOptions: {
+        attempts: 1,
       },
     }),
     
@@ -110,7 +142,8 @@ import { AuditModule } from './audit';
      EventsModule,
      NotificationsModule,
      KycModule,
-     AuditModule
+     AuditModule,
+     HealthModule
   ],
    // 🔐 GLOBAL SECURITY LAYER
   providers: [

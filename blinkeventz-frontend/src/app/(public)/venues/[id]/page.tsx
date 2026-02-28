@@ -1,185 +1,404 @@
+"use client";
+
+import { useEffect, useState, Suspense } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Users, Star, Check, ArrowLeft, Calendar, Award, Shield, Heart, Zap, Clock, TrendingUp } from "lucide-react";
-import Image from "next/image";
-import Link from "next/link";
-import { notFound } from "next/navigation";
-import { MOCK_VENUES } from "@/services/mock-data";
-import { VenueBookingSidebar } from "./venue-booking-sidebar";
+import {
+  MapPin, Users, Star, Clock, CheckCircle2,
+  Loader2, AlertCircle
+} from "lucide-react";
+import { toast } from "sonner";
+import api from "@/lib/api";
+import { useAuth } from "@/context/auth-context";
 import { ReviewsSection } from "./reviews-section";
 
-interface VenueDetailPageProps {
-  params: Promise<{
-    id: string;
-  }>;
+interface Venue {
+  id: number;
+  name: string;
+  type: string;
+  description: string;
+  address: string;
+  city: string;
+  area: string;
+  pincode: string;
+  capacityMin: number;
+  capacityMax: number;
+  basePriceMorning: number;
+  basePriceEvening: number;
+  basePriceFullDay: number;
+  amenities: string;
+  policies: string;
+  rating: number;
+  status: "pending" | "approved" | "rejected";
+  images?: string[];
 }
 
-const getVenueStats = () => {
-  return [
-    { label: "Capacity", value: "2000+", icon: Users },
-    { label: "Events Hosted", value: "300+", icon: TrendingUp },
-    { label: "Happy Clients", value: "280+", icon: Heart },
-    { label: "Response Time", value: "~1hr", icon: Zap },
-  ];
-};
+export default function VenueDetailPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="h-12 w-12 animate-spin" />
+      </div>
+    }>
+      <VenueDetailContent />
+    </Suspense>
+  );
+}
 
-export default async function VenueDetailPage({ params }: VenueDetailPageProps) {
-  const { id } = await params;
-  const venue = MOCK_VENUES.find((v) => v.id === id);
+function VenueDetailContent() {
+  const params = useParams();
+  const router = useRouter();
+  const { isAuthenticated } = useAuth();
+  const [venue, setVenue] = useState<Venue | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedPackage, setSelectedPackage] = useState<"morning" | "evening" | "fullDay">("evening");
 
-  if (!venue) {
-    notFound();
+  useEffect(() => {
+    const fetchVenue = async () => {
+      try {
+        setLoading(true);
+        // Fetch venue by ID from backend
+        const response = await api.get(`/venues/${params.id}`);
+        
+        if (!response.data) {
+          toast.error("Venue not found");
+          router.push("/venues");
+          return;
+        }
+
+        setVenue(response.data);
+      } catch (error: any) {
+        console.error("Error fetching venue:", error);
+        if (error?.response?.status === 404) {
+          toast.error("Venue not found");
+        } else {
+          toast.error("Failed to load venue details");
+        }
+        router.push("/venues");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (params.id) {
+      fetchVenue();
+    }
+  }, [params.id, router]);
+
+  const handleBookNow = () => {
+    if (!isAuthenticated) {
+      toast.error("Please login to book this venue");
+      router.push("/login");
+      return;
+    }
+
+    const bookingData = {
+      type: "venue" as const,
+      id: venue?.id.toString() || "",
+      name: venue?.name || "",
+      price: selectedPackage === "morning" ? venue?.basePriceMorning || 0 
+             : selectedPackage === "evening" ? venue?.basePriceEvening || 0 
+             : venue?.basePriceFullDay || 0,
+      package: selectedPackage,
+    };
+
+    localStorage.setItem("blinkeventz_booking", JSON.stringify(bookingData));
+    toast.success("Venue added to booking! Proceed to checkout.");
+    router.push("/checkout");
+  };
+
+  const handleAddToCart = () => {
+    if (!isAuthenticated) {
+      toast.error("Please login to add to cart");
+      router.push("/login");
+      return;
+    }
+
+    // Dispatch custom event for cart context to pick up
+    const cartItem = {
+      id: `venue-${venue?.id}`,
+      type: "venue" as const,
+      name: venue?.name || "",
+      description: venue?.description || "",
+      price: selectedPackage === "morning" ? venue?.basePriceMorning || 0 
+             : selectedPackage === "evening" ? venue?.basePriceEvening || 0 
+             : venue?.basePriceFullDay || 0,
+      image: venue?.images?.[0] || "https://images.unsplash.com/photo-1519167758481-83f550bb49b3",
+      metadata: {
+        venueId: venue?.id,
+        package: selectedPackage,
+        city: venue?.city,
+        area: venue?.area,
+      },
+      quantity: 1,
+    };
+
+    // Add to localStorage cart
+    const existingCart = JSON.parse(localStorage.getItem("blinkeventz-cart") || "[]");
+    const existingIndex = existingCart.findIndex((item: any) => item.id === cartItem.id);
+    
+    if (existingIndex >= 0) {
+      toast.info("This venue is already in your cart");
+    } else {
+      existingCart.push(cartItem);
+      localStorage.setItem("blinkeventz-cart", JSON.stringify(existingCart));
+      toast.success("Venue added to cart!");
+      
+      // Trigger cart update
+      window.dispatchEvent(new Event("storage"));
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-12 text-center">
+        <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-neutral-800" />
+        <h2 className="text-2xl font-semibold text-black mb-2">Loading Venue Details</h2>
+        <p className="text-neutral-600">Fetching venue information...</p>
+      </div>
+    );
   }
 
-  const priceUnit = venue.priceUnit === 'per_day' ? 'day' : 'hour';
-  const stats = getVenueStats();
+  if (!venue) {
+    return (
+      <div className="container mx-auto px-4 py-12 text-center">
+        <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
+        <h2 className="text-2xl font-semibold text-black mb-2">Venue Not Found</h2>
+        <p className="text-neutral-600 mb-6">The venue you're looking for doesn't exist or has been removed.</p>
+        <Button variant="premium" onClick={() => router.push("/venues")}>
+          Browse Venues
+        </Button>
+      </div>
+    );
+  }
+
+  const getPrice = () => {
+    switch (selectedPackage) {
+      case "morning": return venue.basePriceMorning;
+      case "evening": return venue.basePriceEvening;
+      case "fullDay": return venue.basePriceFullDay;
+    }
+  };
+
+  const amenitiesList = venue.amenities.split(",").map(a => a.trim()).filter(Boolean);
+  const policiesList = venue.policies.split(",").map(p => p.trim()).filter(Boolean);
 
   return (
-    <div className="container mx-auto px-4 py-8 sm:px-6 lg:px-8 bg-gray-50 min-h-screen">
-      <Link href="/venues" className="inline-flex items-center text-sm text-gray-500 hover:text-purple-600 mb-6 transition-colors">
-        <ArrowLeft className="mr-1 h-4 w-4" />
-        Back to Venues
-      </Link>
+    <div className="container mx-auto px-4 py-8 sm:px-6 lg:px-8">
+      {/* Back Button */}
+      <Button variant="ghost" onClick={() => router.back()} className="mb-4 gap-2">
+        ← Back to Venues
+      </Button>
 
-      <div className="grid gap-8 lg:grid-cols-3">
-        {/* MAIN CONTENT */}
+      <div className="grid lg:grid-cols-3 gap-8">
+        {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Image Gallery */}
-          <div className="overflow-hidden rounded-2xl bg-gray-100 relative h-[400px]">
-            <Image
-              src={venue.images[0]}
-              alt={venue.name}
-              fill
-              className="object-cover"
-              priority
-              sizes="(max-width: 1024px) 100vw, 66vw"
-            />
-            <div className="absolute top-4 right-4 bg-white/95 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-semibold text-purple-700 flex items-center shadow-lg">
-              <Star className="h-4 w-4 mr-1 fill-yellow-400 text-yellow-400" />
-              {venue.rating}
-            </div>
+          {/* Images */}
+          <div className="aspect-video rounded-2xl overflow-hidden bg-silver-200">
+            {venue.images && venue.images.length > 0 ? (
+              <img
+                src={venue.images[0]}
+                alt={venue.name}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <MapPin className="h-20 w-20 text-neutral-400" />
+              </div>
+            )}
           </div>
 
-          {/* Venue Info Header */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
+          {/* Title & Basic Info */}
+          <div>
+            <div className="flex items-start justify-between mb-4">
               <div>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">{venue.name}</h1>
-                <div className="flex flex-wrap items-center gap-3">
-                  <Badge className="bg-purple-50 text-purple-700 border border-purple-200">
-                    Premium Venue
-                  </Badge>
-                  <div className="flex items-center text-gray-500 text-sm">
-                    <MapPin className="h-4 w-4 mr-1 text-pink-500" />
-                    {venue.area}, {venue.address}, {venue.city}
-                  </div>
+                <h1 className="text-3xl font-bold text-black mb-2">{venue.name}</h1>
+                <div className="flex items-center gap-4 text-neutral-600">
+                  <span className="flex items-center gap-1">
+                    <MapPin className="h-4 w-4" />
+                    {venue.area}, {venue.city}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Users className="h-4 w-4" />
+                    {venue.capacityMin}-{venue.capacityMax} guests
+                  </span>
                 </div>
               </div>
-              <div className="text-right">
-                <div className="text-3xl font-bold text-purple-600">₹{venue.price.toLocaleString("en-IN")}</div>
-                <div className="text-sm text-gray-500">per {priceUnit}</div>
-              </div>
+              <Badge className={
+                venue.status === "approved" ? "bg-green-100 text-green-800" :
+                venue.status === "pending" ? "bg-yellow-100 text-yellow-800" :
+                "bg-red-100 text-red-800"
+              }>
+                {venue.status}
+              </Badge>
             </div>
 
-            {/* Quick Stats */}
-            <div className="grid grid-cols-4 gap-4 pt-4 border-t">
-              {stats.map((stat) => (
-                <div key={stat.label} className="flex flex-col items-center text-center">
-                  <stat.icon className="h-5 w-5 text-purple-500 mb-1" />
-                  <div className="text-lg font-bold text-gray-900">{stat.value}</div>
-                  <div className="text-xs text-gray-500">{stat.label}</div>
-                </div>
-              ))}
+            <div className="flex items-center gap-4 mb-6">
+              <div className="flex items-center gap-1">
+                <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
+                <span className="font-semibold">{venue.rating || "New"}</span>
+              </div>
+              <span className="text-neutral-400">|</span>
+              <span className="text-neutral-600">{venue.type}</span>
             </div>
           </div>
 
-          {/* About Venue */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-            <h2 className="text-xl font-bold mb-4 text-gray-900">About the Venue</h2>
-            <p className="text-gray-700 leading-relaxed">
-              {venue.description || "A premium venue perfect for weddings, corporate events, and special celebrations. Our dedicated team ensures every detail is taken care of to make your event memorable."}
-            </p>
-            
-            {/* Why Choose This Venue */}
-            <div className="mt-6 grid grid-cols-2 gap-4">
-              <div className="flex items-start gap-3 p-4 bg-purple-50 rounded-xl">
-                <Shield className="h-6 w-6 text-purple-600 flex-shrink-0" />
-                <div>
-                  <h4 className="font-semibold text-gray-900">Prime Location</h4>
-                  <p className="text-sm text-gray-600">Easily accessible location</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3 p-4 bg-green-50 rounded-xl">
-                <Award className="h-6 w-6 text-green-600 flex-shrink-0" />
-                <div>
-                  <h4 className="font-semibold text-gray-900">Premium Amenities</h4>
-                  <p className="text-sm text-gray-600">World-class facilities</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3 p-4 bg-blue-50 rounded-xl">
-                <Clock className="h-6 w-6 text-blue-600 flex-shrink-0" />
-                <div>
-                  <h4 className="font-semibold text-gray-900">Flexible Timing</h4>
-                  <p className="text-sm text-gray-600">Extended hours available</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3 p-4 bg-pink-50 rounded-xl">
-                <Heart className="h-6 w-6 text-pink-600 flex-shrink-0" />
-                <div>
-                  <h4 className="font-semibold text-gray-900">Expert Staff</h4>
-                  <p className="text-sm text-gray-600">Professional event support</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Capacity & Pricing */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-            <h2 className="text-xl font-bold mb-4 text-gray-900">Capacity & Pricing</h2>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-4 bg-purple-50 rounded-xl border border-purple-100">
-                <div className="flex items-center gap-2 text-purple-700 mb-2">
-                  <Users className="h-5 w-5" />
-                  <span className="font-semibold">Capacity</span>
-                </div>
-                <div className="text-2xl font-bold text-purple-600">{venue.capacity}</div>
-                <div className="text-sm text-purple-500">Maximum guests</div>
-              </div>
-              <div className="p-4 bg-green-50 rounded-xl border border-green-100">
-                <div className="flex items-center gap-2 text-green-700 mb-2">
-                  <Calendar className="h-5 w-5" />
-                  <span className="font-semibold">Availability</span>
-                </div>
-                <div className="text-lg font-bold text-green-600">Available Now</div>
-                <div className="text-sm text-green-500">Book your date</div>
-              </div>
-            </div>
-          </div>
+          {/* Description */}
+          <Card>
+            <CardHeader>
+              <CardTitle>About This Venue</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-neutral-700">{venue.description}</p>
+            </CardContent>
+          </Card>
 
           {/* Amenities */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-            <h2 className="text-xl font-bold mb-4 text-gray-900">Amenities & Features</h2>
-            <div className="grid grid-cols-2 gap-3">
-              {venue.amenities.map((amenity) => (
-                <div key={amenity} className="flex items-center gap-3 p-3 rounded-lg bg-gray-50">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-50 text-green-600">
-                    <Check className="h-4 w-4" />
+          <Card>
+            <CardHeader>
+              <CardTitle>Amenities</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-3">
+                {amenitiesList.map((amenity, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    <span className="text-neutral-700">{amenity}</span>
                   </div>
-                  <span className="text-sm font-medium text-gray-700">{amenity}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
 
-          {/* Reviews & Ratings */}
-          <ReviewsSection 
-            venueId={venue.id}
-            venueName={venue.name}
-            initialRating={venue.rating}
-          />
+          {/* Policies */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Policies</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-2">
+                {policiesList.map((policy, index) => (
+                  <li key={index} className="flex items-start gap-2 text-neutral-700">
+                    <span className="text-neutral-400 mt-1">•</span>
+                    <span>{policy}</span>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* SIDEBAR - Sticky Booking Card */}
-        <VenueBookingSidebar venue={venue} />
+        {/* Booking Sidebar */}
+        <div className="lg:col-span-1">
+          <Card className="sticky top-24">
+            <CardHeader>
+              <CardTitle>Book This Venue</CardTitle>
+              <CardDescription>Select your preferred time slot</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Package Selection */}
+              <div className="space-y-2">
+                <Button
+                  variant={selectedPackage === "morning" ? "premium" : "silver"}
+                  className="w-full justify-between h-16"
+                  onClick={() => setSelectedPackage("morning")}
+                >
+                  <div className="flex items-center gap-3">
+                    <Clock className="h-5 w-5" />
+                    <div className="text-left">
+                      <p className="font-medium">Morning Slot</p>
+                      <p className="text-xs text-neutral-500">6:00 AM - 12:00 PM</p>
+                    </div>
+                  </div>
+                  <span className="font-bold">₹{venue.basePriceMorning.toLocaleString()}</span>
+                </Button>
+
+                <Button
+                  variant={selectedPackage === "evening" ? "premium" : "silver"}
+                  className="w-full justify-between h-16"
+                  onClick={() => setSelectedPackage("evening")}
+                >
+                  <div className="flex items-center gap-3">
+                    <Clock className="h-5 w-5" />
+                    <div className="text-left">
+                      <p className="font-medium">Evening Slot</p>
+                      <p className="text-xs text-neutral-500">4:00 PM - 10:00 PM</p>
+                    </div>
+                  </div>
+                  <span className="font-bold">₹{venue.basePriceEvening.toLocaleString()}</span>
+                </Button>
+
+                <Button
+                  variant={selectedPackage === "fullDay" ? "premium" : "silver"}
+                  className="w-full justify-between h-16"
+                  onClick={() => setSelectedPackage("fullDay")}
+                >
+                  <div className="flex items-center gap-3">
+                    <Clock className="h-5 w-5" />
+                    <div className="text-left">
+                      <p className="font-medium">Full Day</p>
+                      <p className="text-xs text-neutral-500">6:00 AM - 12:00 AM</p>
+                    </div>
+                  </div>
+                  <span className="font-bold">₹{venue.basePriceFullDay.toLocaleString()}</span>
+                </Button>
+              </div>
+
+              {/* Price Summary */}
+              <div className="border-t pt-4">
+                <div className="flex justify-between items-center mb-4">
+                  <span className="text-neutral-600">Selected Package</span>
+                  <span className="font-medium capitalize">{selectedPackage}</span>
+                </div>
+                <div className="flex justify-between items-center mb-4">
+                  <span className="text-neutral-600">Price</span>
+                  <span className="text-2xl font-bold text-black">₹{getPrice().toLocaleString()}</span>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="space-y-2">
+                <Button
+                  variant="premium"
+                  className="w-full h-12 text-lg"
+                  onClick={handleBookNow}
+                >
+                  Book Now
+                </Button>
+                <Button
+                  variant="silver"
+                  className="w-full h-12"
+                  onClick={handleAddToCart}
+                >
+                  Add to Cart
+                </Button>
+              </div>
+
+              {/* Trust Badges */}
+              <div className="flex items-center justify-center gap-4 text-xs text-neutral-500 pt-4 border-t">
+                <div className="flex items-center gap-1">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  <span>Verified Venue</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  <span>Secure Booking</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Reviews Section */}
+      <div className="mt-8">
+        <ReviewsSection 
+          venueId={String(venue.id)} 
+          venueName={venue.name} 
+          initialRating={venue.rating || 0} 
+        />
       </div>
     </div>
   );

@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 export function Skeleton({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn("animate-pulse rounded-md bg-gradient-to-r from-gray-100 via-gray-200 to-gray-100 bg-[length:200%_100%] animate-shimmer", className)}
+      className={cn("animate-pulse rounded-md bg-gradient-to-r from-silver-100 via-silver-200 to-silver-100 bg-[length:200%_100%] animate-shimmer", className)}
       {...props}
     />
   );
@@ -13,7 +13,7 @@ export function Skeleton({ className, ...props }: React.HTMLAttributes<HTMLDivEl
 
 export function CardSkeleton() {
   return (
-    <div className="rounded-2xl border border-purple-100 bg-white p-6 shadow-sm">
+    <div className="rounded-2xl border border-silver-200 bg-white p-6 shadow-sm">
       <div className="flex items-center justify-between mb-4">
         <Skeleton className="h-6 w-32" />
         <Skeleton className="h-6 w-6 rounded-full" />
@@ -29,7 +29,7 @@ export function CardSkeleton() {
 
 export function StatsCardSkeleton() {
   return (
-    <div className="rounded-2xl border border-purple-100 bg-white p-6 shadow-sm">
+    <div className="rounded-2xl border border-silver-200 bg-white p-6 shadow-sm">
       <div className="flex items-center justify-between">
         <div className="space-y-2">
           <Skeleton className="h-4 w-24" />
@@ -44,7 +44,7 @@ export function StatsCardSkeleton() {
 
 export function TableSkeleton({ rows = 5 }: { rows?: number }) {
   return (
-    <div className="rounded-2xl border border-purple-100 bg-white p-6 shadow-sm">
+    <div className="rounded-2xl border border-silver-200 bg-white p-6 shadow-sm">
       <Skeleton className="h-6 w-48 mb-6" />
       <div className="space-y-4">
         {Array.from({ length: rows }).map((_, i) => (
