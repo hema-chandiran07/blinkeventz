@@ -1,18 +1,22 @@
-import { IsEnum, IsNotEmpty, IsString, IsUrl } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsString, MinLength } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { $Enums } from '@prisma/client';
+import { KycDocType } from '@prisma/client';
 
 export class SubmitKycDto {
-  @ApiProperty({ enum: $Enums.KycDocType })
-  @IsEnum($Enums.KycDocType)
-  docType: $Enums.KycDocType;
+  @ApiProperty({
+    enum: KycDocType,
+    description: 'Type of KYC document',
+    example: 'AADHAAR',
+  })
+  @IsEnum(KycDocType)
+  docType: KycDocType;
 
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Document number (e.g., Aadhaar, PAN)',
+    example: '1234-5678-9012',
+  })
   @IsString()
   @IsNotEmpty()
+  @MinLength(4)
   docNumber: string;
-
-  @ApiProperty()
-  @IsUrl()
-  docFileUrl: string;
 }
