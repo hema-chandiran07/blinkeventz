@@ -1,12 +1,37 @@
-import { Controller, Patch, Param, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import {
+  Controller,
+  Patch,
+  Get,
+  Param,
+  Body,
+  Query,
+  Req,
+  UseGuards,
+  ParseIntPipe,
+} from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiTags,
+  ApiOperation,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { KycService } from './kyc.service';
+import { UpdateKycStatusDto } from './dto/update-kyc-status.dto';
 import { KycStatus } from '@prisma/client';
+import { Request } from 'express';
 
-@ApiTags('Admin KYC') // 🔥 REQUIRED
+interface AdminRequest extends Request {
+  user: { userId: number; email: string; role: string };
+}
+
+// ─────────────────────────────────────────────────────────────
+// Admin KYC Controller — Approval / Rejection endpoints
+// ─────────────────────────────────────────────────────────────
+
+@ApiTags('Admin KYC')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('ADMIN')
@@ -14,20 +39,57 @@ import { KycStatus } from '@prisma/client';
 export class AdminKycController {
   constructor(private readonly kycService: KycService) {}
 
+  @Get()
+  @ApiOperation({ summary: 'List all KYC submissions (admin)' })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: KycStatus,
+  })
+  async listAll(@Query('status') status?: KycStatus) {
+    return this.kycService.getAllKyc(status);
+  }
+
   @Patch(':id/approve')
-  approve(@Param('id') id: string) {
+  @ApiOperation({ summary: 'Approve a KYC submission' })
+  async approve(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: AdminRequest,
+  ) {
     return this.kycService.updateKycStatus(
-      +id,
+      id,
       KycStatus.VERIFIED,
+      req.user.userId,
     );
   }
 
   @Patch(':id/reject')
-  reject(@Param('id') id: string) {
+  @ApiOperation({ summary: 'Reject a KYC submission' })
+  async reject(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateKycStatusDto,
+    @Req() req: AdminRequest,
+  ) {
     return this.kycService.updateKycStatus(
-      +id,
+      id,
       KycStatus.REJECTED,
+      req.user.userId,
+      dto.reason,
     );
   }
-  
+
+  @Patch(':id/status')
+  @ApiOperation({ summary: 'Update KYC status (generic)' })
+  async updateStatus(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateKycStatusDto,
+    @Req() req: AdminRequest,
+  ) {
+    return this.kycService.updateKycStatus(
+      id,
+      dto.status,
+      req.user.userId,
+      dto.reason,
+    );
+  }
 }

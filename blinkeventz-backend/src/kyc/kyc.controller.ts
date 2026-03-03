@@ -6,14 +6,29 @@ import {
   UseInterceptors,
   UploadedFile,
   Body,
-  Req
+  Req,
+  BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiBearerAuth, ApiConsumes, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiConsumes,
+  ApiTags,
+  ApiBody,
+  ApiOperation,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { KycService } from './kyc.service';
 import { SubmitKycDto } from './dto/submit-kyc.dto';
-import { ApiBody } from '@nestjs/swagger';
+import { Request } from 'express';
+
+interface AuthenticatedRequest extends Request {
+  user: { userId: number; email: string; role?: string };
+}
+
+// ─────────────────────────────────────────────────────────────
+// KYC Controller — User-facing endpoints
+// ─────────────────────────────────────────────────────────────
 
 @ApiTags('KYC')
 @ApiBearerAuth()
@@ -22,39 +37,39 @@ import { ApiBody } from '@nestjs/swagger';
 export class KycController {
   constructor(private readonly kycService: KycService) {}
 
-  // Upload KYC document
-  
-@Post('upload')
-@ApiConsumes('multipart/form-data')
-@ApiBody({
-  schema: {
-    type: 'object',
-    properties: {
-      docType: {
-        type: 'string',
-        enum: ['AADHAR', 'PAN', 'PASSPORT'],
+  @Post('upload')
+  @ApiOperation({ summary: 'Submit KYC document with file upload' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        docType: {
+          type: 'string',
+          enum: ['AADHAAR', 'PAN', 'PASSPORT', 'DRIVING_LICENSE'],
+        },
+        docNumber: { type: 'string' },
+        file: { type: 'string', format: 'binary' },
       },
-      docNumber: {
-        type: 'string',
-      },
-      file: {
-        type: 'string',
-        format: 'binary',
-      },
+      required: ['docType', 'docNumber', 'file'],
     },
-    required: ['docType', 'docNumber', 'file'],
-  },
-})
-@UseInterceptors(FileInterceptor('file'))
-async uploadKyc(
-  @UploadedFile() file: Express.Multer.File,
-  @Body() dto: SubmitKycDto,
-  @Req() req,
-) {
-  return this.kycService.submitKycWithFile(req.user.id, dto, file);
-}
+  })
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadKyc(
+    @UploadedFile() file: Express.Multer.File,
+    @Body() dto: SubmitKycDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    if (!file) {
+      throw new BadRequestException('KYC document file is required');
+    }
+
+    return this.kycService.submitKycWithFile(req.user.userId, dto, file);
+  }
+
   @Get('me')
-  getMyKyc() {
-    return this.kycService.getMyKyc(1);
+  @ApiOperation({ summary: 'Get my KYC documents' })
+  async getMyKyc(@Req() req: AuthenticatedRequest) {
+    return this.kycService.getMyKyc(req.user.userId);
   }
 }

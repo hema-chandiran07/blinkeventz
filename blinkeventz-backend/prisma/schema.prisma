@@ -241,20 +241,23 @@ model ExpressRequest {
 }
 
 model KycDocument {
-  id         Int        @id @default(autoincrement())
-  userId     Int
-  docType    KycDocType
-  docNumber  String
-  docFileUrl String
-  status     KycStatus  @default(PENDING)
-  verifiedAt DateTime?
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
-  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id              Int        @id @default(autoincrement())
+  userId          Int
+  docType         KycDocType
+  docNumber       String     // AES-256 encrypted
+  docNumberHash   String     // SHA-256 hash for duplicate detection
+  docFileUrl      String     // S3 URL
+  status          KycStatus  @default(PENDING)
+  rejectionReason String?
+  verifiedAt      DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, status], map: "one_active_kyc_per_user")
+  @@unique([docType, docNumberHash], map: "unique_doc_per_type")
   @@index([userId])
   @@index([status])
+  @@index([docNumberHash])
 }
 
 model BankAccount {
@@ -262,6 +265,7 @@ model BankAccount {
   userId        Int
   accountHolder String
   accountNumber String
+  accountNumberHash String   @unique
   ifsc          String
   bankName      String
   branchName    String?
