@@ -55,10 +55,28 @@ export class VenuesController {
   // 👑 ADMIN → approve venue
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
-@Patch(':id/approve')
-approveVenue(@Param('id') id: string) {
-  return this.venuesService.approveVenue(Number(id));
-}
+  @Patch(':id/approve')
+  async approveVenue(@Param('id') id: string) {
+    try {
+      return this.venuesService.approveVenue(Number(id));
+    } catch (error: any) {
+      console.error('Error approving venue:', error);
+      throw error;
+    }
+  }
+
+  // 👑 ADMIN → reject venue
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @Patch(':id/reject')
+  async rejectVenue(@Param('id') id: string) {
+    try {
+      return this.venuesService.rejectVenue(Number(id));
+    } catch (error: any) {
+      console.error('Error rejecting venue:', error);
+      throw error;
+    }
+  }
 
   // 🟢 FIX: Change Role.OWNER to Role.VENUE_OWNER
 @UseGuards(JwtAuthGuard, RolesGuard)

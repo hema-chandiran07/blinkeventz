@@ -109,16 +109,16 @@ export function VendorCard({ vendor, services }: VendorCardProps) {
         </div>
 
         <CardContent className="p-4">
-          <h3 className="text-lg font-bold text-black mb-2 group-hover:text-neutral-700 transition-colors line-clamp-1">
+          <h3 className="text-lg font-bold text-black mb-2 group-hover:text-black transition-colors line-clamp-1">
             {displayName}
           </h3>
 
-          <div className="flex items-center gap-1 text-neutral-600 text-sm mb-3">
-            <MapPin className="h-4 w-4 text-neutral-500" />
+          <div className="flex items-center gap-1 text-black text-sm mb-3">
+            <MapPin className="h-4 w-4 text-black" />
             <span className="line-clamp-1">{displayArea}, {displayCity}</span>
           </div>
 
-          <p className="text-neutral-600 text-sm line-clamp-2 mb-3 h-10">
+          <p className="text-black text-sm line-clamp-2 mb-3 h-10">
             {displayDescription || `Professional ${displayServiceType.toLowerCase()} services for your special events`}
           </p>
 

@@ -1,5 +1,5 @@
 /**
- * BlinkEventz - Production Types (Prisma-Based)
+ * NearZro - Production Types (Prisma-Based)
  * 
  * These types are generated from the Prisma schema to ensure
  * end-to-end type safety from database to frontend.

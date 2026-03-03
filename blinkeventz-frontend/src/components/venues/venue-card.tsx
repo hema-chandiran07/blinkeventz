@@ -96,16 +96,16 @@ export function VenueCard({ venue }: VenueCardProps) {
         </div>
 
         <CardContent className="p-4">
-          <h3 className="text-lg font-bold text-black mb-2 group-hover:text-neutral-700 transition-colors line-clamp-1">
+          <h3 className="text-lg font-bold text-black mb-2 group-hover:text-black transition-colors line-clamp-1">
             {displayName}
           </h3>
 
-          <div className="flex items-center gap-1 text-neutral-600 text-sm mb-3">
-            <MapPin className="h-4 w-4 text-neutral-500" />
+          <div className="flex items-center gap-1 text-black text-sm mb-3">
+            <MapPin className="h-4 w-4 text-black" />
             <span className="line-clamp-1">{displayArea}, {displayCity}</span>
           </div>
 
-          <p className="text-neutral-600 text-sm line-clamp-2 mb-3 h-10">
+          <p className="text-black text-sm line-clamp-2 mb-3 h-10">
             {displayDescription || `Stunning ${displayType.toLowerCase()} space perfect for your special events`}
           </p>
 
@@ -114,7 +114,7 @@ export function VenueCard({ venue }: VenueCardProps) {
               <span className="text-xl font-bold text-black">₹{displayPrice.toLocaleString()}</span>
               <span className="text-sm text-neutral-500"> / from</span>
             </div>
-            <div className="text-sm text-neutral-600">
+            <div className="text-sm text-black">
               Up to {displayCapacity} guests
             </div>
           </div>

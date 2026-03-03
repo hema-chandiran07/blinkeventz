@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
 import { useAuth } from "@/context/auth-context";
-import { Eye, EyeOff, Mail, Lock, Loader2, Shield, AlertCircle } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, Loader2, Shield, AlertCircle, CheckCircle } from "lucide-react";
 
 import { toast } from "sonner";
 
@@ -27,14 +27,29 @@ export default function AdminLoginPage() {
       return;
     }
 
+    // Basic validation for admin email format
+    if (!email.includes('@')) {
+      toast.error("Please enter a valid email address");
+      setIsLoading(false);
+      return;
+    }
+
     try {
       await login(email, password);
-      toast.success("Login successful!");
+      toast.success("Login successful! Redirecting...");
       // Login will auto-redirect based on role
       // If not admin, user will be redirected away in useEffect
     } catch (error: unknown) {
       const errorMessage = (error as Error)?.message || "Login failed";
-      toast.error(errorMessage);
+      
+      // Show specific help based on error message
+      if (errorMessage.includes("Google or Facebook")) {
+        toast.error("This account uses social login. Please use the regular login page.");
+      } else if (errorMessage.includes("connect to server")) {
+        toast.error("Cannot connect to server. Please ensure the backend is running.");
+      } else {
+        toast.error(errorMessage);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -65,12 +80,13 @@ export default function AdminLoginPage() {
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
                   <Input
                     id="email"
-                    placeholder="admin@blinkeventz.com"
+                    placeholder="admin@NearZro.com"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="pl-10 h-12 border-neutral-200 focus:border-red-600 focus:ring-red-600"
                     required
+                    disabled={isLoading}
                   />
                 </div>
               </div>
@@ -89,11 +105,13 @@ export default function AdminLoginPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter admin password"
                     className="pl-10 pr-10 h-12 border-neutral-200 focus:border-red-600 focus:ring-red-600"
+                    disabled={isLoading}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 transition-colors"
+                    disabled={isLoading}
                   >
                     {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
@@ -105,13 +123,13 @@ export default function AdminLoginPage() {
                   <Shield className="h-5 w-5 text-red-600 mt-0.5" />
                   <div className="text-sm text-red-800">
                     <p className="font-semibold">Restricted Access</p>
-                    <p className="text-red-700">This portal is for authorized BlinkEventz administrators only.</p>
+                    <p className="text-red-700">This portal is for authorized NearZro administrators only.</p>
                   </div>
                 </div>
               </div>
 
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 className="w-full h-12 text-base font-medium shadow-lg hover:shadow-xl transition-all duration-300 bg-red-600 hover:bg-red-700"
                 disabled={isLoading}
               >
@@ -137,10 +155,25 @@ export default function AdminLoginPage() {
                 </div>
               </div>
             </div>
+
+            <div className="mt-4 p-4 bg-green-50 rounded-xl border border-green-200">
+              <div className="flex items-start gap-3">
+                <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
+                <div className="text-sm text-green-800">
+                  <p className="font-semibold mb-1">Default Admin Credentials</p>
+                  <p className="text-green-700">
+                    Email: <code className="bg-green-100 px-2 py-0.5 rounded">admin@NearZro.com</code>
+                  </p>
+                  <p className="text-green-700">
+                    Password: <code className="bg-green-100 px-2 py-0.5 rounded">admin123</code>
+                  </p>
+                </div>
+              </div>
+            </div>
           </CardContent>
           <CardFooter className="flex flex-col space-y-3 text-center border-t pt-6">
             <div className="text-xs text-neutral-500">
-              Protected by BlinkEventz Security System
+              Protected by NearZro Security System
             </div>
             <div className="text-xs text-neutral-400">
               IP Address and device information are logged for security purposes

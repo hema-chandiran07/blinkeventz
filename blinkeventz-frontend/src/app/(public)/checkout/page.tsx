@@ -14,6 +14,10 @@ import {
   CheckCircle2,
   XCircle,
   ArrowLeft,
+  ArrowRight,
+  Trash2,
+  X,
+  ShoppingBag,
 } from "lucide-react";
 import { UPIProvider, WalletProvider, BankCode, CheckoutFormData, CheckoutErrors, CartItem } from "@/types";
 import { toast } from "sonner";
@@ -78,7 +82,7 @@ export default function CheckoutPage() {
       window.addEventListener('storage', handler);
       return () => window.removeEventListener('storage', handler);
     },
-    () => localStorage.getItem('blinkeventz_booking'),
+    () => localStorage.getItem('NearZro_booking'),
     () => null
   );
 
@@ -117,7 +121,7 @@ export default function CheckoutPage() {
       <div className="container mx-auto px-4 py-12 text-center">
         <XCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
         <h2 className="text-2xl font-semibold text-black mb-2">Login Required</h2>
-        <p className="text-neutral-600 mb-6">Please login to complete your checkout</p>
+        <p className="text-neutral-800 mb-6">Please login to complete your checkout</p>
         <Button variant="premium" onClick={() => router.push("/login")}>
           Go to Login
         </Button>
@@ -131,7 +135,7 @@ export default function CheckoutPage() {
       <div className="container mx-auto px-4 py-12 text-center">
         <XCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
         <h2 className="text-2xl font-semibold text-black mb-2">Your cart is empty</h2>
-        <p className="text-neutral-600 mb-6">Add venues or vendors to your cart before checkout</p>
+        <p className="text-neutral-800 mb-6">Add venues or vendors to your cart before checkout</p>
         <Button variant="premium" onClick={() => router.push("/venues")}>
           Browse Venues
         </Button>
@@ -254,7 +258,7 @@ export default function CheckoutPage() {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_1234567890",
         amount: Math.round(total * 100), // Amount in paise
         currency: "INR",
-        name: "BlinkEventz",
+        name: "NearZro",
         description: "Event Booking Payment",
         order_id: order.id,
         handler: async (response: any) => {
@@ -271,7 +275,7 @@ export default function CheckoutPage() {
             setPaymentSuccess(true);
             toast.success("Payment Successful! Your booking is confirmed.");
             clearCart();
-            localStorage.removeItem('blinkeventz_booking');
+            localStorage.removeItem('NearZro_booking');
 
             setTimeout(() => {
               router.push("/dashboard/customer");
@@ -300,15 +304,16 @@ export default function CheckoutPage() {
 
       // Check if Razorpay is loaded
       if (typeof window !== 'undefined' && (window as any).Razorpay) {
-        const rzp = new (window as any).Razorpay(options);
-        rzp.on("payment.failed", (response: any) => {
+        const rzp1 = new (window as any).Razorpay(options);
+        rzp1.on("payment.failed", (response: any) => {
           setPaymentSuccess(false);
           toast.error(`Payment Failed: ${response.error.description}`);
           setIsProcessing(false);
         });
-        rzp.render();
+        rzp1.open();
       } else {
         // Razorpay not loaded - simulate payment for development
+        console.warn("Razorpay SDK not loaded, using simulated payment");
         await simulatePayment();
       }
     } catch (error: any) {
@@ -328,7 +333,7 @@ export default function CheckoutPage() {
       setPaymentSuccess(true);
       toast.success("Payment Accepted! Your booking has been confirmed.");
       clearCart();
-      localStorage.removeItem('blinkeventz_booking');
+      localStorage.removeItem('NearZro_booking');
       setTimeout(() => {
         router.push("/dashboard/customer");
       }, 3000);
@@ -341,12 +346,18 @@ export default function CheckoutPage() {
 
   const handleRemoveItem = (itemId: string) => {
     if (itemId.startsWith('booking-')) {
-      localStorage.removeItem('blinkeventz_booking');
+      localStorage.removeItem('NearZro_booking');
       toast.info('Booking removed');
     } else {
       removeItem(itemId);
       toast.info('Item removed from cart');
     }
+  };
+
+  const handleClearCart = () => {
+    clearCart();
+    localStorage.removeItem('NearZro_booking');
+    toast.info('Cart cleared');
   };
 
   return (
@@ -402,7 +413,7 @@ export default function CheckoutPage() {
         </div>
 
         <h1 className="text-3xl font-bold text-black mb-2 text-center">Secure Checkout</h1>
-        <p className="text-center text-neutral-700 mb-8">Complete your booking with Razorpay secure payment</p>
+        <p className="text-center text-neutral-800 mb-8">Complete your booking with Razorpay secure payment</p>
 
         {/* Step 1: Contact Details */}
         {currentStep === "details" && (
@@ -655,53 +666,87 @@ export default function CheckoutPage() {
               </Card>
             </div>
 
-            {/* Order Summary */}
+            {/* Order Summary - Sticky Sidebar */}
             <div className="lg:col-span-1">
               <Card className="sticky top-24">
                 <CardHeader>
-                  <CardTitle>Order Summary</CardTitle>
+                  <CardTitle className="flex items-center justify-between">
+                    <span>Order Summary</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleClearCart}
+                      className="text-red-500 hover:text-red-600 hover:bg-red-50 h-8 px-2"
+                    >
+                      <X className="h-4 w-4 mr-1" />
+                      Clear All
+                    </Button>
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-3">
                     {cartItems.map((item) => (
-                      <div key={item.id} className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <p className="font-medium text-sm">{item.name}</p>
-                          <p className="text-xs text-neutral-500">{(item as any).type || (item as any).itemType || 'Item'} × {item.quantity || 1}</p>
+                      <div key={item.id} className="flex gap-3 items-start p-2 rounded-lg hover:bg-silver-50 transition-colors">
+                        <div className="h-16 w-16 rounded-lg bg-gradient-to-br from-silver-200 to-silver-400 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                          {(item as any).image ? (
+                            <img src={(item as any).image} alt={item.name} className="h-full w-full object-cover" />
+                          ) : (
+                            (item as any).type === 'venue' || (item as any).itemType === 'VENUE' ? (
+                              <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                              </svg>
+                            ) : (
+                              <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                              </svg>
+                            )
+                          )}
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-sm">{formatCurrency(((item as any).price || 0) * (item.quantity || 1))}</span>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 text-red-500 hover:text-red-600"
-                            onClick={() => handleRemoveItem(String(item.id))}
-                          >
-                            <span className="sr-only">Remove</span>
-                            ×
-                          </Button>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm text-black truncate">{item.name}</p>
+                          <p className="text-xs text-neutral-500">{(item as any).type || (item as any).itemType || 'Item'} × {item.quantity || 1}</p>
+                          <div className="flex items-center justify-between mt-1">
+                            <span className="font-semibold text-sm text-black">{formatCurrency(((item as any).price || 0) * (item.quantity || 1))}</span>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50"
+                              onClick={() => handleRemoveItem(String(item.id))}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     ))}
                   </div>
                   <div className="border-t pt-3 space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span className="text-neutral-700">Subtotal</span>
-                      <span className="font-medium">{formatCurrency(subtotal)}</span>
+                      <span className="text-black font-medium">Subtotal</span>
+                      <span className="font-medium text-black">{formatCurrency(subtotal)}</span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-neutral-700">GST (18%)</span>
-                      <span className="font-medium">{formatCurrency(taxes)}</span>
+                      <span className="text-black font-medium">GST (18%)</span>
+                      <span className="font-medium text-black">{formatCurrency(taxes)}</span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-neutral-700">Platform Fee</span>
-                      <span className="font-medium">{formatCurrency(serviceFee)}</span>
+                      <span className="text-black font-medium">Platform Fee</span>
+                      <span className="font-medium text-black">{formatCurrency(serviceFee)}</span>
                     </div>
                     <div className="border-t pt-2 flex justify-between font-bold text-lg">
-                      <span>Total</span>
+                      <span className="text-black">Total</span>
                       <span className="text-black">{formatCurrency(total)}</span>
                     </div>
                   </div>
+                  <Button
+                    variant="premium"
+                    size="lg"
+                    onClick={handleContinueToConfirm}
+                    className="w-full h-12 text-base font-semibold shadow-lg hover:shadow-xl transition-shadow"
+                  >
+                    Continue to Confirm
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
                 </CardContent>
               </Card>
             </div>
@@ -710,71 +755,164 @@ export default function CheckoutPage() {
 
         {/* Step 2: Confirm */}
         {currentStep === "confirm" && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Confirm Your Booking</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <div className="p-4 bg-silver-50 rounded-lg border">
-                  <h3 className="font-semibold mb-2">Contact Details</h3>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-neutral-600">Name:</span>
-                      <span className="ml-2 font-medium">{formData.firstName} {formData.lastName}</span>
-                    </div>
-                    <div>
-                      <span className="text-neutral-600">Email:</span>
-                      <span className="ml-2 font-medium">{formData.email}</span>
-                    </div>
-                    <div>
-                      <span className="text-neutral-600">Phone:</span>
-                      <span className="ml-2 font-medium">+91 {formData.phone}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-4 bg-silver-50 rounded-lg border">
-                  <h3 className="font-semibold mb-2">Order Items</h3>
-                  <div className="space-y-2">
-                    {cartItems.map((item) => (
-                      <div key={item.id} className="flex justify-between text-sm">
-                        <span>{item.name} × {item.quantity || 1}</span>
-                        <span className="font-medium">{formatCurrency(((item as any).price || 0) * (item.quantity || 1))}</span>
+          <div className="grid gap-6 lg:grid-cols-3">
+            <div className="lg:col-span-2 space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <ShoppingBag className="h-5 w-5 text-neutral-800" />
+                    Order Items
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {cartItems.map((item) => (
+                    <div key={item.id} className="flex gap-4 items-center p-4 rounded-lg border border-silver-200 hover:border-silver-300 hover:bg-silver-50 transition-all">
+                      <div className="h-20 w-20 rounded-lg bg-gradient-to-br from-silver-200 to-silver-400 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                        {(item as any).image ? (
+                          <img src={(item as any).image} alt={item.name} className="h-full w-full object-cover" />
+                        ) : (
+                          (item as any).type === 'venue' || (item as any).itemType === 'VENUE' ? (
+                            <svg className="h-10 w-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                            </svg>
+                          ) : (
+                            <svg className="h-10 w-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                            </svg>
+                          )
+                        )}
                       </div>
-                    ))}
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="px-2 py-0.5 text-xs font-medium bg-silver-200 text-neutral-800 rounded-full capitalize">
+                            {(item as any).type ? (item as any).type.replace("_", " ") : (item as any).itemType ? (item as any).itemType.replace("_", " ") : "Item"}
+                          </span>
+                          {(item as any).metadata?.package && (
+                            <span className="text-xs text-black">{(item as any).metadata.package}</span>
+                          )}
+                        </div>
+                        <h4 className="font-semibold text-black">{item.name}</h4>
+                        <p className="text-sm text-black">Quantity: {item.quantity || 1}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-lg text-black">{formatCurrency(((item as any).price || 0) * (item.quantity || 1))}</p>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveItem(String(item.id))}
+                          className="mt-2 text-red-500 hover:text-red-600 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          Remove
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="flex items-center justify-between pt-4 border-t">
+                    <Button variant="ghost" onClick={handleClearCart} className="text-red-500 hover:text-red-600 hover:bg-red-50">
+                      <X className="h-4 w-4 mr-2" />
+                      Clear All Items
+                    </Button>
+                    <p className="text-sm text-black">
+                      {cartItems.length} item{cartItems.length !== 1 ? 's' : ''} in cart
+                    </p>
                   </div>
-                </div>
+                </CardContent>
+              </Card>
 
-                <div className="flex items-start gap-3 p-4 bg-silver-50 rounded-lg border">
-                  <input
-                    type="checkbox"
-                    id="terms"
-                    checked={acceptTerms}
-                    onChange={(e) => setAcceptTerms(e.target.checked)}
-                    className="mt-1"
-                  />
-                  <Label htmlFor="terms" className="text-sm font-normal cursor-pointer">
-                    I agree to the Terms of Service and Privacy Policy. I understand that payments are processed securely through Razorpay.
-                  </Label>
-                </div>
-              </div>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Smartphone className="h-5 w-5 text-neutral-800" />
+                    Contact Information
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-black text-sm font-medium">Full Name</Label>
+                      <p className="font-medium text-black">{formData.firstName} {formData.lastName}</p>
+                    </div>
+                    <div>
+                      <Label className="text-black text-sm font-medium">Email Address</Label>
+                      <p className="font-medium text-black">{formData.email}</p>
+                    </div>
+                    <div>
+                      <Label className="text-black text-sm font-medium">Phone Number</Label>
+                      <p className="font-medium text-black">+91 {formData.phone}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-              <div className="flex gap-4">
-                <Button variant="silver" onClick={handleBack} className="flex-1 h-12">
-                  Back
-                </Button>
-                <Button
-                  variant="premium"
-                  onClick={handleConfirmBooking}
-                  disabled={!acceptTerms}
-                  className="flex-1 h-12"
-                >
-                  Proceed to Payment
-                </Button>
+              <div className="flex items-start gap-3 p-4 bg-green-50 rounded-lg border border-green-200">
+                <input
+                  type="checkbox"
+                  id="terms"
+                  checked={acceptTerms}
+                  onChange={(e) => setAcceptTerms(e.target.checked)}
+                  className="mt-1 h-4 w-4 text-green-600 border-green-300 rounded focus:ring-green-500"
+                />
+                <Label htmlFor="terms" className="text-sm font-normal cursor-pointer text-green-900">
+                  I agree to the <span className="font-medium">Terms of Service</span> and <span className="font-medium">Privacy Policy</span>. I understand that payments are processed securely through Razorpay.
+                </Label>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+
+            {/* Order Summary Sidebar */}
+            <div className="lg:col-span-1">
+              <Card className="sticky top-24">
+                <CardHeader>
+                  <CardTitle>Price Details</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-3">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-black font-medium">Subtotal</span>
+                      <span className="font-medium text-black">{formatCurrency(subtotal)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-black font-medium">GST (18%)</span>
+                      <span className="font-medium text-black">{formatCurrency(taxes)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-black font-medium">Platform Fee</span>
+                      <span className="font-medium text-black">{formatCurrency(serviceFee)}</span>
+                    </div>
+                    <div className="border-t pt-3 flex justify-between font-bold text-lg">
+                      <span className="text-black">Total</span>
+                      <span className="text-black">{formatCurrency(total)}</span>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 space-y-3">
+                    <div className="flex items-center gap-2 text-xs text-black">
+                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                      <span>Free cancellation up to 24 hours before event</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-black">
+                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                      <span>Instant booking confirmation</span>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 pt-4">
+                    <Button variant="silver" onClick={handleBack} className="flex-1 h-12">
+                      Back
+                    </Button>
+                    <Button
+                      variant="premium"
+                      onClick={handleConfirmBooking}
+                      disabled={!acceptTerms}
+                      className="flex-1 h-12"
+                    >
+                      Proceed
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         )}
 
         {/* Step 3: Payment */}
@@ -801,9 +939,9 @@ export default function CheckoutPage() {
                   <div className="text-center py-8">
                     {isProcessing ? (
                       <>
-                        <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-neutral-800" />
+                        <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-black" />
                         <p className="text-lg font-medium text-black">Processing Payment...</p>
-                        <p className="text-neutral-600 mt-2">Please do not close this window</p>
+                        <p className="text-neutral-800 mt-2">Please do not close this window</p>
                       </>
                     ) : (
                       <>
@@ -822,14 +960,14 @@ export default function CheckoutPage() {
                     )}
                   </div>
 
-                  <div className="flex items-center justify-center gap-6 text-sm text-neutral-600">
+                  <div className="flex items-center justify-center gap-6 text-sm text-black">
                     <div className="flex items-center gap-2">
                       <CheckCircle2 className="h-4 w-4 text-green-500" />
-                      <span>Secure Payment</span>
+                      <span className="font-medium">Secure Payment</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <CheckCircle2 className="h-4 w-4 text-green-500" />
-                      <span>Instant Confirmation</span>
+                      <span className="font-medium">Instant Confirmation</span>
                     </div>
                   </div>
                 </>
@@ -837,16 +975,16 @@ export default function CheckoutPage() {
                 <div className="text-center py-12">
                   <CheckCircle2 className="h-20 w-20 text-green-500 mx-auto mb-6" />
                   <h2 className="text-3xl font-bold text-black mb-2">Payment Successful!</h2>
-                  <p className="text-neutral-600 mb-6">
+                  <p className="text-black mb-6">
                     Your booking has been confirmed. Check your email for details.
                   </p>
-                  <p className="text-sm text-neutral-500">Redirecting to dashboard...</p>
+                  <p className="text-sm text-neutral-800">Redirecting to dashboard...</p>
                 </div>
               ) : (
                 <div className="text-center py-12">
                   <XCircle className="h-20 w-20 text-red-500 mx-auto mb-6" />
                   <h2 className="text-3xl font-bold text-black mb-2">Payment Failed</h2>
-                  <p className="text-neutral-600 mb-6">
+                  <p className="text-black mb-6">
                     Your payment could not be processed. Please try again with a different payment method.
                   </p>
                   <Button variant="premium" onClick={handlePayment} className="h-12 px-8">

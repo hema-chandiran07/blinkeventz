@@ -81,32 +81,59 @@ export default function LoginPage() {
             <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-silver-600/10 rounded-full blur-3xl animate-pulse delay-1000" />
           </div>
 
+          {/* NearZro Logo - Centered Above Text */}
+          <motion.div
+            className="relative mb-8 flex flex-col items-center"
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.8, delay: 0.4 }}
+          >
+            <div className="relative h-32 w-32 overflow-hidden rounded-2xl shadow-2xl shadow-silver-500/50 border-2 border-silver-300 mb-6">
+              <img
+                src="/logo.jpeg"
+                alt="NearZro Logo"
+                className="h-full w-full object-cover brightness-110 contrast-110"
+              />
+            </div>
+            
+            <h2 className="text-4xl font-bold bg-gradient-to-r from-white via-silver-200 to-white bg-clip-text text-transparent text-center">
+              Welcome to NearZro
+            </h2>
+          </motion.div>
+
+          <motion.p
+            className="text-center text-silver-300 mb-8 max-w-xs"
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.8 }}
+          >
+            Your trusted event management platform
+          </motion.p>
+
           <div className="text-center space-y-6 relative z-10">
             <motion.div
-              className="h-20 w-20 rounded-2xl bg-gradient-to-br from-silver-400 to-silver-600 mx-auto shadow-2xl shadow-silver-500/30 flex items-center justify-center"
-              whileHover={{ scale: 1.05, rotate: 5 }}
-              transition={{ type: "spring", stiffness: 400, damping: 10 }}
+              className="flex items-center justify-center gap-3 text-silver-300 text-sm"
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ duration: 0.6, delay: 1.0 }}
             >
-              <Sparkles className="h-10 w-10 text-black" />
+              <span>✨ Premium Event Planning</span>
+              <span>•</span>
+              <span>🎯 Trusted by 1000+</span>
             </motion.div>
-            <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-white via-silver-200 to-silver-400 bg-clip-text text-transparent">
-              BlinkEventz
-            </h1>
-            <p className="text-silver-300 text-lg max-w-sm">
-              India&apos;s Premium Event Management Platform. Connect with top venues, vendors, and event planners.
-            </p>
-            <div className="pt-8 space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-silver-800/50 flex items-center justify-center border border-silver-700">
-                  <Mail className="h-5 w-5 text-silver-300" />
+            
+            <div className="pt-4 space-y-4">
+              <div className="flex items-center justify-center gap-3">
+                <div className="h-8 w-8 rounded-full bg-silver-800/50 flex items-center justify-center border border-silver-700">
+                  <Mail className="h-4 w-4 text-silver-300" />
                 </div>
-                <span className="text-silver-300">support@blinkeventz.com</span>
+                <span className="text-silver-300 text-sm">support@NearZro.com</span>
               </div>
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-silver-800/50 flex items-center justify-center border border-silver-700">
-                  <Lock className="h-5 w-5 text-silver-300" />
+              <div className="flex items-center justify-center gap-3">
+                <div className="h-8 w-8 rounded-full bg-silver-800/50 flex items-center justify-center border border-silver-700">
+                  <Lock className="h-4 w-4 text-silver-300" />
                 </div>
-                <span className="text-silver-300">Secure & Encrypted</span>
+                <span className="text-silver-300 text-sm">Secure & Encrypted</span>
               </div>
             </div>
           </div>
@@ -132,14 +159,14 @@ export default function LoginPage() {
               <CardTitle className="text-3xl font-bold tracking-tight text-black">
                 Welcome Back
               </CardTitle>
-              <CardDescription className="text-neutral-600">
-                Sign in to your BlinkEventz account
+              <CardDescription className="text-black">
+                Sign in to your NearZro account
               </CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleLogin} className="space-y-5">
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-sm font-medium text-neutral-700">
+                  <Label htmlFor="email" className="text-sm font-medium text-black">
                     Email Address
                   </Label>
                   <div className="relative">
@@ -157,10 +184,10 @@ export default function LoginPage() {
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="password" className="text-sm font-medium text-neutral-700">
+                    <Label htmlFor="password" className="text-sm font-medium text-black">
                       Password
                     </Label>
-                    <Link href="/forgot-password" className="text-sm font-medium text-neutral-600 hover:text-black transition-colors">
+                    <Link href="/forgot-password" className="text-sm font-medium text-black hover:text-neutral-800 transition-colors">
                       Forgot password?
                     </Link>
                   </div>
@@ -247,18 +274,27 @@ export default function LoginPage() {
                 </div>
               </motion.div>
             </CardContent>
-            <CardFooter className="flex flex-col space-y-3 text-center border-t border-silver-800 pt-6">
-              <div className="text-sm text-silver-400">
+            <CardFooter className="flex flex-col space-y-3 text-center border-t border-neutral-200 pt-6">
+              <div className="text-sm text-neutral-600">
                 Don&apos;t have an account?{" "}
-                <Link href="/register" className="font-semibold text-white hover:underline transition-all">
+                <Link href="/register" className="font-semibold text-black hover:text-neutral-700 hover:underline transition-all">
                   Create Account
                 </Link>
               </div>
-              <div className="text-xs text-silver-500">
+              
+              {/* Admin Login Link */}
+              <div className="text-xs text-neutral-600 pt-2 border-t border-neutral-200 w-full">
+                Are you an admin?{" "}
+                <Link href="/admin-login" className="font-semibold text-black hover:text-neutral-700 hover:underline transition-all">
+                  Admin Login
+                </Link>
+              </div>
+
+              <div className="text-xs text-neutral-600">
                 By signing in, you agree to our{" "}
-                <Link href="/terms" className="underline hover:text-silver-300">Terms of Service</Link>
+                <Link href="/terms" className="underline hover:text-black">Terms of Service</Link>
                 {" "}and{" "}
-                <Link href="/privacy" className="underline hover:text-silver-300">Privacy Policy</Link>
+                <Link href="/privacy" className="underline hover:text-black">Privacy Policy</Link>
               </div>
             </CardFooter>
           </Card>

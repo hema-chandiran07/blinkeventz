@@ -73,6 +73,14 @@ export class VendorsService {
   }
 
   async approveVendor(id: number) {
+    const vendor = await this.prisma.vendor.findUnique({
+      where: { id },
+    });
+
+    if (!vendor) {
+      throw new NotFoundException(`Vendor with ID ${id} not found`);
+    }
+
     return this.prisma.vendor.update({
       where: { id },
       data: {
@@ -82,6 +90,14 @@ export class VendorsService {
   }
 
   async rejectVendor(id: number) {
+    const vendor = await this.prisma.vendor.findUnique({
+      where: { id },
+    });
+
+    if (!vendor) {
+      throw new NotFoundException(`Vendor with ID ${id} not found`);
+    }
+
     return this.prisma.vendor.update({
       where: { id },
       data: {

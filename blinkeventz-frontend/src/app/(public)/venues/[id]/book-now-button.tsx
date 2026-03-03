@@ -38,7 +38,7 @@ export function BookNowButton({
         date: selectedDate?.toISOString(),
         slot: selectedSlot,
       };
-      localStorage.setItem('blinkeventz_booking', JSON.stringify(bookingData));
+      localStorage.setItem('NearZro_booking', JSON.stringify(bookingData));
     }
     router.push("/checkout");
   };

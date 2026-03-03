@@ -51,16 +51,22 @@ export function PublicHeader() {
           </Button>
 
           <Link href="/" className="flex items-center space-x-2 group">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-black to-neutral-900 group-hover:scale-110 transition-transform duration-300" />
-            <span className="text-xl font-bold bg-gradient-to-r from-black to-neutral-900 bg-clip-text text-transparent">
-              BlinkEventz
+            <div className="relative h-10 w-10 overflow-hidden rounded-lg transition-transform duration-300 group-hover:scale-110">
+              <img
+                src="/logo.jpeg"
+                alt="NearZro Logo"
+                className="h-full w-full object-cover brightness-110 contrast-110"
+              />
+            </div>
+            <span className="text-xl font-bold bg-gradient-to-r from-black to-neutral-900 bg-clip-text text-transparent group-hover:from-silver-600 group-hover:to-silver-800 transition-all">
+              NearZro
             </span>
           </Link>
         </div>
 
           {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center space-x-6">
-          <Link href="/" className="text-sm font-medium text-neutral-700 hover:text-black transition-colors">
+          <Link href="/" className="text-sm font-medium text-neutral-700 hover:text-black hover:bg-gradient-to-r hover:from-silver-50 hover:to-silver-100 px-3 py-2 rounded-lg transition-all">
             Home
           </Link>
 
@@ -71,7 +77,7 @@ export function PublicHeader() {
             onMouseLeave={() => setIsVenuesOpen(false)}
           >
             <button
-              className="flex items-center text-sm font-medium text-neutral-700 hover:text-black"
+              className="flex items-center text-sm font-medium text-neutral-700 hover:text-black hover:bg-gradient-to-r hover:from-silver-50 hover:to-silver-100 px-3 py-2 rounded-lg transition-all"
               onClick={() => setIsVenuesOpen(!isVenuesOpen)}
             >
               Venues
@@ -146,7 +152,7 @@ export function PublicHeader() {
             onMouseLeave={() => setIsVendorsOpen(false)}
           >
             <button
-              className="flex items-center text-sm font-medium text-neutral-700 hover:text-black"
+              className="flex items-center text-sm font-medium text-neutral-700 hover:text-black hover:bg-gradient-to-r hover:from-silver-50 hover:to-silver-100 px-3 py-2 rounded-lg transition-all"
               onClick={() => setIsVendorsOpen(!isVendorsOpen)}
             >
               Vendors
@@ -254,12 +260,12 @@ export function PublicHeader() {
 </div>
           </div>
 
-          <Link href="/plan-event" className="text-sm font-medium text-neutral-700 hover:text-black">
+          <Link href="/plan-event" className="text-sm font-medium text-neutral-700 hover:text-black hover:bg-gradient-to-r hover:from-silver-50 hover:to-silver-100 px-3 py-2 rounded-lg transition-all">
             Plan Event
           </Link>
 
           {isMounted && isAuthenticated && (
-             <Link href={getDashboardLink()} className="text-sm font-medium text-black hover:text-neutral-800 font-bold">
+             <Link href={getDashboardLink()} className="text-sm font-medium text-black hover:bg-gradient-to-r hover:from-silver-50 hover:to-silver-100 hover:text-black px-3 py-2 rounded-lg transition-all font-bold">
                 Dashboard
              </Link>
           )}

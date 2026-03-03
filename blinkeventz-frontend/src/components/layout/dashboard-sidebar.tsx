@@ -60,13 +60,13 @@ function NavItem({ item, isActive }: { item: SidebarItem; isActive: boolean }) {
       className={cn(
         "group flex items-center space-x-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-300",
         isActive
-          ? "bg-silver-100 text-black"
-          : "text-neutral-700 hover:bg-silver-50 hover:text-black"
+          ? "bg-gradient-to-r from-silver-100 to-silver-200 text-black shadow-md"
+          : "text-neutral-700 hover:bg-gradient-to-r hover:from-silver-50 hover:to-silver-100 hover:text-black"
       )}
     >
       <Icon className={cn(
         "h-5 w-5 transition-all duration-300",
-        isActive ? "text-black" : "text-neutral-400 group-hover:text-neutral-600"
+        isActive ? "text-black" : "text-neutral-400 group-hover:text-black"
       )} />
       <span>{item.name}</span>
     </Link>
@@ -93,7 +93,7 @@ export function DashboardSidebar() {
             <div className="flex items-center space-x-2">
               <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-silver-400 to-silver-600" />
               <span className="text-xl font-bold text-black">
-                BlinkEventz
+                NearZro
               </span>
             </div>
           </div>
@@ -127,19 +127,23 @@ export function DashboardSidebar() {
   return (
     <div className="hidden border-r border-silver-200 bg-white md:block md:w-64 lg:w-72 h-screen sticky top-0 overflow-hidden">
       <div className="flex h-full flex-col">
-        {/* Logo - Premium Silver */}
+        {/* Logo - NearZro with Animation */}
         <div className="flex h-16 items-center border-b border-silver-200 px-6 relative">
           <div className="absolute inset-0 bg-gradient-to-r from-silver-50 to-transparent" />
-          <Link href="/" className="flex items-center space-x-2 relative z-10">
-            <motion.div 
-              className="h-8 w-8 rounded-lg bg-gradient-to-br from-silver-400 to-silver-600 shadow-lg shadow-silver-400/30 flex items-center justify-center"
-              whileHover={{ scale: 1.05, rotate: 5 }}
+          <Link href="/" className="flex items-center space-x-3 relative z-10 group">
+            <motion.div
+              className="relative h-10 w-10 overflow-hidden rounded-lg shadow-lg shadow-silver-400/30"
+              whileHover={{ scale: 1.1, rotate: 5 }}
               transition={{ type: "spring", stiffness: 400, damping: 10 }}
             >
-              <Sparkles className="h-4 w-4 text-white" />
+              <img
+                src="/logo.jpeg"
+                alt="NearZro Logo"
+                className="h-full w-full object-cover"
+              />
             </motion.div>
-            <span className="text-xl font-bold bg-gradient-to-r from-black to-neutral-700 bg-clip-text text-transparent">
-              BlinkEventz
+            <span className="text-xl font-bold bg-gradient-to-r from-black to-neutral-700 bg-clip-text text-transparent group-hover:from-neutral-800 group-hover:to-black transition-all">
+              NearZro
             </span>
           </Link>
         </div>

@@ -86,7 +86,7 @@ export default function VendorProfilePage() {
       updatedAt: new Date().toISOString()
     };
     
-    localStorage.setItem("blinkeventz_vendor_profile", JSON.stringify(vendorProfile));
+    localStorage.setItem("NearZro_vendor_profile", JSON.stringify(vendorProfile));
     
     toast.success("Profile saved successfully!");
     setIsSaving(false);

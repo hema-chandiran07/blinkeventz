@@ -129,7 +129,7 @@ function VendorDetailContent() {
       serviceType: selectedService.serviceType,
     };
 
-    localStorage.setItem("blinkeventz_booking", JSON.stringify(bookingData));
+    localStorage.setItem("NearZro_booking", JSON.stringify(bookingData));
     toast.success("Vendor service added to booking! Proceed to checkout.");
     router.push("/checkout");
   };
@@ -164,14 +164,14 @@ function VendorDetailContent() {
       quantity: 1,
     };
 
-    const existingCart = JSON.parse(localStorage.getItem("blinkeventz-cart") || "[]");
+    const existingCart = JSON.parse(localStorage.getItem("NearZro-cart") || "[]");
     const existingIndex = existingCart.findIndex((item: any) => item.id === cartItem.id);
     
     if (existingIndex >= 0) {
       toast.info("This service is already in your cart");
     } else {
       existingCart.push(cartItem);
-      localStorage.setItem("blinkeventz-cart", JSON.stringify(existingCart));
+      localStorage.setItem("NearZro-cart", JSON.stringify(existingCart));
       toast.success("Service added to cart!");
       window.dispatchEvent(new Event("storage"));
     }

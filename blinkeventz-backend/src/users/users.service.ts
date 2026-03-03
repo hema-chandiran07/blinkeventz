@@ -22,4 +22,18 @@ export class UsersService {
       where: { id: userId },
     });
   }
+
+  async findAll() {
+    return this.prisma.user.findMany({
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        createdAt: true,
+        isEmailVerified: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
 }

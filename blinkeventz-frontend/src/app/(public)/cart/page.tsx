@@ -97,14 +97,14 @@ export default function CartPage() {
               <div className="ml-4 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="px-2 py-0.5 text-xs font-medium bg-silver-200 text-neutral-800 rounded-full capitalize">
-                    {item.itemType.replace("_", " ")}
+                    {item.itemType ? item.itemType.replace("_", " ") : "Item"}
                   </span>
                   {item.meta?.serviceType && (
-                    <span className="text-xs text-neutral-600">{item.meta.serviceType}</span>
+                    <span className="text-xs text-black">{item.meta.serviceType}</span>
                   )}
                 </div>
                 <h3 className="font-semibold text-lg text-black mt-1">{item.name || 'Unnamed Item'}</h3>
-                <p className="text-neutral-600 text-sm">{item.description}</p>
+                <p className="text-black text-sm">{item.description}</p>
                 {typeof item.meta?.area === 'string' && typeof item.meta?.city === 'string' && (
                   <p className="text-silver-300 text-xs mt-1">📍 {item.meta.area}, {item.meta.city}</p>
                 )}
@@ -143,7 +143,7 @@ export default function CartPage() {
                       )}
                       {basePrice && (
                         <div className="flex items-center justify-between mt-2 pt-2 border-t border-green-200">
-                          <span className="text-xs text-neutral-600">Base: ₹{basePrice.toLocaleString("en-IN")}</span>
+                          <span className="text-xs text-black">Base: ₹{basePrice.toLocaleString("en-IN")}</span>
                           <span className="text-xs font-semibold text-green-700">You saved: ₹{(basePrice - (item.unitPrice || 0)).toLocaleString("en-IN")}</span>
                         </div>
                       )}
@@ -176,11 +176,11 @@ export default function CartPage() {
 
               {/* Price and Actions */}
               <div className="text-right">
-                <div className="font-bold text-neutral-800 text-lg">
+                <div className="font-bold text-black text-lg">
                   {formatCurrency((item.unitPrice || 0) * (item.quantity || 1))}
                 </div>
                 {item.quantity && item.quantity > 1 && (
-                  <div className="text-xs text-neutral-600">{formatCurrency(item.unitPrice || 0)} each</div>
+                  <div className="text-xs text-black">{formatCurrency(item.unitPrice || 0)} each</div>
                 )}
                 <Button
                   variant="ghost"
@@ -204,25 +204,25 @@ export default function CartPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex justify-between text-sm">
-                <span className="text-neutral-700">Subtotal</span>
-                <span className="font-medium">{formatCurrency(summary.subtotal)}</span>
+                <span className="text-black font-medium">Subtotal</span>
+                <span className="font-medium text-black">{formatCurrency(summary.subtotal)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-neutral-700">GST (18%)</span>
-                <span className="font-medium">{formatCurrency(summary.taxes)}</span>
+                <span className="text-black font-medium">GST (18%)</span>
+                <span className="font-medium text-black">{formatCurrency(summary.taxes)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-neutral-700">Platform Fee</span>
-                <span className="font-medium">{formatCurrency(summary.serviceFee)}</span>
+                <span className="text-black font-medium">Platform Fee</span>
+                <span className="font-medium text-black">{formatCurrency(summary.serviceFee)}</span>
               </div>
               <div className="border-t pt-3 flex justify-between font-bold text-lg">
-                <span>Total</span>
+                <span className="text-black">Total</span>
                 <span className="text-black">{formatCurrency(summary.total)}</span>
               </div>
 
               {/* Trust Badges */}
               <div className="pt-4 space-y-2">
-                <div className="flex items-center gap-2 text-xs text-neutral-600">
+                <div className="flex items-center gap-2 text-xs text-black">
                   <svg className="h-4 w-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
                     <path
                       fillRule="evenodd"
@@ -230,9 +230,9 @@ export default function CartPage() {
                       clipRule="evenodd"
                     />
                   </svg>
-                  <span>Best price guarantee</span>
+                  <span className="font-medium">Best price guarantee</span>
                 </div>
-                <div className="flex items-center gap-2 text-xs text-neutral-600">
+                <div className="flex items-center gap-2 text-xs text-black">
                   <svg className="h-4 w-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
                     <path
                       fillRule="evenodd"
@@ -240,7 +240,7 @@ export default function CartPage() {
                       clipRule="evenodd"
                     />
                   </svg>
-                  <span>Secure payment via Razorpay</span>
+                  <span className="font-medium">Secure payment via Razorpay</span>
                 </div>
               </div>
             </CardContent>

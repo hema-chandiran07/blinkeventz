@@ -9,17 +9,17 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-gradient-to-r from-silver-600 to-silver-700 text-white hover:from-silver-500 hover:to-silver-600 shadow-lg shadow-black/30 hover:shadow-xl hover:shadow-black/40 border border-silver-500/30",
+        default: "bg-gradient-to-r from-black via-neutral-900 to-black text-white hover:from-silver-200 hover:via-silver-300 hover:to-silver-200 hover:text-black shadow-lg shadow-black/30 hover:shadow-xl hover:shadow-silver-400/40 border border-neutral-700/30 hover:border-silver-400",
         destructive:
           "bg-gradient-to-r from-red-700 to-red-800 text-white hover:from-red-600 hover:to-red-700 shadow-lg shadow-black/30 hover:shadow-xl hover:shadow-black/40 border border-red-600/30",
         outline:
-          "border-2 border-silver-700 bg-transparent hover:bg-silver-800/50 hover:border-silver-600 hover:shadow-md text-white",
+          "border-2 border-black bg-transparent hover:bg-gradient-to-r hover:from-silver-100 hover:via-silver-200 hover:to-silver-100 hover:text-black hover:border-silver-400 hover:shadow-md text-black",
         secondary:
-          "bg-gradient-to-r from-silver-800 via-silver-700 to-silver-800 text-white hover:from-silver-700 hover:to-silver-800 shadow-lg shadow-black/30 hover:shadow-xl hover:shadow-black/40 border border-silver-600/30",
-        ghost: "hover:bg-silver-800/50 text-white hover:shadow-sm",
-        link: "text-white underline-offset-4 hover:underline",
-        silver: "bg-gradient-to-r from-silver-700 via-silver-600 to-silver-700 text-white hover:from-silver-600 hover:to-silver-700 shadow-lg shadow-black/30 hover:shadow-xl hover:shadow-black/40 border border-silver-500/30",
-        premium: "bg-gradient-to-r from-silver-400 via-silver-300 to-silver-400 text-black hover:from-silver-300 hover:to-silver-400 shadow-xl shadow-silver-500/30 hover:shadow-2xl hover:shadow-silver-400/40 border border-silver-300/50",
+          "bg-gradient-to-r from-neutral-800 via-neutral-700 to-neutral-800 text-white hover:from-silver-200 hover:via-silver-300 hover:to-silver-200 hover:text-black shadow-lg shadow-black/30 hover:shadow-xl hover:shadow-silver-400/40 border border-neutral-600/30 hover:border-silver-400",
+        ghost: "hover:bg-gradient-to-r hover:from-silver-50 hover:to-silver-100 text-black hover:shadow-sm",
+        link: "text-black underline-offset-4 hover:underline",
+        silver: "bg-gradient-to-r from-silver-200 via-silver-300 to-silver-200 text-black hover:from-black hover:via-neutral-900 hover:to-black hover:text-white shadow-lg shadow-silver-400/30 hover:shadow-xl hover:shadow-black/40 border border-silver-400 hover:border-black",
+        premium: "bg-gradient-to-r from-black via-neutral-800 to-black text-white hover:from-silver-100 hover:via-silver-200 hover:to-silver-100 hover:text-black shadow-xl shadow-black/30 hover:shadow-2xl hover:shadow-silver-400/40 border border-neutral-700/50 hover:border-silver-400",
       },
       size: {
         default: "h-11 px-6 py-2",

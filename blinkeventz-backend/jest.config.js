@@ -1,6 +1,6 @@
 /**
  * Backend Jest Configuration
- * BlinkEventz Event Management Platform
+ * NearZro Event Management Platform
  */
 
 module.exports = {

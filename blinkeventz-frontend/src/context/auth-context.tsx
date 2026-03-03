@@ -43,14 +43,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const storedUser = localStorage.getItem("blinkeventz_user");
+      const storedUser = localStorage.getItem("NearZro_user");
       if (storedUser) {
         try {
           const parsed = JSON.parse(storedUser);
           if (parsed.token) {
             // Verify token is still valid
             try {
-              const response = await api.get('/api/auth/me');
+              const response = await api.get('/auth/me');
               setUser({
                 id: String(response.data.userId || parsed.id),
                 name: parsed.name,
@@ -65,14 +65,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               
               if (isAuthError) {
                 // Token actually expired or invalid
-                localStorage.removeItem('blinkeventz_user');
+                localStorage.removeItem('NearZro_user');
               }
               // For network errors, keep the token - user stays logged in
               // The API interceptor will handle 401s on actual API calls
             }
           }
         } catch {
-          localStorage.removeItem('blinkeventz_user');
+          localStorage.removeItem('NearZro_user');
         }
       }
       setIsInitialized(true);
@@ -89,7 +89,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error("API configuration missing. Please contact support.");
       }
 
-      const response = await api.post('/api/auth/login', { email, password });
+      const response = await api.post('/auth/login', { email, password });
       const { user: userData, token } = response.data;
 
       const authenticatedUser: User = {
@@ -101,7 +101,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       };
 
       setUser(authenticatedUser);
-      localStorage.setItem("blinkeventz_user", JSON.stringify(authenticatedUser));
+      localStorage.setItem("NearZro_user", JSON.stringify(authenticatedUser));
 
       // Immediate redirect based on role
       const redirectPaths: Record<string, string> = {
@@ -112,20 +112,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       };
 
       const redirectPath = redirectPaths[userData.role] || "/";
-      
+
       // Use window.location for immediate redirect
       window.location.href = redirectPath;
-      
+
     } catch (error: unknown) {
       console.error("Login failed:", error);
 
       let errorMessage = "Invalid email or password";
 
-      if ((error as { code?: string })?.code === 'ERR_NETWORK') {
+      // Handle network errors
+      if ((error as { code?: string })?.code === 'ERR_NETWORK' || 
+          (error as { code?: string })?.code === 'ECONNREFUSED') {
         errorMessage = "Unable to connect to server. Please check your connection.";
+      } else if ((error as { code?: string })?.code === 'ECONNABORTED') {
+        errorMessage = "Request timed out. Please try again.";
       } else if ((error as { response?: { status?: number } })?.response?.status === 400) {
+        // Handle bad request with specific message from backend
         const data = (error as { response?: { data?: { message?: string } } })?.response?.data;
-        errorMessage = (data as { message?: string })?.message || "Invalid credentials";
+        errorMessage = (data as { message?: string })?.message || "Invalid email or password";
+      } else if ((error as { response?: { status?: number } })?.response?.status === 500) {
+        errorMessage = "Server error. Please try again later.";
       }
 
       throw new Error(errorMessage);
@@ -157,7 +164,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       };
 
       setUser(authenticatedUser);
-      localStorage.setItem("blinkeventz_user", JSON.stringify(authenticatedUser));
+      localStorage.setItem("NearZro_user", JSON.stringify(authenticatedUser));
 
       // Immediate redirect
       const redirectPaths: Record<string, string> = {
@@ -187,8 +194,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const googleLogin = useCallback(() => {
-    // Google OAuth IS configured - redirect directly
-    window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/google`;
+    // Google OAuth - redirect to backend
+    // Use window.location for direct backend access (bypasses frontend proxy)
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+    window.location.href = `${apiUrl}/api/auth/google`;
   }, []);
 
   const facebookLogin = useCallback(() => {
@@ -196,21 +205,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const appId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID;
     if (!appId || appId === 'dummy' || appId === 'YOUR_FACEBOOK_APP_ID') {
       // OAuth not configured - show toast via custom event
-      window.dispatchEvent(new CustomEvent('auth-notice', { 
-        detail: { 
+      window.dispatchEvent(new CustomEvent('auth-notice', {
+        detail: {
           message: 'Facebook login is not configured yet. Please use email/password.',
           type: 'info'
-        } 
+        }
       }));
       return;
     }
     // Redirect to backend Facebook OAuth endpoint
-    window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/facebook`;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+    window.location.href = `${apiUrl}/api/auth/facebook`;
   }, []);
 
   const logout = useCallback(() => {
     setUser(null);
-    localStorage.removeItem("blinkeventz_user");
+    localStorage.removeItem("NearZro_user");
     window.location.href = "/login";
   }, []);
 
@@ -220,7 +230,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-silver-50 via-white to-silver-100">
         <div className="text-center">
           <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-neutral-900 to-neutral-800 mx-auto mb-4 animate-pulse" />
-          <p className="text-neutral-600 font-medium">Loading BlinkEventz...</p>
+          <p className="text-neutral-600 font-medium">Loading NearZro...</p>
         </div>
       </div>
     );

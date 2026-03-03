@@ -19,7 +19,7 @@ function getInitialCart(): CartItem[] {
   if (typeof window === "undefined") {
     return [];
   }
-  const savedCart = localStorage.getItem("blinkeventz-cart");
+  const savedCart = localStorage.getItem("NearZro-cart");
   if (savedCart) {
     try {
       return JSON.parse(savedCart);
@@ -35,7 +35,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   // Save cart to localStorage whenever it changes
   useEffect(() => {
-    localStorage.setItem("blinkeventz-cart", JSON.stringify(items));
+    localStorage.setItem("NearZro-cart", JSON.stringify(items));
   }, [items]);
 
   const addItem = useCallback((item: CartItem) => {

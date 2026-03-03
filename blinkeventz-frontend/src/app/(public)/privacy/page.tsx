@@ -7,15 +7,24 @@ export default function PrivacyPage() {
   return (
     <div className="min-h-screen bg-white py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
-        {/* Back Button */}
-        <Link href="/" className="inline-flex items-center gap-2 text-sm text-neutral-600 hover:text-neutral-900 mb-6 transition-colors">
-          <ArrowLeft className="h-4 w-4" />
-          Back to Home
-        </Link>
+        {/* Logo & Back Button */}
+        <div className="flex items-center gap-4 mb-8">
+          <Link href="/" className="inline-flex items-center gap-2 text-sm text-neutral-600 hover:text-black transition-colors">
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </Link>
+          <div className="relative h-12 w-12 overflow-hidden rounded-lg shadow-lg">
+            <img
+              src="/logo.jpeg"
+              alt="NearZro Logo"
+              className="h-full w-full object-cover"
+            />
+          </div>
+        </div>
 
         {/* Header */}
         <div className="text-center mb-12">
-          <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-neutral-900 text-white text-sm font-medium mb-6">
+          <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-gradient-to-r from-silver-200 to-silver-300 text-black text-sm font-medium mb-6 shadow-md">
             <Lock className="h-4 w-4" />
             Privacy & Security
           </div>
@@ -28,23 +37,23 @@ export default function PrivacyPage() {
         </div>
 
         {/* Content */}
-        <div className="prose prose-lg max-w-none">
-          <div className="bg-neutral-50 rounded-2xl p-8 mb-8">
+        <div className="space-y-8">
+          <div className="bg-gradient-to-br from-silver-50 to-white rounded-2xl p-8 border-2 border-silver-200 shadow-lg">
             <h2 className="text-2xl font-bold text-black mb-4 flex items-center gap-2">
-              <Shield className="h-6 w-6 text-neutral-900" />
+              <Shield className="h-6 w-6 text-black" />
               1. Introduction
             </h2>
-            <p className="text-neutral-700 leading-relaxed">
-              At BlinkEventz, we take your privacy seriously. This Privacy Policy explains how we collect, use, disclose, 
+            <p className="text-black leading-relaxed">
+              At NearZro, we take your privacy seriously. This Privacy Policy explains how we collect, use, disclose,
               and safeguard your information when you use our event management platform.
             </p>
           </div>
 
-          <div className="mb-8">
+          <div className="bg-white rounded-2xl p-8 border-2 border-silver-200 shadow-lg">
             <h2 className="text-2xl font-bold text-black mb-4">2. Information We Collect</h2>
-            
+
             <h3 className="text-lg font-semibold text-black mt-6 mb-2">Personal Information</h3>
-            <ul className="list-disc list-inside space-y-2 text-neutral-700 ml-4 mb-4">
+            <ul className="list-disc list-inside space-y-2 text-black ml-4 mb-4">
               <li>Name and contact information (email, phone number)</li>
               <li>Account credentials (username, password)</li>
               <li>Profile information and preferences</li>
@@ -53,7 +62,7 @@ export default function PrivacyPage() {
             </ul>
 
             <h3 className="text-lg font-semibold text-black mt-6 mb-2">Automatically Collected Information</h3>
-            <ul className="list-disc list-inside space-y-2 text-neutral-700 ml-4">
+            <ul className="list-disc list-inside space-y-2 text-black ml-4">
               <li>Device information and IP address</li>
               <li>Browser type and operating system</li>
               <li>Usage data and browsing patterns</li>
@@ -61,13 +70,13 @@ export default function PrivacyPage() {
             </ul>
           </div>
 
-          <div className="bg-neutral-50 rounded-2xl p-8 mb-8">
+          <div className="bg-gradient-to-br from-silver-50 to-white rounded-2xl p-8 border-2 border-silver-200 shadow-lg">
             <h2 className="text-2xl font-bold text-black mb-4 flex items-center gap-2">
-              <Eye className="h-6 w-6 text-neutral-900" />
+              <Eye className="h-6 w-6 text-black" />
               3. How We Use Your Information
             </h2>
-            <p className="text-neutral-700 leading-relaxed mb-4">We use your information to:</p>
-            <ul className="list-disc list-inside space-y-2 text-neutral-700 ml-4">
+            <p className="text-black leading-relaxed mb-4">We use your information to:</p>
+            <ul className="list-disc list-inside space-y-2 text-black ml-4">
               <li>Provide, maintain, and improve our services</li>
               <li>Process your transactions and bookings</li>
               <li>Send you technical notices and support messages</li>
@@ -171,7 +180,7 @@ export default function PrivacyPage() {
               For privacy-related questions, please contact our Data Protection Officer:
             </p>
             <p className="text-neutral-700">
-              Email: privacy@blinkeventz.com<br />
+              Email: privacy@NearZro.com<br />
               Phone: +91-XXX-XXX-XXXX<br />
               Address: Chennai, Tamil Nadu, India
             </p>

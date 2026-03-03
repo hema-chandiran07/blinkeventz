@@ -27,7 +27,7 @@ export default function AuthCallbackPage() {
         const user = JSON.parse(decodeURIComponent(userParam));
         
         // Store auth data
-        localStorage.setItem("blinkeventz_user", JSON.stringify({
+        localStorage.setItem("NearZro_user", JSON.stringify({
           id: String(user.id),
           name: user.name,
           email: user.email,
@@ -77,7 +77,7 @@ export default function AuthCallbackPage() {
           {status === "success" && (
             <>
               <CheckCircle2 className="h-16 w-16 text-green-500 mb-4" />
-              <h2 className="text-xl font-semibold text-black mb-2">Welcome to BlinkEventz!</h2>
+              <h2 className="text-xl font-semibold text-black mb-2">Welcome to NearZro!</h2>
               <p className="text-neutral-600 text-center">{message}</p>
             </>
           )}

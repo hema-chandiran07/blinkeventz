@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { 
-  User, 
-  Store, 
-  Building2, 
-  ArrowRight, 
-  CheckCircle2, 
+import {
+  User,
+  Store,
+  Building2,
+  ArrowRight,
+  CheckCircle2,
   Sparkles,
   Heart,
   TrendingUp,
@@ -78,15 +78,15 @@ export default function RegisterPage() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="text-center mb-12">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-neutral-900 text-white text-sm font-medium mb-6">
-            <Sparkles className="h-4 w-4" />
-            Join BlinkEventz Today
+          <div className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-silver-800/50 to-silver-700/50 backdrop-blur-md border border-silver-600/30 text-white text-sm font-medium mb-6 shadow-lg shadow-black/20">
+            <Sparkles className="h-4 w-4 text-silver-300" />
+            Join NearZro Today
           </div>
           <h1 className="text-4xl sm:text-5xl font-bold text-black mb-4">
             Choose Your Journey
           </h1>
           <p className="text-xl text-neutral-600 max-w-2xl mx-auto">
-            Whether you're planning an event, offering services, or managing a venue - 
+            Whether you're planning an event, offering services, or managing a venue -
             we have the perfect tools for you.
           </p>
         </div>

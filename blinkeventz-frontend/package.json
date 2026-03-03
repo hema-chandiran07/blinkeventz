@@ -1,11 +1,11 @@
 {
-  "name": "blinkeventz-fullfront",
+  "name": "NearZro-fullfront",
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "set NODE_NO_WARNINGS=1&& next dev",
+    "dev": "set NODE_NO_WARNINGS=1&& set PORT=3001&& next dev",
     "build": "next build",
-    "start": "set NODE_NO_WARNINGS=1&& next start",
+    "start": "set NODE_NO_WARNINGS=1&& set PORT=3001&& next start",
     "lint": "next lint",
     "test": "playwright test",
     "test:ui": "playwright test --ui",
@@ -29,6 +29,7 @@
     "next": "^15.1.6",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "recharts": "^3.7.0",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0"
   },

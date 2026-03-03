@@ -53,6 +53,47 @@ export class AuthService {
     };
   }
 
+  // 👑 ADMIN registration (requires existing admin)
+  async registerAdmin(dto: RegisterDto) {
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+
+    if (existingUser) {
+      throw new BadRequestException('Email already exists');
+    }
+
+    const hashedPassword = await bcrypt.hash(dto.password, 10);
+
+    const user = await this.prisma.user.create({
+      data: {
+        name: dto.name,
+        email: dto.email,
+        passwordHash: hashedPassword,
+        role: Role.ADMIN,
+        isEmailVerified: true, // Admin accounts are pre-verified
+      },
+    });
+
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+    };
+
+    return {
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isEmailVerified: true,
+      },
+      token: this.jwtService.sign(payload),
+      message: 'Admin account created successfully',
+    };
+  }
+
   // 🏢 VENUE OWNER registration - requires OTP verification
   async registerVenueOwner(dto: RegisterDto) {
     const existingUser = await this.prisma.user.findUnique({
@@ -142,11 +183,17 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new BadRequestException('Invalid credentials');
+      throw new BadRequestException('Invalid email or password');
     }
 
+    // Check if user has a password (OAuth users don't have password)
     if (!user.passwordHash) {
-      throw new BadRequestException('Please login using Google');
+      throw new BadRequestException('Please login using Google or Facebook to access your account');
+    }
+
+    // Validate password if provided
+    if (!dto.password || dto.password.length < 1) {
+      throw new BadRequestException('Invalid email or password');
     }
 
     const isPasswordValid = await bcrypt.compare(
@@ -155,7 +202,7 @@ export class AuthService {
     );
 
     if (!isPasswordValid) {
-      throw new BadRequestException('Invalid credentials');
+      throw new BadRequestException('Invalid email or password');
     }
 
     const payload = {

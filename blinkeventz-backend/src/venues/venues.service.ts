@@ -67,9 +67,32 @@ async createVenue(dto: CreateVenueDto, ownerId: number) {
   }
 
   async approveVenue(id: number) {
+    const venue = await this.prisma.venue.findUnique({
+      where: { id },
+    });
+
+    if (!venue) {
+      throw new NotFoundException(`Venue with ID ${id} not found`);
+    }
+
     return this.prisma.venue.update({
       where: { id },
       data: { status: VenueStatus.ACTIVE },
+    });
+  }
+
+  async rejectVenue(id: number) {
+    const venue = await this.prisma.venue.findUnique({
+      where: { id },
+    });
+
+    if (!venue) {
+      throw new NotFoundException(`Venue with ID ${id} not found`);
+    }
+
+    return this.prisma.venue.update({
+      where: { id },
+      data: { status: VenueStatus.INACTIVE },
     });
   }
 

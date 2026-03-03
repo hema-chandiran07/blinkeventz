@@ -18,8 +18,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "BlinkEventz - Event Management Platform",
-  description: "Plan your perfect event with BlinkEventz",
+  title: "NearZro - Event Management Platform",
+  description: "Plan your perfect event with NearZro",
+  icons: {
+    icon: '/logo.jpeg',
+    apple: '/logo.jpeg',
+  },
 };
 
 export default function RootLayout({
@@ -28,7 +32,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" data-scroll-behavior="smooth">
       <head>
         {/* Razorpay Script for Payment Gateway */}
         <Script

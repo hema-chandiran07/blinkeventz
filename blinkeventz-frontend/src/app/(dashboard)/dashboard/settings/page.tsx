@@ -39,7 +39,7 @@ export default function SettingsPage() {
 
   const handleLogout = () => {
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('blinkeventz_user');
+      localStorage.removeItem('NearZro_user');
       router.push('/login');
     }
   };

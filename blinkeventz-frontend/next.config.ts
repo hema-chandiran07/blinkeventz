@@ -26,7 +26,7 @@ const nextConfig: NextConfig = {
     ],
     unoptimized: process.env.NODE_ENV === "development",
   },
-  // Proxy API requests to backend
+  // Proxy ALL API requests to backend
   async rewrites() {
     return [
       {
@@ -34,6 +34,18 @@ const nextConfig: NextConfig = {
         destination: 'http://api:3000/api/:path*',
       },
     ];
+  },
+  // Webpack configuration to reduce memory usage
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+      };
+    }
+    return config;
   },
 };
 

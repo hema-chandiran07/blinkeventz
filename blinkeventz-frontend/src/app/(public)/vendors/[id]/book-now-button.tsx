@@ -42,7 +42,7 @@ export function BookNowButton({
         slot: selectedSlot,
         serviceType: serviceType || 'Service',
       };
-      localStorage.setItem('blinkeventz_booking', JSON.stringify(bookingData));
+      localStorage.setItem('NearZro_booking', JSON.stringify(bookingData));
     }
     router.push("/checkout");
   };

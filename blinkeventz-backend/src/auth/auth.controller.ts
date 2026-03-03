@@ -9,6 +9,8 @@ import{ApiBearerAuth,ApiTags} from '@nestjs/swagger';
 import type { AuthRequest } from './auth-request.interface';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { Public } from '../common/decorators/public.decorator';
+import { Roles } from '../common/decorators/roles.decorator';
+import { Role } from '@prisma/client';
 
 // Warn if OAuth not configured
 if (!process.env.GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID === 'YOUR_GOOGLE_CLIENT_ID') {
@@ -27,6 +29,13 @@ export class AuthController {
   @Post('register')
   register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
+  }
+
+  // 👑 ADMIN registration (requires existing admin token)
+  @Roles(Role.ADMIN)
+  @Post('register-admin')
+  registerAdmin(@Body() dto: RegisterDto) {
+    return this.authService.registerAdmin(dto);
   }
 
   // 🏢 VENUE OWNER registration

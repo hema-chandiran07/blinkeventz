@@ -71,8 +71,8 @@ async function bootstrap() {
 
   // ✅ Swagger configuration
   const swaggerConfig = new DocumentBuilder()
-    .setTitle('BlinkEventz API')
-    .setDescription('Backend APIs for BlinkEventz - Event Management SaaS Platform')
+    .setTitle('NearZro API')
+    .setDescription('Backend APIs for NearZro - Event Management SaaS Platform')
     .setVersion('1.0')
     .addBearerAuth()
     .addTag('Authentication', 'User authentication and registration endpoints')

@@ -25,6 +25,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { KycModule } from './kyc/kyc.module';
 import { AuditModule } from './audit';
 import { HealthModule } from './health/health.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -139,11 +140,12 @@ import { HealthModule } from './health/health.module';
     CartModule,
     PaymentsModule,
     ExpressModule,
-     EventsModule,
-     NotificationsModule,
-     KycModule,
-     AuditModule,
-     HealthModule
+    EventsModule,
+    NotificationsModule,
+    KycModule,
+    AuditModule,
+    HealthModule,
+    DashboardModule
   ],
    // 🔐 GLOBAL SECURITY LAYER
   providers: [

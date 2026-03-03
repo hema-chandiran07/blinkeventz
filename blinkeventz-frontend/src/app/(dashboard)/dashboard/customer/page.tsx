@@ -350,7 +350,7 @@ export default function CustomerDashboardPage() {
         <Card className="border-silver-800 bg-gradient-to-br from-silver-900/30 to-silver-950/30">
           <CardHeader>
             <CardTitle className="text-2xl text-white">Quick Tips</CardTitle>
-            <CardDescription>Make the most of BlinkEventz</CardDescription>
+            <CardDescription>Make the most of NearZro</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">

@@ -94,7 +94,24 @@ export default function LandingPage() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6 }}
+            className="flex flex-col items-center"
           >
+            {/* NearZro Logo */}
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0.5 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.8, delay: 0.3 }}
+              className="mb-6"
+            >
+              <div className="relative h-32 w-32 overflow-hidden rounded-2xl shadow-2xl shadow-silver-500/50 border-2 border-silver-300">
+                <img
+                  src="/logo.jpeg"
+                  alt="NearZro Logo"
+                  className="h-full w-full object-cover brightness-110 contrast-110"
+                />
+              </div>
+            </motion.div>
+
             {/* Enhanced badge with silver */}
             <div className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-gradient-to-r from-silver-800/50 to-silver-700/50 backdrop-blur-md border border-silver-600/30 mb-6 shadow-lg shadow-black/20">
               <Sparkles className="h-4 w-4 text-silver-300" />
@@ -182,10 +199,10 @@ export default function LandingPage() {
           transition={{ duration: 0.7, delay: 0.2 }}
         >
           {[
-            { name: "Venues", icon: MapPin, color: "from-silver-700 via-silver-600 to-silver-700" },
-            { name: "Catering", icon: Star, color: "from-silver-700 via-silver-600 to-silver-700" },
-            { name: "Photography", icon: Calendar, color: "from-silver-700 via-silver-600 to-silver-700" },
-            { name: "Decor", icon: Sparkles, color: "from-silver-700 via-silver-600 to-silver-700" },
+            { name: "Venues", icon: MapPin, color: "from-silver-700 via-silver-600 to-silver-700", href: "/venues" },
+            { name: "Catering", icon: Star, color: "from-silver-700 via-silver-600 to-silver-700", href: "/vendors?type=Catering" },
+            { name: "Photography", icon: Calendar, color: "from-silver-700 via-silver-600 to-silver-700", href: "/vendors?type=Photography" },
+            { name: "Decor", icon: Sparkles, color: "from-silver-700 via-silver-600 to-silver-700", href: "/vendors?type=Decoration" },
           ].map((category, index) => (
             <motion.div
               key={category.name}
@@ -194,17 +211,19 @@ export default function LandingPage() {
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
             >
-              <Card className="group hover:shadow-2xl hover:shadow-black/40 transition-all duration-300 cursor-pointer border-silver-800 hover:border-silver-600 hover:-translate-y-2 bg-gradient-to-br from-silver-900/50 via-silver-900 to-silver-950">
-                <CardContent className="flex flex-col items-center justify-center p-8 text-center">
-                  <motion.div
-                    className={`h-16 w-16 rounded-xl flex items-center justify-center mb-4 bg-gradient-to-br ${category.color} shadow-xl shadow-black/30 group-hover:scale-110 group-hover:shadow-2xl group-hover:shadow-silver-500/20 transition-all duration-300`}
-                    whileHover={{ rotate: 5 }}
-                  >
-                    <category.icon className="h-8 w-8 text-white" />
-                  </motion.div>
-                  <h3 className="font-semibold text-white text-lg group-hover:text-silver-300 transition-colors">{category.name}</h3>
-                </CardContent>
-              </Card>
+              <Link href={category.href}>
+                <Card className="group hover:shadow-2xl hover:shadow-silver-400/40 transition-all duration-300 cursor-pointer border-silver-800 hover:border-silver-400 hover:-translate-y-2 bg-gradient-to-br from-black via-silver-950 to-black hover:from-silver-100 hover:via-silver-200 hover:to-silver-100">
+                  <CardContent className="flex flex-col items-center justify-center p-8 text-center">
+                    <motion.div
+                      className={`h-16 w-16 rounded-xl flex items-center justify-center mb-4 bg-gradient-to-br ${category.color} shadow-xl shadow-black/30 group-hover:scale-110 group-hover:shadow-2xl group-hover:shadow-silver-500/20 transition-all duration-300 group-hover:from-black group-hover:via-silver-600 group-hover:to-black`}
+                      whileHover={{ rotate: 5 }}
+                    >
+                      <category.icon className="h-8 w-8 text-white group-hover:text-black" />
+                    </motion.div>
+                    <h3 className="font-semibold text-white group-hover:text-black text-lg transition-colors">{category.name}</h3>
+                  </CardContent>
+                </Card>
+              </Link>
             </motion.div>
           ))}
         </motion.div>
@@ -226,7 +245,7 @@ export default function LandingPage() {
           transition={{ duration: 0.6 }}
         >
           <div>
-            <h2 className="text-3xl font-bold text-white">Why Choose BlinkEventz</h2>
+            <h2 className="text-3xl font-bold text-white">Why Choose NearZro</h2>
             <div className="w-16 h-1 bg-gradient-to-r from-silver-500 via-silver-400 to-silver-500 mt-2 rounded-full shadow-md shadow-silver-500/30" />
           </div>
         </motion.div>
@@ -389,7 +408,7 @@ export default function LandingPage() {
               viewport={{ once: true }}
               transition={{ duration: 0.6, delay: 0.3 }}
             >
-              Join thousands of happy customers who planned their weddings, corporate events, and parties with BlinkEventz.
+              Join thousands of happy customers who planned their weddings, corporate events, and parties with NearZro.
             </motion.p>
 
             <motion.div

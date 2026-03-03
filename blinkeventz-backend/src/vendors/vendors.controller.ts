@@ -48,14 +48,24 @@ export class VendorsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
   @Patch(':id/approve')
-  approveVendor(@Param('id') id: string) {
-    return this.vendorsService.approveVendor(+id);
+  async approveVendor(@Param('id') id: string) {
+    try {
+      return this.vendorsService.approveVendor(+id);
+    } catch (error: any) {
+      console.error('Error approving vendor:', error);
+      throw error;
+    }
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
   @Patch(':id/reject')
-  rejectVendor(@Param('id') id: string) {
-    return this.vendorsService.rejectVendor(+id);
+  async rejectVendor(@Param('id') id: string) {
+    try {
+      return this.vendorsService.rejectVendor(+id);
+    } catch (error: any) {
+      console.error('Error rejecting vendor:', error);
+      throw error;
+    }
   }
 }

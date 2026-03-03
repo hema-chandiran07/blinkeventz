@@ -1,207 +1,378 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/context/auth-context";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, XCircle, Clock, Building, Store, Eye } from "lucide-react";
+import {
+  CheckCircle2, XCircle, Clock, Building, Store, Eye, AlertCircle,
+  RefreshCw, Filter, Mail, Phone, MapPin, Calendar, User, Users,
+  DollarSign, TrendingUp
+} from "lucide-react";
 import { toast } from "sonner";
-import api from "@/lib/api";
 
-interface ApprovalItem {
-  id: number;
-  type: "VENUE" | "VENDOR";
-  name: string;
-  owner: string;
-  city: string;
-  status: "PENDING" | "APPROVED" | "REJECTED";
-  createdAt: string;
-}
+const MOCK_APPROVALS = [
+  {
+    id: 1,
+    type: "VENUE",
+    title: "Grand Ballroom ITC",
+    owner: "ITC Hotels",
+    contact: "hotels@itchotels.in",
+    phone: "+91 44 2231 1111",
+    location: "Guindy, Chennai",
+    area: "Guindy",
+    city: "Chennai",
+    capacity: 800,
+    price: 150000,
+    status: "PENDING_APPROVAL",
+    submittedDate: "2024-03-15",
+    description: "Luxury ballroom with state-of-the-art facilities",
+  },
+  {
+    id: 2,
+    type: "VENDOR",
+    title: "Elite Photography",
+    owner: "John Smith",
+    contact: "john@elitephoto.in",
+    phone: "+91 98765 43210",
+    location: "Anna Nagar, Chennai",
+    area: "Anna Nagar",
+    city: "Chennai",
+    serviceType: "PHOTOGRAPHY",
+    price: 50000,
+    status: "PENDING",
+    submittedDate: "2024-03-14",
+    description: "Professional wedding and event photography services",
+  },
+  {
+    id: 3,
+    type: "VENUE",
+    title: "Taj Coromandel Hall",
+    owner: "Taj Hotels",
+    contact: "events@tajhotels.com",
+    phone: "+91 44 2815 7777",
+    location: "Nungambakkam, Chennai",
+    area: "Nungambakkam",
+    city: "Chennai",
+    capacity: 500,
+    price: 200000,
+    status: "PENDING_APPROVAL",
+    submittedDate: "2024-03-13",
+    description: "Premium event hall with modern amenities",
+  },
+  {
+    id: 4,
+    type: "VENDOR",
+    title: "Divine Caterers",
+    owner: "Senthil Kumar",
+    contact: "divine@caterers.in",
+    phone: "+91 91234 56789",
+    location: "T Nagar, Chennai",
+    area: "T Nagar",
+    city: "Chennai",
+    serviceType: "CATERING",
+    price: 75000,
+    status: "PENDING",
+    submittedDate: "2024-03-12",
+    description: "Authentic South Indian and multi-cuisine catering",
+  },
+];
+
+const TYPE_ICONS: Record<string, any> = {
+  VENUE: Building,
+  VENDOR: Store,
+};
 
 export default function AdminApprovalsPage() {
   const router = useRouter();
-  const { user, isAuthenticated } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [approvals, setApprovals] = useState<ApprovalItem[]>([]);
+  const [approvals, setApprovals] = useState(MOCK_APPROVALS);
+  const [filterType, setFilterType] = useState("all");
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    if (!isAuthenticated || user?.role !== "ADMIN") {
-      router.push("/login");
-      return;
-    }
-    loadApprovals();
-  }, [isAuthenticated, user, router]);
-
-  const loadApprovals = async () => {
-    try {
-      setLoading(true);
-      // Mock data - replace with actual API calls
-      setApprovals([
-        { id: 1, type: "VENUE", name: "Grand Ballroom", owner: "John Doe", city: "Chennai", status: "PENDING", createdAt: "2024-03-15" },
-        { id: 2, type: "VENDOR", name: "Elite Photography", owner: "Jane Smith", city: "Bangalore", status: "PENDING", createdAt: "2024-03-14" },
-        { id: 3, type: "VENUE", name: "Royal Gardens", owner: "Mike Johnson", city: "Mumbai", status: "PENDING", createdAt: "2024-03-13" },
-      ]);
-    } catch (error) {
-      console.error("Error loading approvals:", error);
-    } finally {
-      setLoading(false);
-    }
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await new Promise(resolve => setTimeout(resolve, 800));
+    setRefreshing(false);
+    toast.success("Approvals refreshed");
   };
 
   const handleApprove = async (id: number, type: string) => {
-    try {
-      // API call to approve
-      await api.patch(`/admin/${type.toLowerCase()}s/${id}/approve`);
-      toast.success(`${type} approved successfully!`);
-      loadApprovals();
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || `Failed to approve ${type}`);
-    }
+    setApprovals(prev => prev.filter(item => item.id !== id));
+    toast.success(`${type} approved successfully!`);
   };
 
   const handleReject = async (id: number, type: string) => {
-    try {
-      // API call to reject
-      await api.patch(`/admin/${type.toLowerCase()}s/${id}/reject`);
-      toast.success(`${type} rejected`);
-      loadApprovals();
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || `Failed to reject ${type}`);
-    }
+    setApprovals(prev => prev.filter(item => item.id !== id));
+    toast.success(`${type} rejected`);
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <div className="h-12 w-12 rounded-full border-4 border-neutral-200 border-t-neutral-800 animate-spin mx-auto mb-4" />
-          <p className="text-neutral-600">Loading approvals...</p>
-        </div>
-      </div>
-    );
-  }
+  const filteredApprovals = approvals.filter(item => {
+    if (filterType === "all") return true;
+    return item.type === filterType;
+  });
+
+  const stats = {
+    total: approvals.length,
+    venues: approvals.filter(a => a.type === "VENUE").length,
+    vendors: approvals.filter(a => a.type === "VENDOR").length,
+  };
+
+  const formatCurrency = (amount: number) => {
+    if (amount >= 100000) return `₹${(amount / 100000).toFixed(2)}L`;
+    return `₹${(amount / 1000).toFixed(2)}K`;
+  };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-black">Approvals</h1>
-          <p className="text-neutral-600 mt-1">Review and approve pending venues and vendors</p>
+    <div className="space-y-6 bg-neutral-50 min-h-screen">
+      {/* Professional Header */}
+      <div className="bg-white border-b border-neutral-200 px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-neutral-900">Approvals Queue</h1>
+            <p className="text-sm text-neutral-600 mt-1">Review and approve pending submissions</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Button variant="outline" className="border-neutral-300">
+              <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </div>
         </div>
-        <Button variant="ghost" onClick={() => router.push("/dashboard/admin")}>
-          Back to Dashboard
-        </Button>
       </div>
 
-      <Card className="border-silver-200">
-        <CardHeader>
-          <CardTitle>Pending Approvals</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {approvals.length === 0 ? (
-            <div className="text-center py-12">
-              <CheckCircle2 className="h-16 w-16 text-green-500 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-black mb-2">All Caught Up!</h3>
-              <p className="text-neutral-600">No pending approvals at the moment</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {approvals.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center justify-between p-4 rounded-lg border border-neutral-200 hover:shadow-md transition-shadow"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-full bg-gradient-to-br from-neutral-100 to-neutral-200 flex items-center justify-center">
-                      {item.type === "VENUE" ? (
-                        <Building className="h-6 w-6 text-neutral-800" />
-                      ) : (
-                        <Store className="h-6 w-6 text-neutral-800" />
-                      )}
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-black">{item.name}</h3>
-                      <div className="flex items-center gap-4 text-sm text-neutral-600 mt-1">
-                        <span>{item.type}</span>
-                        <span>•</span>
-                        <span>{item.owner}</span>
-                        <span>•</span>
-                        <span>{item.city}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">
-                      <Clock className="h-3 w-3 mr-1" />
-                      Pending
-                    </Badge>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => router.push(`/dashboard/admin/approvals?id=${item.id}`)}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                        onClick={() => handleApprove(item.id, item.type)}
-                      >
-                        <CheckCircle2 className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                        onClick={() => handleReject(item.id, item.type)}
-                      >
-                        <XCircle className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card className="border-silver-200 bg-gradient-to-br from-neutral-50 to-white">
-        <CardHeader>
-          <CardTitle>Approval Guidelines</CardTitle>
-          <CardDescription>Best practices for reviewing submissions</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-start gap-4 p-4 rounded-lg bg-white border border-neutral-200">
-              <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-                <CheckCircle2 className="h-5 w-5 text-green-600" />
-              </div>
-              <div>
-                <p className="font-semibold text-black">Verify Information</p>
-                <p className="text-sm text-neutral-600 mt-1">
-                  Ensure all provided information is accurate and complete before approving
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-4 p-4 rounded-lg bg-white border border-neutral-200">
-              <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                <Building className="h-5 w-5 text-blue-600" />
-              </div>
-              <div>
-                <p className="font-semibold text-black">Check Compliance</p>
-                <p className="text-sm text-neutral-600 mt-1">
-                  Verify that venues and vendors meet platform standards and requirements
-                </p>
-              </div>
+      {/* Alert Banner */}
+      <Card className="border border-amber-200 bg-amber-50 mx-6">
+        <CardContent className="py-4">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
+            <div>
+              <p className="font-semibold text-amber-900">Pending Approvals</p>
+              <p className="text-sm text-amber-800 mt-1">
+                You have <span className="font-bold">{stats.total}</span> items waiting for approval. Please review carefully before approving.
+              </p>
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Stats Cards */}
+      <div className="grid gap-4 md:grid-cols-3 px-6">
+        <Card className="border border-neutral-200">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-neutral-600">Total Pending</p>
+                <p className="text-3xl font-bold text-neutral-900 mt-1">{stats.total}</p>
+              </div>
+              <div className="p-3 rounded-lg bg-neutral-900">
+                <Clock className="h-6 w-6 text-white" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border border-neutral-200">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-neutral-600">Venues Pending</p>
+                <p className="text-3xl font-bold text-orange-600 mt-1">{stats.venues}</p>
+              </div>
+              <div className="p-3 rounded-lg bg-orange-600">
+                <Building className="h-6 w-6 text-white" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border border-neutral-200">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-neutral-600">Vendors Pending</p>
+                <p className="text-3xl font-bold text-purple-600 mt-1">{stats.vendors}</p>
+              </div>
+              <div className="p-3 rounded-lg bg-purple-600">
+                <Store className="h-6 w-6 text-white" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filters */}
+      <Card className="border border-neutral-200 mx-6">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-neutral-600" />
+              <span className="font-medium text-neutral-900">Filter by Type:</span>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant={filterType === "all" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setFilterType("all")}
+                className={filterType === "all" ? "bg-neutral-900 hover:bg-neutral-800" : "border-neutral-300"}
+              >
+                All ({stats.total})
+              </Button>
+              <Button
+                variant={filterType === "VENUE" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setFilterType("VENUE")}
+                className={filterType === "VENUE" ? "bg-neutral-900 hover:bg-neutral-800" : "border-neutral-300"}
+              >
+                Venues ({stats.venues})
+              </Button>
+              <Button
+                variant={filterType === "VENDOR" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setFilterType("VENDOR")}
+                className={filterType === "VENDOR" ? "bg-neutral-900 hover:bg-neutral-800" : "border-neutral-300"}
+              >
+                Vendors ({stats.vendors})
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Approvals List */}
+      <div className="space-y-4 mx-6">
+        {filteredApprovals.length === 0 ? (
+          <Card className="border border-neutral-200">
+            <CardContent className="py-12 text-center">
+              <CheckCircle2 className="h-16 w-16 mx-auto mb-4 text-emerald-600" />
+              <h3 className="text-xl font-bold text-neutral-900 mb-2">All Caught Up!</h3>
+              <p className="text-neutral-600">No pending approvals at the moment</p>
+            </CardContent>
+          </Card>
+        ) : (
+          filteredApprovals.map((item) => {
+            const IconComponent = TYPE_ICONS[item.type];
+            return (
+              <Card key={item.id} className="border border-neutral-200 hover:shadow-lg transition-shadow">
+                <CardContent className="p-6">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="h-14 w-14 rounded-full bg-neutral-900 flex items-center justify-center">
+                          <IconComponent className="h-7 w-7 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-bold text-neutral-900">{item.title}</h3>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge className={
+                              item.type === "VENUE" 
+                                ? "bg-orange-50 text-orange-700 border-orange-200"
+                                : "bg-purple-50 text-purple-700 border-purple-200"
+                            }>
+                              {item.type}
+                            </Badge>
+                            <Badge className="bg-amber-50 text-amber-700 border-amber-200">
+                              <Clock className="h-3 w-3 mr-1" />
+                              {item.status.replace("_", " ")}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid md:grid-cols-2 gap-4 mb-4">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 text-sm text-neutral-700">
+                            <User className="h-4 w-4 text-neutral-400" />
+                            <span className="font-medium">Owner:</span>
+                            <span>{item.owner}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm text-neutral-700">
+                            <Mail className="h-4 w-4 text-neutral-400" />
+                            <span className="font-medium">Email:</span>
+                            <span>{item.contact}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm text-neutral-700">
+                            <Phone className="h-4 w-4 text-neutral-400" />
+                            <span className="font-medium">Phone:</span>
+                            <span>{item.phone}</span>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 text-sm text-neutral-700">
+                            <MapPin className="h-4 w-4 text-neutral-400" />
+                            <span className="font-medium">Location:</span>
+                            <span>{item.location}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm text-neutral-700">
+                            <Calendar className="h-4 w-4 text-neutral-400" />
+                            <span className="font-medium">Submitted:</span>
+                            <span>{new Date(item.submittedDate).toLocaleDateString("en-IN", { year: 'numeric', month: 'short', day: 'numeric' })}</span>
+                          </div>
+                          {item.type === "VENUE" && (
+                            <div className="flex items-center gap-2 text-sm text-neutral-700">
+                              <Users className="h-4 w-4 text-neutral-400" />
+                              <span className="font-medium">Capacity:</span>
+                              <span>{item.capacity} guests</span>
+                            </div>
+                          )}
+                          {item.type === "VENDOR" && (
+                            <div className="flex items-center gap-2 text-sm text-neutral-700">
+                              <Store className="h-4 w-4 text-neutral-400" />
+                              <span className="font-medium">Service:</span>
+                              <span>{item.serviceType}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="p-4 bg-neutral-50 rounded-lg border border-neutral-200 mb-4">
+                        <p className="text-sm font-medium text-neutral-900 mb-1">Description:</p>
+                        <p className="text-sm text-neutral-700">{item.description}</p>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-neutral-900">Base Price:</span>
+                          <span className="text-lg font-bold text-neutral-900">{formatCurrency(item.price)}</span>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => router.push(`/dashboard/admin/${item.type === 'VENUE' ? 'venues' : 'vendors'}/${item.id}`)}
+                          className="border border-neutral-300"
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          View Full Details
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex flex-col gap-2">
+                      <Button
+                        size="lg"
+                        onClick={() => handleApprove(item.id, item.type)}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                      >
+                        <CheckCircle2 className="h-5 w-5 mr-2" />
+                        Approve
+                      </Button>
+                      <Button
+                        size="lg"
+                        variant="outline"
+                        onClick={() => handleReject(item.id, item.type)}
+                        className="border-red-300 text-red-600 hover:bg-red-50"
+                      >
+                        <XCircle className="h-5 w-5 mr-2" />
+                        Reject
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })
+        )}
+      </div>
     </div>
   );
 }

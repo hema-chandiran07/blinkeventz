@@ -1,55 +1,39 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import * as crypto from 'crypto';
 import { ConfigService } from '@nestjs/config';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class OtpService {
   private otpStore: Map<string, { otp: string; expiresAt: Date }> = new Map();
   private sendgridApiKey: string;
   private emailFrom: string;
-  private twilioSid: string;
-  private twilioToken: string;
-  private twilioSmsFrom: string;
-  private twilioWhatsappFrom: string;
 
   constructor(
     private prisma: PrismaService,
     private config: ConfigService
   ) {
     this.sendgridApiKey = this.config.get<string>('SENDGRID_API_KEY') || '';
-    this.emailFrom = this.config.get<string>('EMAIL_FROM') || 'no-reply@blinkeventz.com';
-    this.twilioSid = this.config.get<string>('TWILIO_ACCOUNT_SID') || '';
-    this.twilioToken = this.config.get<string>('TWILIO_AUTH_TOKEN') || '';
-    this.twilioSmsFrom = this.config.get<string>('TWILIO_SMS_FROM') || '';
-    this.twilioWhatsappFrom = this.config.get<string>('TWILIO_WHATSAPP_FROM') || '';
+    this.emailFrom = this.config.get<string>('EMAIL_FROM') || 'no-reply@NearZro.com';
   }
 
   /**
-   * Generate and send OTP via Email and/or SMS
+   * Generate and send OTP via Email
    */
   async sendOtp(email: string, phone?: string): Promise<{ success: boolean; message: string }> {
     // Generate 6-digit OTP
     const otp = crypto.randomInt(100000, 999999).toString();
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
 
-    // Store OTP (in production, use Redis)
+    // Store OTP
     this.otpStore.set(email, { otp, expiresAt });
 
-    // Send via Email
-    if (email) {
-      await this.sendEmail(email, otp);
-    }
+    // Send via Email using SendGrid
+    await this.sendEmail(email, otp);
 
-    // Send via SMS if phone provided
+    // Send via SMS if phone provided (Twilio)
     if (phone) {
       await this.sendSms(phone, otp);
-    }
-
-    // Log for development/testing
-    console.log(`📧 OTP for ${email}: ${otp} (expires in 5 minutes)`);
-    if (phone) {
-      console.log(`📱 SMS OTP to ${phone}: ${otp}`);
     }
 
     return {
@@ -62,11 +46,6 @@ export class OtpService {
    * Send OTP via email using SendGrid
    */
   private async sendEmail(email: string, otp: string): Promise<void> {
-    if (!this.sendgridApiKey || this.sendgridApiKey.startsWith('SG.') === false) {
-      console.warn('⚠️  SendGrid API key not configured, skipping email');
-      return;
-    }
-
     try {
       const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
         method: 'POST',
@@ -77,9 +56,9 @@ export class OtpService {
         body: JSON.stringify({
           personalizations: [{
             to: [{ email }],
-            subject: 'Your BlinkEventz Verification Code',
+            subject: 'Your NearZro Verification Code',
           }],
-          from: { email: this.emailFrom, name: 'BlinkEventz' },
+          from: { email: this.emailFrom, name: 'NearZro' },
           content: [{
             type: 'text/html',
             value: `
@@ -99,12 +78,12 @@ export class OtpService {
                 <body>
                   <div class="container">
                     <div class="header">
-                      <h1>🎉 BlinkEventz</h1>
+                      <h1>🎉 NearZro</h1>
                       <p>Your Verification Code</p>
                     </div>
                     <div class="content">
                       <p>Hello,</p>
-                      <p>Thank you for registering with BlinkEventz! Please use the following verification code to complete your registration:</p>
+                      <p>Thank you for registering with NearZro! Please use the following verification code to complete your registration:</p>
                       <div class="otp-box">
                         <p style="margin: 0 0 10px 0; color: #666; font-size: 14px;">Your OTP Code:</p>
                         <div class="otp-code">${otp}</div>
@@ -112,8 +91,7 @@ export class OtpService {
                       <p><strong>This code will expire in 5 minutes.</strong></p>
                       <p>If you didn't request this code, please ignore this email.</p>
                       <div class="footer">
-                        <p>&copy; ${new Date().getFullYear()} BlinkEventz. All rights reserved.</p>
-                        <p>This is an automated message, please do not reply.</p>
+                        <p>&copy; ${new Date().getFullYear()} NearZro. All rights reserved.</p>
                       </div>
                     </div>
                   </div>
@@ -126,14 +104,16 @@ export class OtpService {
 
       if (!response.ok) {
         const error = await response.json();
-        console.error('SendGrid error:', error);
-        throw new Error('Failed to send email');
+        console.error('❌ SendGrid Error:', error);
+        // Log OTP to console as fallback
+        console.log(`\n📧 OTP for ${email}: ${otp}\n⚠️  SendGrid failed - ${error.errors?.[0]?.message || 'Unknown error'}\n`);
+      } else {
+        console.log(`✅ Email sent successfully to ${email}`);
       }
-
-      console.log('✅ Email sent successfully to:', email);
     } catch (error) {
       console.error('❌ Failed to send email:', error);
-      // Don't throw - allow OTP to still work even if email fails
+      // Fallback: log OTP to console
+      console.log(`\n📧 OTP for ${email}: ${otp}\n⚠️  Email sending failed - use this code instead\n`);
     }
   }
 
@@ -141,42 +121,42 @@ export class OtpService {
    * Send OTP via SMS using Twilio
    */
   private async sendSms(phone: string, otp: string): Promise<void> {
-    if (!this.twilioSid || !this.twilioToken) {
-      console.warn('⚠️  Twilio credentials not configured, skipping SMS');
+    const twilioSid = this.config.get<string>('TWILIO_ACCOUNT_SID');
+    const twilioToken = this.config.get<string>('TWILIO_AUTH_TOKEN');
+    const twilioSmsFrom = this.config.get<string>('TWILIO_SMS_FROM');
+
+    if (!twilioSid || !twilioToken || !twilioSmsFrom) {
+      console.log(`📱 SMS OTP to ${phone}: ${otp} (Twilio not configured)`);
       return;
     }
 
     try {
-      // Check if it's a WhatsApp number (starts with whatsapp:)
-      const isWhatsapp = phone.startsWith('whatsapp:');
-      const fromNumber = isWhatsapp ? this.twilioWhatsappFrom : this.twilioSmsFrom;
-      const toNumber = isWhatsapp ? phone : `+91${phone.replace(/\D/g, '')}`;
+      const auth = Buffer.from(`${twilioSid}:${twilioToken}`).toString('base64');
+      const toNumber = `+91${phone.replace(/\D/g, '')}`;
 
-      const auth = Buffer.from(`${this.twilioSid}:${this.twilioToken}`).toString('base64');
-      
-      const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${this.twilioSid}/Messages.json`, {
+      const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Messages.json`, {
         method: 'POST',
         headers: {
           'Authorization': `Basic ${auth}`,
           'Content-Type': 'application/x-www-form-urlencoded',
         },
         body: new URLSearchParams({
-          From: fromNumber,
+          From: twilioSmsFrom,
           To: toNumber,
-          Body: `Your BlinkEventz verification code is: ${otp}. This code will expire in 5 minutes.`,
+          Body: `Your NearZro verification code is: ${otp}. Expires in 5 minutes.`,
         }),
       });
 
       if (!response.ok) {
         const error = await response.json();
-        console.error('Twilio error:', error);
-        throw new Error('Failed to send SMS');
+        console.error('❌ Twilio Error:', error);
+        console.log(`📱 SMS OTP to ${phone}: ${otp} (Twilio failed - use this code)`);
+      } else {
+        console.log(`✅ SMS sent to ${phone}`);
       }
-
-      console.log('✅ SMS sent successfully to:', phone);
     } catch (error) {
       console.error('❌ Failed to send SMS:', error);
-      // Don't throw - allow OTP to still work even if SMS fails
+      console.log(`📱 SMS OTP to ${phone}: ${otp} (SMS failed - use this code)`);
     }
   }
 
@@ -199,7 +179,7 @@ export class OtpService {
       throw new BadRequestException('Invalid OTP');
     }
 
-    // OTP verified successfully - delete it and mark email as verified
+    // OTP verified successfully
     this.otpStore.delete(email);
 
     // Update user's email verification status
