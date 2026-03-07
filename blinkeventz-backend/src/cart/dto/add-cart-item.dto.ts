@@ -1,29 +1,54 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsInt, IsOptional } from 'class-validator';
-import { ItemType } from '@prisma/client';
+import { IsNotEmpty, IsString, IsOptional, IsInt, Min, IsDateString } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class AddCartItemDto {
-  @ApiProperty({ enum: ItemType, example: ItemType.VENDOR_SERVICE }) 
-  @IsEnum(ItemType)
-  itemType: ItemType;
-  @ApiPropertyOptional({ example: 1 })
+  @ApiProperty({ enum: ['VENUE', 'VENDOR_SERVICE', 'ADDON'] })
+  @IsNotEmpty()
+  @IsString()
+  itemType: string;
+
+  @ApiProperty({ required: false })
   @IsOptional()
-  vendorServiceId?: number;
-  @ApiPropertyOptional({ example: 2 })
-  @IsOptional()
+  @IsInt()
   venueId?: number;
-  @ApiPropertyOptional({ example: 3 })
+
+  @ApiProperty({ required: false })
   @IsOptional()
+  @IsInt()
+  vendorServiceId?: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsInt()
   addonId?: number;
-  @ApiProperty({ example: 2 })
-  @IsInt()
-  quantity: number;
-  @ApiProperty({ example: 15000 })
-  @IsInt()
-  unitPrice: number;
- @ApiPropertyOptional({
-    example: { eventDate: '2026-02-10', notes: 'Evening slot' },
-  })
+
+  @ApiProperty({ required: false })
   @IsOptional()
-  meta?: Record<string, any>;
+  @IsDateString()
+  date?: string;
+
+  @ApiProperty({ enum: ['MORNING', 'EVENING', 'FULL_DAY'], required: false })
+  @IsOptional()
+  @IsString()
+  timeSlot?: string;
+
+  @ApiProperty({ required: false, default: 1 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  quantity?: number = 1;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsInt()
+  unitPrice?: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  meta?: {
+    guestCount?: number;
+    area?: string;
+    city?: string;
+    serviceType?: string;
+  };
 }

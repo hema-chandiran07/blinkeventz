@@ -1,111 +1,238 @@
 // src/cart/cart.service.ts
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AddCartItemDto } from './dto/add-cart-item.dto';
-import { CartStatus, CartItem } from '@prisma/client';
+import { UpdateCartItemDto } from './dto/update-cart-item.dto';
+import { CartItem } from '@prisma/client';
 import { CartWithItems, CheckoutResponse } from './cart.types';
+
+const PLATFORM_FEE_PERCENTAGE = 0.02; // 2%
+const TAX_PERCENTAGE = 0.18; // 18% GST
 
 @Injectable()
 export class CartService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getOrCreateCart(userId: number): Promise<CartWithItems> {
+  async getCart(userId: number | null): Promise<any> {
+    if (!userId) {
+      throw new BadRequestException('User ID is required');
+    }
+
     let cart = await this.prisma.cart.findFirst({
-      where: { userId, status: CartStatus.ACTIVE },
-      include: { items: true },
+      where: { userId: userId ?? undefined, status: 'ACTIVE' },
     });
 
     if (!cart) {
       cart = await this.prisma.cart.create({
-        data: { userId, status: CartStatus.ACTIVE },
-        include: { items: true },
+        data: { userId: userId ?? undefined, status: 'ACTIVE' },
       });
     }
 
-    return cart;
-  }
-
-  async getActiveCart(userId: number) {
-    return this.prisma.cart.findFirst({
-      where: { userId, status: CartStatus.ACTIVE },
-      include: { items: true },
+    const items = await this.prisma.cartItem.findMany({
+      where: { cartId: cart.id },
     });
+
+    // Calculate totals
+    const subtotal = items.reduce((sum: any, item: any) => sum + item.totalPrice, 0);
+    const platformFee = Math.round(subtotal * 0.02);
+    const tax = Math.round((subtotal + platformFee) * 0.18);
+    const total = subtotal + platformFee + tax;
+
+    return {
+      id: cart.id,
+      status: cart.status,
+      items,
+      subtotal,
+      platformFee,
+      tax,
+      totalAmount: total,
+    };
   }
 
-  async addItemForUser(userId: number, dto: AddCartItemDto) {
-    const cart = await this.getOrCreateCart(userId);
-
-    if (cart.status !== CartStatus.ACTIVE) {
-      throw new BadRequestException('Cart is locked');
+  async addItem(userId: number | null, dto: AddCartItemDto) {
+    if (!userId) {
+      throw new BadRequestException('User ID is required');
     }
 
-    return this.prisma.cartItem.create({
+    let cart = await this.prisma.cart.findFirst({
+      where: { userId: userId ?? undefined, status: 'ACTIVE' },
+    });
+
+    if (!cart) {
+      cart = await this.prisma.cart.create({
+        data: { userId: userId ?? undefined, status: 'ACTIVE' },
+      });
+    }
+
+    // Fetch item details to get price
+    let unitPrice = dto.unitPrice || 0;
+    let name = dto.itemType.toString();
+
+    if (dto.venueId) {
+      const venue = await this.prisma.venue.findUnique({
+        where: { id: dto.venueId },
+      });
+      if (!venue) {
+        throw new NotFoundException('Venue not found');
+      }
+      unitPrice = venue.basePriceEvening || venue.basePriceMorning || venue.basePriceFullDay || 0;
+      name = venue.name;
+    } else if (dto.vendorServiceId) {
+      const service = await this.prisma.vendorService.findUnique({
+        where: { id: dto.vendorServiceId },
+        include: { vendor: true },
+      });
+      if (!service) {
+        throw new NotFoundException('Service not found');
+      }
+      // Calculate price based on pricing model
+      if (service.pricingModel === 'PER_PERSON' && dto.meta && typeof dto.meta === 'object' && 'guestCount' in dto.meta) {
+        const meta = dto.meta as any;
+        unitPrice = service.baseRate * (meta.guestCount || 1);
+      } else {
+        unitPrice = service.baseRate;
+      }
+      name = `${service.name} (${service.vendor.businessName})`;
+    }
+
+    const totalPrice = unitPrice * (dto.quantity || 1);
+
+    const item = await this.prisma.cartItem.create({
       data: {
         cartId: cart.id,
-        itemType: dto.itemType,
-        vendorServiceId: dto.vendorServiceId,
+        itemType: dto.itemType as any,
         venueId: dto.venueId,
+        vendorServiceId: dto.vendorServiceId,
         addonId: dto.addonId,
-        quantity: dto.quantity,
-        unitPrice: dto.unitPrice,
-        totalPrice: dto.unitPrice * dto.quantity,
-        meta: dto.meta,
+        date: dto.date ? new Date(dto.date) : null,
+        timeSlot: dto.timeSlot,
+        quantity: dto.quantity || 1,
+        unitPrice,
+        totalPrice,
+        meta: dto.meta as any,
       },
-    });
-  }
-
-  async removeItem(userId: number, cartItemId: number) {
-    const item = await this.prisma.cartItem.findUnique({
-      where: { id: cartItemId },
-      include: { cart: true },
-    });
-
-    if (!item || item.cart.userId !== userId) {
-      throw new BadRequestException('Unauthorized');
-    }
-
-    if (item.cart.status !== CartStatus.ACTIVE) {
-      throw new BadRequestException('Cart is locked');
-    }
-
-    return this.prisma.cartItem.delete({ where: { id: cartItemId } });
-  }
-
-  async checkoutByUser(userId: number): Promise<CheckoutResponse> {
-    // 🔒 Step 1: Lock cart
-    const cart = await this.prisma.cart.findFirst({
-      where: { userId, status: CartStatus.ACTIVE },
-      include: { items: true },
-    });
-
-    if (!cart || cart.items.length === 0) {
-      throw new BadRequestException('Cart is empty');
-    }
-
-    await this.prisma.cart.update({
-      where: { id: cart.id },
-      data: { status: CartStatus.LOCKED },
-    });
-
-    // 🔢 Step 2: Calculate total
-    const totalAmount = cart.items.reduce(
-      (sum, item) => sum + item.totalPrice,
-      0,
-    );
-
-    // 💳 Step 3: (Later → payment integration)
-
-    // ✅ Step 4: Complete cart
-    await this.prisma.cart.update({
-      where: { id: cart.id },
-      data: { status: CartStatus.COMPLETED },
     });
 
     return {
+      ...item,
+      name,
+    };
+  }
+
+  async updateItem(userId: number | null, cartItemId: number, dto: UpdateCartItemDto) {
+    const item = await this.prisma.cartItem.findUnique({
+      where: { id: cartItemId },
+    });
+
+    if (!item) {
+      throw new NotFoundException('Cart item not found');
+    }
+
+    const cart = await this.prisma.cart.findUnique({
+      where: { id: item.cartId },
+    });
+
+    if (!cart || cart.userId !== userId) {
+      throw new BadRequestException('Unauthorized');
+    }
+
+    if (cart.status !== 'ACTIVE') {
+      throw new BadRequestException('Cart is locked');
+    }
+
+    // Recalculate price if guest count changed for PER_PERSON pricing
+    let totalPrice = item.totalPrice;
+    if (dto.meta && item.vendorServiceId) {
+      const vendorService = await this.prisma.vendorService.findUnique({ where: { id: item.vendorServiceId } });
+      if (vendorService?.pricingModel === 'PER_PERSON') {
+        const meta = dto.meta as any;
+        if (meta.guestCount) {
+          totalPrice = Math.round(vendorService.baseRate * meta.guestCount);
+        }
+      }
+    }
+
+    const updatedItem = await this.prisma.cartItem.update({
+      where: { id: cartItemId },
+      data: {
+        quantity: dto.quantity,
+        meta: dto.meta as any,
+        totalPrice,
+      },
+    });
+
+    return updatedItem;
+  }
+
+  async removeItem(userId: number | null, cartItemId: number) {
+    const item = await this.prisma.cartItem.findUnique({
+      where: { id: cartItemId },
+    });
+
+    if (!item) {
+      throw new NotFoundException('Cart item not found');
+    }
+
+    const cart = await this.prisma.cart.findUnique({
+      where: { id: item.cartId },
+    });
+
+    if (!cart || cart.userId !== userId) {
+      throw new BadRequestException('Unauthorized');
+    }
+
+    await this.prisma.cartItem.delete({
+      where: { id: cartItemId },
+    });
+
+    return { success: true };
+  }
+
+  async clearCart(userId: number | null) {
+    if (!userId) {
+      throw new BadRequestException('User ID is required');
+    }
+
+    const cart = await this.prisma.cart.findFirst({
+      where: { userId: userId ?? undefined, status: 'ACTIVE' },
+    });
+
+    if (!cart) {
+      throw new NotFoundException('Cart not found');
+    }
+
+    await this.prisma.cartItem.deleteMany({
+      where: { cartId: cart.id },
+    });
+
+    return { success: true };
+  }
+
+  async checkout(userId: number): Promise<any> {
+    const cart = await this.prisma.cart.findFirst({
+      where: { userId: userId ?? undefined, status: 'ACTIVE' },
+    });
+
+    if (!cart) {
+      throw new NotFoundException('Cart not found');
+    }
+
+    const items = await this.prisma.cartItem.findMany({
+      where: { cartId: cart.id },
+    });
+
+    const subtotal = items.reduce((sum: any, item: any) => sum + item.totalPrice, 0);
+    const platformFee = Math.round(subtotal * 0.02);
+    const tax = Math.round((subtotal + platformFee) * 0.18);
+    const total = subtotal + platformFee + tax;
+
+    return {
       cartId: cart.id,
-      totalAmount,
-      itemsCount: cart.items.length,
-      status: 'CHECKOUT_SUCCESS',
+      items,
+      subtotal,
+      platformFee,
+      tax,
+      totalAmount: total,
     };
   }
 }

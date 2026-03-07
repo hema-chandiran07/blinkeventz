@@ -14,7 +14,12 @@ import {
   Building2,
   Users,
   CheckSquare,
-  Sparkles
+  Sparkles,
+  CreditCard,
+  BarChart3,
+  DollarSign,
+  Bell,
+  Shield
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
@@ -28,7 +33,9 @@ interface SidebarItem {
 
 const SIDEBAR_ITEMS: Record<string, SidebarItem[]> = {
   CUSTOMER: [
-    { name: 'My Events', href: '/dashboard/customer', icon: Calendar },
+    { name: 'My Events', href: '/dashboard/customer/events', icon: Calendar },
+    { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
+    { name: 'KYC Verification', href: '/dashboard/customer/kyc', icon: CheckSquare },
     { name: 'Profile', href: '/dashboard/customer/profile', icon: Users },
     { name: 'Settings', href: '/dashboard/settings', icon: Settings },
   ],
@@ -36,6 +43,8 @@ const SIDEBAR_ITEMS: Record<string, SidebarItem[]> = {
     { name: 'Dashboard', href: '/dashboard/vendor', icon: LayoutDashboard },
     { name: 'Services', href: '/dashboard/vendor/services', icon: ShoppingBag },
     { name: 'Bookings', href: '/dashboard/vendor/bookings', icon: Calendar },
+    { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
+    { name: 'KYC & Bank', href: '/dashboard/vendor/kyc', icon: CheckSquare },
     { name: 'Profile', href: '/dashboard/vendor/profile', icon: Store },
   ],
   VENUE_OWNER: [
@@ -43,12 +52,25 @@ const SIDEBAR_ITEMS: Record<string, SidebarItem[]> = {
     { name: 'My Venue', href: '/dashboard/venue/details', icon: Building2 },
     { name: 'Bookings', href: '/dashboard/venue/bookings', icon: Calendar },
     { name: 'Calendar', href: '/dashboard/venue/calendar', icon: Calendar },
+    { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
+    { name: 'KYC & Bank', href: '/dashboard/venue/kyc', icon: CheckSquare },
   ],
   ADMIN: [
     { name: 'Overview', href: '/dashboard/admin', icon: LayoutDashboard },
+    { name: 'Transactions', href: '/dashboard/admin/transactions', icon: CreditCard },
+    { name: 'Reports', href: '/dashboard/admin/reports', icon: BarChart3 },
+    { name: 'Payouts', href: '/dashboard/admin/payouts', icon: DollarSign },
+    { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
+    { name: 'Reviews', href: '/dashboard/admin/reviews', icon: CheckSquare },
+    { name: 'Promotions', href: '/dashboard/admin/promotions', icon: CheckSquare },
+    { name: 'KYC Approvals', href: '/dashboard/admin/kyc-approvals', icon: CheckSquare },
     { name: 'Approvals', href: '/dashboard/admin/approvals', icon: CheckSquare },
     { name: 'Events', href: '/dashboard/admin/events', icon: Calendar },
+    { name: 'Venues', href: '/dashboard/admin/venues', icon: Building2 },
+    { name: 'Vendors', href: '/dashboard/admin/vendors', icon: Store },
     { name: 'Users', href: '/dashboard/admin/users', icon: Users },
+    { name: 'Audit Logs', href: '/dashboard/admin/audit-logs', icon: Shield },
+    { name: 'System', href: '/dashboard/admin/system-settings', icon: Settings },
   ]
 };
 

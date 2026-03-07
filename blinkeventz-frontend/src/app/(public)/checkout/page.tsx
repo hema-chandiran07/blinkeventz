@@ -18,6 +18,7 @@ import {
   Trash2,
   X,
   ShoppingBag,
+  Calendar,
 } from "lucide-react";
 import { UPIProvider, WalletProvider, BankCode, CheckoutFormData, CheckoutErrors, CartItem } from "@/types";
 import { toast } from "sonner";
@@ -73,6 +74,16 @@ export default function CheckoutPage() {
     cvc: "",
   });
 
+  const [eventDetails, setEventDetails] = useState({
+    eventType: "",
+    eventTitle: "",
+    eventDate: "",
+    guestCount: 300,
+    specialNotes: "",
+  });
+
+  const [promoCode, setPromoCode] = useState("");
+  const [discount, setDiscount] = useState(0);
   const [errors, setErrors] = useState<CheckoutErrors>({});
 
   // Load booking data from localStorage
@@ -344,6 +355,21 @@ export default function CheckoutPage() {
     }
   };
 
+  const handleApplyPromoCode = () => {
+    if (!promoCode.trim()) {
+      toast.error("Please enter a promo code");
+      return;
+    }
+    
+    // TODO: Validate promo code with backend
+    if (promoCode.toUpperCase() === "WELCOME10") {
+      setDiscount(0.1); // 10% discount
+      toast.success("Promo code applied! 10% discount");
+    } else {
+      toast.error("Invalid promo code");
+    }
+  };
+
   const handleRemoveItem = (itemId: string) => {
     if (itemId.startsWith('booking-')) {
       localStorage.removeItem('NearZro_booking');
@@ -475,6 +501,79 @@ export default function CheckoutPage() {
                       maxLength={10}
                     />
                     {errors.phone && <p className="text-xs text-red-500">{errors.phone}</p>}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Event Details Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Calendar className="h-5 w-5 text-neutral-800" />
+                    Event Details
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="eventType">Event Type *</Label>
+                      <select
+                        id="eventType"
+                        value={eventDetails.eventType}
+                        onChange={(e) => setEventDetails({...eventDetails, eventType: e.target.value})}
+                        className="flex h-10 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm"
+                      >
+                        <option value="">Select event type</option>
+                        <option value="WEDDING">Wedding</option>
+                        <option value="ENGAGEMENT">Engagement</option>
+                        <option value="RECEPTION">Reception</option>
+                        <option value="BIRTHDAY">Birthday</option>
+                        <option value="CORPORATE">Corporate Event</option>
+                        <option value="PRIVATE">Private Party</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="eventDate">Event Date *</Label>
+                      <Input
+                        id="eventDate"
+                        type="date"
+                        value={eventDetails.eventDate}
+                        onChange={(e) => setEventDetails({...eventDetails, eventDate: e.target.value})}
+                        className="border-neutral-300"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="eventTitle">Event Title</Label>
+                      <Input
+                        id="eventTitle"
+                        placeholder="e.g., Priya & Karthik Wedding"
+                        value={eventDetails.eventTitle}
+                        onChange={(e) => setEventDetails({...eventDetails, eventTitle: e.target.value})}
+                        className="border-neutral-300"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="guestCount">Expected Guest Count</Label>
+                      <Input
+                        id="guestCount"
+                        type="number"
+                        min="1"
+                        value={eventDetails.guestCount}
+                        onChange={(e) => setEventDetails({...eventDetails, guestCount: parseInt(e.target.value) || 1})}
+                        className="border-neutral-300"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="specialNotes">Special Notes or Requirements</Label>
+                    <textarea
+                      id="specialNotes"
+                      rows={3}
+                      placeholder="Any special requirements..."
+                      value={eventDetails.specialNotes}
+                      onChange={(e) => setEventDetails({...eventDetails, specialNotes: e.target.value})}
+                      className="flex min-h-[80px] w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm"
+                    />
                   </div>
                 </CardContent>
               </Card>
@@ -733,11 +832,38 @@ export default function CheckoutPage() {
                       <span className="text-black font-medium">Platform Fee</span>
                       <span className="font-medium text-black">{formatCurrency(serviceFee)}</span>
                     </div>
+                    {discount > 0 && (
+                      <div className="flex justify-between text-sm text-green-600">
+                        <span className="font-medium">Discount</span>
+                        <span className="font-medium">-{formatCurrency(total * discount)}</span>
+                      </div>
+                    )}
                     <div className="border-t pt-2 flex justify-between font-bold text-lg">
                       <span className="text-black">Total</span>
-                      <span className="text-black">{formatCurrency(total)}</span>
+                      <span className="text-black">{formatCurrency(total * (1 - discount))}</span>
                     </div>
                   </div>
+
+                  {/* Promo Code */}
+                  <div className="pt-4 border-t">
+                    <div className="flex gap-2 mb-2">
+                      <Input
+                        placeholder="Enter promo code"
+                        value={promoCode}
+                        onChange={(e) => setPromoCode(e.target.value)}
+                        className="flex-1 border-neutral-300"
+                      />
+                      <Button
+                        variant="outline"
+                        onClick={handleApplyPromoCode}
+                        className="border-black"
+                      >
+                        Apply
+                      </Button>
+                    </div>
+                    <p className="text-xs text-neutral-600">Try "WELCOME10" for 10% off!</p>
+                  </div>
+
                   <Button
                     variant="premium"
                     size="lg"

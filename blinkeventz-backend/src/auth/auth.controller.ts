@@ -1,6 +1,8 @@
 import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
+import { VendorRegisterDto } from './dto/vendor-register.dto';
+import { VenueOwnerRegisterDto } from './dto/venue-owner-register.dto';
 import { LoginDto } from './dto/login.dto';
 import { ForgotPasswordDto, ResetPasswordDto } from './dto/forgot-password.dto';
 import { SendOtpDto, VerifyOtpDto } from './dto/otp.dto';
@@ -41,14 +43,14 @@ export class AuthController {
   // 🏢 VENUE OWNER registration
    @Public()
   @Post('register-venue-owner')
-  registerVenueOwner(@Body() dto: RegisterDto) {
+  registerVenueOwner(@Body() dto: VenueOwnerRegisterDto) {
     return this.authService.registerVenueOwner(dto);
   }
 
   // 🏪 VENDOR registration
 @Public()
 @Post('register-vendor')
-registerVendor(@Body() dto: RegisterDto) {
+registerVendor(@Body() dto: VendorRegisterDto) {
   return this.authService.registerVendor(dto);
 }
 

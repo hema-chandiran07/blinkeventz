@@ -1,6 +1,8 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
+import { VendorRegisterDto } from './dto/vendor-register.dto';
+import { VenueOwnerRegisterDto } from './dto/venue-owner-register.dto';
 import { LoginDto } from './dto/login.dto';
 import { ForgotPasswordDto, ResetPasswordDto } from './dto/forgot-password.dto';
 import { JwtService } from '@nestjs/jwt';
@@ -95,24 +97,106 @@ export class AuthService {
   }
 
   // 🏢 VENUE OWNER registration - requires OTP verification
-  async registerVenueOwner(dto: RegisterDto) {
+  // Allows same email as VENDOR (user can have both businesses)
+  async registerVenueOwner(dto: VenueOwnerRegisterDto) {
+    // Check if user already exists
     const existingUser = await this.prisma.user.findUnique({
       where: { email: dto.email },
+      include: { venues: true },
     });
 
-    if (existingUser) {
-      throw new BadRequestException('Email already exists');
+    // If user exists and already has VENUE_OWNER role with venues, reject
+    if (existingUser && existingUser.role === Role.VENUE_OWNER && existingUser.venues.length > 0) {
+      throw new BadRequestException('Email already registered as Venue Owner');
     }
 
-    const hashedPassword = await bcrypt.hash(dto.password, 10);
+    // If user exists (e.g., as VENDOR), add venue to their profile
+    if (existingUser) {
+      // Verify password matches existing account
+      if (existingUser.passwordHash) {
+        const isPasswordValid = await bcrypt.compare(dto.password, existingUser.passwordHash);
+        if (!isPasswordValid) {
+          throw new BadRequestException('Password does not match existing account');
+        }
+      } else {
+        // OAuth user - set password
+        const hashedPassword = await bcrypt.hash(dto.password, 10);
+        await this.prisma.user.update({
+          where: { id: existingUser.id },
+          data: { passwordHash: hashedPassword },
+        });
+      }
 
+      // Update user's name if different (in case they want to use a different display name)
+      if (dto.name !== existingUser.name) {
+        await this.prisma.user.update({
+          where: { id: existingUser.id },
+          data: { name: dto.name },
+        });
+      }
+
+      // Create venue profile for existing user
+      const venue = await this.prisma.venue.create({
+        data: {
+          ownerId: existingUser.id,
+          name: dto.venueName,
+          type: dto.venueType as any,
+          description: dto.description,
+          city: dto.city,
+          area: dto.area,
+          address: 'Address to be updated by owner',
+          pincode: '000000',
+          capacityMin: 100,
+          capacityMax: dto.capacity || 500,
+          basePriceMorning: 50000,
+          basePriceEvening: 75000,
+          basePriceFullDay: 120000,
+          status: 'PENDING_APPROVAL',
+        },
+      });
+
+      return {
+        user: {
+          id: existingUser.id,
+          name: dto.name, // Return the NEW name they entered
+          email: existingUser.email,
+          role: Role.VENUE_OWNER, // Return VENUE_OWNER so they can access venue dashboard
+          isEmailVerified: existingUser.isEmailVerified,
+        },
+        requiresOtp: !existingUser.isEmailVerified,
+        message: 'Venue added successfully. Please verify your email with OTP.',
+      };
+    }
+
+    // Create new user with VENUE_OWNER role
+    const hashedPassword = await bcrypt.hash(dto.password, 10);
     const user = await this.prisma.user.create({
       data: {
         name: dto.name,
         email: dto.email,
         passwordHash: hashedPassword,
         role: Role.VENUE_OWNER,
-        isEmailVerified: false, // Requires OTP verification
+        isEmailVerified: false,
+      },
+    });
+
+    // Create venue profile
+    await this.prisma.venue.create({
+      data: {
+        ownerId: user.id,
+        name: dto.venueName,
+        type: dto.venueType as any,
+        description: dto.description,
+        city: dto.city,
+        area: dto.area,
+        address: 'Address to be updated by owner',
+        pincode: '000000',
+        capacityMin: 100,
+        capacityMax: dto.capacity || 500,
+        basePriceMorning: 50000,
+        basePriceEvening: 75000,
+        basePriceFullDay: 120000,
+        status: 'PENDING_APPROVAL',
       },
     });
 
@@ -130,35 +214,116 @@ export class AuthService {
   }
 
   // 🏪 VENDOR registration - requires OTP verification
-  async registerVendor(dto: RegisterDto) {
+  // Allows same email as VENUE_OWNER (user can have both businesses)
+  async registerVendor(dto: VendorRegisterDto) {
+    // Check if user already exists
     const existingUser = await this.prisma.user.findUnique({
       where: { email: dto.email },
+      include: { vendor: true },
     });
 
-    if (existingUser) {
-      throw new BadRequestException('Email already exists');
+    // If user exists and already has a vendor profile, reject
+    if (existingUser && existingUser.role === Role.VENDOR && existingUser.vendor) {
+      throw new BadRequestException('Email already registered as Vendor');
     }
 
-    const hashedPassword = await bcrypt.hash(dto.password, 10);
+    // If user exists (e.g., as VENUE_OWNER or CUSTOMER), add vendor profile
+    if (existingUser) {
+      // Verify password matches if user has one
+      if (existingUser.passwordHash) {
+        const isPasswordValid = await bcrypt.compare(dto.password, existingUser.passwordHash);
+        if (!isPasswordValid) {
+          throw new BadRequestException('Password does not match existing account');
+        }
+      } else {
+        // OAuth user - set password
+        const hashedPassword = await bcrypt.hash(dto.password, 10);
+        await this.prisma.user.update({
+          where: { id: existingUser.id },
+          data: { passwordHash: hashedPassword },
+        });
+      }
 
-    // 1️⃣ Create USER with VENDOR role
+      // Update user's name if different (in case they want to use a different display name)
+      if (dto.name !== existingUser.name) {
+        await this.prisma.user.update({
+          where: { id: existingUser.id },
+          data: { name: dto.name },
+        });
+      }
+
+      // Create vendor profile for existing user
+      const vendor = await this.prisma.vendor.create({
+        data: {
+          userId: existingUser.id,
+          businessName: dto.businessName,
+          description: dto.description,
+          city: dto.city,
+          area: dto.area,
+          serviceRadiusKm: dto.serviceRadiusKm || 50,
+          verificationStatus: 'PENDING',
+        },
+      });
+
+      // Create initial vendor service
+      await this.prisma.vendorService.create({
+        data: {
+          vendorId: vendor.id,
+          name: `${dto.businessName} - ${dto.businessType}`,
+          serviceType: dto.businessType as any,
+          baseRate: 50000,
+          pricingModel: 'PER_EVENT',
+          isActive: true,
+        },
+      });
+
+      return {
+        user: {
+          id: existingUser.id,
+          name: dto.name, // Return the NEW name they entered
+          email: existingUser.email,
+          role: Role.VENDOR,
+          isEmailVerified: existingUser.isEmailVerified,
+        },
+        requiresOtp: !existingUser.isEmailVerified,
+        message: 'Vendor profile added successfully. Please verify your email with OTP.',
+      };
+    }
+
+    // Create new user with VENDOR role
+    const hashedPassword = await bcrypt.hash(dto.password, 10);
     const user = await this.prisma.user.create({
       data: {
         name: dto.name,
         email: dto.email,
         passwordHash: hashedPassword,
         role: Role.VENDOR,
-        isEmailVerified: false, // Requires OTP verification
+        isEmailVerified: false,
       },
     });
 
-    // 2️⃣ Create VENDOR PROFILE
-    await this.prisma.vendor.create({
+    // Create vendor profile
+    const vendor = await this.prisma.vendor.create({
       data: {
         userId: user.id,
-        businessName: dto.name,
-        city: 'NOT_SET',
-        area: 'NOT_SET',
+        businessName: dto.businessName,
+        description: dto.description,
+        city: dto.city,
+        area: dto.area,
+        serviceRadiusKm: dto.serviceRadiusKm || 50,
+        verificationStatus: 'PENDING',
+      },
+    });
+
+    // Create initial vendor service using vendor.id (not user.id)
+    await this.prisma.vendorService.create({
+      data: {
+        vendorId: vendor.id,
+        name: `${dto.businessName} - ${dto.businessType}`,
+        serviceType: dto.businessType as any,
+        baseRate: 50000,
+        pricingModel: 'PER_EVENT',
+        isActive: true,
       },
     });
 
@@ -176,14 +341,25 @@ export class AuthService {
   }
 
 
-  // 🔐 Login
+  // 🔐 Login - accepts email OR username (name)
+  // Determines role based on what profiles user has (vendor/venue)
   async login(dto: LoginDto) {
-    const user = await this.prisma.user.findUnique({
-      where: { email: dto.email },
+    // Find user by email OR username (name)
+    const user = await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: dto.email },
+          { name: dto.email }, // Allow using username as login identifier
+        ],
+      },
+      include: {
+        vendor: true,
+        venues: true,
+      },
     });
 
     if (!user) {
-      throw new BadRequestException('Invalid email or password');
+      throw new BadRequestException('Invalid email/username or password');
     }
 
     // Check if user has a password (OAuth users don't have password)
@@ -193,7 +369,7 @@ export class AuthService {
 
     // Validate password if provided
     if (!dto.password || dto.password.length < 1) {
-      throw new BadRequestException('Invalid email or password');
+      throw new BadRequestException('Invalid email/username or password');
     }
 
     const isPasswordValid = await bcrypt.compare(
@@ -202,13 +378,25 @@ export class AuthService {
     );
 
     if (!isPasswordValid) {
-      throw new BadRequestException('Invalid email or password');
+      throw new BadRequestException('Invalid email/username or password');
     }
 
+    // Determine role based on what profiles user has
+    // Priority: If they have BOTH vendor and venue, use the role from their last registration
+    // For simplicity: VENDOR if they have vendor profile, VENUE_OWNER if they have venue profile
+    // If they have both, we'll use the role stored in the user table
+    let effectiveRole = user.role;
+    
+    // If user has vendor profile, they can access vendor dashboard
+    // If user has venue profile, they can access venue dashboard
+    // We'll return their stored role, but the frontend should check what profiles exist
+    
     const payload = {
       sub: user.id,
       email: user.email,
-      role: user.role,
+      role: effectiveRole,
+      hasVendorProfile: !!user.vendor,
+      hasVenueProfile: user.venues && user.venues.length > 0,
     };
 
     return {
@@ -216,7 +404,9 @@ export class AuthService {
         id: user.id,
         name: user.name,
         email: user.email,
-        role: user.role,
+        role: effectiveRole,
+        hasVendorProfile: !!user.vendor,
+        hasVenueProfile: user.venues && user.venues.length > 0,
       },
       token: this.jwtService.sign(payload),
     };

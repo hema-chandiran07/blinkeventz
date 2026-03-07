@@ -8,6 +8,7 @@ export class OtpService {
   private otpStore: Map<string, { otp: string; expiresAt: Date }> = new Map();
   private sendgridApiKey: string;
   private emailFrom: string;
+  private appEnv: string;
 
   constructor(
     private prisma: PrismaService,
@@ -15,6 +16,7 @@ export class OtpService {
   ) {
     this.sendgridApiKey = this.config.get<string>('SENDGRID_API_KEY') || '';
     this.emailFrom = this.config.get<string>('EMAIL_FROM') || 'no-reply@NearZro.com';
+    this.appEnv = this.config.get<string>('APP_ENV') || 'development';
   }
 
   /**
@@ -27,6 +29,15 @@ export class OtpService {
 
     // Store OTP
     this.otpStore.set(email, { otp, expiresAt });
+
+    // ALWAYS log OTP to console in development (primary method for testing)
+    console.log('\n' + '='.repeat(60));
+    console.log('🔐 OTP VERIFICATION CODE');
+    console.log('='.repeat(60));
+    console.log(`📧 Email: ${email}`);
+    console.log(`🔢 OTP:   ${otp}`);
+    console.log(`⏰ Expires in: 5 minutes`);
+    console.log('='.repeat(60) + '\n');
 
     // Send via Email using SendGrid
     await this.sendEmail(email, otp);
@@ -46,6 +57,12 @@ export class OtpService {
    * Send OTP via email using SendGrid
    */
   private async sendEmail(email: string, otp: string): Promise<void> {
+    // Skip email sending in development if SendGrid is not properly configured
+    if (this.appEnv === 'development' && (!this.sendgridApiKey || this.sendgridApiKey.includes('test') || this.sendgridApiKey.includes('SG.'))) {
+      console.log('📧 Email sending skipped in development - OTP shown in console above');
+      return;
+    }
+
     try {
       const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
         method: 'POST',
@@ -105,15 +122,12 @@ export class OtpService {
       if (!response.ok) {
         const error = await response.json();
         console.error('❌ SendGrid Error:', error);
-        // Log OTP to console as fallback
-        console.log(`\n📧 OTP for ${email}: ${otp}\n⚠️  SendGrid failed - ${error.errors?.[0]?.message || 'Unknown error'}\n`);
+        console.log(`⚠️  SendGrid failed - ${error.errors?.[0]?.message || 'Unknown error'}`);
       } else {
         console.log(`✅ Email sent successfully to ${email}`);
       }
     } catch (error) {
       console.error('❌ Failed to send email:', error);
-      // Fallback: log OTP to console
-      console.log(`\n📧 OTP for ${email}: ${otp}\n⚠️  Email sending failed - use this code instead\n`);
     }
   }
 
@@ -205,5 +219,17 @@ export class OtpService {
    */
   async resendOtp(email: string, phone?: string): Promise<{ success: boolean; message: string }> {
     return this.sendOtp(email, phone);
+  }
+
+  /**
+   * Get OTP for development/testing (ONLY in development mode)
+   * This is used when email sending is not working
+   */
+  getOtpForTesting(email: string): string | null {
+    if (this.appEnv !== 'development') {
+      return null; // Never expose OTP in production
+    }
+    const stored = this.otpStore.get(email);
+    return stored ? stored.otp : null;
   }
 }

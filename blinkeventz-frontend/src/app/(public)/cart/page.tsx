@@ -1,256 +1,540 @@
 "use client";
 
-import Link from "next/link";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowRight, Trash2, ShoppingBag, Plus, Minus } from "lucide-react";
-import { useCart } from "@/context/cart-context";
-import { CartSummary } from "@/types";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  ShoppingBag, Trash2, Plus, Minus, Calendar, Users, MapPin,
+  Clock, DollarSign, AlertCircle, CheckCircle2, ArrowRight
+} from "lucide-react";
+import { toast } from "sonner";
+import api from "@/lib/api";
 
-// Utility function for currency formatting
-const formatCurrency = (amount: number): string => {
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    minimumFractionDigits: 2,
-  }).format(amount);
-};
+interface CartItem {
+  id: number;
+  itemType: "VENUE" | "VENDOR_SERVICE" | "ADDON";
+  name: string;
+  description?: string;
+  date?: string;
+  timeSlot?: string;
+  unitPrice: number;
+  quantity: number;
+  totalPrice: number;
+  meta?: {
+    guestCount?: number;
+    area?: string;
+    city?: string;
+    serviceType?: string;
+  };
+}
 
-const TAX_RATE = 0.18; // 18% GST
-const SERVICE_FEE = 199;
+interface CartSummary {
+  subtotal: number;
+  discount: number;
+  platformFee: number;
+  tax: number;
+  total: number;
+}
+
+const PLATFORM_FEE_PERCENTAGE = 0.02; // 2%
+const TAX_PERCENTAGE = 0.18; // 18% GST
 
 export default function CartPage() {
-  const { items, removeItem, updateQuantity, clearCart } = useCart();
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [items, setItems] = useState<CartItem[]>([]);
+  const [summary, setSummary] = useState<CartSummary>({
+    subtotal: 0,
+    discount: 0,
+    platformFee: 0,
+    tax: 0,
+    total: 0,
+  });
+  const [promoCode, setPromoCode] = useState("");
+  const [appliedPromo, setAppliedPromo] = useState<any>(null);
+  const [applyingPromo, setApplyingPromo] = useState(false);
+  const [updatingItemId, setUpdatingItemId] = useState<number | null>(null);
 
-  const calculateSummary = (): CartSummary => {
-    const subtotal = items.reduce((sum, item) => sum + (item.unitPrice || 0) * (item.quantity || 1), 0);
-    const taxes = subtotal * TAX_RATE;
-    const serviceFee = items.length > 0 ? SERVICE_FEE : 0;
-    const total = subtotal + taxes + serviceFee;
+  useEffect(() => {
+    loadCart();
+  }, []);
 
-    return { subtotal, taxes, serviceFee, total };
-  };
-
-  const handleRemoveItem = (itemId: string) => {
-    removeItem(itemId);
-  };
-
-  const handleUpdateQuantity = (itemId: string, delta: number) => {
-    const item = items.find((i) => String(i.id) === itemId);
-    if (item) {
-      const newQuantity = Math.max(1, (item.quantity || 1) + delta);
-      updateQuantity(itemId, newQuantity);
+  const loadCart = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get("/cart");
+      const cartItems = response.data.items || [];
+      setItems(cartItems);
+      calculateSummary(cartItems);
+    } catch (error: any) {
+      console.error("Failed to load cart:", error);
+      toast.error("Failed to load cart items");
+      setItems([]);
+      calculateSummary([]);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const summary = calculateSummary();
+  const calculateSummary = (cartItems: CartItem[]) => {
+    const subtotal = cartItems.reduce((sum, item) => sum + item.totalPrice, 0);
+    const platformFee = Math.round(subtotal * PLATFORM_FEE_PERCENTAGE);
+    const tax = Math.round((subtotal + platformFee) * TAX_PERCENTAGE);
+    const total = subtotal + platformFee + tax;
+
+    setSummary({
+      subtotal,
+      discount: 0,
+      platformFee,
+      tax,
+      total,
+    });
+  };
+
+  const handleUpdateQuantity = async (itemId: number, delta: number) => {
+    const item = items.find((i) => i.id === itemId);
+    if (!item) return;
+
+    const newQuantity = Math.max(1, item.quantity + delta);
+    if (newQuantity === item.quantity) return;
+
+    setUpdatingItemId(itemId);
+
+    try {
+      await api.patch(`/cart/items/${itemId}`, {
+        quantity: newQuantity,
+      });
+
+      const updatedItems = items.map((i) =>
+        i.id === itemId
+          ? { ...i, quantity: newQuantity, totalPrice: i.unitPrice * newQuantity }
+          : i
+      );
+
+      setItems(updatedItems);
+      calculateSummary(updatedItems);
+      toast.success("Cart updated");
+    } catch (error: any) {
+      console.error("Failed to update cart:", error);
+      toast.error("Failed to update quantity");
+    } finally {
+      setUpdatingItemId(null);
+    }
+  };
+
+  const handleUpdateGuestCount = async (itemId: number, guestCount: number) => {
+    const item = items.find((i) => i.id === itemId);
+    if (!item || !item.meta) return;
+
+    if (guestCount < 1) {
+      toast.error("Guest count must be at least 1");
+      return;
+    }
+
+    setUpdatingItemId(itemId);
+
+    try {
+      await api.patch(`/cart/items/${itemId}`, {
+        meta: { ...item.meta, guestCount },
+      });
+
+      // Recalculate price for PER_PERSON pricing
+      const pricePerPerson = item.unitPrice / (item.meta.guestCount || 1);
+      const newTotalPrice = Math.round(pricePerPerson * guestCount);
+
+      const updatedItems = items.map((i) =>
+        i.id === itemId
+          ? { ...i, meta: { ...i.meta, guestCount }, totalPrice: newTotalPrice }
+          : i
+      );
+
+      setItems(updatedItems);
+      calculateSummary(updatedItems);
+      toast.success("Guest count updated");
+    } catch (error: any) {
+      console.error("Failed to update guest count:", error);
+      toast.error("Failed to update guest count");
+    } finally {
+      setUpdatingItemId(null);
+    }
+  };
+
+  const handleRemoveItem = async (itemId: number) => {
+    try {
+      await api.delete(`/cart/items/${itemId}`);
+      const updatedItems = items.filter((i) => i.id !== itemId);
+      setItems(updatedItems);
+      calculateSummary(updatedItems);
+      toast.success("Item removed from cart");
+    } catch (error: any) {
+      console.error("Failed to remove item:", error);
+      toast.error("Failed to remove item");
+    }
+  };
+
+  const handleClearCart = async () => {
+    if (!confirm("Are you sure you want to clear your cart?")) return;
+
+    try {
+      await api.delete("/cart/clear");
+      setItems([]);
+      calculateSummary([]);
+      toast.success("Cart cleared");
+    } catch (error: any) {
+      console.error("Failed to clear cart:", error);
+      toast.error("Failed to clear cart");
+    }
+  };
+
+  const formatCurrency = (amount: number) => {
+    if (amount >= 10000000) return `₹${(amount / 10000000).toFixed(2)}Cr`;
+    if (amount >= 100000) return `₹${(amount / 100000).toFixed(2)}L`;
+    return `₹${(amount / 1000).toFixed(2)}K`;
+  };
+
+  const handleRemovePromo = () => {
+    setAppliedPromo(null);
+    setPromoCode("");
+    calculateSummary(items);
+    toast.success("Promo code removed");
+  };
+
+  const handleApplyPromoCode = async () => {
+    if (!promoCode.trim()) return;
+
+    setApplyingPromo(true);
+    try {
+      const response = await api.post("/promotions/validate", { code: promoCode });
+      const promo = response.data;
+
+      setAppliedPromo(promo);
+      calculateSummary(items);
+      toast.success(`Promo code "${promo.code}" applied successfully!`);
+    } catch (error: any) {
+      console.error("Failed to apply promo:", error);
+      toast.error(error?.response?.data?.message || "Invalid promo code");
+    } finally {
+      setApplyingPromo(false);
+    }
+  };
+
+  const getItemIcon = (itemType: string) => {
+    switch (itemType) {
+      case "VENUE":
+        return <MapPin className="h-5 w-5" />;
+      case "VENDOR_SERVICE":
+        return <Users className="h-5 w-5" />;
+      default:
+        return <ShoppingBag className="h-5 w-5" />;
+    }
+  };
+
+  const getStatusColor = (itemType: string) => {
+    switch (itemType) {
+      case "VENUE":
+        return "bg-blue-100 text-blue-800 border-blue-200";
+      case "VENDOR_SERVICE":
+        return "bg-purple-100 text-purple-800 border-purple-200";
+      default:
+        return "bg-neutral-100 text-neutral-800 border-neutral-200";
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <div className="h-12 w-12 rounded-full border-4 border-neutral-200 border-t-black animate-spin mx-auto mb-4" />
+          <p className="text-black">Loading your cart...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (items.length === 0) {
     return (
-      <div className="container mx-auto px-4 py-8 sm:px-6 lg:px-8">
+      <div className="container mx-auto px-4 py-12">
         <div className="flex flex-col items-center justify-center min-h-[60vh]">
-          <ShoppingBag className="h-24 w-24 text-silver-300 mb-4" />
+          <ShoppingBag className="h-24 w-24 text-neutral-300 mb-4" />
           <h2 className="text-2xl font-bold text-black mb-2">Your cart is empty</h2>
-          <p className="text-neutral-700 mb-6">Start adding venues and vendors to plan your event!</p>
-          <Link href="/venues">
-            <Button variant="premium" className="h-12 px-6 text-lg">
-              Browse Venues <ArrowRight className="ml-2 h-5 w-5" />
-            </Button>
-          </Link>
+          <p className="text-neutral-600 mb-6">Start adding venues and vendors to plan your event!</p>
+          <Button
+            variant="default"
+            className="h-12 px-8 bg-black hover:bg-neutral-800"
+            onClick={() => router.push("/venues")}
+          >
+            Browse Venues
+          </Button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 sm:px-6 lg:px-8">
+    <div className="container mx-auto px-4 py-8">
+      {/* Header */}
       <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold text-black">Your Event Cart</h1>
-        <Button variant="silver" onClick={clearCart} className="text-red-600 hover:text-red-700 hover:bg-red-50">
+        <div>
+          <h1 className="text-3xl font-bold text-black">Your Event Cart</h1>
+          <p className="text-neutral-600 mt-1">Review and manage your selected items</p>
+        </div>
+        <Button
+          variant="outline"
+          className="border-red-300 text-red-600 hover:bg-red-50"
+          onClick={handleClearCart}
+        >
+          <Trash2 className="h-4 w-4 mr-2" />
           Clear Cart
         </Button>
       </div>
 
       <div className="grid gap-8 lg:grid-cols-3">
-        {/* Cart Items Section */}
+        {/* Cart Items */}
         <div className="lg:col-span-2 space-y-4">
           {items.map((item) => (
-            <Card key={String(item.id)} className="flex flex-row items-center p-4 transition-shadow hover:shadow-md">
-              {/* Item Icon Placeholder */}
-              <div className="h-24 w-24 bg-gradient-to-br from-silver-700 to-silver-900 rounded-lg flex items-center justify-center flex-shrink-0">
-                {item.itemType === 'VENUE' ? (
-                  <svg className="h-10 w-10 text-silver-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                  </svg>
-                ) : item.itemType === 'VENDOR_SERVICE' ? (
-                  <svg className="h-10 w-10 text-silver-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                ) : (
-                  <svg className="h-10 w-10 text-silver-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                  </svg>
-                )}
-              </div>
-
-              {/* Item Details */}
-              <div className="ml-4 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 text-xs font-medium bg-silver-200 text-neutral-800 rounded-full capitalize">
-                    {item.itemType ? item.itemType.replace("_", " ") : "Item"}
-                  </span>
-                  {item.meta?.serviceType && (
-                    <span className="text-xs text-black">{item.meta.serviceType}</span>
-                  )}
-                </div>
-                <h3 className="font-semibold text-lg text-black mt-1">{item.name || 'Unnamed Item'}</h3>
-                <p className="text-black text-sm">{item.description}</p>
-                {typeof item.meta?.area === 'string' && typeof item.meta?.city === 'string' && (
-                  <p className="text-silver-300 text-xs mt-1">📍 {item.meta.area}, {item.meta.city}</p>
-                )}
-                {typeof item.meta?.city === 'string' && typeof item.meta?.area !== 'string' && (
-                  <p className="text-silver-300 text-xs mt-1">📍 {item.meta.city}</p>
-                )}
-
-                {(() => {
-                  const meta = item.meta as Record<string, unknown> | undefined;
-                  if (!meta || typeof meta !== 'object') return null;
-                  const selectedDate = meta.selectedDate as string | undefined;
-                  const selectedSlot = meta.selectedSlot as string | undefined;
-                  const timeSlotLabel = meta.timeSlotLabel as string | undefined;
-                  const basePrice = meta.basePrice as number | undefined;
-                  const pkg = meta.package as string | undefined;
-
-                  if (!selectedDate) return null;
-
-                  return (
-                    <div className="mt-2 p-2 bg-green-50 rounded-lg border border-green-200">
-                      <div className="flex items-center gap-2 text-xs text-green-700">
-                        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        <span className="font-medium">
-                          {new Date(selectedDate).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric" })}
-                        </span>
-                      </div>
-                      {selectedSlot && (
-                        <div className="flex items-center gap-2 text-xs text-green-700 mt-1">
-                          <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          <span className="capitalize">{timeSlotLabel || selectedSlot.replace("_", " ")}</span>
-                        </div>
-                      )}
-                      {basePrice && (
-                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-green-200">
-                          <span className="text-xs text-black">Base: ₹{basePrice.toLocaleString("en-IN")}</span>
-                          <span className="text-xs font-semibold text-green-700">You saved: ₹{(basePrice - (item.unitPrice || 0)).toLocaleString("en-IN")}</span>
-                        </div>
-                      )}
+            <Card key={item.id} className="border-2 border-neutral-200 hover:border-black transition-colors">
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-4 flex-1">
+                    <div className="h-12 w-12 rounded-lg bg-neutral-100 flex items-center justify-center flex-shrink-0">
+                      {getItemIcon(item.itemType)}
                     </div>
-                  );
-                })()}
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Badge className={getStatusColor(item.itemType)}>
+                          {item.itemType.replace("_", " ")}
+                        </Badge>
+                        {item.meta?.serviceType && (
+                          <Badge variant="outline">{item.meta.serviceType}</Badge>
+                        )}
+                      </div>
+                      <h3 className="text-lg font-bold text-black mb-1">{item.name}</h3>
+                      {item.description && (
+                        <p className="text-sm text-neutral-600 mb-3">{item.description}</p>
+                      )}
 
-                {/* Quantity Controls */}
-                <div className="flex items-center gap-3 mt-3">
-                  <Button
-                    variant="silver"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => handleUpdateQuantity(String(item.id), -1)}
-                    disabled={(item.quantity || 1) <= 1}
-                  >
-                    <Minus className="h-4 w-4" />
-                  </Button>
-                  <span className="font-medium w-8 text-center">{item.quantity || 1}</span>
-                  <Button
-                    variant="silver"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => handleUpdateQuantity(String(item.id), 1)}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
+                      {/* Item Details Grid */}
+                      <div className="grid sm:grid-cols-2 gap-3 mb-4">
+                        {item.date && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <Calendar className="h-4 w-4 text-neutral-400" />
+                            <span className="text-black">
+                              {new Date(item.date).toLocaleDateString("en-IN", {
+                                weekday: "short",
+                                day: "numeric",
+                                month: "short",
+                                year: "numeric",
+                              })}
+                            </span>
+                          </div>
+                        )}
+                        {item.timeSlot && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <Clock className="h-4 w-4 text-neutral-400" />
+                            <span className="text-black">{item.timeSlot.replace("_", " ")}</span>
+                          </div>
+                        )}
+                        {item.meta?.area && item.meta?.city && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <MapPin className="h-4 w-4 text-neutral-400" />
+                            <span className="text-black">{item.meta.area}, {item.meta.city}</span>
+                          </div>
+                        )}
+                        {item.meta?.guestCount && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <Users className="h-4 w-4 text-neutral-400" />
+                            <span className="text-black">{item.meta.guestCount} guests</span>
+                          </div>
+                        )}
+                      </div>
 
-              {/* Price and Actions */}
-              <div className="text-right">
-                <div className="font-bold text-black text-lg">
-                  {formatCurrency((item.unitPrice || 0) * (item.quantity || 1))}
+                      {/* Quantity & Guest Count Controls */}
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => handleUpdateQuantity(item.id, -1)}
+                            disabled={updatingItemId === item.id || item.quantity <= 1}
+                          >
+                            <Minus className="h-4 w-4" />
+                          </Button>
+                          <span className="font-medium w-8 text-center text-black">
+                            {item.quantity}
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => handleUpdateQuantity(item.id, 1)}
+                            disabled={updatingItemId === item.id}
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                          <span className="text-sm text-neutral-600 ml-2">Qty</span>
+                        </div>
+
+                        {item.meta?.guestCount && (
+                          <div className="flex items-center gap-2">
+                            <Label htmlFor={`guests-${item.id}`} className="text-sm text-neutral-600">
+                              Guests:
+                            </Label>
+                            <Input
+                              id={`guests-${item.id}`}
+                              type="number"
+                              min="1"
+                              value={item.meta.guestCount}
+                              onChange={(e) =>
+                                handleUpdateGuestCount(item.id, parseInt(e.target.value) || 1)
+                              }
+                              disabled={updatingItemId === item.id}
+                              className="w-24 h-8"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Price & Actions */}
+                  <div className="text-right flex flex-col items-end gap-2">
+                    <div className="text-xl font-bold text-black">
+                      {formatCurrency(item.totalPrice)}
+                    </div>
+                    {item.quantity > 1 && (
+                      <div className="text-xs text-neutral-600">
+                        {formatCurrency(item.unitPrice)} each
+                      </div>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      onClick={() => handleRemoveItem(item.id)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Remove
+                    </Button>
+                  </div>
                 </div>
-                {item.quantity && item.quantity > 1 && (
-                  <div className="text-xs text-black">{formatCurrency(item.unitPrice || 0)} each</div>
-                )}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="mt-2 text-red-500 hover:text-red-600 hover:bg-silver-50"
-                  onClick={() => handleRemoveItem(String(item.id))}
-                  aria-label={`Remove ${item.name} from cart`}
-                >
-                  <Trash2 className="h-5 w-5" />
-                </Button>
-              </div>
+              </CardContent>
             </Card>
           ))}
         </div>
 
-        {/* Summary Section */}
+        {/* Order Summary */}
         <div className="lg:col-span-1">
-          <Card className="sticky top-24">
+          <Card className="border-2 border-black sticky top-8">
             <CardHeader>
-              <CardTitle>Order Summary</CardTitle>
+              <CardTitle className="text-black">Order Summary</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-black font-medium">Subtotal</span>
-                <span className="font-medium text-black">{formatCurrency(summary.subtotal)}</span>
+            <CardContent className="space-y-4">
+              {/* Promo Code */}
+              <div className="space-y-2">
+                <Label className="text-black font-medium">Promo Code</Label>
+                {appliedPromo ? (
+                  <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <div>
+                      <p className="font-semibold text-green-800">{appliedPromo.code}</p>
+                      <p className="text-xs text-green-600">
+                        {appliedPromo.discountType === "PERCENTAGE" 
+                          ? `${appliedPromo.discountValue}% off` 
+                          : `₹${appliedPromo.discountValue} off`}
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleRemovePromo}
+                      className="text-red-600 hover:bg-red-50"
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Enter promo code"
+                      value={promoCode}
+                      onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                      className="flex-1 border-neutral-300"
+                    />
+                    <Button
+                      onClick={handleApplyPromoCode}
+                      disabled={applyingPromo || !promoCode.trim()}
+                      className="bg-black hover:bg-neutral-800"
+                    >
+                      {applyingPromo ? "Applying..." : "Apply"}
+                    </Button>
+                  </div>
+                )}
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-black font-medium">GST (18%)</span>
-                <span className="font-medium text-black">{formatCurrency(summary.taxes)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-black font-medium">Platform Fee</span>
-                <span className="font-medium text-black">{formatCurrency(summary.serviceFee)}</span>
-              </div>
-              <div className="border-t pt-3 flex justify-between font-bold text-lg">
-                <span className="text-black">Total</span>
-                <span className="text-black">{formatCurrency(summary.total)}</span>
+
+              <div className="space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span className="text-neutral-600">Subtotal</span>
+                  <span className="font-medium text-black">{formatCurrency(summary.subtotal)}</span>
+                </div>
+                {appliedPromo && (
+                  <div className="flex justify-between text-sm text-green-600">
+                    <span>Discount ({appliedPromo.code})</span>
+                    <span className="font-medium">-₹{appliedPromo.discountAmount}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm">
+                  <span className="text-neutral-600">Platform Fee (2%)</span>
+                  <span className="font-medium text-black">{formatCurrency(summary.platformFee)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-neutral-600">GST (18%)</span>
+                  <span className="font-medium text-black">{formatCurrency(summary.tax)}</span>
+                </div>
+                <div className="border-t-2 border-neutral-200 pt-3 flex justify-between font-bold text-lg">
+                  <span className="text-black">Total</span>
+                  <span className="text-black">{formatCurrency(summary.total)}</span>
+                </div>
               </div>
 
               {/* Trust Badges */}
-              <div className="pt-4 space-y-2">
-                <div className="flex items-center gap-2 text-xs text-black">
-                  <svg className="h-4 w-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                    <path
-                      fillRule="evenodd"
-                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  <span className="font-medium">Best price guarantee</span>
+              <div className="pt-4 space-y-3">
+                <div className="flex items-center gap-2 text-xs text-neutral-600">
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  <span>Best price guarantee</span>
                 </div>
-                <div className="flex items-center gap-2 text-xs text-black">
-                  <svg className="h-4 w-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                    <path
-                      fillRule="evenodd"
-                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  <span className="font-medium">Secure payment via Razorpay</span>
+                <div className="flex items-center gap-2 text-xs text-neutral-600">
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  <span>Secure payment via Razorpay</span>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-neutral-600">
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  <span>Free cancellation up to 24 hours</span>
                 </div>
               </div>
+
+              {/* Checkout Button */}
+              <Button
+                variant="default"
+                className="w-full h-14 text-lg font-semibold bg-black hover:bg-neutral-800 mt-4"
+                onClick={() => router.push("/checkout")}
+              >
+                Proceed to Checkout
+                <ArrowRight className="h-5 w-5 ml-2" />
+              </Button>
+
+              {/* Continue Shopping */}
+              <Button
+                variant="ghost"
+                className="w-full text-neutral-600"
+                onClick={() => router.push("/venues")}
+              >
+                Continue Shopping
+              </Button>
             </CardContent>
-            <CardFooter>
-              <Link href="/checkout" className="w-full">
-                <Button variant="premium" className="w-full h-12 text-lg shadow-lg hover:shadow-xl transition-shadow">
-                  Proceed to Checkout <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
-              </Link>
-            </CardFooter>
           </Card>
         </div>
       </div>

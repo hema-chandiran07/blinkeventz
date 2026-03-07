@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,100 +11,118 @@ import {
   DollarSign, TrendingUp
 } from "lucide-react";
 import { toast } from "sonner";
+import api from "@/lib/api";
 
-const MOCK_APPROVALS = [
-  {
-    id: 1,
-    type: "VENUE",
-    title: "Grand Ballroom ITC",
-    owner: "ITC Hotels",
-    contact: "hotels@itchotels.in",
-    phone: "+91 44 2231 1111",
-    location: "Guindy, Chennai",
-    area: "Guindy",
-    city: "Chennai",
-    capacity: 800,
-    price: 150000,
-    status: "PENDING_APPROVAL",
-    submittedDate: "2024-03-15",
-    description: "Luxury ballroom with state-of-the-art facilities",
-  },
-  {
-    id: 2,
-    type: "VENDOR",
-    title: "Elite Photography",
-    owner: "John Smith",
-    contact: "john@elitephoto.in",
-    phone: "+91 98765 43210",
-    location: "Anna Nagar, Chennai",
-    area: "Anna Nagar",
-    city: "Chennai",
-    serviceType: "PHOTOGRAPHY",
-    price: 50000,
-    status: "PENDING",
-    submittedDate: "2024-03-14",
-    description: "Professional wedding and event photography services",
-  },
-  {
-    id: 3,
-    type: "VENUE",
-    title: "Taj Coromandel Hall",
-    owner: "Taj Hotels",
-    contact: "events@tajhotels.com",
-    phone: "+91 44 2815 7777",
-    location: "Nungambakkam, Chennai",
-    area: "Nungambakkam",
-    city: "Chennai",
-    capacity: 500,
-    price: 200000,
-    status: "PENDING_APPROVAL",
-    submittedDate: "2024-03-13",
-    description: "Premium event hall with modern amenities",
-  },
-  {
-    id: 4,
-    type: "VENDOR",
-    title: "Divine Caterers",
-    owner: "Senthil Kumar",
-    contact: "divine@caterers.in",
-    phone: "+91 91234 56789",
-    location: "T Nagar, Chennai",
-    area: "T Nagar",
-    city: "Chennai",
-    serviceType: "CATERING",
-    price: 75000,
-    status: "PENDING",
-    submittedDate: "2024-03-12",
-    description: "Authentic South Indian and multi-cuisine catering",
-  },
-];
-
-const TYPE_ICONS: Record<string, any> = {
-  VENUE: Building,
-  VENDOR: Store,
-};
+interface Approval {
+  id: number;
+  type: "VENUE" | "VENDOR";
+  title: string;
+  owner: string;
+  contact: string;
+  phone: string;
+  location: string;
+  area: string;
+  city: string;
+  capacity?: number;
+  serviceType?: string;
+  price: number;
+  status: string;
+  submittedDate: string;
+  description: string;
+}
 
 export default function AdminApprovalsPage() {
   const router = useRouter();
-  const [approvals, setApprovals] = useState(MOCK_APPROVALS);
+  const [approvals, setApprovals] = useState<Approval[]>([]);
+  const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState("all");
   const [refreshing, setRefreshing] = useState(false);
 
+  useEffect(() => {
+    loadApprovals();
+  }, []);
+
+  const loadApprovals = async () => {
+    try {
+      setLoading(true);
+      // Fetch pending venues and vendors from backend
+      const [venuesRes, vendorsRes] = await Promise.all([
+        api.get('/venues?status=PENDING_APPROVAL'),
+        api.get('/vendors?verificationStatus=PENDING'),
+      ]);
+
+      const venueApprovals: Approval[] = (venuesRes.data.data || venuesRes.data || []).map((v: any) => ({
+        id: v.id,
+        type: "VENUE" as const,
+        title: v.name,
+        owner: v.owner?.name || "Unknown",
+        contact: v.owner?.email || "",
+        phone: v.owner?.phone || "",
+        location: `${v.area}, ${v.city}`,
+        area: v.area,
+        city: v.city,
+        capacity: v.capacityMax,
+        price: v.basePriceEvening || v.basePriceMorning || 0,
+        status: v.status,
+        submittedDate: v.createdAt,
+        description: v.description || "",
+      }));
+
+      const vendorApprovals: Approval[] = (vendorsRes.data.data || vendorsRes.data || []).map((v: any) => ({
+        id: v.id,
+        type: "VENDOR" as const,
+        title: v.businessName,
+        owner: v.user?.name || "Unknown",
+        contact: v.user?.email || "",
+        phone: v.user?.phone || "",
+        location: `${v.area}, ${v.city}`,
+        area: v.area,
+        city: v.city,
+        serviceType: v.services?.[0]?.serviceType || "OTHER",
+        price: v.services?.[0]?.baseRate || 0,
+        status: v.verificationStatus,
+        submittedDate: v.createdAt,
+        description: v.description || "",
+      }));
+
+      setApprovals([...venueApprovals, ...vendorApprovals]);
+    } catch (error: any) {
+      console.error("Failed to load approvals:", error);
+      toast.error("Failed to load approvals");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleRefresh = async () => {
     setRefreshing(true);
-    await new Promise(resolve => setTimeout(resolve, 800));
+    await loadApprovals();
     setRefreshing(false);
     toast.success("Approvals refreshed");
   };
 
   const handleApprove = async (id: number, type: string) => {
-    setApprovals(prev => prev.filter(item => item.id !== id));
-    toast.success(`${type} approved successfully!`);
+    try {
+      const endpoint = type === "VENUE" ? `/venues/${id}/approve` : `/vendors/${id}/approve`;
+      await api.post(endpoint);
+      setApprovals(prev => prev.filter(item => item.id !== id));
+      toast.success(`${type} approved successfully!`);
+    } catch (error: any) {
+      console.error("Approve error:", error);
+      toast.error("Failed to approve");
+    }
   };
 
-  const handleReject = async (id: number, type: string) => {
-    setApprovals(prev => prev.filter(item => item.id !== id));
-    toast.success(`${type} rejected`);
+  const handleReject = async (id: number, type: string, reason?: string) => {
+    try {
+      const endpoint = type === "VENUE" ? `/venues/${id}/reject` : `/vendors/${id}/reject`;
+      await api.post(endpoint, { reason });
+      setApprovals(prev => prev.filter(item => item.id !== id));
+      toast.success(`${type} rejected`);
+    } catch (error: any) {
+      console.error("Reject error:", error);
+      toast.error("Failed to reject");
+    }
   };
 
   const filteredApprovals = approvals.filter(item => {
@@ -121,6 +139,11 @@ export default function AdminApprovalsPage() {
   const formatCurrency = (amount: number) => {
     if (amount >= 100000) return `₹${(amount / 100000).toFixed(2)}L`;
     return `₹${(amount / 1000).toFixed(2)}K`;
+  };
+
+  const TYPE_ICONS: Record<string, any> = {
+    VENUE: Building,
+    VENDOR: Store,
   };
 
   return (

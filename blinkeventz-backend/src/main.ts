@@ -5,6 +5,7 @@ import { ValidationPipe } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
+import { NestExpressApplication } from '@nestjs/platform-express';
 
 // Load .env from multiple possible locations
 const possiblePaths = [
@@ -33,7 +34,7 @@ if (!envLoaded) {
 }
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     logger: ['error', 'warn', 'log', 'debug', 'verbose'],
   });
 
@@ -56,6 +57,11 @@ async function bootstrap() {
 
   // ✅ Enable cookies (needed for auth / refresh tokens if used later)
   app.use(cookieParser());
+
+  // ✅ Serve static files for uploads
+  app.useStaticAssets(path.join(__dirname, '..', 'uploads'), {
+    prefix: '/uploads/',
+  });
 
   // ✅ Global validation pipe
   app.useGlobalPipes(

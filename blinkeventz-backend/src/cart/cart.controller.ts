@@ -1,57 +1,64 @@
-// src/cart/cart.controller.ts
 import {
   Controller,
-  Post,
   Get,
+  Post,
+  Patch,
   Delete,
-  Param,
   Body,
-  Req,
+  Param,
   UseGuards,
+  Req,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { CartService } from './cart.service';
 import { AddCartItemDto } from './dto/add-cart-item.dto';
-import { ApiBearerAuth,ApiTags } from '@nestjs/swagger';
+import { UpdateCartItemDto } from './dto/update-cart-item.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import type { AuthRequest } from '../auth/auth-request.interface';
-import { Roles } from '../common/decorators/roles.decorator';
-import { Role } from '../common/enums/role.enum';
-import { RolesGuard } from '../common/guards/roles.guard';
-@ApiBearerAuth() 
+import { Public } from '../common/decorators/public.decorator';
+
 @ApiTags('Cart')
-@Roles(Role.CUSTOMER)
-@UseGuards(JwtAuthGuard,RolesGuard)
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('cart')
 export class CartController {
   constructor(private readonly cartService: CartService) {}
 
-  // ✅ Get or create cart for logged-in user
-  @Post()
-  getOrCreate(@Req() req: AuthRequest) {
-    return this.cartService.getOrCreateCart(req.user.userId);
-  }
-
-  @Post('items')
-  addItem(@Req() req: AuthRequest, @Body() dto: AddCartItemDto) {
-    return this.cartService.addItemForUser(req.user.userId, dto);
-  }
-
-@Delete('items/:cartItemId')
-removeItem(
-  @Req() req: AuthRequest,
-  @Param('cartItemId') cartItemId: string,
-) {
-  return this.cartService.removeItem(req.user.userId, +cartItemId);
-}
-
-
+  @Public()
   @Get()
-  getMyCart(@Req() req: AuthRequest) {
-    return this.cartService.getActiveCart(req.user.userId);
+  async getCart(@Req() req: any) {
+    const userId = req.user?.id || null; // Allow guest carts
+    return this.cartService.getCart(userId);
   }
 
-  @Post('checkout')
-  checkout(@Req() req: AuthRequest) {
-    return this.cartService.checkoutByUser(req.user.userId);
+  @Public()
+  @Post('items')
+  async addItem(@Req() req: any, @Body() dto: AddCartItemDto) {
+    const userId = req.user?.id || null;
+    return this.cartService.addItem(userId, dto);
+  }
+
+  @Public()
+  @Patch('items/:id')
+  async updateItem(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() dto: UpdateCartItemDto,
+  ) {
+    const userId = req.user?.id || null;
+    return this.cartService.updateItem(userId, +id, dto);
+  }
+
+  @Public()
+  @Delete('items/:id')
+  async removeItem(@Req() req: any, @Param('id') id: string) {
+    const userId = req.user?.id || null;
+    return this.cartService.removeItem(userId, +id);
+  }
+
+  @Public()
+  @Delete('clear')
+  async clearCart(@Req() req: any) {
+    const userId = req.user?.id || null;
+    return this.cartService.clearCart(userId);
   }
 }

@@ -26,12 +26,13 @@ const nextConfig: NextConfig = {
     ],
     unoptimized: process.env.NODE_ENV === "development",
   },
-  // Proxy ALL API requests to backend
+  // Proxy ALL API requests to backend (use localhost in development)
   async rewrites() {
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
     return [
       {
         source: '/api/:path*',
-        destination: 'http://api:3000/api/:path*',
+        destination: `${backendUrl}/api/:path*`,
       },
     ];
   },

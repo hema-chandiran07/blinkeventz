@@ -1,21 +1,15 @@
-import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsNotEmpty, IsEnum, IsOptional, IsString } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 import { KycStatus } from '@prisma/client';
 
 export class UpdateKycStatusDto {
-  @ApiProperty({
-    enum: [KycStatus.VERIFIED, KycStatus.REJECTED],
-    description: 'New KYC status',
-  })
+  @ApiProperty({ enum: KycStatus })
+  @IsNotEmpty()
   @IsEnum(KycStatus)
   status: KycStatus;
 
-  @ApiPropertyOptional({
-    description: 'Reason for rejection (required when rejecting)',
-    example: 'Document is blurry and unreadable',
-  })
+  @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
-  @MaxLength(500)
-  reason?: string;
+  rejectionReason?: string;
 }

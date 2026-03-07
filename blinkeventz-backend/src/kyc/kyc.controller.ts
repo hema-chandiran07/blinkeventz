@@ -1,75 +1,173 @@
 import {
   Controller,
-  Post,
   Get,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Param,
   UseGuards,
+  Req,
   UseInterceptors,
   UploadedFile,
-  Body,
-  Req,
+  UnauthorizedException,
   BadRequestException,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
-import {
-  ApiBearerAuth,
-  ApiConsumes,
-  ApiTags,
-  ApiBody,
-  ApiOperation,
-} from '@nestjs/swagger';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ApiTags, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
 import { KycService } from './kyc.service';
-import { SubmitKycDto } from './dto/submit-kyc.dto';
-import { Request } from 'express';
-
-interface AuthenticatedRequest extends Request {
-  user: { userId: number; email: string; role?: string };
-}
-
-// ─────────────────────────────────────────────────────────────
-// KYC Controller — User-facing endpoints
-// ─────────────────────────────────────────────────────────────
+import { CreateKycDto } from './dto/create-kyc.dto';
+import { UpdateKycStatusDto } from './dto/update-kyc-status.dto';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { Role } from '@prisma/client';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
 
 @ApiTags('KYC')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('kyc')
 export class KycController {
   constructor(private readonly kycService: KycService) {}
 
-  @Post('upload')
-  @ApiOperation({ summary: 'Submit KYC document with file upload' })
+  // Customer KYC
+  @Post('customer')
   @ApiConsumes('multipart/form-data')
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        docType: {
-          type: 'string',
-          enum: ['AADHAAR', 'PAN', 'PASSPORT', 'DRIVING_LICENSE'],
+  @UseInterceptors(
+    FileInterceptor('document', {
+      storage: diskStorage({
+        destination: './uploads/kyc',
+        filename: (req, file, cb) => {
+          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+          cb(null, `document-${uniqueSuffix}${extname(file.originalname)}`);
         },
-        docNumber: { type: 'string' },
-        file: { type: 'string', format: 'binary' },
+      }),
+      fileFilter: (req, file, cb) => {
+        // Accept PDF, JPG, JPEG, PNG
+        const allowedMimes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+        if (allowedMimes.includes(file.mimetype)) {
+          cb(null, true);
+        } else {
+          cb(new BadRequestException('Only PDF, JPG, JPEG, and PNG files are allowed'), false);
+        }
       },
-      required: ['docType', 'docNumber', 'file'],
-    },
-  })
-  @UseInterceptors(FileInterceptor('file'))
-  async uploadKyc(
+    }),
+  )
+  async createCustomerKyc(
+    @Req() req: any,
+    @Body() dto: any,
     @UploadedFile() file: Express.Multer.File,
-    @Body() dto: SubmitKycDto,
-    @Req() req: AuthenticatedRequest,
   ) {
-    if (!file) {
-      throw new BadRequestException('KYC document file is required');
+    console.log('📄 KYC Request - Full req.user:', req.user);
+    console.log('📄 KYC DTO:', dto);
+    console.log('📄 File:', file);
+
+    // Extract user ID from token manually (bypass guard for multipart)
+    const userId = req.user?.id || req.user?.userId;
+    
+    if (!userId) {
+      console.error('❌ No user ID found in request');
+      throw new UnauthorizedException('User not authenticated. Please login again.');
     }
 
-    return this.kycService.submitKycWithFile(req.user.userId, dto, file);
+    if (!file) {
+      console.error('❌ No file uploaded');
+      throw new BadRequestException('Document file is required. Supported formats: PDF, JPEG, PNG');
+    }
+
+    // Parse the DTO fields from the multipart form
+    const kycDto: CreateKycDto = {
+      docType: dto.docType,
+      docNumber: dto.docNumber,
+    };
+
+    console.log('✅ Creating KYC for user:', userId);
+    return this.kycService.createCustomerKyc(userId, kycDto, file);
   }
 
-  @Get('me')
-  @ApiOperation({ summary: 'Get my KYC documents' })
-  async getMyKyc(@Req() req: AuthenticatedRequest) {
-    return this.kycService.getMyKyc(req.user.userId);
+  @Get('customer/me')
+  async getCustomerKyc(@Req() req: any) {
+    return this.kycService.getCustomerKyc(req.user.id);
+  }
+
+  // Vendor KYC
+  @Post('vendor')
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(
+    FileInterceptor('document', {
+      storage: diskStorage({
+        destination: './uploads/kyc',
+        filename: (req, file, cb) => {
+          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+          cb(null, `${file.fieldname}-${uniqueSuffix}${extname(file.originalname)}`);
+        },
+      }),
+    }),
+  )
+  async createVendorKyc(
+    @Req() req: any,
+    @Body() dto: CreateKycDto,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.kycService.createVendorKyc(req.user.id, dto, file);
+  }
+
+  @Get('vendor/me')
+  async getVendorKyc(@Req() req: any) {
+    return this.kycService.getVendorKyc(req.user.id);
+  }
+
+  // Venue Owner KYC
+  @Post('venue-owner')
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(
+    FileInterceptor('document', {
+      storage: diskStorage({
+        destination: './uploads/kyc',
+        filename: (req, file, cb) => {
+          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+          cb(null, `${file.fieldname}-${uniqueSuffix}${extname(file.originalname)}`);
+        },
+      }),
+    }),
+  )
+  async createVenueOwnerKyc(
+    @Req() req: any,
+    @Body() dto: CreateKycDto,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.kycService.createVenueOwnerKyc(req.user.id, dto, file);
+  }
+
+  @Get('venue-owner/me')
+  async getVenueOwnerKyc(@Req() req: any) {
+    return this.kycService.getVenueOwnerKyc(req.user.id);
+  }
+
+  // Admin - Get all KYC submissions
+  @Roles(Role.ADMIN)
+  @Get('admin/submissions')
+  async getAllKycSubmissions() {
+    return this.kycService.getAllKycSubmissions();
+  }
+
+  // Admin - Approve/Reject KYC
+  @Roles(Role.ADMIN)
+  @Patch('admin/:id/status')
+  async updateKycStatus(
+    @Param('id') id: string,
+    @Body() dto: UpdateKycStatusDto,
+    @Req() req: any,
+  ) {
+    return this.kycService.updateKycStatus(+id, dto.status, req.user.userId, dto.rejectionReason);
+  }
+
+  // Admin - Get KYC by ID
+  @Roles(Role.ADMIN)
+  @Get('admin/:id')
+  async getKycById(@Param('id') id: string) {
+    return this.kycService.getKycById(+id);
   }
 }

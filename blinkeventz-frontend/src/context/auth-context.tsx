@@ -103,15 +103,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(authenticatedUser);
       localStorage.setItem("NearZro_user", JSON.stringify(authenticatedUser));
 
-      // Immediate redirect based on role
-      const redirectPaths: Record<string, string> = {
-        "ADMIN": "/dashboard/admin",
-        "VENDOR": "/dashboard/vendor",
-        "VENUE_OWNER": "/dashboard/venue",
-        "CUSTOMER": "/dashboard/customer",
-      };
-
-      const redirectPath = redirectPaths[userData.role] || "/";
+      // Smart redirect based on what profiles user has
+      // If user has BOTH profiles, use their stored role
+      // If user has only vendor profile → vendor dashboard
+      // If user has only venue profile → venue dashboard
+      const hasVendor = userData.hasVendorProfile || userData.role === 'VENDOR';
+      const hasVenue = userData.hasVenueProfile || userData.role === 'VENUE_OWNER';
+      
+      let redirectPath = '/dashboard/customer'; // default
+      
+      if (userData.role === 'ADMIN') {
+        redirectPath = '/dashboard/admin';
+      } else if (hasVenue && !hasVendor) {
+        // Only venue owner
+        redirectPath = '/dashboard/venue';
+      } else if (hasVendor && !hasVenue) {
+        // Only vendor
+        redirectPath = '/dashboard/vendor';
+      } else if (hasVendor && hasVenue) {
+        // Has both - use stored role
+        const redirectPaths: Record<string, string> = {
+          "ADMIN": "/dashboard/admin",
+          "VENDOR": "/dashboard/vendor",
+          "VENUE_OWNER": "/dashboard/venue",
+          "CUSTOMER": "/dashboard/customer",
+        };
+        redirectPath = redirectPaths[userData.role] || '/dashboard/customer';
+      }
 
       // Use window.location for immediate redirect
       window.location.href = redirectPath;
@@ -122,7 +140,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       let errorMessage = "Invalid email or password";
 
       // Handle network errors
-      if ((error as { code?: string })?.code === 'ERR_NETWORK' || 
+      if ((error as { code?: string })?.code === 'ERR_NETWORK' ||
           (error as { code?: string })?.code === 'ECONNREFUSED') {
         errorMessage = "Unable to connect to server. Please check your connection.";
       } else if ((error as { code?: string })?.code === 'ECONNABORTED') {

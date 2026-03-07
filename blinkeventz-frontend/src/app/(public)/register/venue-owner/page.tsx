@@ -3,30 +3,43 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState } from "react";
 import { useAuth } from "@/context/auth-context";
-import { Eye, EyeOff, Mail, Lock, User as UserIcon, Loader2, CheckCircle2, ArrowLeft, Building2 } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, User, Building, Phone, MapPin, CheckCircle2, AlertCircle, Chrome } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import api from "@/lib/api";
-import OtpVerification from "@/components/ui/otp-verification";
 import { PasswordStrength } from "@/components/ui/password-strength";
 
-export default function CustomerRegisterPage() {
+export default function VenueOwnerRegisterPage() {
   const router = useRouter();
   const { login, googleLogin, facebookLogin } = useAuth();
-  const [step, setStep] = useState<'register' | 'otp'>('register');
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [devOtp, setDevOtp] = useState<string | null>(null); // For development only
+  
   const [formData, setFormData] = useState({
+    // Account Details
     name: "",
     email: "",
     password: "",
-    confirmPassword: ""
+    confirmPassword: "",
+    // Venue Details
+    venueName: "",
+    venueType: "",
+    description: "",
+    city: "",
+    area: "",
+    // Contact Details
+    phone: "",
+    capacity: 500,
   });
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const handleGoogleLogin = () => {
@@ -40,7 +53,7 @@ export default function CustomerRegisterPage() {
     });
   };
 
-  const validateForm = () => {
+  const validateStep1 = () => {
     const newErrors: Record<string, string> = {};
 
     if (!formData.name.trim()) {
@@ -59,8 +72,8 @@ export default function CustomerRegisterPage() {
       newErrors.password = "Password is required";
     } else if (formData.password.length < 8) {
       newErrors.password = "Password must be at least 8 characters";
-    } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/.test(formData.password)) {
-      newErrors.password = "Password must contain uppercase, lowercase, number, and special character";
+    } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(formData.password)) {
+      newErrors.password = "Password must contain uppercase, lowercase, and number";
     }
 
     if (!formData.confirmPassword) {
@@ -73,109 +86,253 @@ export default function CustomerRegisterPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const validateStep2 = () => {
+    const newErrors: Record<string, string> = {};
 
-    if (!validateForm()) {
+    if (!formData.venueName.trim()) {
+      newErrors.venueName = "Venue name is required";
+    }
+
+    if (!formData.venueType) {
+      newErrors.venueType = "Please select a venue type";
+    }
+
+    if (!formData.description.trim()) {
+      newErrors.description = "Venue description is required";
+    } else if (formData.description.trim().length < 20) {
+      newErrors.description = "Description must be at least 20 characters";
+    }
+
+    if (!formData.city.trim()) {
+      newErrors.city = "City is required";
+    }
+
+    if (!formData.area.trim()) {
+      newErrors.area = "Area is required";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const validateStep3 = () => {
+    const newErrors: Record<string, string> = {};
+
+    if (!formData.phone.trim()) {
+      newErrors.phone = "Phone number is required";
+    } else if (!/^[6-9]\d{9}$/.test(formData.phone.replace(/\s/g, ""))) {
+      newErrors.phone = "Please enter a valid 10-digit Indian mobile number";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleNextStep = () => {
+    if (step === 1 && validateStep1()) {
+      setStep(2);
+    } else if (step === 2 && validateStep2()) {
+      setStep(3);
+    } else if (step === 3 && validateStep3()) {
+      handleRegister();
+    }
+  };
+
+  const handleRegister = async () => {
+    setIsLoading(true);
+
+    try {
+      // Create venue owner account with ALL venue details
+      const response = await api.post("/auth/register-venue-owner", {
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        venueName: formData.venueName,
+        venueType: formData.venueType,
+        description: formData.description,
+        city: formData.city,
+        area: formData.area,
+        phone: formData.phone,
+        capacity: formData.capacity,
+      });
+
+      const user = response.data.user;
+
+      // Send OTP for email verification
+      await api.post("/otp/send", { email: formData.email });
+
+      // DEV ONLY: Fetch OTP for development/testing
+      if (process.env.NODE_ENV === 'development') {
+        try {
+          const debugRes = await api.get(`/otp/debug?email=${formData.email}`);
+          if (debugRes.data.otp) {
+            setDevOtp(debugRes.data.otp);
+          }
+        } catch (e) {
+          console.log('Dev OTP fetch failed (expected in production)');
+        }
+      }
+
+      toast.success("Account created successfully!", {
+        description: "Check your email for the 6-digit OTP code.",
+      });
+
+      setStep(4);
+    } catch (error: any) {
+      console.error("Registration error:", error);
+      toast.error(error?.response?.data?.message || "Registration failed. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleVerifyOTP = async () => {
+    if (!otp || otp.length !== 6) {
+      toast.error("Please enter a valid 6-digit OTP");
       return;
     }
 
     setIsLoading(true);
 
     try {
-      // Step 1: Register venue owner (creates account, requires OTP verification)
-      await api.post("/auth/register-venue-owner", { 
-        name: formData.name, 
-        email: formData.email, 
-        password: formData.password 
+      // Verify OTP
+      await api.post("/otp/verify", {
+        email: formData.email,
+        otp: otp,
       });
 
-      // Step 2: Send OTP to email
-      await api.post("/otp/send", { email: formData.email });
-
-      // Move to OTP verification step
-      setStep('otp');
-
-      toast.success("Registration successful!", {
-        description: "Check your email for the 6-digit OTP.",
+      // Auto-login after verification
+      const loginResponse = await api.post("/auth/login", {
+        email: formData.email,
+        password: formData.password,
       });
 
-      // Log OTP to console for testing (remove in production)
-      console.log('📧 Check backend logs for OTP code');
+      // Store auth data
+      localStorage.setItem("NearZro_user", JSON.stringify(loginResponse.data));
+
+      toast.success("Email verified successfully!", {
+        description: "Welcome to NearZro! Redirecting to your dashboard...",
+      });
+
+      // Redirect to venue owner dashboard
+      setTimeout(() => {
+        router.push("/dashboard/venue");
+      }, 1000);
     } catch (error: any) {
-      const errorMessage = error?.response?.data?.message || error?.message || "Registration failed";
-      setErrors({ submit: errorMessage });
-      toast.error(errorMessage);
+      console.error("OTP verification error:", error);
+      toast.error(error?.response?.data?.message || "Invalid OTP. Please try again.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleOtpVerified = async () => {
+  const handleResendOTP = async () => {
     try {
-      toast.success("Email verified! Logging you in...", {
-        description: "Redirecting to your dashboard...",
+      await api.post("/otp/send", { email: formData.email });
+      toast.success("OTP resent successfully", {
+        description: "Check your email for the new code.",
       });
-
-      // Login with the credentials
-      await login(formData.email, formData.password);
-      
-      // Redirect handled by login function
-      router.push("/dashboard/customer");
     } catch (error: any) {
-      toast.error("Verification successful, but login failed. Please login manually.");
-      setTimeout(() => {
-        router.push("/login");
-      }, 2000);
+      toast.error("Failed to resend OTP");
+    }
+  };
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    if (errors[field]) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
     }
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-blue-100 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md">
-        {step === 'register' && (
-          <Link href="/register" className="inline-flex items-center gap-2 text-sm text-neutral-600 hover:text-neutral-900 mb-6 transition-colors">
-            <ArrowLeft className="h-4 w-4" />
-            Back to role selection
-          </Link>
-        )}
-
-        {step === 'register' ? (
-          <Card className="border-0 shadow-2xl bg-white/90 backdrop-blur-sm">
-            <CardHeader className="text-center pb-2">
-              <div className="inline-flex h-16 w-16 rounded-2xl bg-orange-50 items-center justify-center mx-auto mb-4">
-                <Building2 className="h-8 w-8 text-orange-600" />
+    <div className="min-h-screen bg-gradient-to-br from-silver-50 via-white to-silver-100 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-3xl mx-auto">
+        {/* Progress Steps */}
+        <div className="mb-8">
+          <div className="flex items-center justify-center">
+            {[1, 2, 3, 4].map((stepNumber) => (
+              <div key={stepNumber} className="flex items-center">
+                <div
+                  className={`flex items-center justify-center w-10 h-10 rounded-full font-semibold transition-all ${
+                    step >= stepNumber
+                      ? "bg-black text-white"
+                      : "bg-neutral-200 text-neutral-600"
+                  }`}
+                >
+                  {step > stepNumber ? (
+                    <CheckCircle2 className="h-5 w-5" />
+                  ) : (
+                    stepNumber
+                  )}
+                </div>
+                {stepNumber < 4 && (
+                  <div
+                    className={`w-16 sm:w-24 h-1 mx-2 ${
+                      step > stepNumber ? "bg-black" : "bg-neutral-200"
+                    }`}
+                  />
+                )}
               </div>
-              <CardTitle className="text-3xl font-bold text-black">
-                Create Venue Owner Account
-              </CardTitle>
-              <CardDescription className="text-neutral-600">
-                List and manage your event venues
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleRegister} className="space-y-5">
+            ))}
+          </div>
+          <div className="flex justify-between mt-2 text-xs text-neutral-600">
+            <span>Account</span>
+            <span>Venue</span>
+            <span>Contact</span>
+            <span>Verify</span>
+          </div>
+        </div>
+
+        <Card className="border-2 border-black shadow-2xl">
+          <CardHeader className="text-center pb-2">
+            <div className="inline-flex h-16 w-16 rounded-2xl bg-gradient-to-br from-black to-neutral-800 mx-auto mb-4 shadow-lg shadow-black/20 flex items-center justify-center">
+              <Building className="h-8 w-8 text-white" />
+            </div>
+            <CardTitle className="text-3xl font-bold text-black">
+              {step === 1 && "Create Your Venue Owner Account"}
+              {step === 2 && "Venue Details"}
+              {step === 3 && "Contact Information"}
+              {step === 4 && "Verify Email"}
+            </CardTitle>
+            <CardDescription className="text-neutral-600">
+              {step === 1 && "Enter your personal details to get started"}
+              {step === 2 && "Tell us about your venue"}
+              {step === 3 && "How can we reach you?"}
+              {step === 4 && "Enter the OTP sent to your email"}
+            </CardDescription>
+          </CardHeader>
+
+          <CardContent>
+            {/* Step 1: Account Details */}
+            {step === 1 && (
+              <div className="space-y-5">
                 <div className="space-y-2">
-                  <Label htmlFor="name" className="text-sm font-medium text-neutral-700">
-                    Full Name
+                  <Label htmlFor="name" className="text-sm font-medium text-black">
+                    Full Name *
                   </Label>
                   <div className="relative">
-                    <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
                     <Input
                       id="name"
                       placeholder="John Doe"
                       type="text"
                       value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      className={`pl-10 h-12 border-neutral-200 bg-white text-neutral-900 focus:border-blue-600 focus:ring-blue-600 ${errors.name ? 'border-red-500' : ''}`}
+                      onChange={(e) => handleInputChange("name", e.target.value)}
+                      className={`pl-10 h-12 border-neutral-300 bg-white text-black focus:border-black focus:ring-black ${
+                        errors.name ? "border-red-500" : ""
+                      }`}
                     />
                   </div>
                   {errors.name && <p className="text-xs text-red-500">{errors.name}</p>}
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-sm font-medium text-neutral-700">
-                    Email Address
+                  <Label htmlFor="email" className="text-sm font-medium text-black">
+                    Email Address *
                   </Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
@@ -184,16 +341,18 @@ export default function CustomerRegisterPage() {
                       placeholder="name@example.com"
                       type="email"
                       value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className={`pl-10 h-12 border-neutral-200 bg-white text-neutral-900 focus:border-blue-600 focus:ring-blue-600 ${errors.email ? 'border-red-500' : ''}`}
+                      onChange={(e) => handleInputChange("email", e.target.value)}
+                      className={`pl-10 h-12 border-neutral-300 bg-white text-black focus:border-black focus:ring-black ${
+                        errors.email ? "border-red-500" : ""
+                      }`}
                     />
                   </div>
                   {errors.email && <p className="text-xs text-red-500">{errors.email}</p>}
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="password" className="text-sm font-medium text-neutral-700">
-                    Password
+                  <Label htmlFor="password" className="text-sm font-medium text-black">
+                    Password *
                   </Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
@@ -201,26 +360,27 @@ export default function CustomerRegisterPage() {
                       id="password"
                       type={showPassword ? "text" : "password"}
                       value={formData.password}
-                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      onChange={(e) => handleInputChange("password", e.target.value)}
                       placeholder="Min. 8 characters"
-                      className={`pl-10 pr-10 h-12 border-neutral-200 bg-white text-neutral-900 focus:border-blue-600 focus:ring-blue-600 ${errors.password ? 'border-red-500' : ''}`}
+                      className={`pl-10 pr-10 h-12 border-neutral-300 bg-white text-black focus:border-black focus:ring-black ${
+                        errors.password ? "border-red-500" : ""
+                      }`}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 transition-colors"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-black transition-colors"
                     >
                       {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
                   </div>
                   {errors.password && <p className="text-xs text-red-500">{errors.password}</p>}
-                  {/* Password Strength Indicator */}
                   <PasswordStrength password={formData.password} />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="confirmPassword" className="text-sm font-medium text-neutral-700">
-                    Confirm Password
+                  <Label htmlFor="confirmPassword" className="text-sm font-medium text-black">
+                    Confirm Password *
                   </Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
@@ -228,14 +388,16 @@ export default function CustomerRegisterPage() {
                       id="confirmPassword"
                       type={showConfirmPassword ? "text" : "password"}
                       value={formData.confirmPassword}
-                      onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                      onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
                       placeholder="Re-enter password"
-                      className={`pl-10 pr-10 h-12 border-neutral-200 bg-white text-neutral-900 focus:border-blue-600 focus:ring-blue-600 ${errors.confirmPassword ? 'border-red-500' : ''}`}
+                      className={`pl-10 pr-10 h-12 border-neutral-300 bg-white text-black focus:border-black focus:ring-black ${
+                        errors.confirmPassword ? "border-red-500" : ""
+                      }`}
                     />
                     <button
                       type="button"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 transition-colors"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-black transition-colors"
                     >
                       {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
@@ -243,90 +405,349 @@ export default function CustomerRegisterPage() {
                   {errors.confirmPassword && <p className="text-xs text-red-500">{errors.confirmPassword}</p>}
                 </div>
 
-                {errors.submit && (
-                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                    <p className="text-sm text-red-700">{errors.submit}</p>
+                {/* OAuth Buttons */}
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-neutral-300"></div>
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-white px-2 text-neutral-500">Or continue with</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full h-12 border-neutral-300"
+                    onClick={handleGoogleLogin}
+                    disabled={isLoading}
+                  >
+                    <Chrome className="h-5 w-5 mr-2" />
+                    Google
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full h-12 border-neutral-300"
+                    onClick={handleFacebookLogin}
+                    disabled={isLoading}
+                  >
+                    Facebook
+                  </Button>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="default"
+                  className="w-full h-12 text-base font-semibold bg-black hover:bg-neutral-800"
+                  onClick={handleNextStep}
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Creating Account..." : "Continue to Venue Details"}
+                </Button>
+              </div>
+            )}
+
+            {/* Step 2: Venue Details */}
+            {step === 2 && (
+              <div className="space-y-5">
+                <div className="space-y-2">
+                  <Label htmlFor="venueName" className="text-sm font-medium text-black">
+                    Venue Name *
+                  </Label>
+                  <Input
+                    id="venueName"
+                    placeholder="Grand Ballroom ITC"
+                    value={formData.venueName}
+                    onChange={(e) => handleInputChange("venueName", e.target.value)}
+                    className={`h-12 border-neutral-300 bg-white text-black focus:border-black focus:ring-black ${
+                      errors.venueName ? "border-red-500" : ""
+                    }`}
+                  />
+                  {errors.venueName && <p className="text-xs text-red-500">{errors.venueName}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="venueType" className="text-sm font-medium text-black">
+                    Venue Type *
+                  </Label>
+                  <select
+                    id="venueType"
+                    value={formData.venueType}
+                    onChange={(e) => handleInputChange("venueType", e.target.value)}
+                    className={`flex h-12 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-black focus:ring-black ${
+                      errors.venueType ? "border-red-500" : ""
+                    }`}
+                  >
+                    <option value="">Select venue type</option>
+                    <option value="BANQUET_HALL">Banquet Hall</option>
+                    <option value="MARRIAGE_HALL">Marriage Hall</option>
+                    <option value="BEACH_VENUE">Beach Venue</option>
+                    <option value="RESORT">Resort</option>
+                    <option value="HOTEL">Hotel</option>
+                    <option value="LAWN">Open Lawn</option>
+                    <option value="COMMUNITY_HALL">Community Hall</option>
+                    <option value="OTHER">Other</option>
+                  </select>
+                  {errors.venueType && <p className="text-xs text-red-500">{errors.venueType}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="description" className="text-sm font-medium text-black">
+                    Venue Description *
+                  </Label>
+                  <textarea
+                    id="description"
+                    value={formData.description}
+                    onChange={(e) => handleInputChange("description", e.target.value)}
+                    placeholder="Describe your venue, amenities, capacity, and what makes it special... (min. 20 characters)"
+                    rows={4}
+                    className={`flex min-h-[120px] w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-black focus:ring-black ${
+                      errors.description ? "border-red-500" : ""
+                    }`}
+                  />
+                  {errors.description && <p className="text-xs text-red-500">{errors.description}</p>}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="city" className="text-sm font-medium text-black">
+                      City *
+                    </Label>
+                    <div className="relative">
+                      <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
+                      <Input
+                        id="city"
+                        placeholder="Chennai"
+                        value={formData.city}
+                        onChange={(e) => handleInputChange("city", e.target.value)}
+                        className={`pl-10 h-12 border-neutral-300 bg-white text-black focus:border-black focus:ring-black ${
+                          errors.city ? "border-red-500" : ""
+                        }`}
+                      />
+                    </div>
+                    {errors.city && <p className="text-xs text-red-500">{errors.city}</p>}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="area" className="text-sm font-medium text-black">
+                      Area *
+                    </Label>
+                    <Input
+                      id="area"
+                      placeholder="T Nagar"
+                      value={formData.area}
+                      onChange={(e) => handleInputChange("area", e.target.value)}
+                      className={`h-12 border-neutral-300 bg-white text-black focus:border-black focus:ring-black ${
+                        errors.area ? "border-red-500" : ""
+                      }`}
+                    />
+                    {errors.area && <p className="text-xs text-red-500">{errors.area}</p>}
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="flex-1 h-12 border-black"
+                    onClick={() => setStep(1)}
+                    disabled={isLoading}
+                  >
+                    Back
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="default"
+                    className="flex-1 h-12 text-base font-semibold bg-black hover:bg-neutral-800"
+                    onClick={handleNextStep}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? "Saving..." : "Continue to Contact"}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Step 3: Contact Information */}
+            {step === 3 && (
+              <div className="space-y-5">
+                <div className="space-y-2">
+                  <Label htmlFor="phone" className="text-sm font-medium text-black">
+                    Phone Number *
+                  </Label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
+                    <Input
+                      id="phone"
+                      placeholder="9876543210"
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => handleInputChange("phone", e.target.value)}
+                      className={`pl-10 h-12 border-neutral-300 bg-white text-black focus:border-black focus:ring-black ${
+                        errors.phone ? "border-red-500" : ""
+                      }`}
+                      maxLength={10}
+                    />
+                  </div>
+                  {errors.phone && <p className="text-xs text-red-500">{errors.phone}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="capacity" className="text-sm font-medium text-black">
+                    Venue Capacity (guests)
+                  </Label>
+                  <Input
+                    id="capacity"
+                    type="number"
+                    value={formData.capacity}
+                    onChange={(e) => handleInputChange("capacity", e.target.value)}
+                    className="h-12 border-neutral-300 bg-white text-black focus:border-black focus:ring-black"
+                  />
+                  <p className="text-xs text-neutral-600">Maximum number of guests your venue can accommodate</p>
+                </div>
+
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-semibold text-blue-900">Email Verification Required</p>
+                      <p className="text-sm text-blue-700 mt-1">
+                        After submitting, you'll receive a 6-digit OTP on your email ({formData.email}) for verification.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="flex-1 h-12 border-black"
+                    onClick={() => setStep(2)}
+                    disabled={isLoading}
+                  >
+                    Back
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="default"
+                    className="flex-1 h-12 text-base font-semibold bg-black hover:bg-neutral-800"
+                    onClick={handleRegister}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? "Creating Account..." : "Create Account & Verify"}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Step 4: OTP Verification */}
+            {step === 4 && (
+              <div className="space-y-5">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <Mail className="h-5 w-5 text-blue-600 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-semibold text-blue-900">Check Your Email</p>
+                      <p className="text-sm text-blue-700 mt-1">
+                        We've sent a 6-digit verification code to <strong>{formData.email}</strong>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* DEV ONLY: Show OTP in development mode */}
+                {devOtp && process.env.NODE_ENV === 'development' && (
+                  <div className="bg-amber-50 border-2 border-amber-300 rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-amber-900">Development Mode - OTP Display</p>
+                        <p className="text-sm text-amber-700 mt-1 mb-2">
+                          Email sending is disabled in development. Use this OTP:
+                        </p>
+                        <div className="bg-white border border-amber-300 rounded-md py-3 px-4 text-center">
+                          <span className="text-3xl font-bold tracking-widest text-amber-600">{devOtp}</span>
+                        </div>
+                        <p className="text-xs text-amber-600 mt-2">
+                          Click the OTP to copy • This will not work in production
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 )}
 
-                <Button
-                  type="submit"
-                  variant="premium"
-                  className="w-full h-12 text-base font-medium shadow-lg hover:shadow-xl transition-all duration-300"
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                      Creating account...
-                    </>
-                  ) : (
-                    "Create Account"
-                  )}
-                </Button>
-              </form>
-
-              <div className="relative my-6">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t border-neutral-200" />
+                <div className="space-y-2">
+                  <Label htmlFor="otp" className="text-sm font-medium text-black">
+                    Enter OTP *
+                  </Label>
+                  <Input
+                    id="otp"
+                    placeholder="000000"
+                    type="text"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    className="h-12 border-neutral-300 bg-white text-black text-center text-2xl tracking-widest focus:border-black focus:ring-black"
+                    maxLength={6}
+                  />
                 </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-white px-3 text-neutral-500">Or continue with</span>
-                </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-3">
+                <div className="flex items-center justify-center gap-2">
+                  <p className="text-sm text-neutral-600">Didn't receive the code?</p>
+                  <Button
+                    type="button"
+                    variant="link"
+                    className="text-sm font-semibold text-black underline"
+                    onClick={handleResendOTP}
+                  >
+                    Resend OTP
+                  </Button>
+                </div>
+
                 <Button
-                  variant="silver"
-                  className="w-full h-12 border-neutral-300 hover:bg-neutral-50 transition-colors"
                   type="button"
-                  onClick={handleGoogleLogin}
-                  disabled={isLoading}
+                  variant="default"
+                  className="w-full h-12 text-base font-semibold bg-black hover:bg-neutral-800"
+                  onClick={handleVerifyOTP}
+                  disabled={isLoading || otp.length !== 6}
                 >
-                  <svg className="mr-2 h-5 w-5" viewBox="0 0 24 24">
-                    <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                    <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                    <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                    <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                  </svg>
-                  Google
+                  {isLoading ? "Verifying..." : "Verify & Continue to Dashboard"}
                 </Button>
+
                 <Button
-                  variant="silver"
-                  className="w-full h-12 border-neutral-300 hover:bg-neutral-50 transition-colors"
                   type="button"
-                  onClick={handleFacebookLogin}
-                  disabled={isLoading}
+                  variant="ghost"
+                  className="w-full h-12 text-neutral-600"
+                  onClick={() => router.push("/login")}
                 >
-                  <svg className="mr-2 h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                  </svg>
-                  Facebook
+                  Back to Login
                 </Button>
               </div>
-            </CardContent>
-            <CardFooter className="flex flex-col space-y-3 text-center border-t pt-6">
-              <div className="flex items-center gap-2 text-xs text-neutral-600">
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <span>List your venues and grow your business</span>
-              </div>
-              <div className="text-xs text-neutral-500">
-                By signing up, you agree to our{" "}
-                <Link href="/terms" className="underline hover:text-neutral-900">Terms of Service</Link>
-                {" "}and{" "}
-                <Link href="/privacy" className="underline hover:text-neutral-900">Privacy Policy</Link>
-              </div>
-            </CardFooter>
-          </Card>
-        ) : (
-          // OTP Verification Step
-          <OtpVerification
-            email={formData.email}
-            phone={undefined}
-            onVerified={handleOtpVerified}
-            onBack={() => setStep('register')}
-          />
-        )}
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Footer Links */}
+        <div className="mt-6 text-center text-sm text-neutral-600">
+          <p>
+            Already have an account?{" "}
+            <Link href="/login" className="font-semibold text-black underline hover:text-neutral-800">
+              Sign in
+            </Link>
+          </p>
+          <p className="mt-2">
+            By registering, you agree to our{" "}
+            <Link href="/terms" className="font-semibold text-black underline hover:text-neutral-800">
+              Terms of Service
+            </Link>{" "}
+            and{" "}
+            <Link href="/privacy" className="font-semibold text-black underline hover:text-neutral-800">
+              Privacy Policy
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );

@@ -74,7 +74,7 @@ export class AdminKycController {
       id,
       KycStatus.REJECTED,
       req.user.userId,
-      dto.reason,
+      dto.rejectionReason,
     );
   }
 
@@ -89,7 +89,7 @@ export class AdminKycController {
       id,
       dto.status,
       req.user.userId,
-      dto.reason,
+      dto.rejectionReason,
     );
   }
 }

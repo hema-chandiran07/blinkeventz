@@ -36,6 +36,14 @@ export class KycService {
     dto: SubmitKycDto,
     file: Express.Multer.File,
   ) {
+    return this.createKyc(userId, dto, file);
+  }
+
+  async createKyc(
+    userId: number,
+    dto: SubmitKycDto,
+    file: Express.Multer.File,
+  ) {
     // 1️⃣ Prevent duplicate PENDING or VERIFIED KYC
     const activeKyc = await this.prisma.kycDocument.findFirst({
       where: {
@@ -67,8 +75,8 @@ export class KycService {
       );
     }
 
-    // 3️⃣ Upload document to S3
-    const docFileUrl = await this.s3Service.uploadKycDocument(file);
+    // 3️⃣ Save document locally (instead of S3 for now)
+    const docFileUrl = `/uploads/kyc/${file.filename}`;
 
     // 4️⃣ Encrypt the document number
     const encryptedDocNumber = encrypt(dto.docNumber);
@@ -224,6 +232,61 @@ export class KycService {
         },
       },
       orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  // Customer KYC
+  async createCustomerKyc(userId: number, dto: any, file: Express.Multer.File) {
+    return this.createKyc(userId, dto, file);
+  }
+
+  async getCustomerKyc(userId: number) {
+    return this.prisma.kycDocument.findFirst({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  // Vendor KYC
+  async createVendorKyc(userId: number, dto: any, file: Express.Multer.File) {
+    return this.createKyc(userId, dto, file);
+  }
+
+  async getVendorKyc(userId: number) {
+    return this.prisma.kycDocument.findFirst({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  // Venue Owner KYC
+  async createVenueOwnerKyc(userId: number, dto: any, file: Express.Multer.File) {
+    return this.createKyc(userId, dto, file);
+  }
+
+  async getVenueOwnerKyc(userId: number) {
+    return this.prisma.kycDocument.findFirst({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async getAllKycSubmissions() {
+    return this.getAllKyc();
+  }
+
+  async getKycById(id: number) {
+    return this.prisma.kycDocument.findUnique({
+      where: { id },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
     });
   }
 }

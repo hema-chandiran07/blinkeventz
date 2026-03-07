@@ -26,6 +26,11 @@ import { KycModule } from './kyc/kyc.module';
 import { AuditModule } from './audit';
 import { HealthModule } from './health/health.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { PayoutsModule } from './payouts/payouts.module';
+import { PromotionsModule } from './promotions/promotions.module';
+import { ReviewsModule } from './reviews/reviews.module';
+import { AnalyticsModule } from './analytics/analytics.module';
+import { ApprovalsModule } from './approvals/approvals.module';
 
 @Module({
   imports: [
@@ -145,7 +150,12 @@ import { DashboardModule } from './dashboard/dashboard.module';
     KycModule,
     AuditModule,
     HealthModule,
-    DashboardModule
+    DashboardModule,
+    PayoutsModule,
+    PromotionsModule,
+    ReviewsModule,
+    AnalyticsModule,
+    ApprovalsModule
   ],
    // 🔐 GLOBAL SECURITY LAYER
   providers: [

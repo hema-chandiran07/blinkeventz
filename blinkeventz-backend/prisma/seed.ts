@@ -6,7 +6,7 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("Seeding test users for all roles...\n");
 
-  const password = 'test123';
+  const password = 'admin123';
   const passwordHash = await bcrypt.hash(password, 10);
 
   // 1. ADMIN USER
@@ -161,11 +161,11 @@ async function main() {
   console.log('┌─────────────────────────────────────────────────────┐');
   console.log('│ Email                    │ Password │ Role          │');
   console.log('├─────────────────────────────────────────────────────┤');
-  console.log('│ admin@NearZro.com        │ test123  │ ADMIN         │');
-  console.log('│ customer@test.com        │ test123  │ CUSTOMER      │');
-  console.log('│ vendor@test.com          │ test123  │ VENDOR        │');
-  console.log('│ venueowner@test.com      │ test123  │ VENUE_OWNER   │');
-  console.log('│ manager@test.com         │ test123  │ EVENT_MANAGER │');
+  console.log('│ admin@NearZro.com        │ admin123 │ ADMIN         │');
+  console.log('│ customer@test.com        │ admin123 │ CUSTOMER      │');
+  console.log('│ vendor@test.com          │ admin123 │ VENDOR        │');
+  console.log('│ venueowner@test.com      │ admin123 │ VENUE_OWNER   │');
+  console.log('│ manager@test.com         │ admin123 │ EVENT_MANAGER │');
   console.log('└─────────────────────────────────────────────────────┘');
 }
 
