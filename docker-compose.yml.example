@@ -1,95 +1,62 @@
-version: "3.8"
-
 services:
-  # =====================================================
-  # PostgreSQL Database
-  # =====================================================
+
   postgres:
     image: postgres:15
-    container_name: NearZro-postgres
+    container_name: nearzro-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 123
-      POSTGRES_DB: NearZro
+      POSTGRES_PASSWORD: 2006
+      POSTGRES_DB: nearzro
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - NearZro-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      - nearzro-network
 
-  # =====================================================
-  # Redis Cache
-  # =====================================================
   redis:
     image: redis:7-alpine
-    container_name: NearZro-redis
+    container_name: nearzro-redis
     restart: unless-stopped
     ports:
       - "6379:6379"
     networks:
-      - NearZro-network
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      - nearzro-network
 
-  # =====================================================
-  # Backend API (NestJS)
-  # =====================================================
   api:
     build:
-      context: ./NearZro-backend
-      dockerfile: Dockerfile
-    container_name: NearZro-api
-    restart: unless-stopped
+      context: ./nearzro-backend
+    container_name: nearzro-api
     env_file:
-      - ./.env
+      - ./nearzro-backend/.env
     ports:
       - "3000:3000"
+      - "5555:5555"
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      - postgres
+      - redis
     networks:
-      - NearZro-network
-    volumes:
-      - ./NearZro-backend:/app
-      - /app/node_modules
+      - nearzro-network
     command: sh -c "npx prisma migrate deploy && npm run start:prod"
 
-  # =====================================================
-  # Frontend (Next.js)
-  # =====================================================
   frontend:
     build:
-      context: ./NearZro-frontend
-      dockerfile: Dockerfile
-    container_name: NearZro-frontend
-    restart: unless-stopped
+      context: ./nearzro-frontend
+    container_name: nearzro-frontend
+    env_file:
+      - ./nearzro-frontend/.env
     ports:
       - "3001:3000"
-    env_file:
-      - ./NearZro-frontend/.env
     depends_on:
       - api
     networks:
-      - NearZro-network
+      - nearzro-network
     environment:
-      - NEXT_PUBLIC_API_URL=http://api:3000
-      - NODE_ENV=production
+      NEXT_PUBLIC_API_URL: http://api:3000
 
 volumes:
   postgres_data:
 
 networks:
-  NearZro-network:
-    driver: bridge
+  nearzro-network:

@@ -247,7 +247,7 @@ export default function AdminDashboardPage() {
                         tickFormatter={(value) => `₹${(value/100000).toFixed(0)}L`}
                       />
                       <Tooltip
-                        formatter={(value: number | undefined) => [formatCurrency(value || 0), "Revenue"]}
+                        formatter={(value) => [formatCurrency(Number(value) || 0), "Revenue"]}
                         contentStyle={{
                           backgroundColor: "#fff",
                           border: "1px solid #e5e5e5",
@@ -301,8 +301,8 @@ export default function AdminDashboardPage() {
                         ))}
                       </Pie>
                       <Tooltip
-                        formatter={(value: number | undefined, name: string | undefined) => {
-                          if (name === "value") return [`${value || 0} events`, "Count"];
+                        formatter={(value, name) => {
+                          if (name === "value") return [`${Number(value) || 0} events`, "Count"];
                           return [value, name];
                         }}
                         contentStyle={{
@@ -348,9 +348,9 @@ export default function AdminDashboardPage() {
                         width={100}
                       />
                       <Tooltip
-                        formatter={(value: number | undefined, name: string | undefined) => {
-                          if (name === "revenue") return [formatCurrency(value || 0), "Revenue"];
-                          return [`${value || 0} events`, "Events"];
+                        formatter={(value, name) => {
+                          if (name === "revenue") return [formatCurrency(Number(value) || 0), "Revenue"];
+                          return [`${Number(value) || 0} events`, "Events"];
                         }}
                         contentStyle={{
                           backgroundColor: "#fff",
