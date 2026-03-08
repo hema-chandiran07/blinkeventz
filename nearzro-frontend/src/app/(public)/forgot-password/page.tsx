@@ -56,7 +56,7 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center py-12 px-4 bg-gradient-to-br from-silver-50 via-white to-silver-100">
+    <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center py-12 px-4 bg-transparent">
       <motion.div
         className="w-full max-w-md"
         initial={{ opacity: 0, y: 20 }}
@@ -69,7 +69,7 @@ export default function ForgotPasswordPage() {
           Back to Login
         </Link>
 
-        <Card className="border-0 shadow-2xl bg-white/90 backdrop-blur-sm">
+        <Card className="border-0 shadow-2xl bg-transparent backdrop-blur-sm">
           <CardHeader className="text-center pb-2">
             <div className="inline-flex h-16 w-16 rounded-2xl bg-blue-50 items-center justify-center mx-auto mb-4">
               <Mail className="h-8 w-8 text-blue-600" />

@@ -96,7 +96,7 @@ export default function CustomerRegisterPage() {
       // Move to OTP verification step
       setStep('otp');
 
-      toast.success("Registration successful!", {
+      toast.success("Successfully registered!", {
         description: "Check your email for the 6-digit OTP.",
       });
 
@@ -131,7 +131,7 @@ export default function CustomerRegisterPage() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-blue-100 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center bg-transparent py-12 px-4 sm:px-6 lg:px-8">
       <div className="w-full max-w-md">
         {step === 'register' && (
           <Link href="/register" className="inline-flex items-center gap-2 text-sm text-neutral-600 hover:text-neutral-900 mb-6 transition-colors">
@@ -141,7 +141,7 @@ export default function CustomerRegisterPage() {
         )}
 
         {step === 'register' ? (
-          <Card className="border-0 shadow-2xl bg-white/90 backdrop-blur-sm">
+          <Card className="border-0 shadow-2xl bg-white">
             <CardHeader className="text-center pb-2">
               <div className="inline-flex h-16 w-16 rounded-2xl bg-blue-50 items-center justify-center mx-auto mb-4">
                 <UserIcon className="h-8 w-8 text-blue-600" />

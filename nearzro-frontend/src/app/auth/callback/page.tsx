@@ -63,7 +63,7 @@ export default function AuthCallbackPage() {
   }, [searchParams, router]);
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-gradient-to-br from-silver-50 via-white to-silver-100">
+    <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-transparent">
       <Card className="w-full max-w-md shadow-2xl">
         <CardContent className="flex flex-col items-center justify-center py-12">
           {status === "loading" && (

@@ -98,19 +98,35 @@ export class AuthService {
 
   // 🏢 VENUE OWNER registration - requires OTP verification
   // Allows same email as VENDOR (user can have both businesses)
-  async registerVenueOwner(dto: VenueOwnerRegisterDto) {
+  async registerVenueOwner(
+    dto: VenueOwnerRegisterDto,
+    venueImageUrls: string[] = [],
+    kycDocUrl?: string,
+    kycDocType?: string,
+    kycDocNumber?: string,
+    kycDocUrls?: string[], // Array of KYC document URLs (1-5 images)
+  ) {
     // Check if user already exists
     const existingUser = await this.prisma.user.findUnique({
       where: { email: dto.email },
-      include: { venues: true },
+      include: { venues: true, vendor: true },
     });
 
-    // If user exists and already has VENUE_OWNER role with venues, reject
-    if (existingUser && existingUser.role === Role.VENUE_OWNER && existingUser.venues.length > 0) {
+    // Check if username already exists in Venue table
+    const existingVenueByUsername = await this.prisma.venue.findFirst({
+      where: { username: dto.name },
+    });
+
+    if (existingVenueByUsername) {
+      throw new BadRequestException('Username already taken. Please choose a different username.');
+    }
+
+    // If user exists and already has a venue, reject (prevent duplicate venue registration)
+    if (existingUser && existingUser.venues.length > 0) {
       throw new BadRequestException('Email already registered as Venue Owner');
     }
 
-    // If user exists (e.g., as VENDOR), add venue to their profile
+    // If user exists (e.g., as VENDOR or CUSTOMER), add venue to their profile
     if (existingUser) {
       // Verify password matches existing account
       if (existingUser.passwordHash) {
@@ -127,18 +143,15 @@ export class AuthService {
         });
       }
 
-      // Update user's name if different (in case they want to use a different display name)
-      if (dto.name !== existingUser.name) {
-        await this.prisma.user.update({
-          where: { id: existingUser.id },
-          data: { name: dto.name },
-        });
-      }
+      // ⚠️ Do NOT update user's name - keep original username for login
+      // The username (name) should remain as the first one registered
+      // dto.name is stored as venue username for login
 
       // Create venue profile for existing user
       const venue = await this.prisma.venue.create({
         data: {
           ownerId: existingUser.id,
+          username: dto.name, // Store as username for venue-specific login
           name: dto.venueName,
           type: dto.venueType as any,
           description: dto.description,
@@ -147,21 +160,48 @@ export class AuthService {
           address: 'Address to be updated by owner',
           pincode: '000000',
           capacityMin: 100,
-          capacityMax: dto.capacity || 500,
+          capacityMax: dto.capacity ? parseInt(dto.capacity as any, 10) || 500 : 500,
           basePriceMorning: 50000,
           basePriceEvening: 75000,
           basePriceFullDay: 120000,
           status: 'PENDING_APPROVAL',
+          images: venueImageUrls, // Save venue images
         },
       });
+
+      // Create KYC documents if provided (support 1-5 images)
+      if (kycDocUrls && kycDocUrls.length > 0 && kycDocType && kycDocNumber) {
+        try {
+          // Create a KYC document record for each image
+          for (const docUrl of kycDocUrls) {
+            await this.prisma.kycDocument.create({
+              data: {
+                userId: existingUser.id,
+                docType: kycDocType as any,
+                docNumber: kycDocNumber,
+                docNumberHash: crypto.createHash('sha256').update(kycDocNumber).digest('hex'),
+                docFileUrl: docUrl,
+                status: 'PENDING',
+              },
+            });
+          }
+        } catch (error: any) {
+          // Ignore duplicate KYC errors
+          if (error.code !== 'P2002') {
+            console.error('KYC creation error:', error.message);
+          }
+        }
+      }
 
       return {
         user: {
           id: existingUser.id,
-          name: dto.name, // Return the NEW name they entered
+          name: existingUser.name, // Keep original username
           email: existingUser.email,
-          role: Role.VENUE_OWNER, // Return VENUE_OWNER so they can access venue dashboard
+          role: existingUser.role, // Keep original role - frontend uses hasVenueProfile/hasVendorProfile
           isEmailVerified: existingUser.isEmailVerified,
+          hasVendorProfile: !!existingUser.vendor,
+          hasVenueProfile: true, // Just added a venue
         },
         requiresOtp: !existingUser.isEmailVerified,
         message: 'Venue added successfully. Please verify your email with OTP.',
@@ -181,24 +221,55 @@ export class AuthService {
     });
 
     // Create venue profile
-    await this.prisma.venue.create({
-      data: {
-        ownerId: user.id,
-        name: dto.venueName,
-        type: dto.venueType as any,
-        description: dto.description,
-        city: dto.city,
-        area: dto.area,
-        address: 'Address to be updated by owner',
-        pincode: '000000',
-        capacityMin: 100,
-        capacityMax: dto.capacity || 500,
-        basePriceMorning: 50000,
-        basePriceEvening: 75000,
-        basePriceFullDay: 120000,
-        status: 'PENDING_APPROVAL',
-      },
-    });
+    try {
+      await this.prisma.venue.create({
+        data: {
+          ownerId: user.id,
+          username: dto.name, // Store username for venue-specific login
+          name: dto.venueName,
+          type: dto.venueType as any,
+          description: dto.description,
+          city: dto.city,
+          area: dto.area,
+          address: 'Address to be updated by owner',
+          pincode: '000000',
+          capacityMin: 100,
+          capacityMax: dto.capacity ? parseInt(dto.capacity as any, 10) || 500 : 500,
+          basePriceMorning: 50000,
+          basePriceEvening: 75000,
+          basePriceFullDay: 120000,
+          status: 'PENDING_APPROVAL',
+          images: venueImageUrls || [], // Save venue images
+        },
+      });
+    } catch (error: any) {
+      console.error('Venue creation error:', error.message);
+      // Continue anyway - user is created
+    }
+
+    // Create KYC documents if provided (support 1-5 images)
+    if (kycDocUrls && kycDocUrls.length > 0 && kycDocType && kycDocNumber) {
+      try {
+        // Create a KYC document record for each image
+        for (const docUrl of kycDocUrls) {
+          await this.prisma.kycDocument.create({
+            data: {
+              userId: user.id,
+              docType: kycDocType as any,
+              docNumber: kycDocNumber,
+              docNumberHash: crypto.createHash('sha256').update(kycDocNumber).digest('hex'),
+              docFileUrl: docUrl,
+              status: 'PENDING',
+            },
+          });
+        }
+      } catch (error: any) {
+        // Ignore duplicate KYC errors
+        if (error.code !== 'P2002') {
+          console.error('KYC creation error:', error.message);
+        }
+      }
+    }
 
     return {
       user: {
@@ -215,15 +286,31 @@ export class AuthService {
 
   // 🏪 VENDOR registration - requires OTP verification
   // Allows same email as VENUE_OWNER (user can have both businesses)
-  async registerVendor(dto: VendorRegisterDto) {
-    // Check if user already exists
+  async registerVendor(
+    dto: VendorRegisterDto,
+    businessImageUrls: string[] = [],
+    kycDocUrl?: string,
+    kycDocType?: string,
+    kycDocNumber?: string,
+    kycDocUrls?: string[], // Array of KYC document URLs (1-5 images)
+  ) {
+    // Check if user already exists by email
     const existingUser = await this.prisma.user.findUnique({
       where: { email: dto.email },
-      include: { vendor: true },
+      include: { vendor: true, venues: true },
     });
 
-    // If user exists and already has a vendor profile, reject
-    if (existingUser && existingUser.role === Role.VENDOR && existingUser.vendor) {
+    // Check if username already exists in Vendor table
+    const existingVendorByUsername = await this.prisma.vendor.findUnique({
+      where: { username: dto.name },
+    });
+
+    if (existingVendorByUsername) {
+      throw new BadRequestException('Username already taken. Please choose a different username.');
+    }
+
+    // If user exists and already has a vendor profile, reject (prevent duplicate vendor registration)
+    if (existingUser && existingUser.vendor) {
       throw new BadRequestException('Email already registered as Vendor');
     }
 
@@ -244,26 +331,48 @@ export class AuthService {
         });
       }
 
-      // Update user's name if different (in case they want to use a different display name)
-      if (dto.name !== existingUser.name) {
-        await this.prisma.user.update({
-          where: { id: existingUser.id },
-          data: { name: dto.name },
-        });
-      }
+      // ⚠️ Do NOT update user's name - keep original username for login
+      // The username (name) should remain as the first one registered
+      // dto.name is stored as vendor username for login
 
       // Create vendor profile for existing user
       const vendor = await this.prisma.vendor.create({
         data: {
           userId: existingUser.id,
+          username: dto.name, // Store as username for vendor-specific login
           businessName: dto.businessName,
           description: dto.description,
           city: dto.city,
           area: dto.area,
           serviceRadiusKm: dto.serviceRadiusKm || 50,
           verificationStatus: 'PENDING',
+          images: businessImageUrls, // Save business images
         },
       });
+
+      // Create KYC documents if provided (support 1-5 images)
+      if (kycDocUrls && kycDocUrls.length > 0 && kycDocType && kycDocNumber) {
+        try {
+          // Create a KYC document record for each image
+          for (const docUrl of kycDocUrls) {
+            await this.prisma.kycDocument.create({
+              data: {
+                userId: existingUser.id,
+                docType: kycDocType as any,
+                docNumber: kycDocNumber,
+                docNumberHash: crypto.createHash('sha256').update(kycDocNumber).digest('hex'),
+                docFileUrl: docUrl,
+                status: 'PENDING',
+              },
+            });
+          }
+        } catch (error: any) {
+          // Ignore duplicate KYC errors
+          if (error.code !== 'P2002') {
+            console.error('KYC creation error:', error.message);
+          }
+        }
+      }
 
       // Create initial vendor service
       await this.prisma.vendorService.create({
@@ -280,10 +389,12 @@ export class AuthService {
       return {
         user: {
           id: existingUser.id,
-          name: dto.name, // Return the NEW name they entered
+          name: existingUser.name, // Keep original username
           email: existingUser.email,
-          role: Role.VENDOR,
+          role: existingUser.role, // Keep original role - frontend uses hasVenueProfile/hasVendorProfile
           isEmailVerified: existingUser.isEmailVerified,
+          hasVendorProfile: true, // Just added vendor profile
+          hasVenueProfile: existingUser.venues && existingUser.venues.length > 0,
         },
         requiresOtp: !existingUser.isEmailVerified,
         message: 'Vendor profile added successfully. Please verify your email with OTP.',
@@ -306,14 +417,40 @@ export class AuthService {
     const vendor = await this.prisma.vendor.create({
       data: {
         userId: user.id,
+        username: dto.name, // Store username for vendor-specific login
         businessName: dto.businessName,
         description: dto.description,
         city: dto.city,
         area: dto.area,
         serviceRadiusKm: dto.serviceRadiusKm || 50,
         verificationStatus: 'PENDING',
+        images: businessImageUrls, // Save business images
       },
     });
+
+    // Create KYC documents if provided (support 1-5 images)
+    if (kycDocUrls && kycDocUrls.length > 0 && kycDocType && kycDocNumber) {
+      try {
+        // Create a KYC document record for each image
+        for (const docUrl of kycDocUrls) {
+          await this.prisma.kycDocument.create({
+            data: {
+              userId: user.id,
+              docType: kycDocType as any,
+              docNumber: kycDocNumber,
+              docNumberHash: crypto.createHash('sha256').update(kycDocNumber).digest('hex'),
+              docFileUrl: docUrl,
+              status: 'PENDING',
+            },
+          });
+        }
+      } catch (error: any) {
+        // Ignore duplicate KYC errors
+        if (error.code !== 'P2002') {
+          console.error('KYC creation error:', error.message);
+        }
+      }
+    }
 
     // Create initial vendor service using vendor.id (not user.id)
     await this.prisma.vendorService.create({
@@ -342,21 +479,55 @@ export class AuthService {
 
 
   // 🔐 Login - accepts email OR username (name)
-  // Determines role based on what profiles user has (vendor/venue)
+  // - Login with EMAIL → uses first registered profile (based on createdAt)
+  // - Login with USERNAME → identifies specific role based on username in Vendor/Venue table
   async login(dto: LoginDto) {
-    // Find user by email OR username (name)
-    const user = await this.prisma.user.findFirst({
-      where: {
-        OR: [
-          { email: dto.email },
-          { name: dto.email }, // Allow using username as login identifier
-        ],
-      },
-      include: {
-        vendor: true,
-        venues: true,
-      },
+    let user: any;
+    let loginRole: 'email' | 'vendor_username' | 'venue_username' | 'user_name' = 'email';
+
+    // First, try to find by email
+    user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+      include: { vendor: true, venues: true },
     });
+
+    if (!user) {
+      // Try to find by username in Vendor table
+      const vendor = await this.prisma.vendor.findUnique({
+        where: { username: dto.email },
+        include: { user: { include: { venues: true } } },
+      });
+      
+      if (vendor) {
+        user = vendor.user;
+        loginRole = 'vendor_username';
+      }
+    }
+
+    if (!user) {
+      // Try to find by username in Venue table
+      const venue = await this.prisma.venue.findFirst({
+        where: { username: dto.email },
+        include: { owner: { include: { vendor: true, venues: true } } },
+      });
+      
+      if (venue) {
+        user = venue.owner;
+        loginRole = 'venue_username';
+      }
+    }
+
+    if (!user) {
+      // Try to find by user.name (legacy username)
+      user = await this.prisma.user.findFirst({
+        where: { name: dto.email },
+        include: { vendor: true, venues: true },
+      });
+      
+      if (user) {
+        loginRole = 'user_name';
+      }
+    }
 
     if (!user) {
       throw new BadRequestException('Invalid email/username or password');
@@ -381,32 +552,57 @@ export class AuthService {
       throw new BadRequestException('Invalid email/username or password');
     }
 
-    // Determine role based on what profiles user has
-    // Priority: If they have BOTH vendor and venue, use the role from their last registration
-    // For simplicity: VENDOR if they have vendor profile, VENUE_OWNER if they have venue profile
-    // If they have both, we'll use the role stored in the user table
+    // Determine role based on login method and available profiles
+    const hasVendorProfile = !!user.vendor;
+    const hasVenueProfile = user.venues && user.venues.length > 0;
     let effectiveRole = user.role;
-    
-    // If user has vendor profile, they can access vendor dashboard
-    // If user has venue profile, they can access venue dashboard
-    // We'll return their stored role, but the frontend should check what profiles exist
-    
+
+    // If logged in with vendor username, force VENDOR role
+    if (loginRole === 'vendor_username') {
+      effectiveRole = Role.VENDOR;
+    }
+    // If logged in with venue username, force VENUE_OWNER role
+    else if (loginRole === 'venue_username') {
+      effectiveRole = Role.VENUE_OWNER;
+    }
+    // If login with EMAIL or user.name and user has both profiles, use the first registered one
+    else if (hasVendorProfile && hasVenueProfile) {
+      const vendorCreatedAt = user.vendor.createdAt;
+      const firstVenueCreatedAt = user.venues[0]?.createdAt;
+      
+      if (vendorCreatedAt < firstVenueCreatedAt) {
+        effectiveRole = Role.VENDOR;
+      } else {
+        effectiveRole = Role.VENUE_OWNER;
+      }
+    }
+
     const payload = {
       sub: user.id,
       email: user.email,
       role: effectiveRole,
-      hasVendorProfile: !!user.vendor,
-      hasVenueProfile: user.venues && user.venues.length > 0,
+      hasVendorProfile,
+      hasVenueProfile,
     };
+
+    // Determine display name based on login method
+    let displayName = user.name;
+    if (loginRole === 'vendor_username' && user.vendor) {
+      displayName = user.vendor.username || user.name;
+    } else if (loginRole === 'venue_username' && user.venues && user.venues.length > 0) {
+      // Find the venue they logged in with
+      const loggedVenue = user.venues.find(v => v.username === dto.email);
+      displayName = loggedVenue?.username || user.venues[0]?.username || user.name;
+    }
 
     return {
       user: {
         id: user.id,
-        name: user.name,
+        name: displayName,
         email: user.email,
         role: effectiveRole,
-        hasVendorProfile: !!user.vendor,
-        hasVenueProfile: user.venues && user.venues.length > 0,
+        hasVendorProfile,
+        hasVenueProfile,
       },
       token: this.jwtService.sign(payload),
     };
@@ -603,5 +799,41 @@ export class AuthService {
   // ✅ VERIFY OTP
   async verifyOtp(email: string, otp: string) {
     return this.otpService.verifyOtp(email, otp);
+  }
+
+  // ✉️ Check if email exists (for registration validation)
+  async checkEmailExists(email: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+      include: {
+        vendor: true,
+        venues: true,
+      },
+    });
+
+    if (!user) {
+      return {
+        exists: false,
+        canRegister: true,
+        message: 'Email is available for registration',
+      };
+    }
+
+    // Check what profiles the user already has
+    const hasVendor = !!user.vendor;
+    const hasVenue = user.venues && user.venues.length > 0;
+
+    return {
+      exists: true,
+      hasVendorProfile: hasVendor,
+      hasVenueProfile: hasVenue,
+      canRegisterAsVendor: !hasVendor,
+      canRegisterAsVenue: !hasVenue,
+      message: hasVendor && hasVenue
+        ? 'Email already registered as both Vendor and Venue Owner'
+        : hasVendor
+        ? 'Email already registered as Vendor'
+        : 'Email already registered as Venue Owner',
+    };
   }
 }

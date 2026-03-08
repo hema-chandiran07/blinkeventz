@@ -36,7 +36,16 @@ export class VenueOwnerRegisterDto extends RegisterDto {
 
   @ApiProperty({ example: 800, required: false })
   @IsOptional()
-  @IsInt()
-  @Min(1)
-  capacity?: number;
+  @IsString()
+  capacity?: string;
+
+  @ApiProperty({ example: 'AADHAAR', enum: ['AADHAAR', 'PAN', 'PASSPORT', 'DRIVING_LICENSE'] })
+  @IsNotEmpty()
+  @IsString()
+  kycDocType: string;
+
+  @ApiProperty({ example: '1234-5678-9012' })
+  @IsNotEmpty()
+  @IsString()
+  kycDocNumber: string;
 }

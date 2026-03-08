@@ -1,4 +1,7 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req, UseGuards, UseInterceptors, UploadedFiles, UploadedFile, BadRequestException } from '@nestjs/common';
+import { FileFieldsInterceptor, FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { VendorRegisterDto } from './dto/vendor-register.dto';
@@ -40,19 +43,87 @@ export class AuthController {
     return this.authService.registerAdmin(dto);
   }
 
-  // 🏢 VENUE OWNER registration
-   @Public()
+  // 🏢 VENUE OWNER registration (with images & KYC)
+  @Public()
   @Post('register-venue-owner')
-  registerVenueOwner(@Body() dto: VenueOwnerRegisterDto) {
-    return this.authService.registerVenueOwner(dto);
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'venueImages', maxCount: 5 },
+      { name: 'kycDocFiles', maxCount: 5 },
+    ], {
+      storage: diskStorage({
+        destination: './uploads',
+        filename: (req, file, callback) => {
+          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+          const ext = extname(file.originalname);
+          callback(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
+        },
+      }),
+    }),
+  )
+  registerVenueOwner(
+    @Body() dto: VenueOwnerRegisterDto,
+    @UploadedFiles() files: { venueImages?: Express.Multer.File[], kycDocFiles?: Express.Multer.File[] },
+  ) {
+    // Validate minimum 1 venue image
+    if (!files.venueImages || files.venueImages.length === 0) {
+      throw new BadRequestException('Please upload at least 1 venue image (maximum 5 allowed)');
+    }
+
+    // Validate KYC documents (1-5 images)
+    if (!files.kycDocFiles || files.kycDocFiles.length === 0) {
+      throw new BadRequestException('Please upload at least 1 KYC document image (maximum 5 allowed)');
+    }
+    if (files.kycDocFiles.length > 5) {
+      throw new BadRequestException('Maximum 5 KYC document images allowed');
+    }
+
+    const venueImageUrls = files.venueImages?.map(f => `/uploads/${f.filename}`) || [];
+    const kycDocUrls = files.kycDocFiles?.map(f => `/uploads/${f.filename}`) || [];
+
+    return this.authService.registerVenueOwner(dto, venueImageUrls, kycDocUrls[0], dto.kycDocType, dto.kycDocNumber, kycDocUrls);
   }
 
-  // 🏪 VENDOR registration
-@Public()
-@Post('register-vendor')
-registerVendor(@Body() dto: VendorRegisterDto) {
-  return this.authService.registerVendor(dto);
-}
+  // 🏪 VENDOR registration (with images & KYC)
+  @Public()
+  @Post('register-vendor')
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'businessImages', maxCount: 5 },
+      { name: 'kycDocFiles', maxCount: 5 },
+    ], {
+      storage: diskStorage({
+        destination: './uploads',
+        filename: (req, file, callback) => {
+          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+          const ext = extname(file.originalname);
+          callback(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
+        },
+      }),
+    }),
+  )
+  registerVendor(
+    @Body() dto: VendorRegisterDto,
+    @UploadedFiles() files: { businessImages?: Express.Multer.File[], kycDocFiles?: Express.Multer.File[] },
+  ) {
+    // Validate minimum 1 business image
+    if (!files.businessImages || files.businessImages.length === 0) {
+      throw new BadRequestException('Please upload at least 1 business image (maximum 5 allowed)');
+    }
+
+    // Validate KYC documents (1-5 images)
+    if (!files.kycDocFiles || files.kycDocFiles.length === 0) {
+      throw new BadRequestException('Please upload at least 1 KYC document image (maximum 5 allowed)');
+    }
+    if (files.kycDocFiles.length > 5) {
+      throw new BadRequestException('Maximum 5 KYC document images allowed');
+    }
+
+    const businessImageUrls = files.businessImages?.map(f => `/uploads/${f.filename}`) || [];
+    const kycDocUrls = files.kycDocFiles?.map(f => `/uploads/${f.filename}`) || [];
+
+    return this.authService.registerVendor(dto, businessImageUrls, kycDocUrls[0], dto.kycDocType, dto.kycDocNumber, kycDocUrls);
+  }
 
   // 🔐 Login (all roles)
    @Public()
@@ -67,6 +138,13 @@ registerVendor(@Body() dto: VendorRegisterDto) {
   @Get('me')
   me(@Req() req: AuthRequest) {
     return req.user;
+  }
+
+  // ✉️ Check if email exists (for registration validation)
+  @Public()
+  @Post('check-email')
+  async checkEmail(@Body() body: { email: string }) {
+    return this.authService.checkEmailExists(body.email);
   }
 
   // 🚀 Redirect to Google

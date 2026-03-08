@@ -56,9 +56,9 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-red-50 via-white to-red-100 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="flex min-h-screen items-center justify-center bg-transparent py-12 px-4 sm:px-6 lg:px-8">
       <div className="w-full max-w-md">
-        <Card className="border-2 border-red-200 shadow-2xl bg-white/90 backdrop-blur-sm">
+        <Card className="border-2 border-red-200 shadow-2xl bg-white">
           <CardHeader className="text-center pb-2">
             <div className="inline-flex h-16 w-16 rounded-2xl bg-red-100 items-center justify-center mx-auto mb-4">
               <Shield className="h-8 w-8 text-red-600" />

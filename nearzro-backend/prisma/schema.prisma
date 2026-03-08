@@ -16,14 +16,14 @@ model User {
   phone                   String?                  @unique
   passwordHash            String?
   googleId                String?                  @unique
-  facebookId              String?                  @unique
   role                    Role                     @default(CUSTOMER)
   isActive                Boolean                  @default(true)
-  isEmailVerified         Boolean                  @default(false)
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
   passwordResetExpiry     DateTime?
   passwordResetToken      String?
+  facebookId              String?                  @unique
+  isEmailVerified         Boolean                  @default(false)
   AIPlan                  AIPlan[]
   bankAccounts            BankAccount[]
   bookings                Booking[]
@@ -37,10 +37,10 @@ model User {
   notifications           Notification[]
   notificationPreferences NotificationPreference[]
   payments                Payment[]
-  vendor                  Vendor?
-  venues                  Venue[]
   reviews                 Review[]
   reviewVotes             ReviewVote[]
+  vendor                  Vendor?
+  venues                  Venue[]
 }
 
 model CustomerProfile {
@@ -59,14 +59,16 @@ model Vendor {
   city               String
   area               String
   serviceRadiusKm    Int?
-  rejectionReason    String?
   verificationStatus VendorVerificationStatus @default(PENDING)
   createdAt          DateTime                 @default(now())
   updatedAt          DateTime                 @updatedAt
-  user               User                     @relation(fields: [userId], references: [id])
-  services           VendorService[]
+  username           String?                  @unique
+  rejectionReason    String?
+  images             String[]                 @default([])
   payouts            Payout[]
   reviews            Review[]
+  user               User                     @relation(fields: [userId], references: [id])
+  services           VendorService[]
 }
 
 /// ///////////////////////////////////////////////////
@@ -110,18 +112,20 @@ model Venue {
   basePriceFullDay Int?
   amenities        String?
   policies         String?
-  rejectionReason  String?
   status           VenueStatus        @default(PENDING_APPROVAL)
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
+  username         String?            @unique
+  rejectionReason  String?
+  images           String[]           @default([])
   availability     AvailabilitySlot[]
+  cartItems        CartItem[]
   events           Event[]
   EventService     EventService[]
-  owner            User               @relation(fields: [ownerId], references: [id])
-  photos           VenuePhoto[]
   payouts          Payout[]
   reviews          Review[]
-  cartItems        CartItem[]
+  owner            User               @relation(fields: [ownerId], references: [id])
+  photos           VenuePhoto[]
 }
 
 model VenuePhoto {
@@ -184,8 +188,8 @@ model CartItem {
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
   cart            Cart           @relation(fields: [cartId], references: [id])
-  venue           Venue?         @relation(fields: [venueId], references: [id])
   vendorService   VendorService? @relation(fields: [vendorServiceId], references: [id])
+  venue           Venue?         @relation(fields: [venueId], references: [id])
 
   @@index([cartId])
   @@index([vendorServiceId])
@@ -232,34 +236,25 @@ model Payment {
 }
 
 model Payout {
-  id                Int             @id @default(autoincrement())
-  vendorId          Int?
-  venueId           Int?
-  eventId           Int?
-  amount            Int
-  status            PayoutStatus    @default(PENDING)
-  rejectionReason   String?
-  approvedAt        DateTime?
-  rejectedAt        DateTime?
-  processedAt       DateTime?
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
-  vendor            Vendor?         @relation(fields: [vendorId], references: [id], onDelete: SetNull)
-  venue             Venue?          @relation(fields: [venueId], references: [id], onDelete: SetNull)
-  event             Event?          @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  id              Int          @id @default(autoincrement())
+  vendorId        Int?
+  venueId         Int?
+  eventId         Int?
+  amount          Int
+  status          PayoutStatus @default(PENDING)
+  rejectionReason String?
+  approvedAt      DateTime?
+  rejectedAt      DateTime?
+  processedAt     DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  event           Event?       @relation(fields: [eventId], references: [id])
+  vendor          Vendor?      @relation(fields: [vendorId], references: [id])
+  venue           Venue?       @relation(fields: [venueId], references: [id])
 
   @@index([vendorId])
   @@index([venueId])
   @@index([status])
-}
-
-enum PayoutStatus {
-  PENDING
-  APPROVED
-  REJECTED
-  PROCESSING
-  COMPLETED
-  FAILED
 }
 
 /// ///////////////////////////////////////////////////
@@ -285,14 +280,14 @@ model KycDocument {
   id              Int        @id @default(autoincrement())
   userId          Int
   docType         KycDocType
-  docNumber       String     // AES-256 encrypted
-  docNumberHash   String     // SHA-256 hash for duplicate detection
-  docFileUrl      String     // S3 URL
+  docNumber       String
+  docFileUrl      String
   status          KycStatus  @default(PENDING)
-  rejectionReason String?
   verifiedAt      DateTime?
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
+  docNumberHash   String
+  rejectionReason String?
   user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([docType, docNumberHash], map: "unique_doc_per_type")
@@ -302,19 +297,19 @@ model KycDocument {
 }
 
 model BankAccount {
-  id            Int      @id @default(autoincrement())
-  userId        Int
-  accountHolder String
-  accountNumber String
+  id                Int      @id @default(autoincrement())
+  userId            Int
+  accountHolder     String
+  accountNumber     String
+  ifsc              String
+  bankName          String
+  branchName        String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  isVerified        Boolean  @default(false)
+  referenceId       String   @unique
   accountNumberHash String   @unique
-  ifsc          String
-  bankName      String
-  branchName    String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  isVerified    Boolean  @default(false)
-  referenceId   String   @unique
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([isVerified])
@@ -355,9 +350,11 @@ model Event {
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
   userId            Int?
+  promotionId       Int?
   AIPlan            AIPlan[]
   assignedManager   User?           @relation("ManagedEvents", fields: [assignedManagerId], references: [id])
   customer          User            @relation("CustomerEvents", fields: [customerId], references: [id])
+  promotion         Promotion?      @relation(fields: [promotionId], references: [id])
   User              User?           @relation(fields: [userId], references: [id])
   venue             Venue?          @relation(fields: [venueId], references: [id])
   services          EventService[]
@@ -365,8 +362,6 @@ model Event {
   notifications     Notification[]
   payments          Payment[]
   payouts           Payout[]
-  promotion         Promotion? @relation(fields: [promotionId], references: [id])
-  promotionId       Int?
   reviews           Review[]
 }
 
@@ -374,67 +369,56 @@ model Promotion {
   id            Int      @id @default(autoincrement())
   code          String   @unique
   description   String?
-  discountType  String   // PERCENTAGE or FLAT
-  discountValue Int      // 10 for 10% or 100 for ₹100
-  minCartValue  Int?     // Minimum cart value required
-  maxDiscount   Int?     // Maximum discount cap
+  discountType  String
+  discountValue Int
+  minCartValue  Int?
+  maxDiscount   Int?
   validFrom     DateTime
   validUntil    DateTime
-  usageLimit    Int?     // Total times can be used
+  usageLimit    Int?
   usedCount     Int      @default(0)
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-  
-  // Relations
   events        Event[]
-  
+
   @@index([code])
   @@index([isActive])
 }
 
 model Review {
-  id          Int     @id @default(autoincrement())
-  userId      Int
-  venueId     Int?
-  vendorId    Int?
-  eventId     Int?
-  rating      Int     // 1-5 stars
-  title       String?
-  comment     String?
-  status      ReviewStatus @default(PENDING) // PENDING, APPROVED, REJECTED
-  helpful     Int   @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  user        User    @relation(fields: [userId], references: [id])
-  venue       Venue?  @relation(fields: [venueId], references: [id])
-  vendor      Vendor? @relation(fields: [vendorId], references: [id])
-  event       Event?  @relation(fields: [eventId], references: [id])
-  
-  votes       ReviewVote[]
-  
+  id        Int          @id @default(autoincrement())
+  userId    Int
+  venueId   Int?
+  vendorId  Int?
+  eventId   Int?
+  rating    Int
+  title     String?
+  comment   String?
+  status    ReviewStatus @default(PENDING)
+  helpful   Int          @default(0)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  event     Event?       @relation(fields: [eventId], references: [id])
+  user      User         @relation(fields: [userId], references: [id])
+  vendor    Vendor?      @relation(fields: [vendorId], references: [id])
+  venue     Venue?       @relation(fields: [venueId], references: [id])
+  votes     ReviewVote[]
+
   @@index([venueId])
   @@index([vendorId])
   @@index([status])
-}
-
-enum ReviewStatus {
-  PENDING
-  APPROVED
-  REJECTED
 }
 
 model ReviewVote {
   id        Int      @id @default(autoincrement())
   reviewId  Int
   userId    Int
-  helpful   Boolean  // true = helpful, false = not helpful
+  helpful   Boolean
   createdAt DateTime @default(now())
-  
   review    Review   @relation(fields: [reviewId], references: [id])
   user      User     @relation(fields: [userId], references: [id])
-  
+
   @@unique([reviewId, userId])
 }
 
@@ -553,6 +537,21 @@ model AuditOutbox {
   @@index([status])
 }
 
+enum PayoutStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum AuditSeverity {
   LOW
   INFO
@@ -600,9 +599,9 @@ enum ServiceType {
   MUSIC
   CAR_RENTAL
   PRIEST
+  OTHER
   VIDEOGRAPHY
   ENTERTAINMENT
-  OTHER
 }
 
 enum VendorPricingModel {

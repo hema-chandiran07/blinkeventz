@@ -62,7 +62,7 @@ export default function LoginPage() {
   }, []);
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-white">
+    <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-transparent">
       <motion.div
         className="w-full max-w-6xl grid md:grid-cols-2 gap-0"
         initial={{ opacity: 0, scale: 0.95 }}
@@ -146,7 +146,7 @@ export default function LoginPage() {
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.6, delay: 0.3 }}
         >
-          <Card className="w-full max-w-md border-0 shadow-2xl shadow-black/10 bg-white">
+          <Card className="w-full max-w-md border-0 shadow-2xl bg-transparent backdrop-blur-sm">
             <CardHeader className="space-y-1 text-center pb-2">
               <div className="md:hidden">
                 <motion.div

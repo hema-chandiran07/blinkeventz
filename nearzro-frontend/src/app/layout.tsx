@@ -6,6 +6,7 @@ import { CartProvider } from "@/context/cart-context";
 import { NotificationsProvider } from "@/context/notifications-context";
 import { Toaster } from "sonner";
 import Script from "next/script";
+import GlobalBackground from "@/components/global-background";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -43,6 +44,9 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        {/* Stunning Animated Background */}
+        <GlobalBackground />
+        
         <AuthProvider>
           <CartProvider>
             <NotificationsProvider>

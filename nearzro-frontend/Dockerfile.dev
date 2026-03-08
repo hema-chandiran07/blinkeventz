@@ -1,0 +1,23 @@
+# Frontend Dockerfile - Development Mode (Fast Startup)
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Increase memory limit and disable watchpack
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+ENV WATCHPACK_POLLING=true
+ENV CHOKIDAR_USEPOLLING=true
+ENV TSC_WATCHFILE=UseFsEvents
+
+# Install dependencies (cached layer)
+COPY package*.json ./
+RUN npm install
+
+# Copy source code (this changes frequently, so it's last)
+COPY . .
+
+# Expose port
+EXPOSE 3000
+
+# Run development server with hot reload
+CMD ["npm", "run", "dev"]

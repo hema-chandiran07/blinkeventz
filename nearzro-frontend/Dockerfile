@@ -11,17 +11,17 @@ ENV NEXT_TELEMETRY_DISABLED=1
 COPY package*.json ./
 RUN npm install
 
-# Copy source code and env file
+# Copy source code
 COPY . .
 
-# Build the application (production build bakes in env vars)
+# Build the application with standalone output
 RUN npm run build
-
-# Set production environment
-ENV NODE_ENV=production
 
 # Expose port
 EXPOSE 3000
 
-# Run production server
-CMD ["npm", "run", "start"]
+# Set production environment
+ENV NODE_ENV=production
+
+# Run production server using standalone output
+CMD ["node", ".next/standalone/server.js"]

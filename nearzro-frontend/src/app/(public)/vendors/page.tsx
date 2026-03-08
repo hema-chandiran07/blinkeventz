@@ -122,7 +122,7 @@ function VendorsContent() {
 
   return (
     <motion.div
-      className="min-h-screen bg-white"
+      className="min-h-screen bg-transparent"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}

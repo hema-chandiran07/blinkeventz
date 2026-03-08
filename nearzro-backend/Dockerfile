@@ -5,7 +5,7 @@ WORKDIR /app
 
 # Install dependencies
 COPY package*.json ./
-RUN npm install
+RUN npm install --only=production
 
 # Copy source code
 COPY . .
@@ -14,7 +14,7 @@ COPY . .
 RUN npx prisma generate
 
 # Build the application
-RUN npx nest build
+RUN npm run build
 
 # Expose API port
 EXPOSE 3000
