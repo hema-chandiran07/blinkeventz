@@ -1,0 +1,173 @@
+
+> NearZro-fullfront@0.1.0 build
+> next build
+
+   ▲ Next.js 15.5.12
+   - Environments: .env.local, .env
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 13.0s
+   Linting and checking validity of types ...
+
+./src/app/(dashboard)/dashboard/admin/page.tsx
+7:10  Warning: 'Button' is defined but never used.  @typescript-eslint/no-unused-vars
+11:24  Warning: 'Search' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/(dashboard)/dashboard/admin/users/page.tsx
+10:10  Warning: 'Users' is defined but never used.  @typescript-eslint/no-unused-vars
+10:25  Warning: 'Mail' is defined but never used.  @typescript-eslint/no-unused-vars
+10:38  Warning: 'Calendar' is defined but never used.  @typescript-eslint/no-unused-vars
+12:8  Warning: 'api' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/(dashboard)/dashboard/customer/bookings/page.tsx
+6:29  Warning: 'CardHeader' is defined but never used.  @typescript-eslint/no-unused-vars
+6:41  Warning: 'CardTitle' is defined but never used.  @typescript-eslint/no-unused-vars
+6:52  Warning: 'CardDescription' is defined but never used.  @typescript-eslint/no-unused-vars
+11:20  Warning: 'MapPin' is defined but never used.  @typescript-eslint/no-unused-vars
+11:28  Warning: 'Users' is defined but never used.  @typescript-eslint/no-unused-vars
+33:11  Warning: 'user' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/(dashboard)/dashboard/customer/create-event/page.tsx
+6:52  Warning: 'CardDescription' is defined but never used.  @typescript-eslint/no-unused-vars
+10:10  Warning: 'Textarea' is defined but never used.  @typescript-eslint/no-unused-vars
+20:11  Warning: 'user' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/(dashboard)/dashboard/customer/notifications/page.tsx
+8:10  Warning: 'Badge' is defined but never used.  @typescript-eslint/no-unused-vars
+28:11  Warning: 'user' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/(dashboard)/dashboard/customer/page.tsx
+14:10  Warning: 'toast' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/(dashboard)/dashboard/settings/page.tsx
+13:11  Warning: 'user' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+40:9  Warning: 'handleLogout' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/(dashboard)/dashboard/vendor/bookings/page.tsx
+4:29  Warning: 'CardHeader' is defined but never used.  @typescript-eslint/no-unused-vars
+4:41  Warning: 'CardTitle' is defined but never used.  @typescript-eslint/no-unused-vars
+120:33  Warning: 'bookingId' is defined but never used.  @typescript-eslint/no-unused-vars
+126:32  Warning: 'bookingId' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/(dashboard)/dashboard/vendor/page.tsx
+58:6  Warning: React Hook useEffect has a missing dependency: 'loadDashboardData'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/app/(dashboard)/dashboard/vendor/profile/page.tsx
+12:138  Warning: 'Mic' is defined but never used.  @typescript-eslint/no-unused-vars
+12:143  Warning: 'Sparkles' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/(dashboard)/dashboard/venue/calendar/page.tsx
+9:10  Warning: 'Badge' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/(dashboard)/dashboard/venue/page.tsx
+12:38  Warning: 'Settings' is defined but never used.  @typescript-eslint/no-unused-vars
+69:6  Warning: React Hook useEffect has a missing dependency: 'loadDashboardData'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+78:16  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/(public)/cart/page.tsx
+122:25  Warning: 'pkg' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/(public)/checkout/page.tsx
+38:11  Warning: 'BookingData' is defined but never used.  @typescript-eslint/no-unused-vars
+50:11  Warning: 'user' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+166:9  Warning: 'handleContinueToConfirm' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/(public)/plan-event/page.tsx
+17:11  Warning: 'user' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/(public)/register/venue-owner/page.tsx
+103:9  Warning: 'ownershipInputRef' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+104:9  Warning: 'fireSafetyInputRef' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+105:9  Warning: 'licenseInputRef' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/(public)/vendors/page.tsx
+60:9  Warning: 'currentTypeFilter' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/(public)/vendors/[id]/page.tsx
+90:18  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/(public)/vendors/[id]/vendor-booking-sidebar.tsx
+4:10  Warning: 'Badge' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/(public)/venues/page.tsx
+8:85  Warning: 'MapPin' is defined but never used.  @typescript-eslint/no-unused-vars
+60:9  Warning: 'urlEvent' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/(public)/venues/[id]/page.tsx
+201:15  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/app/(public)/venues/[id]/venue-booking-sidebar.tsx
+4:10  Warning: 'Badge' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/components/ui/otp-verification.tsx
+4:10  Warning: 'useRouter' is defined but never used.  @typescript-eslint/no-unused-vars
+9:47  Warning: 'AlertCircle' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/components/venues/availability-calendar.tsx
+102:11  Warning: 'daysInPrevMonth' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/services/mock-data.ts
+1:17  Warning: 'Vendor' is defined but never used.  @typescript-eslint/no-unused-vars
+1:25  Warning: 'Event' is defined but never used.  @typescript-eslint/no-unused-vars
+
+info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/app/api-reference/config/eslint#disabling-rules
+   Collecting page data ...
+   Generating static pages (0/42) ...
+   Generating static pages (10/42) 
+   Generating static pages (20/42) 
+   Generating static pages (31/42) 
+ ✓ Generating static pages (42/42)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                 Size  First Load JS
+┌ ○ /                                    6.33 kB         159 kB
+├ ○ /_not-found                            997 B         103 kB
+├ ○ /admin-login                         7.01 kB         148 kB
+├ ○ /auth/callback                       2.36 kB         113 kB
+├ ○ /cart                                6.17 kB         120 kB
+├ ○ /checkout                            11.1 kB         152 kB
+├ ○ /dashboard                            2.6 kB         134 kB
+├ ○ /dashboard/admin                     5.04 kB         175 kB
+├ ○ /dashboard/admin/approvals           6.95 kB         147 kB
+├ ○ /dashboard/admin/events              6.26 kB         126 kB
+├ ○ /dashboard/admin/express               165 B         106 kB
+├ ○ /dashboard/admin/users               6.68 kB         147 kB
+├ ○ /dashboard/customer                  8.03 kB         178 kB
+├ ○ /dashboard/customer/bookings         6.61 kB         186 kB
+├ ○ /dashboard/customer/create-event     6.58 kB         147 kB
+├ ○ /dashboard/customer/notifications    6.97 kB         150 kB
+├ ○ /dashboard/customer/profile          7.86 kB         148 kB
+├ ○ /dashboard/settings                  6.57 kB         147 kB
+├ ○ /dashboard/vendor                    7.32 kB         178 kB
+├ ○ /dashboard/vendor/bookings           8.72 kB         140 kB
+├ ○ /dashboard/vendor/calendar           1.58 kB         127 kB
+├ ○ /dashboard/vendor/profile            9.88 kB         150 kB
+├ ○ /dashboard/vendor/services           7.02 kB         148 kB
+├ ○ /dashboard/venue                     7.25 kB         178 kB
+├ ○ /dashboard/venue/bookings            2.84 kB         129 kB
+├ ○ /dashboard/venue/calendar            1.51 kB         127 kB
+├ ○ /dashboard/venue/details             7.35 kB         148 kB
+├ ○ /forgot-password                     5.23 kB         188 kB
+├ ○ /login                               7.64 kB         191 kB
+├ ○ /plan-event                          8.29 kB         149 kB
+├ ○ /privacy                             3.62 kB         109 kB
+├ ○ /register                            6.04 kB         120 kB
+├ ○ /register/customer                   8.71 kB         192 kB
+├ ○ /register/vendor                     10.6 kB         155 kB
+├ ○ /register/venue-owner                11.2 kB         155 kB
+├ ○ /reset-password                      5.68 kB         189 kB
+├ ○ /terms                               2.97 kB         109 kB
+├ ○ /vendors                             4.48 kB         201 kB
+├ ƒ /vendors/[id]                        9.88 kB         150 kB
+├ ○ /venues                              3.89 kB         200 kB
+└ ƒ /venues/[id]                         9.22 kB         150 kB
++ First Load JS shared by all             102 kB
+  ├ chunks/1255-a390e12b70b4a9fb.js        46 kB
+  ├ chunks/4bd1b696-f785427dddbba9fb.js  54.2 kB
+  └ other shared chunks (total)          2.01 kB
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
