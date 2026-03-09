@@ -1,26 +1,29 @@
-# Backend Dockerfile - Production Mode
+# Use lightweight Node image
 FROM node:20-alpine
 
+# Create working directory
 WORKDIR /app
 
-# Install dependencies
+# Copy package files first (better Docker caching)
 COPY package*.json ./
-RUN npm install --only=production
 
-# Copy source code
+# Install dependencies
+RUN npm install
+
+# Copy project files
 COPY . .
 
-# Generate Prisma Client
+# Generate Prisma client
 RUN npx prisma generate
 
-# Build the application
+# Build NestJS project
 RUN npm run build
 
 # Expose API port
 EXPOSE 3000
 
-# Set environment
+# Production environment
 ENV NODE_ENV=production
 
-# Start production server
-CMD ["node", "dist/src/main.js"]
+# Start NestJS production server
+CMD ["npm", "run", "start:prod"]
