@@ -28,7 +28,7 @@ module.exports = {
       statements: 80,
     },
   },
-  setupFilesAfterEnv: ['../test/setup.ts'],
+  setupFilesAfterEnv: ['../test/setup.ts', '../test/jest.setup.ts'],
   moduleNameMapper: {
     '^src/(.*)$': '<rootDir>/$1',
     '^test/(.*)$': '<rootDir>/../test/$1',
