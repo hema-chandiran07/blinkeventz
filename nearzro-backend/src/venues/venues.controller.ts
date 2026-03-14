@@ -7,22 +7,68 @@ import {
   Req,
   Patch,
   Param,
+  Query,
+  Delete,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
-import { Role } from '../common/enums/role.enum';
 import { VenuesService } from './venues.service';
 import { CreateVenueDto } from './dto/create-venue.dto';
-import {ApiBearerAuth,ApiTags} from '@nestjs/swagger';
+import { VenueQueryDto, VenueSearchQueryDto, VenueIdParamDto } from './dto/venue-query.dto';
+import { ApiBearerAuth, ApiTags, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { Public } from '../common/decorators/public.decorator';
+import { VenueOwnerGuard } from './guards/venue-owner.guard';
+
+// Define Role locally
+const Role = {
+  CUSTOMER: 'CUSTOMER',
+  VENDOR: 'VENDOR',
+  VENUE_OWNER: 'VENUE_OWNER',
+  ADMIN: 'ADMIN',
+  EVENT_MANAGER: 'EVENT_MANAGER',
+  SUPPORT: 'SUPPORT',
+} as const;
+export type Role = typeof Role[keyof typeof Role];
+
 @ApiTags('Venues')
 @ApiBearerAuth()
 @Controller('venues')
 export class VenuesController {
   constructor(private readonly venuesService: VenuesService) {}
 
-  // 🏢 VENUE OWNER → create venue
+  // ============================================
+  // PUBLIC ENDPOINTS
+  // ============================================
+
+  /// 👤 PUBLIC → Get paginated list of approved venues
+  @Public()
+  @Get()
+  getApprovedVenues(@Query() query: VenueQueryDto) {
+    return this.venuesService.getApprovedVenues(query);
+  }
+
+  /// 👤 PUBLIC → Get single venue by ID
+  @Public()
+  @Get(':id')
+  @ApiParam({ name: 'id', type: Number, description: 'Venue ID' })
+  getVenueById(@Param('id', ParseIntPipe) id: number) {
+    return this.venuesService.findById(id);
+  }
+
+  /// 👤 PUBLIC → Search venues
+  @Public()
+  @Get('search')
+  searchVenues(@Query() query: VenueSearchQueryDto) {
+    return this.venuesService.searchVenues(query);
+  }
+
+  // ============================================
+  // VENUE OWNER ENDPOINTS
+  // ============================================
+
+  /// 🏢 VENUE OWNER → Create venue
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.VENUE_OWNER)
   @Post()
@@ -30,64 +76,77 @@ export class VenuesController {
     return this.venuesService.createVenue(dto, req.user.userId);
   }
 
-  // 👤 PUBLIC → view approved venues
-  @Public()
-  @Get()
-  getApprovedVenues() {
-    return this.venuesService.getApprovedVenues();
+  /// 🏢 VENUE OWNER → Get my venues
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENUE_OWNER)
+  @Get('owner/my-venues')
+  getMyVenues(@Req() req: any) {
+    return this.venuesService.getVenuesByOwner(req.user.userId);
   }
 
-  // 👤 PUBLIC → view single venue by ID
-  @Public()
-  @Get(':id')
-  getVenueById(@Param('id') id: string) {
-    return this.venuesService.findById(+id);
+  /// 🏢 VENUE OWNER → Update venue (ownership guard)
+  @UseGuards(JwtAuthGuard, VenueOwnerGuard)
+  @Patch(':id')
+  @ApiParam({ name: 'id', type: Number, description: 'Venue ID' })
+  updateVenue(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: any,
+    @Body() dto: Partial<CreateVenueDto>,
+  ) {
+    return this.venuesService.updateVenue(id, dto, req.user.userId);
   }
 
-  // 👤 PUBLIC → search venues
-  @Public()
-  @Get('search')
-  searchVenues(@Req() req: any) {
-    const query = req.query.q as string;
-    return this.venuesService.searchVenues(query || '');
+  /// 🏢 VENUE OWNER → Delete venue (ownership guard)
+  @UseGuards(JwtAuthGuard, VenueOwnerGuard)
+  @Delete(':id')
+  @ApiParam({ name: 'id', type: Number, description: 'Venue ID' })
+  deleteVenue(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    return this.venuesService.deleteVenue(id, req.user.userId);
   }
 
-  // 👑 ADMIN → approve venue
+  // ============================================
+  // ADMIN ENDPOINTS
+  // ============================================
+
+  /// 👑 ADMIN → Approve venue
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
   @Patch(':id/approve')
-  async approveVenue(@Param('id') id: string) {
+  @ApiParam({ name: 'id', type: Number, description: 'Venue ID' })
+  async approveVenue(@Param('id', ParseIntPipe) id: number) {
     try {
-      return this.venuesService.approveVenue(Number(id));
+      return await this.venuesService.approveVenue(id);
     } catch (error: any) {
       console.error('Error approving venue:', error);
       throw error;
     }
   }
 
-  // 👑 ADMIN → reject venue
+  /// 👑 ADMIN → Reject venue
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
   @Patch(':id/reject')
-  async rejectVenue(@Param('id') id: string) {
+  @ApiParam({ name: 'id', type: Number, description: 'Venue ID' })
+  async rejectVenue(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('reason') reason?: string,
+  ) {
     try {
-      return this.venuesService.rejectVenue(Number(id));
+      return await this.venuesService.rejectVenue(id, reason);
     } catch (error: any) {
       console.error('Error rejecting venue:', error);
       throw error;
     }
   }
 
-  // 🟢 FIX: Change Role.OWNER to Role.VENUE_OWNER
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.VENUE_OWNER) 
-@Get('my')
-getMyVenues(@Req() req: any) {
-  return this.venuesService.getVenuesByOwner(req.user.userId);
-}
-@UseGuards(JwtAuthGuard)
-@Get('me')
-getProfile(@Req() req) {
-  return req.user;
-}
+  // ============================================
+  // MISC ENDPOINTS
+  // ============================================
+
+  /// Get current user profile (debug)
+  @UseGuards(JwtAuthGuard)
+  @Get('me/profile')
+  getProfile(@Req() req) {
+    return req.user;
+  }
 }

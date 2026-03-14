@@ -126,6 +126,17 @@ model Venue {
   reviews          Review[]
   owner            User               @relation(fields: [ownerId], references: [id])
   photos           VenuePhoto[]
+
+  // ============================================
+  // DATABASE INDEXES FOR PERFORMANCE
+  // ============================================
+  @@index([city])
+  @@index([area])
+  @@index([status])
+  @@index([ownerId])
+  @@index([city, status])
+  @@index([type, status])
+  @@index([createdAt(sort: Desc)])
 }
 
 model VenuePhoto {
@@ -363,6 +374,21 @@ model Event {
   payments          Payment[]
   payouts           Payout[]
   reviews           Review[]
+
+  // ============================================
+  // DATABASE INDEXES FOR PERFORMANCE
+  // ============================================
+  @@index([customerId])
+  @@index([assignedManagerId])
+  @@index([venueId])
+  @@index([date])
+  @@index([city])
+  @@index([status])
+  @@index([isExpress])
+  @@index([createdAt(sort: Desc)])
+  @@index([date, status])
+  @@index([city, date])
+  @@index([customerId, status])
 }
 
 model Promotion {
@@ -438,6 +464,15 @@ model EventService {
   event           Event              @relation(fields: [eventId], references: [id])
   vendorService   VendorService?     @relation(fields: [vendorServiceId], references: [id])
   venue           Venue?             @relation(fields: [venueId], references: [id])
+
+  // ============================================
+  // DATABASE INDEXES FOR PERFORMANCE
+  // ============================================
+  @@index([eventId])
+  @@index([venueId])
+  @@index([vendorServiceId])
+  @@index([itemType])
+  @@index([status])
 }
 
 model Notification {
@@ -670,6 +705,8 @@ enum VenueStatus {
   INACTIVE
   SUSPENDED
   DELISTED
+  REJECTED
+
 }
 
 enum EntityType {
