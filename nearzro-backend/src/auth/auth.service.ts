@@ -1,4 +1,5 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, UnauthorizedException, ForbiddenException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
 import { VendorRegisterDto } from './dto/vendor-register.dto';
@@ -11,16 +12,37 @@ import { Role } from '@prisma/client';
 import * as crypto from 'crypto';
 import { OtpService } from './otp.service';
 
+// Constants for security configuration
+const BCRYPT_ROUNDS = 12; // Higher security
+const ACCESS_TOKEN_EXPIRY = '15m';
+const REFRESH_TOKEN_EXPIRY_DAYS = 7;
+const PASSWORD_RESET_TOKEN_EXPIRY_HOURS = 1;
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOCKOUT_DURATION_MINUTES = 15;
+
 @Injectable()
 export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
     private otpService: OtpService,
+    private configService: ConfigService,
   ) {}
 
   // 👤 CUSTOMER registration - NO auto login, requires OTP verification
   async register(dto: RegisterDto) {
+    // Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(dto.email)) {
+      throw new BadRequestException('Invalid email format');
+    }
+
+    // Password strength validation
+    const strongPassword = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])/;
+    if (!strongPassword.test(dto.password)) {
+      throw new BadRequestException('Weak password');
+    }
+
     const existingUser = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
@@ -40,6 +62,9 @@ export class AuthService {
         isEmailVerified: false, // Requires OTP verification
       },
     });
+
+    // Send OTP for email verification
+    await this.otpService.sendOtp(user.email!, undefined);
 
     // Return user without token - OTP verification required first
     return {
@@ -288,12 +313,24 @@ export class AuthService {
   // Allows same email as VENUE_OWNER (user can have both businesses)
   async registerVendor(
     dto: VendorRegisterDto,
-    businessImageUrls: string[] = [],
+    filesOrBusinessImageUrls: string[] | any = [],
     kycDocUrl?: string,
     kycDocType?: string,
     kycDocNumber?: string,
     kycDocUrls?: string[], // Array of KYC document URLs (1-5 images)
   ) {
+    // Handle both old signature (businessImageUrls array) and new signature (files object)
+    let businessImageUrls: string[];
+    if (Array.isArray(filesOrBusinessImageUrls)) {
+      businessImageUrls = filesOrBusinessImageUrls;
+    } else if (filesOrBusinessImageUrls && filesOrBusinessImageUrls.businessImages) {
+      // New signature: files object with businessImages
+      businessImageUrls = filesOrBusinessImageUrls.businessImages.map((f: any) => `/uploads/${f.filename}`);
+      kycDocUrls = filesOrBusinessImageUrls.kycDocFiles?.map((f: any) => `/uploads/${f.filename}`);
+      kycDocUrl = kycDocUrls?.[0];
+    } else {
+      businessImageUrls = [];
+    }
     // Check if user already exists by email
     const existingUser = await this.prisma.user.findUnique({
       where: { email: dto.email },
@@ -538,6 +575,16 @@ export class AuthService {
       throw new BadRequestException('Please login using Google or Facebook to access your account');
     }
 
+    // Check if user is active
+    if (!user.isActive) {
+      throw new ForbiddenException('User inactive');
+    }
+
+    // Check if account is locked
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      throw new ForbiddenException('Account locked');
+    }
+
     // Validate password if provided
     if (!dto.password || dto.password.length < 1) {
       throw new BadRequestException('Invalid email/username or password');
@@ -595,6 +642,29 @@ export class AuthService {
       displayName = loggedVenue?.username || user.venues[0]?.username || user.name;
     }
 
+    // Generate refresh token with longer expiration
+    const refreshToken = crypto.randomBytes(64).toString('hex');
+    const refreshTokenExpiry = new Date(
+      Date.now() + REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
+    );
+
+    // Hash refresh token before storing (security best practice)
+    const refreshTokenHash = crypto
+      .createHash('sha256')
+      .update(refreshToken)
+      .digest('hex');
+
+    // Store refresh token in database - using type assertion for Prisma
+    const prismaAny = this.prisma as any;
+    await prismaAny.refreshToken.create({
+      data: {
+        userId: user.id,
+        token: refreshTokenHash,
+        expiresAt: refreshTokenExpiry,
+        deviceInfo: 'login',
+      },
+    });
+
     return {
       user: {
         id: user.id,
@@ -605,17 +675,22 @@ export class AuthService {
         hasVenueProfile,
       },
       token: this.jwtService.sign(payload),
+      refreshToken,
     };
   }
   async googleLogin(googleUser: {
-  googleId: string;
-  email: string;
-  name: string;
-  picture?: string;
-}) {
-  let user = await this.prisma.user.findUnique({
-    where: { googleId: googleUser.googleId },
-  });
+    googleId: string;
+    email: string;
+    name: string;
+    picture?: string;
+  }) {
+    if (!googleUser.email) {
+      throw new BadRequestException('Email is required');
+    }
+
+    let user = await this.prisma.user.findUnique({
+      where: { googleId: googleUser.googleId },
+    });
 
   if (!user) {
     user = await this.prisma.user.findUnique({
@@ -656,35 +731,75 @@ export class AuthService {
       role: user.role,
       picture: user.googleId ? googleUser.picture : undefined,
     },
-    token: this.jwtService.sign(payload),
+    accessToken: this.jwtService.sign(payload),
   };
 }
 
   async facebookLogin(facebookUser: {
-  facebookId: string;
-  email: string;
-  name: string;
-  picture?: string;
-}) {
-  let user = await this.prisma.user.findUnique({
-    where: { facebookId: facebookUser.facebookId },
-  });
+    facebookId: string;
+    email: string;
+    name: string;
+    picture?: string;
+  }) {
+    if (!facebookUser.email) {
+      throw new BadRequestException('Email is required');
+    }
 
-  if (!user) {
-    user = await this.prisma.user.findUnique({
+    // First: Try to find user by facebookId
+    const existingByFacebookId = await this.prisma.user.findUnique({
+      where: { facebookId: facebookUser.facebookId },
+    });
+
+    if (existingByFacebookId) {
+      // User found by facebookId - use this user
+      const user = existingByFacebookId;
+      const payload = {
+        sub: user.id,
+        email: user.email,
+        role: user.role,
+      };
+      return {
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          picture: facebookUser.picture,
+        },
+        accessToken: this.jwtService.sign(payload),
+      };
+    }
+
+    // Second: Try to find user by email
+    const existingByEmail = await this.prisma.user.findUnique({
       where: { email: facebookUser.email },
     });
 
-    if (user && !user.facebookId) {
-      user = await this.prisma.user.update({
-        where: { id: user.id },
+    if (existingByEmail) {
+      // Link existing account with facebookId
+      const user = await this.prisma.user.update({
+        where: { id: existingByEmail.id },
         data: { facebookId: facebookUser.facebookId },
       });
+      const payload = {
+        sub: user.id,
+        email: user.email,
+        role: user.role,
+      };
+      return {
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          picture: facebookUser.picture,
+        },
+        accessToken: this.jwtService.sign(payload),
+      };
     }
-  }
 
-  if (!user) {
-    user = await this.prisma.user.create({
+    // Third: Create new user
+    const newUser = await this.prisma.user.create({
       data: {
         email: facebookUser.email,
         name: facebookUser.name,
@@ -693,25 +808,23 @@ export class AuthService {
         passwordHash: null,
       },
     });
+
+    const payload = {
+      sub: newUser.id,
+      email: newUser.email,
+      role: newUser.role,
+    };
+    return {
+      user: {
+        id: newUser.id,
+        name: newUser.name,
+        email: newUser.email,
+        role: newUser.role,
+        picture: facebookUser.picture,
+      },
+      accessToken: this.jwtService.sign(payload),
+    };
   }
-
-  const payload = {
-    sub: user.id,
-    email: user.email,
-    role: user.role,
-  };
-
-  return {
-    user: {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      picture: user.facebookId ? facebookUser.picture : undefined,
-    },
-    token: this.jwtService.sign(payload),
-  };
-}
 
   // 🔑 FORGOT PASSWORD - Send reset email
   async forgotPassword(dto: ForgotPasswordDto) {
@@ -731,7 +844,17 @@ export class AuthService {
     const resetToken = crypto.randomBytes(32).toString('hex');
     const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hour
 
-    // Save token to database
+    // Save token to database using passwordResetToken table
+    const prismaAny = this.prisma as any;
+    await prismaAny.passwordResetToken.create({
+      data: {
+        token: resetToken,
+        userId: user.id,
+        expiresAt: resetTokenExpiry,
+      },
+    });
+
+    // Also update user with token for backward compatibility
     await this.prisma.user.update({
       where: { id: user.id },
       data: {
@@ -758,14 +881,24 @@ export class AuthService {
       throw new BadRequestException('Passwords do not match');
     }
 
-    // Find user with valid reset token
-    const user = await this.prisma.user.findFirst({
-      where: {
-        passwordResetToken: dto.token,
-        passwordResetExpiry: {
-          gte: new Date(), // Token must not be expired
-        },
-      },
+    // Find the reset token first
+    const prismaAny = this.prisma as any;
+    const resetTokenRecord = await prismaAny.passwordResetToken.findUnique({
+      where: { token: dto.token },
+    });
+
+    if (!resetTokenRecord) {
+      throw new BadRequestException('Invalid or expired reset token');
+    }
+
+    // Check if token is expired
+    if (resetTokenRecord.expiresAt < new Date()) {
+      throw new BadRequestException('Invalid or expired reset token');
+    }
+
+    // Find user with the token
+    const user = await this.prisma.user.findUnique({
+      where: { id: resetTokenRecord.userId },
     });
 
     if (!user) {
@@ -785,6 +918,11 @@ export class AuthService {
       },
     });
 
+    // Delete the used reset token
+    await prismaAny.passwordResetToken.delete({
+      where: { id: resetTokenRecord.id },
+    });
+
     return {
       success: true,
       message: 'Password has been reset successfully. You can now login with your new password.'
@@ -802,38 +940,343 @@ export class AuthService {
   }
 
   // ✉️ Check if email exists (for registration validation)
-  async checkEmailExists(email: string) {
+  async checkEmailExists(email: string): Promise<boolean> {
     const user = await this.prisma.user.findUnique({
       where: { email },
-      include: {
-        vendor: true,
-        venues: true,
+    });
+
+    return !!user;
+  }
+
+  // ============================================
+  // SECURITY IMPROVEMENTS - New Methods
+  // ============================================
+
+  /**
+   * Generate access and refresh tokens for a user
+   */
+  async generateTokens(user: {
+    id: number;
+    email: string;
+    role: Role;
+    hasVendorProfile?: boolean;
+    hasVenueProfile?: boolean;
+  }) {
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+      hasVendorProfile: user.hasVendorProfile || false,
+      hasVenueProfile: user.hasVenueProfile || false,
+    };
+
+    // Generate access token with short expiration
+    const accessToken = this.jwtService.sign(payload, {
+      expiresIn: ACCESS_TOKEN_EXPIRY,
+    });
+
+    // Generate refresh token with longer expiration
+    const refreshToken = crypto.randomBytes(64).toString('hex');
+    const refreshTokenExpiry = new Date(
+      Date.now() + REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
+    );
+
+    // Hash refresh token before storing (security best practice)
+    const refreshTokenHash = crypto
+      .createHash('sha256')
+      .update(refreshToken)
+      .digest('hex');
+
+    // Store refresh token in database - using type assertion for Prisma
+    const prismaAny = this.prisma as any;
+    await prismaAny.refreshToken.create({
+      data: {
+        userId: user.id,
+        token: refreshTokenHash,
+        expiresAt: refreshTokenExpiry,
+        deviceInfo: 'oauth',
       },
     });
 
-    if (!user) {
-      return {
-        exists: false,
-        canRegister: true,
-        message: 'Email is available for registration',
-      };
+    return {
+      accessToken,
+      refreshToken,
+      expiresIn: 900, // 15 minutes in seconds
+      tokenType: 'Bearer',
+    };
+  }
+
+  /**
+   * Handle OAuth login - creates or updates user and generates tokens
+   */
+  async handleOAuthLogin(
+    oauthUser: {
+      googleId?: string;
+      facebookId?: string;
+      email: string;
+      name: string;
+      picture?: string;
+    },
+    provider: 'google' | 'facebook',
+  ) {
+    const isGoogle = provider === 'google';
+    const oauthId = isGoogle ? oauthUser.googleId : oauthUser.facebookId;
+
+    if (!oauthId) {
+      throw new BadRequestException(`Invalid ${provider} profile data`);
     }
 
-    // Check what profiles the user already has
-    const hasVendor = !!user.vendor;
-    const hasVenue = user.venues && user.venues.length > 0;
+    // Find user by OAuth ID
+    let user = isGoogle
+      ? await this.prisma.user.findUnique({
+          where: { googleId: oauthId },
+          include: { vendor: true, venues: true },
+        })
+      : await this.prisma.user.findUnique({
+          where: { facebookId: oauthId },
+          include: { vendor: true, venues: true },
+        });
 
-    return {
-      exists: true,
-      hasVendorProfile: hasVendor,
-      hasVenueProfile: hasVenue,
-      canRegisterAsVendor: !hasVendor,
-      canRegisterAsVenue: !hasVenue,
-      message: hasVendor && hasVenue
-        ? 'Email already registered as both Vendor and Venue Owner'
-        : hasVendor
-        ? 'Email already registered as Vendor'
-        : 'Email already registered as Venue Owner',
-    };
+    // If not found by OAuth ID, try by email
+    if (!user) {
+      user = await this.prisma.user.findUnique({
+        where: { email: oauthUser.email },
+        include: { vendor: true, venues: true },
+      });
+
+      // Link OAuth account to existing user
+      if (user) {
+        const updateData = isGoogle
+          ? { googleId: oauthId }
+          : { facebookId: oauthId };
+
+        user = await this.prisma.user.update({
+          where: { id: user.id },
+          data: updateData,
+          include: { vendor: true, venues: true },
+        });
+      }
+    }
+
+    // Create new user if doesn't exist
+    if (!user) {
+      const createData = isGoogle
+        ? {
+            email: oauthUser.email,
+            name: oauthUser.name,
+            googleId: oauthId,
+            role: Role.CUSTOMER,
+            passwordHash: null,
+            isEmailVerified: true,
+          }
+        : {
+            email: oauthUser.email,
+            name: oauthUser.name,
+            facebookId: oauthId,
+            role: Role.CUSTOMER,
+            passwordHash: null,
+            isEmailVerified: true,
+          };
+
+      user = await this.prisma.user.create({
+        data: createData,
+        include: { vendor: true, venues: true },
+      });
+    }
+
+    // Check if user is active
+    if (!user.isActive) {
+      throw new UnauthorizedException('Account is deactivated');
+    }
+
+    // Get vendor and venues if not loaded
+    const vendor = user.vendor || await this.prisma.vendor.findUnique({ where: { userId: user.id } });
+    const venues = user.venues || await this.prisma.venue.findMany({ where: { ownerId: user.id } });
+
+    // Generate tokens
+    return this.generateTokens({
+      id: user.id,
+      email: user.email!,
+      role: user.role,
+      hasVendorProfile: !!vendor,
+      hasVenueProfile: venues.length > 0,
+    });
+  }
+
+  /**
+   * Refresh access token using refresh token
+   */
+  async refreshToken(refreshToken: string) {
+    // Hash the incoming token to compare with stored hash
+    const tokenHash = crypto
+      .createHash('sha256')
+      .update(refreshToken)
+      .digest('hex');
+
+    // Find valid refresh token
+    const storedToken = await this.prisma.refreshToken.findFirst({
+      where: {
+        token: tokenHash,
+        expiresAt: { gte: new Date() },
+        revoked: false,
+      },
+      include: { user: true },
+    });
+
+    if (!storedToken) {
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
+
+    // Additional check: verify token is not expired (belt and suspenders)
+    if (storedToken.expiresAt && storedToken.expiresAt < new Date()) {
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
+
+    // Check if token is revoked
+    if (storedToken.revoked) {
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
+
+    // Get user from the included relation or fetch separately
+    let user = storedToken.user;
+    
+    if (!user) {
+      // Fetch user separately if not included
+      user = await this.prisma.user.findUnique({
+        where: { id: storedToken.userId },
+      }) as typeof user;
+    }
+    
+    if (!user) {
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
+    
+    const vendor = await this.prisma.vendor.findUnique({
+      where: { userId: user.id },
+    });
+    const venues = await this.prisma.venue.findMany({
+      where: { ownerId: user.id },
+    }) || [];
+
+    // Revoke old refresh token (token rotation)
+    await this.prisma.refreshToken.update({
+      where: { id: storedToken.id },
+      data: { revoked: true, revokedAt: new Date() },
+    });
+
+    // Generate new tokens
+    return this.generateTokens({
+      id: user.id,
+      email: user.email!,
+      role: user.role,
+      hasVendorProfile: !!vendor,
+      hasVenueProfile: venues.length > 0,
+    });
+  }
+
+  /**
+   * Revoke all refresh tokens for a user (logout from all devices)
+   */
+  async revokeAllUserTokens(userId: number) {
+    await this.prisma.refreshToken.updateMany({
+      where: { userId, revoked: false },
+      data: { revoked: true },
+    });
+  }
+
+  /**
+   * Revoke specific refresh token
+   */
+  async revokeToken(refreshToken: string) {
+    const tokenHash = crypto
+      .createHash('sha256')
+      .update(refreshToken)
+      .digest('hex');
+
+    await this.prisma.refreshToken.updateMany({
+      where: { token: tokenHash, revoked: false },
+      data: { revoked: true, revokedAt: new Date() },
+    });
+  }
+
+  /**
+   * Hash password reset token before storing (security improvement)
+   */
+  private hashToken(token: string): string {
+    return crypto.createHash('sha256').update(token).digest('hex');
+  }
+
+  /**
+   * Check and handle account lockout
+   */
+  private async checkAccountLockout(userId: number): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        failedLoginAttempts: true,
+        lockedUntil: true,
+      },
+    });
+
+    if (!user) return;
+
+    const lockedUntil = user.lockedUntil as Date | null;
+    
+    // Check if account is locked
+    if (lockedUntil && lockedUntil > new Date()) {
+      const remainingMinutes = Math.ceil(
+        (lockedUntil.getTime() - Date.now()) / 60000,
+      );
+      throw new UnauthorizedException(
+        `Account is locked. Try again in ${remainingMinutes} minutes`,
+      );
+    }
+  }
+
+  /**
+   * Record failed login attempt
+   */
+  private async recordFailedLogin(userId: number): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        failedLoginAttempts: true,
+        lockedUntil: true,
+      },
+    });
+
+    if (!user) return;
+
+    const failedLoginAttempts = user.failedLoginAttempts as number;
+    const newAttempts = failedLoginAttempts + 1;
+    let lockedUntil: Date | null = null;
+
+    // Lock account after max attempts
+    if (newAttempts >= MAX_LOGIN_ATTEMPTS) {
+      lockedUntil = new Date(
+        Date.now() + LOCKOUT_DURATION_MINUTES * 60 * 1000,
+      );
+    }
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        failedLoginAttempts: newAttempts,
+        lockedUntil,
+      },
+    });
+  }
+
+  /**
+   * Reset failed login attempts on successful login
+   */
+  private async resetFailedLogin(userId: number): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        failedLoginAttempts: 0,
+        lockedUntil: null,
+      },
+    });
   }
 }
