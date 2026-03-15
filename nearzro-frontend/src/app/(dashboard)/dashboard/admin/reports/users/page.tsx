@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
-  Users, TrendingUp, UserCheck, UserX, Calendar, Download,
-  Search, Filter, Activity, ArrowRight, BarChart3
+  Users, TrendingUp, UserCheck, Download,
+  Search, Activity, ArrowRight, BarChart3
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";

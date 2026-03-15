@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Plus, ArrowLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
+import { extractArray } from "@/lib/api-response";
 
 const VENUE_TYPES = ["HALL", "MANDAPAM", "LAWN", "RESORT", "BANQUET"];
 
@@ -52,7 +53,8 @@ export default function VenueDetailsPage() {
   const loadVenue = async (venueId: string) => {
     try {
       const response = await api.get('/venues/my');
-      const venue = (response.data || []).find((v: any) => v.id === Number(venueId));
+      const venues = extractArray<any>(response);
+      const venue = venues.find((v: any) => v.id === Number(venueId));
       if (venue) {
         setFormData({
           name: venue.name,

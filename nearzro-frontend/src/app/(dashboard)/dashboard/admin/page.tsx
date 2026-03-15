@@ -5,15 +5,13 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  LayoutDashboard, Calendar, Users, Building, Store, CheckCircle2,
-  DollarSign, TrendingUp, TrendingDown, Activity, ArrowRight, RefreshCw,
-  AlertCircle, MapPin, Eye, BarChart3, PieChart, CreditCard, Package,
-  Settings, LogOut, Bell, Search, Shield
+import { Calendar, Users, Building, Store, CheckCircle2,
+  DollarSign, TrendingUp, TrendingDown, ArrowRight, RefreshCw,
+  AlertCircle, MapPin, PieChart, CreditCard,
+  Settings
 } from "lucide-react";
 import { toast } from "sonner";
-import {
-  LineChart, Line, BarChart, Bar, PieChart as RechartsPie, Pie, Cell,
+import { BarChart, Bar, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area
 } from "recharts";
 import api from "@/lib/api";

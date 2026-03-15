@@ -5,19 +5,19 @@
 
 module.exports = {
   moduleFileExtensions: ['js', 'json', 'ts'],
-  rootDir: 'src',
+  roots: ['<rootDir>/src', '<rootDir>/test'],
   testRegex: '.*\\.spec\\.ts$',
   transform: {
     '^.+\\.(t|j)s$': 'ts-jest',
   },
   collectCoverageFrom: [
     '**/*.(t|j)s',
-    '!**/*.spec.(t|j)s',
+    '!/**/*.spec.(t|j)s',
     '!**/node_modules/**',
     '!**/vendor/**',
     '!**/dist/**',
   ],
-  coverageDirectory: '../coverage',
+  coverageDirectory: './coverage',
   testEnvironment: 'node',
   coverageReporters: ['text', 'lcov', 'html', 'json'],
   coverageThreshold: {
@@ -28,10 +28,10 @@ module.exports = {
       statements: 80,
     },
   },
-  setupFilesAfterEnv: ['../test/setup.ts', '../test/jest.setup.ts'],
+  setupFilesAfterEnv: ['<rootDir>/test/setup.ts', '<rootDir>/test/jest.setup.ts'],
   moduleNameMapper: {
-    '^src/(.*)$': '<rootDir>/$1',
-    '^test/(.*)$': '<rootDir>/../test/$1',
+    '^src/(.*)$': '<rootDir>/src/$1',
+    '^test/(.*)$': '<rootDir>/test/$1',
   },
   verbose: true,
   silent: false,

@@ -5,14 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  ArrowLeft, Edit, Trash2, MapPin, DollarSign, CheckCircle2,
+  ArrowLeft, Edit, Trash2, MapPin, CheckCircle2,
   XCircle, Calendar, Download, Share2, MessageSquare, Star, Store,
   TrendingUp, Package, Users
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { vendorsApi } from "@/lib/api-endpoints";
 
 interface VendorDetail {
   id: number;

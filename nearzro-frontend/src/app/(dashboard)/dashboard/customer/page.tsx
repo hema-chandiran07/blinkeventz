@@ -11,8 +11,8 @@ import {
   Calendar, Clock, MapPin, Users, DollarSign,
   Plus, Search, CheckCircle2, AlertCircle, Package, Sparkles, Bell
 } from "lucide-react";
-import { toast } from "sonner";
 import api from "@/lib/api";
+import { extractArray } from "@/lib/api-response";
 import type { Event, EventStatus } from "@/types";
 import { motion } from "framer-motion";
 
@@ -63,7 +63,9 @@ export default function CustomerDashboardPage() {
     try {
       setLoading(true);
       const eventsResponse = await api.get("/events/my");
-      const eventsData = eventsResponse.data || [];
+      
+      // Use the utility to safely extract array from paginated response
+      const eventsData = extractArray<Event>(eventsResponse);
       setEvents(eventsData);
 
       const upcoming = eventsData.filter((e: Event) =>

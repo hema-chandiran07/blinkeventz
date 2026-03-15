@@ -4,14 +4,12 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Bell, AlertTriangle, CheckCircle2, Info, X, Trash2,
-  Settings, Filter, CheckCheck, Clock, AlertCircle
+  Settings, CheckCheck, Clock, AlertCircle
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { notificationsApi } from "@/lib/api-endpoints";
 
 const NOTIFICATIONS = [
   { id: 1, type: "success", title: "Payment Received", message: "₹1,50,000 received from Rajesh Kumar for Wedding Event", time: "5 minutes ago", read: false },

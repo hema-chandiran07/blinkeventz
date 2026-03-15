@@ -6,10 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import {
-  CreditCard, DollarSign, TrendingUp, TrendingDown, Calendar,
-  Search, Filter, Download, Eye, ArrowLeft, CheckCircle2,
-  Clock, XCircle, AlertCircle
+import { TrendingUp, TrendingDown, Calendar,
+  Search, Download, Eye, ArrowLeft, CheckCircle2,
+  Clock, XCircle
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 

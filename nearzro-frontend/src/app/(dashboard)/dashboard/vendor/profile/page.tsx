@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/context/auth-context";
 import { toast } from "sonner";
-import { Store, Mail, Phone, MapPin, DollarSign, Edit2, Save, X, CheckCircle2, Upload, Utensils, Palette, Camera, Film, Scissors, Music, Mic, Sparkles, Cake, ClipboardList, Car, MoreHorizontal } from "lucide-react";
+import { Store, Mail, Phone, MapPin, DollarSign, Edit2, Save, X, CheckCircle2, Upload, Utensils, Palette, Camera, Film, Scissors, Music, Cake, ClipboardList, Car, MoreHorizontal } from "lucide-react";
 
 const SERVICE_CATEGORIES = [
   { value: "CATERING", label: "Catering", icon: Utensils },

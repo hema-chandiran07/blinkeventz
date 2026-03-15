@@ -46,7 +46,11 @@ export async function initE2EApp() {
   );
 
   // Get Prisma service for database operations
-  prisma = app.get(PrismaService);
+  const prismaService = app.get(PrismaService);
+  prisma = prismaService;
+  
+  // Manually connect to test database
+  await prismaService.connect();
 
   return app;
 }
@@ -79,12 +83,20 @@ export function getPrismaService() {
  */
 export async function cleanupE2EApp() {
   if (prisma) {
-    await prisma.$disconnect();
+    try {
+      await prisma.$disconnect();
+    } catch (e) {
+      // Ignore disconnect errors
+    }
     prisma = null;
   }
 
   if (app) {
-    await app.close();
+    try {
+      await app.close();
+    } catch (e) {
+      // Ignore close errors
+    }
     app = null;
   }
 }
@@ -99,9 +111,13 @@ export async function resetDatabase() {
   }
 
   // Delete in correct order to respect foreign key constraints
-  await prisma.vendorService.deleteMany();
-  await prisma.vendor.deleteMany();
-  await prisma.user.deleteMany();
+  try {
+    await prisma.vendorService.deleteMany().catch(() => {});
+    await prisma.vendor.deleteMany().catch(() => {});
+    await prisma.user.deleteMany().catch(() => {});
+  } catch (e) {
+    // Ignore cleanup errors
+  }
 }
 
 /**

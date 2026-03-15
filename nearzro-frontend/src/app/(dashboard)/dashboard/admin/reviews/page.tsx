@@ -1,14 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useEffect, useCallback } from "react";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, XCircle, Eye, Trash2 } from "lucide-react";
+import { CheckCircle2, XCircle, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
+import { extractArray } from "@/lib/api-response";
 import { StarRating } from "@/components/reviews/star-rating";
-import { ReviewList } from "@/components/reviews/review-list";
 
 interface Review {
   id: number;
@@ -31,29 +31,31 @@ export default function AdminReviewsPage() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [filter, setFilter] = useState<"all" | "PENDING" | "APPROVED" | "REJECTED">("PENDING");
 
-  useEffect(() => {
-    loadReviews();
-  }, [filter]);
-
-  const loadReviews = async () => {
+  const loadReviews = useCallback(async () => {
     try {
       const params = filter === "all" ? {} : { status: filter };
       const response = await api.get("/reviews/admin/all", { params });
-      setReviews(response.data || []);
-    } catch (error: any) {
-      console.error("Failed to load reviews:", error);
+      const reviewsData = extractArray<Review>(response);
+      setReviews(reviewsData);
+    } catch (err: any) {
+      console.error("Failed to load reviews:", err);
       toast.error("Failed to load reviews");
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter]);
+
+  useEffect(() => {
+    loadReviews();
+  }, [loadReviews]);
 
   const handleApprove = async (id: number) => {
     try {
       await api.patch(`/reviews/${id}/approve`);
       toast.success("Review approved");
       loadReviews();
-    } catch (error: any) {
+    } catch (err: any) {
+      console.error("Failed to approve review:", err);
       toast.error("Failed to approve review");
     }
   };
@@ -63,7 +65,8 @@ export default function AdminReviewsPage() {
       await api.patch(`/reviews/${id}/reject`);
       toast.success("Review rejected");
       loadReviews();
-    } catch (error: any) {
+    } catch (err: any) {
+      console.error("Failed to reject review:", err);
       toast.error("Failed to reject review");
     }
   };
@@ -77,7 +80,8 @@ export default function AdminReviewsPage() {
       await api.delete(`/reviews/${id}`);
       toast.success("Review deleted");
       loadReviews();
-    } catch (error: any) {
+    } catch (err: any) {
+      console.error("Failed to delete review:", err);
       toast.error("Failed to delete review");
     }
   };

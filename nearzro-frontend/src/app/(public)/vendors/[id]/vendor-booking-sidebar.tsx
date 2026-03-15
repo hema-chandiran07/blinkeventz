@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Mail, Phone, MessageCircle, Shield, Globe, CheckCircle2, Calendar as CalendarIcon, Clock, DollarSign, Star, MapPin } from "lucide-react";
 import { AddToCartButton } from "./add-to-cart-button";
 import { BookNowButton } from "./book-now-button";

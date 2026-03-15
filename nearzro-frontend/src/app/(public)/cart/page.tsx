@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   ShoppingBag, Trash2, Plus, Minus, Calendar, Users, MapPin,
-  Clock, DollarSign, AlertCircle, CheckCircle2, ArrowRight
+  Clock, CheckCircle2, ArrowRight
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";

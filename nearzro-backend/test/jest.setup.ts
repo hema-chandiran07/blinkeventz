@@ -7,11 +7,12 @@
  */
 
 import { Test } from '@nestjs/testing';
+import 'dotenv/config';
 
-// Mock process.env for tests
+// Set test environment
 process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = 'test-jwt-secret-key';
-process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/nearzro_test';
+process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://test:test@localhost:5432/nearzro_test';
 process.env.SENDGRID_API_KEY = 'test-sendgrid-key';
 process.env.FIREBASE_PROJECT_ID = 'test-project';
 

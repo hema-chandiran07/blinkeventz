@@ -1,25 +1,22 @@
 import {
   Injectable,
   BadRequestException,
-  Inject,
+  Logger,
 } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service';
-import { OpenAIProvider } from './providers/openai.provider';
 import { CreateAIPlanDto } from './dto/create-ai-plan.dto';
-import { budgetSplitPrompt } from './prompts/budget-split.prompt';
-import { cleanAndParseJSON } from './utils/json-cleaner';
 
 /**
- * CACHE_MANAGER is OPTIONAL
- * If Redis is not configured, app will still work
+ * AI Planner Service
+ * 
+ * Orchestrates:
+ * - Queue job submission
+ * - Plan retrieval
+ * - Vendor Matching
+ * - Cart Conversion
  */
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import type { Cache } from 'cache-manager';
 
-/**
- * Internal type to safely read Prisma Json
- */
 type AIPlanJSON = {
   summary: {
     eventType: string;
@@ -36,148 +33,57 @@ type AIPlanJSON = {
 
 @Injectable()
 export class AIPlannerService {
+  private readonly logger = new Logger(AIPlannerService.name);
+
   constructor(
     private readonly prisma: PrismaService,
-    private readonly ai: OpenAIProvider,
-
-    // 🔥 Redis Cache (SAFE injection)
-    @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
-  // =========================================================
-  // 1️⃣ GENERATE AI PLAN (CACHE + FALLBACK + VALIDATION)
-  // =========================================================
-  async generatePlan(userId: number, dto: CreateAIPlanDto) {
-    /**
-     * Cache key based on user input
-     * Same input → same AI plan
-     */
-    const cacheKey = `ai-plan:${userId}:${JSON.stringify(dto)}`;
-
-    // 🔹 1. Check Redis cache
-    const cached = await this.cache?.get(cacheKey);
-    if (cached) {
-      return cached;
-    }
-
-    let planJson: AIPlanJSON;
-
-    try {
-      // 🔹 2. Build AI prompt
-      const prompt = budgetSplitPrompt(dto);
-
-      // 🔹 3. Call OpenAI
-      const aiRaw = await this.ai.generate(prompt);
-
-      // 🔹 4. Parse + sanitize AI JSON
-      planJson = cleanAndParseJSON<AIPlanJSON>(aiRaw);
-    } catch (error) {
-      /**
-       * 🧯 FALLBACK LOGIC
-       * If AI fails, still create a valid empty plan
-       */
-      planJson = {
-        summary: {
-          eventType: dto.eventType,
-          city: dto.city,
-          guestCount: dto.guestCount,
-          totalBudget: dto.budget,
-        },
-        allocations: [],
-      };
-    }
-
-    // =========================================================
-    // 🔐 COST SANITY VALIDATION
-    // =========================================================
-    if (planJson.allocations?.length) {
-      const total = planJson.allocations.reduce(
-        (sum, item) => sum + item.amount,
-        0,
-      );
-
-      if (total !== dto.budget) {
-        throw new BadRequestException(
-          'AI generated budget does not match total budget',
-        );
-      }
-    }
-
-    // =========================================================
-    // 💾 SAVE AI PLAN
-    // =========================================================
-    const plan = await this.prisma.aIPlan.create({
-      data: {
+  /**
+   * Get AI plan by ID with authorization
+   */
+  async getPlan(planId: number, userId: number) {
+    const plan = await this.prisma.aIPlan.findFirst({
+      where: {
+        id: planId,
         userId,
-        EventId: dto.eventId ?? null,
-        budget: dto.budget,
-        city: dto.city,
-        area: dto.area,
-        guestCount: dto.guestCount,
-        planJson: planJson as any, // Prisma Json safe cast
       },
     });
 
-    // 🔹 Cache result for future
-    await this.cache?.set(cacheKey, plan, 60 * 10); // 10 mins
+    if (!plan) {
+      throw new BadRequestException('AI Plan not found or access denied');
+    }
 
     return plan;
   }
 
-  // =========================================================
-  // 2️⃣ REGENERATE AI PLAN (VERSIONING READY)
-  // =========================================================
-  async regenerate(planId: number, userId: number) {
-    const existingPlan = await this.prisma.aIPlan.findFirst({
-      where: { id: planId, userId },
-    });
-
-    if (!existingPlan) {
-      throw new BadRequestException('AI Plan not found');
-    }
-
-    /**
-     * Creates a NEW plan
-     * Old plan remains for version history
-     */
-    return this.generatePlan(userId, {
-      budget: existingPlan.budget,
-      city: existingPlan.city,
-      area: existingPlan.area,
-      guestCount: existingPlan.guestCount,
-      eventType: 'Regenerated',
-      eventId: existingPlan.EventId ?? undefined,
-    });
-  }
-
-  // =========================================================
-  // 3️⃣ AUTO‑MATCH VENDORS BASED ON AI PLAN
-  // =========================================================
-  async matchVendorsFromPlan(planId: number) {
-    const plan = await this.prisma.aIPlan.findUnique({
-      where: { id: planId },
+  /**
+   * Match vendors from AI plan
+   * This is a synchronous operation for vendor matching
+   */
+  async matchVendorsFromPlan(planId: number, userId: number) {
+    // SECURITY: Check both planId AND userId
+    const plan = await this.prisma.aIPlan.findFirst({
+      where: {
+        id: planId,
+        userId,
+      },
     });
 
     if (!plan) {
-      throw new BadRequestException('AI Plan not found');
+      throw new BadRequestException('AI Plan not found or access denied');
     }
 
-    /**
-     * Simple industry heuristic:
-     * - Same city & area
-     * - Verified vendors
-     * - Budget friendly services
-     */
-    return this.prisma.vendorService.findMany({
+    // Find matching vendors
+    const vendors = await this.prisma.vendorService.findMany({
       where: {
         isActive: true,
         vendor: {
-          city: plan.city,
-          area: plan.area,
+          city: {
+            equals: plan.city,
+            mode: 'insensitive',
+          },
           verificationStatus: 'VERIFIED',
-        },
-        baseRate: {
-          lte: Math.floor(plan.budget / 3),
         },
       },
       include: {
@@ -185,34 +91,34 @@ export class AIPlannerService {
       },
       take: 10,
     });
+
+    return vendors;
   }
 
-  // =========================================================
-  // 4️⃣ CREATE CART FROM AI PLAN (ONE‑CLICK ADD)
-  // =========================================================
+  /**
+   * Create cart from AI plan
+   */
   async createCartFromAIPlan(userId: number, planId: number) {
+    // SECURITY: Check both planId AND userId
     const plan = await this.prisma.aIPlan.findFirst({
       where: { id: planId, userId },
     });
 
     if (!plan || !plan.planJson) {
-      throw new BadRequestException('Invalid AI Plan');
+      throw new BadRequestException('AI Plan not found or access denied');
     }
 
     const planJson = plan.planJson as unknown as AIPlanJSON;
 
     if (!planJson.allocations?.length) {
-      throw new BadRequestException(
-        'AI plan has no allocations to add to cart',
-      );
+      throw new BadRequestException('Cannot create cart from empty plan');
     }
 
-    // =========================================================
-    // 🛒 CREATE CART WITH AI ITEMS
-    // =========================================================
+    // Create cart with AI items
     const cart = await this.prisma.cart.create({
       data: {
         userId,
+        status: 'ACTIVE',
         items: {
           create: planJson.allocations.map((item) => ({
             itemType: 'ADDON',
@@ -232,9 +138,7 @@ export class AIPlannerService {
       },
     });
 
-    // =========================================================
-    // ✅ MARK PLAN AS ACCEPTED
-    // =========================================================
+    // Mark plan as accepted
     await this.prisma.aIPlan.update({
       where: { id: planId },
       data: { status: 'ACCEPTED' },

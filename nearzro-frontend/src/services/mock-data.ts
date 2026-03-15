@@ -1,4 +1,4 @@
-import { Venue, Vendor, Event } from "@/types";
+import { Venue } from "@/types";
 
 // Mock data commented out - use backend API instead
 export const MOCK_VENUES: Venue[] = [];
