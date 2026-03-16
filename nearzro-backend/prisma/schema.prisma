@@ -20,10 +20,21 @@ model User {
   isActive                Boolean                  @default(true)
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
+  
+  // Password reset security
+  passwordResetToken      String?                  // Hashed token - never expose
   passwordResetExpiry     DateTime?
-  passwordResetToken      String?
+  
+  // Account security
+  failedLoginAttempts    Int                       @default(0)
+  lockedUntil            DateTime?
+  lastLoginAt            DateTime?
+  
+  // OAuth
   facebookId              String?                  @unique
   isEmailVerified         Boolean                  @default(false)
+  
+  // Relations
   AIPlan                  AIPlan[]
   bankAccounts            BankAccount[]
   bookings                Booking[]
@@ -41,6 +52,32 @@ model User {
   reviewVotes             ReviewVote[]
   vendor                  Vendor?
   venues                  Venue[]
+  refreshTokens           RefreshToken[]
+
+  // Indexes for authentication queries
+  @@index([email])
+  @@index([googleId])
+  @@index([facebookId])
+  @@index([passwordResetToken])
+}
+
+/// Refresh Token Model for JWT refresh mechanism
+model RefreshToken {
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  token       String    // Hashed token for security
+  expiresAt   DateTime
+  revoked     Boolean   @default(false)
+  revokedAt   DateTime?
+  deviceInfo  String?
+  createdAt   DateTime  @default(now())
+  
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Indexes
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
 }
 
 model CustomerProfile {

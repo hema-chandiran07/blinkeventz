@@ -1018,11 +1018,25 @@ export class AuthService {
       picture?: string;
     },
     provider: 'google' | 'facebook',
-  ) {
+  ): Promise<{
+    accessToken: string;
+    refreshToken: string;
+    expiresIn: number;
+    tokenType: string;
+    user: {
+      id: number;
+      email: string | null;
+      name: string | null;
+      role: Role;
+    };
+  }> {
+    console.log('🔍 handleOAuthLogin called with:', JSON.stringify({ oauthUser, provider }, null, 2));
+    
     const isGoogle = provider === 'google';
     const oauthId = isGoogle ? oauthUser.googleId : oauthUser.facebookId;
 
     if (!oauthId) {
+      console.log('⚠️ Invalid OAuth profile data - no oauthId');
       throw new BadRequestException(`Invalid ${provider} profile data`);
     }
 
@@ -1094,13 +1108,24 @@ export class AuthService {
     const venues = user.venues || await this.prisma.venue.findMany({ where: { ownerId: user.id } });
 
     // Generate tokens
-    return this.generateTokens({
+    const tokens = await this.generateTokens({
       id: user.id,
       email: user.email!,
       role: user.role,
       hasVendorProfile: !!vendor,
       hasVenueProfile: venues.length > 0,
     });
+
+    // Return both tokens and user data
+    return {
+      ...tokens,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+      }
+    };
   }
 
   /**

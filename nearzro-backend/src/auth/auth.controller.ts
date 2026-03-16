@@ -191,32 +191,50 @@ export class AuthController {
   async checkEmail(@Body() body: { email: string }) {
     return this.authService.checkEmailExists(body.email);
   }
+// 🚀 Redirect to Google OAuth
+@Public()
+@Get('google')
+@UseGuards(AuthGuard('google'))
+@ApiOperation({ summary: 'Initiate Google OAuth flow' })
+googleAuth() {
+  // Passport automatically redirects to Google
+}
 
-  // 🎯 Google callback - returns temporary code for secure token exchange
+  // 🎯 Google callback - returns tokens to frontend
   @Public()
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
   @ApiOperation({ summary: 'Google OAuth callback' })
-  @ApiResponse({ status: 302, description: 'Redirects to frontend with temp code' })
+  @ApiResponse({ status: 302, description: 'Redirects to frontend with tokens' })
   async googleAuthCallback(@Req() req: Request & { user?: { googleId: string; email: string; name: string; picture?: string } }, @Res() res: Response) {
     try {
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
       
       if (!req.user) {
+        console.log('⚠️ Google OAuth: No user data in request');
         return res.redirect(`${frontendUrl}/login?error=no_user_data`);
       }
       
       // Generate tokens via service
-      const tokens = await this.authService.handleOAuthLogin(req.user, 'google');
+      const result = await this.authService.handleOAuthLogin(req.user, 'google');
       
-      // Use secure httpOnly cookie approach - set token in cookie and redirect
-      // Frontend reads from cookie or we provide a simple code
-      const tempCode = Buffer.from(JSON.stringify(tokens)).toString('base64');
+      // Redirect to frontend callback page with token and user data
+      // Frontend expects: ?token=ACCESS_TOKEN&user=JSON_USER_DATA
+      const userData = {
+        id: result.user?.id,
+        email: result.user?.email,
+        name: result.user?.name,
+        role: result.user?.role,
+        picture: req.user.picture
+      };
       
-      res.redirect(`${frontendUrl}/auth/callback?code=${tempCode}`);
+      const redirectUrl = `${frontendUrl}/auth/callback?token=${result.accessToken}&user=${encodeURIComponent(JSON.stringify(userData))}`;
+      
+      return res.redirect(redirectUrl);
     } catch (error) {
+      console.error('Google OAuth error:', error);
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
-      res.redirect(`${frontendUrl}/login?error=google_auth_failed`);
+      return res.redirect(`${frontendUrl}/login?error=google_auth_failed`);
     }
   }
 

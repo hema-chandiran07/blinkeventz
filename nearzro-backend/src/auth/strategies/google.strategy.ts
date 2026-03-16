@@ -9,6 +9,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   constructor(private readonly config: ConfigService) {
     const clientID = config.get<string>('GOOGLE_CLIENT_ID') || 'dummy';
     const clientSecret = config.get<string>('GOOGLE_CLIENT_SECRET') || 'dummy';
+    
     // Use environment variable if set, otherwise default to /api/auth/google/callback
     const callbackURL = config.get<string>('GOOGLE_CALLBACK_URL') || 
                        (process.env.NODE_ENV === 'production' 
@@ -20,12 +21,12 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       clientSecret,
       callbackURL,
       scope: ['email', 'profile'],
-      passReqToCallback: true, // ✅ REQUIRED (important)
+      passReqToCallback: true,
     });
   }
 
   async validate(
-    req: any,               // ✅ REQUIRED when passReqToCallback = true
+    req: any,
     accessToken: string,
     refreshToken: string,
     profile: Profile,

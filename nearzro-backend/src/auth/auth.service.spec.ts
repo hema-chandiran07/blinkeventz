@@ -689,12 +689,16 @@ describe('AuthService - Comprehensive Unit Tests', () => {
         name: 'Facebook User',
       };
 
+      // Clear any mock implementations from previous tests
+      mockPrisma.user.findUnique.mockReset();
+      mockPrisma.user.create.mockReset();
       mockPrisma.user.findUnique.mockResolvedValue(null);
       mockPrisma.user.create.mockResolvedValue({
         id: 1,
         ...facebookUser,
         role: Role.CUSTOMER,
       });
+      mockJwt.sign.mockReset();
       mockJwt.sign.mockReturnValue('access-token');
 
       const result = await service.facebookLogin(facebookUser);
