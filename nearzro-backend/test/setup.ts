@@ -6,6 +6,17 @@
  */
 
 import 'reflect-metadata';
+import * as dotenv from 'dotenv';
+
+// Load test environment configuration first
+dotenv.config({ path: '.env.test' });
+
+// Also load default .env as fallback but DON'T override test values
+dotenv.config({ override: false });
+
+// Set test environment variables
+process.env.NODE_ENV = 'test';
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret-jwt-key';
 
 // Increase test timeout for async operations
 jest.setTimeout(30000);
@@ -17,40 +28,6 @@ process.on('unhandledRejection', (reason: unknown) => {
 
 process.on('uncaughtException', (error: Error) => {
   console.error('Uncaught Exception:', error.message);
-});
-
-// Suppress console output during tests to reduce noise
-const originalConsoleError = console.error;
-const originalConsoleWarn = console.warn;
-
-beforeAll(() => {
-  // Suppress specific noisy warnings
-  console.error = (...args: unknown[]) => {
-    // Ignore Prisma deprecation warnings
-    const message = args[0];
-    if (typeof message === 'string' && message.includes('Prisma')) {
-      return;
-    }
-    originalConsoleError.call(console, ...args);
-  };
-
-  console.warn = (...args: unknown[]) => {
-    // Ignore specific warnings
-    const message = args[0];
-    if (typeof message === 'string') {
-      // Ignore common non-critical warnings
-      if (message.includes('Unable to verify') || message.includes('ENOTFOUND')) {
-        return;
-      }
-    }
-    originalConsoleWarn.call(console, ...args);
-  };
-});
-
-afterAll(() => {
-  // Restore console methods
-  console.error = originalConsoleError;
-  console.warn = originalConsoleWarn;
 });
 
 // Global beforeEach to clear all mocks
@@ -74,16 +51,5 @@ expect.extend({
       message: () => `expected ${this.utils.printReceived(received)} to match partial ${this.utils.printExpected(partial)}`,
       pass: false,
     };
-  },
-});
-
-// Mock global objects
-Object.defineProperty(globalThis, 'console', {
-  writable: true,
-  value: {
-    ...console,
-    error: jest.fn(),
-    warn: jest.fn(),
-    log: jest.fn(),
   },
 });

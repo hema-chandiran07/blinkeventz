@@ -87,6 +87,14 @@ export class VendorServicesService {
           error instanceof NotFoundException) {
         throw error;
       }
+      // Handle Prisma errors
+      const prismaError = error as any;
+      if (prismaError.code === 'P2003') {
+        throw new BadRequestException('Foreign key constraint violated: related record does not exist');
+      }
+      if (prismaError.code === 'P2025') {
+        throw new NotFoundException('Record not found');
+      }
       // Preserve original Prisma error message
       const message = error instanceof Error ? error.message : 'Failed to create vendor service';
       throw new InternalServerErrorException(message);
@@ -145,6 +153,14 @@ export class VendorServicesService {
           error instanceof BadRequestException) {
         throw error;
       }
+      // Handle Prisma errors
+      const prismaError = error as any;
+      if (prismaError.code === 'P2003') {
+        throw new BadRequestException('Foreign key constraint violated: related record does not exist');
+      }
+      if (prismaError.code === 'P2025') {
+        throw new NotFoundException('Record not found');
+      }
       // Preserve original Prisma error message
       const message = error instanceof Error ? error.message : 'Failed to activate service';
       throw new InternalServerErrorException(message);
@@ -187,6 +203,14 @@ export class VendorServicesService {
           error instanceof NotFoundException || 
           error instanceof BadRequestException) {
         throw error;
+      }
+      // Handle Prisma errors
+      const prismaError = error as any;
+      if (prismaError.code === 'P2003') {
+        throw new BadRequestException('Foreign key constraint violated: related record does not exist');
+      }
+      if (prismaError.code === 'P2025') {
+        throw new NotFoundException('Record not found');
       }
       // Preserve original Prisma error message
       const message = error instanceof Error ? error.message : 'Failed to deactivate service';

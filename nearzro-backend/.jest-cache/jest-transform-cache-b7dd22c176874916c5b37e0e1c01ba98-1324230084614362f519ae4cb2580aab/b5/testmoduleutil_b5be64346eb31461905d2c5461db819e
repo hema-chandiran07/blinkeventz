@@ -1,0 +1,861 @@
+0ec0d4e9ea5d0a987ecbfdae63d0f820
+"use strict";
+
+/**
+ * Test Module Utility
+ * NearZro Event Management Platform
+ *
+ * Helper functions for creating NestJS testing modules with mocked dependencies.
+ */
+/* istanbul ignore next */
+function cov_gz2c3zvfu() {
+  var path = "C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\test\\utils\\test-module.util.ts";
+  var hash = "dd576ed502395da38e84fe2eeadb6208f70662ef";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\test\\utils\\test-module.util.ts",
+    statementMap: {
+      "0": {
+        start: {
+          line: 8,
+          column: 0
+        },
+        end: {
+          line: 8,
+          column: 62
+        }
+      },
+      "1": {
+        start: {
+          line: 9,
+          column: 0
+        },
+        end: {
+          line: 9,
+          column: 49
+        }
+      },
+      "2": {
+        start: {
+          line: 10,
+          column: 0
+        },
+        end: {
+          line: 10,
+          column: 68
+        }
+      },
+      "3": {
+        start: {
+          line: 11,
+          column: 0
+        },
+        end: {
+          line: 11,
+          column: 64
+        }
+      },
+      "4": {
+        start: {
+          line: 12,
+          column: 0
+        },
+        end: {
+          line: 12,
+          column: 70
+        }
+      },
+      "5": {
+        start: {
+          line: 13,
+          column: 0
+        },
+        end: {
+          line: 13,
+          column: 74
+        }
+      },
+      "6": {
+        start: {
+          line: 14,
+          column: 0
+        },
+        end: {
+          line: 14,
+          column: 32
+        }
+      },
+      "7": {
+        start: {
+          line: 15,
+          column: 0
+        },
+        end: {
+          line: 15,
+          column: 64
+        }
+      },
+      "8": {
+        start: {
+          line: 16,
+          column: 18
+        },
+        end: {
+          line: 16,
+          column: 44
+        }
+      },
+      "9": {
+        start: {
+          line: 17,
+          column: 25
+        },
+        end: {
+          line: 17,
+          column: 67
+        }
+      },
+      "10": {
+        start: {
+          line: 18,
+          column: 22
+        },
+        end: {
+          line: 18,
+          column: 53
+        }
+      },
+      "11": {
+        start: {
+          line: 26,
+          column: 63
+        },
+        end: {
+          line: 26,
+          column: 70
+        }
+      },
+      "12": {
+        start: {
+          line: 28,
+          column: 29
+        },
+        end: {
+          line: 33,
+          column: 5
+        }
+      },
+      "13": {
+        start: {
+          line: 34,
+          column: 4
+        },
+        end: {
+          line: 38,
+          column: 17
+        }
+      },
+      "14": {
+        start: {
+          line: 48,
+          column: 4
+        },
+        end: {
+          line: 53,
+          column: 7
+        }
+      },
+      "15": {
+        start: {
+          line: 64,
+          column: 4
+        },
+        end: {
+          line: 70,
+          column: 7
+        }
+      },
+      "16": {
+        start: {
+          line: 79,
+          column: 4
+        },
+        end: {
+          line: 81,
+          column: 7
+        }
+      },
+      "17": {
+        start: {
+          line: 91,
+          column: 4
+        },
+        end: {
+          line: 91,
+          column: 36
+        }
+      },
+      "18": {
+        start: {
+          line: 100,
+          column: 4
+        },
+        end: {
+          line: 107,
+          column: 7
+        }
+      },
+      "19": {
+        start: {
+          line: 112,
+          column: 20
+        },
+        end: {
+          line: 112,
+          column: 51
+        }
+      },
+      "20": {
+        start: {
+          line: 112,
+          column: 30
+        },
+        end: {
+          line: 112,
+          column: 51
+        }
+      },
+      "21": {
+        start: {
+          line: 113,
+          column: 0
+        },
+        end: {
+          line: 113,
+          column: 34
+        }
+      },
+      "22": {
+        start: {
+          line: 117,
+          column: 18
+        },
+        end: {
+          line: 117,
+          column: 50
+        }
+      },
+      "23": {
+        start: {
+          line: 117,
+          column: 29
+        },
+        end: {
+          line: 117,
+          column: 50
+        }
+      },
+      "24": {
+        start: {
+          line: 118,
+          column: 0
+        },
+        end: {
+          line: 118,
+          column: 30
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "createTestingModuleWithMocks",
+        decl: {
+          start: {
+            line: 25,
+            column: 15
+          },
+          end: {
+            line: 25,
+            column: 43
+          }
+        },
+        loc: {
+          start: {
+            line: 25,
+            column: 58
+          },
+          end: {
+            line: 39,
+            column: 1
+          }
+        },
+        line: 25
+      },
+      "1": {
+        name: "createServiceTestingModule",
+        decl: {
+          start: {
+            line: 47,
+            column: 15
+          },
+          end: {
+            line: 47,
+            column: 41
+          }
+        },
+        loc: {
+          start: {
+            line: 47,
+            column: 82
+          },
+          end: {
+            line: 54,
+            column: 1
+          }
+        },
+        line: 47
+      },
+      "2": {
+        name: "createControllerTestingModule",
+        decl: {
+          start: {
+            line: 63,
+            column: 15
+          },
+          end: {
+            line: 63,
+            column: 44
+          }
+        },
+        loc: {
+          start: {
+            line: 63,
+            column: 102
+          },
+          end: {
+            line: 71,
+            column: 1
+          }
+        },
+        line: 63
+      },
+      "3": {
+        name: "createMultiServiceTestingModule",
+        decl: {
+          start: {
+            line: 78,
+            column: 15
+          },
+          end: {
+            line: 78,
+            column: 46
+          }
+        },
+        loc: {
+          start: {
+            line: 78,
+            column: 57
+          },
+          end: {
+            line: 82,
+            column: 1
+          }
+        },
+        line: 78
+      },
+      "4": {
+        name: "getService",
+        decl: {
+          start: {
+            line: 90,
+            column: 9
+          },
+          end: {
+            line: 90,
+            column: 19
+          }
+        },
+        loc: {
+          start: {
+            line: 90,
+            column: 42
+          },
+          end: {
+            line: 92,
+            column: 1
+          }
+        },
+        line: 90
+      },
+      "5": {
+        name: "createTestingModuleBuilder",
+        decl: {
+          start: {
+            line: 99,
+            column: 9
+          },
+          end: {
+            line: 99,
+            column: 35
+          }
+        },
+        loc: {
+          start: {
+            line: 99,
+            column: 38
+          },
+          end: {
+            line: 108,
+            column: 1
+          }
+        },
+        line: 99
+      },
+      "6": {
+        name: "(anonymous_6)",
+        decl: {
+          start: {
+            line: 112,
+            column: 20
+          },
+          end: {
+            line: 112,
+            column: 21
+          }
+        },
+        loc: {
+          start: {
+            line: 112,
+            column: 30
+          },
+          end: {
+            line: 112,
+            column: 51
+          }
+        },
+        line: 112
+      },
+      "7": {
+        name: "(anonymous_7)",
+        decl: {
+          start: {
+            line: 117,
+            column: 18
+          },
+          end: {
+            line: 117,
+            column: 19
+          }
+        },
+        loc: {
+          start: {
+            line: 117,
+            column: 29
+          },
+          end: {
+            line: 117,
+            column: 50
+          }
+        },
+        line: 117
+      }
+    },
+    branchMap: {
+      "0": {
+        loc: {
+          start: {
+            line: 25,
+            column: 44
+          },
+          end: {
+            line: 25,
+            column: 56
+          }
+        },
+        type: "default-arg",
+        locations: [{
+          start: {
+            line: 25,
+            column: 54
+          },
+          end: {
+            line: 25,
+            column: 56
+          }
+        }],
+        line: 25
+      },
+      "1": {
+        loc: {
+          start: {
+            line: 26,
+            column: 12
+          },
+          end: {
+            line: 26,
+            column: 26
+          }
+        },
+        type: "default-arg",
+        locations: [{
+          start: {
+            line: 26,
+            column: 24
+          },
+          end: {
+            line: 26,
+            column: 26
+          }
+        }],
+        line: 26
+      },
+      "2": {
+        loc: {
+          start: {
+            line: 26,
+            column: 28
+          },
+          end: {
+            line: 26,
+            column: 44
+          }
+        },
+        type: "default-arg",
+        locations: [{
+          start: {
+            line: 26,
+            column: 42
+          },
+          end: {
+            line: 26,
+            column: 44
+          }
+        }],
+        line: 26
+      },
+      "3": {
+        loc: {
+          start: {
+            line: 26,
+            column: 46
+          },
+          end: {
+            line: 26,
+            column: 58
+          }
+        },
+        type: "default-arg",
+        locations: [{
+          start: {
+            line: 26,
+            column: 56
+          },
+          end: {
+            line: 26,
+            column: 58
+          }
+        }],
+        line: 26
+      },
+      "4": {
+        loc: {
+          start: {
+            line: 47,
+            column: 56
+          },
+          end: {
+            line: 47,
+            column: 80
+          }
+        },
+        type: "default-arg",
+        locations: [{
+          start: {
+            line: 47,
+            column: 78
+          },
+          end: {
+            line: 47,
+            column: 80
+          }
+        }],
+        line: 47
+      },
+      "5": {
+        loc: {
+          start: {
+            line: 63,
+            column: 76
+          },
+          end: {
+            line: 63,
+            column: 100
+          }
+        },
+        type: "default-arg",
+        locations: [{
+          start: {
+            line: 63,
+            column: 98
+          },
+          end: {
+            line: 63,
+            column: 100
+          }
+        }],
+        line: 63
+      }
+    },
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0,
+      "8": 0,
+      "9": 0,
+      "10": 0,
+      "11": 0,
+      "12": 0,
+      "13": 0,
+      "14": 0,
+      "15": 0,
+      "16": 0,
+      "17": 0,
+      "18": 0,
+      "19": 0,
+      "20": 0,
+      "21": 0,
+      "22": 0,
+      "23": 0,
+      "24": 0
+    },
+    f: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0
+    },
+    b: {
+      "0": [0],
+      "1": [0],
+      "2": [0],
+      "3": [0],
+      "4": [0],
+      "5": [0]
+    },
+    inputSourceMap: {
+      file: "C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\test\\utils\\test-module.util.ts",
+      mappings: ";AAAA;;;;;GAKG;;;AAuBH,oEAkBC;AASD,gEAUC;AAUD,sEAeC;AAQD,0EAMC;AASD,gCAEC;AAQD,gEASC;AA7HD,6CAAsD;AAEtD,oEAAgE;AAChE,sDAAyD;AAYzD;;;;;GAKG;AACI,KAAK,UAAU,4BAA4B,CAChD,UAAsC,EAAE;IAExC,MAAM,EAAE,SAAS,GAAG,EAAE,EAAE,WAAW,GAAG,EAAE,EAAE,OAAO,GAAG,EAAE,EAAE,GAAG,OAAO,CAAC;IAEnE,sCAAsC;IACtC,MAAM,gBAAgB,GAAe;QACnC;YACE,OAAO,EAAE,8BAAa;YACtB,QAAQ,EAAE,+BAAiB;SAC5B;KACF,CAAC;IAEF,OAAO,cAAI,CAAC,mBAAmB,CAAC;QAC9B,OAAO;QACP,WAAW;QACX,SAAS,EAAE,CAAC,GAAG,gBAAgB,EAAE,GAAG,SAAS,CAAC;KAC/C,CAAC,CAAC,OAAO,EAAE,CAAC;AACf,CAAC;AAED;;;;;;GAMG;AACI,KAAK,UAAU,0BAA0B,CAC9C,YAAqB,EACrB,sBAAkC,EAAE;IAEpC,OAAO,4BAA4B,CAAC;QAClC,SAAS,EAAE;YACT,YAAY;YACZ,GAAG,mBAAmB;SACvB;KACF,CAAC,CAAC;AACL,CAAC;AAED;;;;;;;GAOG;AACI,KAAK,UAAU,6BAA6B,CAIjD,eAAkB,EAClB,YAAe,EACf,sBAAkC,EAAE;IAEpC,OAAO,4BAA4B,CAAC;QAClC,WAAW,EAAE,CAAC,eAAe,CAAC;QAC9B,SAAS,EAAE;YACT,YAAY;YACZ,GAAG,mBAAmB;SACvB;KACF,CAAC,CAAC;AACL,CAAC;AAED;;;;;GAKG;AACI,KAAK,UAAU,+BAA+B,CACnD,QAAyB;IAEzB,OAAO,4BAA4B,CAAC;QAClC,SAAS,EAAE,QAAQ;KACpB,CAAC,CAAC;AACL,CAAC;AAED;;;;;;GAMG;AACH,SAAgB,UAAU,CAAI,MAAqB,EAAE,YAAqB;IACxE,OAAO,MAAM,CAAC,GAAG,CAAI,YAAY,CAAC,CAAC;AACrC,CAAC;AAED;;;;;GAKG;AACH,SAAgB,0BAA0B;IACxC,OAAO,cAAI,CAAC,mBAAmB,CAAC;QAC9B,SAAS,EAAE;YACT;gBACE,OAAO,EAAE,8BAAa;gBACtB,QAAQ,EAAE,+BAAiB;aAC5B;SACF;KACF,CAAC,CAAC;AACL,CAAC;AAED;;GAEG;AACI,MAAM,WAAW,GAAG,CAAI,IAAO,EAAc,EAAE,CACpD,OAAO,CAAC,OAAO,CAAC,IAAI,CAAC,CAAC;AADX,QAAA,WAAW,eACA;AAExB;;GAEG;AACI,MAAM,SAAS,GAAG,CAAkB,KAAQ,EAAkB,EAAE,CACrE,OAAO,CAAC,MAAM,CAAC,KAAK,CAAC,CAAC;AADX,QAAA,SAAS,aACE",
+      names: [],
+      sources: ["C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\test\\utils\\test-module.util.ts"],
+      sourcesContent: ["/**\r\n * Test Module Utility\r\n * NearZro Event Management Platform\r\n * \r\n * Helper functions for creating NestJS testing modules with mocked dependencies.\r\n */\r\n\r\nimport { TestingModule, Test } from '@nestjs/testing';\r\nimport { DynamicModule, Provider, Type } from '@nestjs/common';\r\nimport { PrismaService } from '../../src/prisma/prisma.service';\r\nimport { mockPrismaService } from '../mocks/prisma.mock';\r\n\r\n/**\r\n * Options for creating a testing module\r\n */\r\nexport interface CreateTestingModuleOptions {\r\n  providers?: Provider[];\r\n  controllers?: Type<unknown>[];\r\n  imports?: DynamicModule[];\r\n  globalPrefix?: string;\r\n}\r\n\r\n/**\r\n * Creates a NestJS testing module with common mocks pre-configured\r\n * \r\n * @param options - Module configuration options\r\n * @returns Promise<TestingModule>\r\n */\r\nexport async function createTestingModuleWithMocks(\r\n  options: CreateTestingModuleOptions = {},\r\n): Promise<TestingModule> {\r\n  const { providers = [], controllers = [], imports = [] } = options;\r\n\r\n  // Always include mocked PrismaService\r\n  const defaultProviders: Provider[] = [\r\n    {\r\n      provide: PrismaService,\r\n      useValue: mockPrismaService,\r\n    },\r\n  ];\r\n\r\n  return Test.createTestingModule({\r\n    imports,\r\n    controllers,\r\n    providers: [...defaultProviders, ...providers],\r\n  }).compile();\r\n}\r\n\r\n/**\r\n * Creates a testing module for a specific service\r\n * \r\n * @param serviceClass - The service class to test\r\n * @param additionalProviders - Additional providers to include\r\n * @returns Promise<TestingModule>\r\n */\r\nexport async function createServiceTestingModule<T>(\r\n  serviceClass: Type<T>,\r\n  additionalProviders: Provider[] = [],\r\n): Promise<TestingModule> {\r\n  return createTestingModuleWithMocks({\r\n    providers: [\r\n      serviceClass,\r\n      ...additionalProviders,\r\n    ],\r\n  });\r\n}\r\n\r\n/**\r\n * Creates a testing module with controller\r\n * \r\n * @param controllerClass - The controller class to test\r\n * @param serviceClass - The service class used by the controller\r\n * @param additionalProviders - Additional providers\r\n * @returns Promise<TestingModule>\r\n */\r\nexport async function createControllerTestingModule<\r\n  C extends Type<unknown>,\r\n  S extends Type<unknown>,\r\n>(\r\n  controllerClass: C,\r\n  serviceClass: S,\r\n  additionalProviders: Provider[] = [],\r\n): Promise<TestingModule> {\r\n  return createTestingModuleWithMocks({\r\n    controllers: [controllerClass],\r\n    providers: [\r\n      serviceClass,\r\n      ...additionalProviders,\r\n    ],\r\n  });\r\n}\r\n\r\n/**\r\n * Creates a testing module with multiple services\r\n * \r\n * @param services - Array of service classes\r\n * @returns Promise<TestingModule>\r\n */\r\nexport async function createMultiServiceTestingModule(\r\n  services: Type<unknown>[],\r\n): Promise<TestingModule> {\r\n  return createTestingModuleWithMocks({\r\n    providers: services,\r\n  });\r\n}\r\n\r\n/**\r\n * Gets a service from the testing module\r\n * \r\n * @param module - The testing module\r\n * @param serviceClass - The service class to retrieve\r\n * @returns T - The service instance\r\n */\r\nexport function getService<T>(module: TestingModule, serviceClass: Type<T>): T {\r\n  return module.get<T>(serviceClass);\r\n}\r\n\r\n/**\r\n * Creates and returns a module with mocked PrismaService\r\n * that can be used to set up mock implementations before compiling\r\n * \r\n * @returns TestingModuleBuilder\r\n */\r\nexport function createTestingModuleBuilder() {\r\n  return Test.createTestingModule({\r\n    providers: [\r\n      {\r\n        provide: PrismaService,\r\n        useValue: mockPrismaService,\r\n      },\r\n    ],\r\n  });\r\n}\r\n\r\n/**\r\n * Helper to mock a service method that returns a promise\r\n */\r\nexport const mockPromise = <T>(data: T): Promise<T> => \r\n  Promise.resolve(data);\r\n\r\n/**\r\n * Helper to mock a service method that throws an error\r\n */\r\nexport const mockError = <E extends Error>(error: E): Promise<never> => \r\n  Promise.reject(error);\r\n"],
+      version: 3
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "dd576ed502395da38e84fe2eeadb6208f70662ef"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_gz2c3zvfu = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_gz2c3zvfu();
+cov_gz2c3zvfu().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_gz2c3zvfu().s[1]++;
+exports.mockError = exports.mockPromise = void 0;
+/* istanbul ignore next */
+cov_gz2c3zvfu().s[2]++;
+exports.createTestingModuleWithMocks = createTestingModuleWithMocks;
+/* istanbul ignore next */
+cov_gz2c3zvfu().s[3]++;
+exports.createServiceTestingModule = createServiceTestingModule;
+/* istanbul ignore next */
+cov_gz2c3zvfu().s[4]++;
+exports.createControllerTestingModule = createControllerTestingModule;
+/* istanbul ignore next */
+cov_gz2c3zvfu().s[5]++;
+exports.createMultiServiceTestingModule = createMultiServiceTestingModule;
+/* istanbul ignore next */
+cov_gz2c3zvfu().s[6]++;
+exports.getService = getService;
+/* istanbul ignore next */
+cov_gz2c3zvfu().s[7]++;
+exports.createTestingModuleBuilder = createTestingModuleBuilder;
+const testing_1 =
+/* istanbul ignore next */
+(cov_gz2c3zvfu().s[8]++, require("@nestjs/testing"));
+const prisma_service_1 =
+/* istanbul ignore next */
+(cov_gz2c3zvfu().s[9]++, require("../../src/prisma/prisma.service"));
+const prisma_mock_1 =
+/* istanbul ignore next */
+(cov_gz2c3zvfu().s[10]++, require("../mocks/prisma.mock"));
+/**
+ * Creates a NestJS testing module with common mocks pre-configured
+ *
+ * @param options - Module configuration options
+ * @returns Promise<TestingModule>
+ */
+async function createTestingModuleWithMocks(options =
+/* istanbul ignore next */
+(cov_gz2c3zvfu().b[0][0]++, {})) {
+  /* istanbul ignore next */
+  cov_gz2c3zvfu().f[0]++;
+  const {
+    providers =
+    /* istanbul ignore next */
+    (cov_gz2c3zvfu().b[1][0]++, []),
+    controllers =
+    /* istanbul ignore next */
+    (cov_gz2c3zvfu().b[2][0]++, []),
+    imports =
+    /* istanbul ignore next */
+    (cov_gz2c3zvfu().b[3][0]++, [])
+  } =
+  /* istanbul ignore next */
+  (cov_gz2c3zvfu().s[11]++, options);
+  // Always include mocked PrismaService
+  const defaultProviders =
+  /* istanbul ignore next */
+  (cov_gz2c3zvfu().s[12]++, [{
+    provide: prisma_service_1.PrismaService,
+    useValue: prisma_mock_1.mockPrismaService
+  }]);
+  /* istanbul ignore next */
+  cov_gz2c3zvfu().s[13]++;
+  return testing_1.Test.createTestingModule({
+    imports,
+    controllers,
+    providers: [...defaultProviders, ...providers]
+  }).compile();
+}
+/**
+ * Creates a testing module for a specific service
+ *
+ * @param serviceClass - The service class to test
+ * @param additionalProviders - Additional providers to include
+ * @returns Promise<TestingModule>
+ */
+async function createServiceTestingModule(serviceClass, additionalProviders =
+/* istanbul ignore next */
+(cov_gz2c3zvfu().b[4][0]++, [])) {
+  /* istanbul ignore next */
+  cov_gz2c3zvfu().f[1]++;
+  cov_gz2c3zvfu().s[14]++;
+  return createTestingModuleWithMocks({
+    providers: [serviceClass, ...additionalProviders]
+  });
+}
+/**
+ * Creates a testing module with controller
+ *
+ * @param controllerClass - The controller class to test
+ * @param serviceClass - The service class used by the controller
+ * @param additionalProviders - Additional providers
+ * @returns Promise<TestingModule>
+ */
+async function createControllerTestingModule(controllerClass, serviceClass, additionalProviders =
+/* istanbul ignore next */
+(cov_gz2c3zvfu().b[5][0]++, [])) {
+  /* istanbul ignore next */
+  cov_gz2c3zvfu().f[2]++;
+  cov_gz2c3zvfu().s[15]++;
+  return createTestingModuleWithMocks({
+    controllers: [controllerClass],
+    providers: [serviceClass, ...additionalProviders]
+  });
+}
+/**
+ * Creates a testing module with multiple services
+ *
+ * @param services - Array of service classes
+ * @returns Promise<TestingModule>
+ */
+async function createMultiServiceTestingModule(services) {
+  /* istanbul ignore next */
+  cov_gz2c3zvfu().f[3]++;
+  cov_gz2c3zvfu().s[16]++;
+  return createTestingModuleWithMocks({
+    providers: services
+  });
+}
+/**
+ * Gets a service from the testing module
+ *
+ * @param module - The testing module
+ * @param serviceClass - The service class to retrieve
+ * @returns T - The service instance
+ */
+function getService(module, serviceClass) {
+  /* istanbul ignore next */
+  cov_gz2c3zvfu().f[4]++;
+  cov_gz2c3zvfu().s[17]++;
+  return module.get(serviceClass);
+}
+/**
+ * Creates and returns a module with mocked PrismaService
+ * that can be used to set up mock implementations before compiling
+ *
+ * @returns TestingModuleBuilder
+ */
+function createTestingModuleBuilder() {
+  /* istanbul ignore next */
+  cov_gz2c3zvfu().f[5]++;
+  cov_gz2c3zvfu().s[18]++;
+  return testing_1.Test.createTestingModule({
+    providers: [{
+      provide: prisma_service_1.PrismaService,
+      useValue: prisma_mock_1.mockPrismaService
+    }]
+  });
+}
+/**
+ * Helper to mock a service method that returns a promise
+ */
+/* istanbul ignore next */
+cov_gz2c3zvfu().s[19]++;
+const mockPromise = data => {
+  /* istanbul ignore next */
+  cov_gz2c3zvfu().f[6]++;
+  cov_gz2c3zvfu().s[20]++;
+  return Promise.resolve(data);
+};
+/* istanbul ignore next */
+cov_gz2c3zvfu().s[21]++;
+exports.mockPromise = mockPromise;
+/**
+ * Helper to mock a service method that throws an error
+ */
+/* istanbul ignore next */
+cov_gz2c3zvfu().s[22]++;
+const mockError = error => {
+  /* istanbul ignore next */
+  cov_gz2c3zvfu().f[7]++;
+  cov_gz2c3zvfu().s[23]++;
+  return Promise.reject(error);
+};
+/* istanbul ignore next */
+cov_gz2c3zvfu().s[24]++;
+exports.mockError = mockError;
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJjb3ZfZ3oyYzN6dmZ1IiwicGF0aCIsImhhc2giLCJnbG9iYWwiLCJGdW5jdGlvbiIsImdjdiIsImNvdmVyYWdlRGF0YSIsInN0YXRlbWVudE1hcCIsInN0YXJ0IiwibGluZSIsImNvbHVtbiIsImVuZCIsImZuTWFwIiwibmFtZSIsImRlY2wiLCJsb2MiLCJicmFuY2hNYXAiLCJ0eXBlIiwibG9jYXRpb25zIiwicyIsImYiLCJiIiwiaW5wdXRTb3VyY2VNYXAiLCJmaWxlIiwibWFwcGluZ3MiLCJuYW1lcyIsInNvdXJjZXMiLCJzb3VyY2VzQ29udGVudCIsInZlcnNpb24iLCJfY292ZXJhZ2VTY2hlbWEiLCJjb3ZlcmFnZSIsImFjdHVhbENvdmVyYWdlIiwiZXhwb3J0cyIsImNyZWF0ZVRlc3RpbmdNb2R1bGVXaXRoTW9ja3MiLCJjcmVhdGVTZXJ2aWNlVGVzdGluZ01vZHVsZSIsImNyZWF0ZUNvbnRyb2xsZXJUZXN0aW5nTW9kdWxlIiwiY3JlYXRlTXVsdGlTZXJ2aWNlVGVzdGluZ01vZHVsZSIsImdldFNlcnZpY2UiLCJjcmVhdGVUZXN0aW5nTW9kdWxlQnVpbGRlciIsInRlc3RpbmdfMSIsInJlcXVpcmUiLCJwcmlzbWFfc2VydmljZV8xIiwicHJpc21hX21vY2tfMSIsIm9wdGlvbnMiLCJwcm92aWRlcnMiLCJjb250cm9sbGVycyIsImltcG9ydHMiLCJkZWZhdWx0UHJvdmlkZXJzIiwicHJvdmlkZSIsIlByaXNtYVNlcnZpY2UiLCJ1c2VWYWx1ZSIsIm1vY2tQcmlzbWFTZXJ2aWNlIiwiVGVzdCIsImNyZWF0ZVRlc3RpbmdNb2R1bGUiLCJjb21waWxlIiwic2VydmljZUNsYXNzIiwiYWRkaXRpb25hbFByb3ZpZGVycyIsImNvbnRyb2xsZXJDbGFzcyIsInNlcnZpY2VzIiwibW9kdWxlIiwiZ2V0IiwibW9ja1Byb21pc2UiLCJkYXRhIiwiUHJvbWlzZSIsInJlc29sdmUiLCJtb2NrRXJyb3IiLCJlcnJvciIsInJlamVjdCJdLCJzb3VyY2VzIjpbIkM6XFxVc2Vyc1xcSGVtYWNoYW5kaXJhblxcSW50ZXJuc2hpcFxcTmVhcnpyb1xcbmVhcnpyby1iYWNrZW5kXFx0ZXN0XFx1dGlsc1xcdGVzdC1tb2R1bGUudXRpbC50cyJdLCJzb3VyY2VzQ29udGVudCI6WyIvKipcclxuICogVGVzdCBNb2R1bGUgVXRpbGl0eVxyXG4gKiBOZWFyWnJvIEV2ZW50IE1hbmFnZW1lbnQgUGxhdGZvcm1cclxuICogXHJcbiAqIEhlbHBlciBmdW5jdGlvbnMgZm9yIGNyZWF0aW5nIE5lc3RKUyB0ZXN0aW5nIG1vZHVsZXMgd2l0aCBtb2NrZWQgZGVwZW5kZW5jaWVzLlxyXG4gKi9cclxuXHJcbmltcG9ydCB7IFRlc3RpbmdNb2R1bGUsIFRlc3QgfSBmcm9tICdAbmVzdGpzL3Rlc3RpbmcnO1xyXG5pbXBvcnQgeyBEeW5hbWljTW9kdWxlLCBQcm92aWRlciwgVHlwZSB9IGZyb20gJ0BuZXN0anMvY29tbW9uJztcclxuaW1wb3J0IHsgUHJpc21hU2VydmljZSB9IGZyb20gJy4uLy4uL3NyYy9wcmlzbWEvcHJpc21hLnNlcnZpY2UnO1xyXG5pbXBvcnQgeyBtb2NrUHJpc21hU2VydmljZSB9IGZyb20gJy4uL21vY2tzL3ByaXNtYS5tb2NrJztcclxuXHJcbi8qKlxyXG4gKiBPcHRpb25zIGZvciBjcmVhdGluZyBhIHRlc3RpbmcgbW9kdWxlXHJcbiAqL1xyXG5leHBvcnQgaW50ZXJmYWNlIENyZWF0ZVRlc3RpbmdNb2R1bGVPcHRpb25zIHtcclxuICBwcm92aWRlcnM/OiBQcm92aWRlcltdO1xyXG4gIGNvbnRyb2xsZXJzPzogVHlwZTx1bmtub3duPltdO1xyXG4gIGltcG9ydHM/OiBEeW5hbWljTW9kdWxlW107XHJcbiAgZ2xvYmFsUHJlZml4Pzogc3RyaW5nO1xyXG59XHJcblxyXG4vKipcclxuICogQ3JlYXRlcyBhIE5lc3RKUyB0ZXN0aW5nIG1vZHVsZSB3aXRoIGNvbW1vbiBtb2NrcyBwcmUtY29uZmlndXJlZFxyXG4gKiBcclxuICogQHBhcmFtIG9wdGlvbnMgLSBNb2R1bGUgY29uZmlndXJhdGlvbiBvcHRpb25zXHJcbiAqIEByZXR1cm5zIFByb21pc2U8VGVzdGluZ01vZHVsZT5cclxuICovXHJcbmV4cG9ydCBhc3luYyBmdW5jdGlvbiBjcmVhdGVUZXN0aW5nTW9kdWxlV2l0aE1vY2tzKFxyXG4gIG9wdGlvbnM6IENyZWF0ZVRlc3RpbmdNb2R1bGVPcHRpb25zID0ge30sXHJcbik6IFByb21pc2U8VGVzdGluZ01vZHVsZT4ge1xyXG4gIGNvbnN0IHsgcHJvdmlkZXJzID0gW10sIGNvbnRyb2xsZXJzID0gW10sIGltcG9ydHMgPSBbXSB9ID0gb3B0aW9ucztcclxuXHJcbiAgLy8gQWx3YXlzIGluY2x1ZGUgbW9ja2VkIFByaXNtYVNlcnZpY2VcclxuICBjb25zdCBkZWZhdWx0UHJvdmlkZXJzOiBQcm92aWRlcltdID0gW1xyXG4gICAge1xyXG4gICAgICBwcm92aWRlOiBQcmlzbWFTZXJ2aWNlLFxyXG4gICAgICB1c2VWYWx1ZTogbW9ja1ByaXNtYVNlcnZpY2UsXHJcbiAgICB9LFxyXG4gIF07XHJcblxyXG4gIHJldHVybiBUZXN0LmNyZWF0ZVRlc3RpbmdNb2R1bGUoe1xyXG4gICAgaW1wb3J0cyxcclxuICAgIGNvbnRyb2xsZXJzLFxyXG4gICAgcHJvdmlkZXJzOiBbLi4uZGVmYXVsdFByb3ZpZGVycywgLi4ucHJvdmlkZXJzXSxcclxuICB9KS5jb21waWxlKCk7XHJcbn1cclxuXHJcbi8qKlxyXG4gKiBDcmVhdGVzIGEgdGVzdGluZyBtb2R1bGUgZm9yIGEgc3BlY2lmaWMgc2VydmljZVxyXG4gKiBcclxuICogQHBhcmFtIHNlcnZpY2VDbGFzcyAtIFRoZSBzZXJ2aWNlIGNsYXNzIHRvIHRlc3RcclxuICogQHBhcmFtIGFkZGl0aW9uYWxQcm92aWRlcnMgLSBBZGRpdGlvbmFsIHByb3ZpZGVycyB0byBpbmNsdWRlXHJcbiAqIEByZXR1cm5zIFByb21pc2U8VGVzdGluZ01vZHVsZT5cclxuICovXHJcbmV4cG9ydCBhc3luYyBmdW5jdGlvbiBjcmVhdGVTZXJ2aWNlVGVzdGluZ01vZHVsZTxUPihcclxuICBzZXJ2aWNlQ2xhc3M6IFR5cGU8VD4sXHJcbiAgYWRkaXRpb25hbFByb3ZpZGVyczogUHJvdmlkZXJbXSA9IFtdLFxyXG4pOiBQcm9taXNlPFRlc3RpbmdNb2R1bGU+IHtcclxuICByZXR1cm4gY3JlYXRlVGVzdGluZ01vZHVsZVdpdGhNb2Nrcyh7XHJcbiAgICBwcm92aWRlcnM6IFtcclxuICAgICAgc2VydmljZUNsYXNzLFxyXG4gICAgICAuLi5hZGRpdGlvbmFsUHJvdmlkZXJzLFxyXG4gICAgXSxcclxuICB9KTtcclxufVxyXG5cclxuLyoqXHJcbiAqIENyZWF0ZXMgYSB0ZXN0aW5nIG1vZHVsZSB3aXRoIGNvbnRyb2xsZXJcclxuICogXHJcbiAqIEBwYXJhbSBjb250cm9sbGVyQ2xhc3MgLSBUaGUgY29udHJvbGxlciBjbGFzcyB0byB0ZXN0XHJcbiAqIEBwYXJhbSBzZXJ2aWNlQ2xhc3MgLSBUaGUgc2VydmljZSBjbGFzcyB1c2VkIGJ5IHRoZSBjb250cm9sbGVyXHJcbiAqIEBwYXJhbSBhZGRpdGlvbmFsUHJvdmlkZXJzIC0gQWRkaXRpb25hbCBwcm92aWRlcnNcclxuICogQHJldHVybnMgUHJvbWlzZTxUZXN0aW5nTW9kdWxlPlxyXG4gKi9cclxuZXhwb3J0IGFzeW5jIGZ1bmN0aW9uIGNyZWF0ZUNvbnRyb2xsZXJUZXN0aW5nTW9kdWxlPFxyXG4gIEMgZXh0ZW5kcyBUeXBlPHVua25vd24+LFxyXG4gIFMgZXh0ZW5kcyBUeXBlPHVua25vd24+LFxyXG4+KFxyXG4gIGNvbnRyb2xsZXJDbGFzczogQyxcclxuICBzZXJ2aWNlQ2xhc3M6IFMsXHJcbiAgYWRkaXRpb25hbFByb3ZpZGVyczogUHJvdmlkZXJbXSA9IFtdLFxyXG4pOiBQcm9taXNlPFRlc3RpbmdNb2R1bGU+IHtcclxuICByZXR1cm4gY3JlYXRlVGVzdGluZ01vZHVsZVdpdGhNb2Nrcyh7XHJcbiAgICBjb250cm9sbGVyczogW2NvbnRyb2xsZXJDbGFzc10sXHJcbiAgICBwcm92aWRlcnM6IFtcclxuICAgICAgc2VydmljZUNsYXNzLFxyXG4gICAgICAuLi5hZGRpdGlvbmFsUHJvdmlkZXJzLFxyXG4gICAgXSxcclxuICB9KTtcclxufVxyXG5cclxuLyoqXHJcbiAqIENyZWF0ZXMgYSB0ZXN0aW5nIG1vZHVsZSB3aXRoIG11bHRpcGxlIHNlcnZpY2VzXHJcbiAqIFxyXG4gKiBAcGFyYW0gc2VydmljZXMgLSBBcnJheSBvZiBzZXJ2aWNlIGNsYXNzZXNcclxuICogQHJldHVybnMgUHJvbWlzZTxUZXN0aW5nTW9kdWxlPlxyXG4gKi9cclxuZXhwb3J0IGFzeW5jIGZ1bmN0aW9uIGNyZWF0ZU11bHRpU2VydmljZVRlc3RpbmdNb2R1bGUoXHJcbiAgc2VydmljZXM6IFR5cGU8dW5rbm93bj5bXSxcclxuKTogUHJvbWlzZTxUZXN0aW5nTW9kdWxlPiB7XHJcbiAgcmV0dXJuIGNyZWF0ZVRlc3RpbmdNb2R1bGVXaXRoTW9ja3Moe1xyXG4gICAgcHJvdmlkZXJzOiBzZXJ2aWNlcyxcclxuICB9KTtcclxufVxyXG5cclxuLyoqXHJcbiAqIEdldHMgYSBzZXJ2aWNlIGZyb20gdGhlIHRlc3RpbmcgbW9kdWxlXHJcbiAqIFxyXG4gKiBAcGFyYW0gbW9kdWxlIC0gVGhlIHRlc3RpbmcgbW9kdWxlXHJcbiAqIEBwYXJhbSBzZXJ2aWNlQ2xhc3MgLSBUaGUgc2VydmljZSBjbGFzcyB0byByZXRyaWV2ZVxyXG4gKiBAcmV0dXJucyBUIC0gVGhlIHNlcnZpY2UgaW5zdGFuY2VcclxuICovXHJcbmV4cG9ydCBmdW5jdGlvbiBnZXRTZXJ2aWNlPFQ+KG1vZHVsZTogVGVzdGluZ01vZHVsZSwgc2VydmljZUNsYXNzOiBUeXBlPFQ+KTogVCB7XHJcbiAgcmV0dXJuIG1vZHVsZS5nZXQ8VD4oc2VydmljZUNsYXNzKTtcclxufVxyXG5cclxuLyoqXHJcbiAqIENyZWF0ZXMgYW5kIHJldHVybnMgYSBtb2R1bGUgd2l0aCBtb2NrZWQgUHJpc21hU2VydmljZVxyXG4gKiB0aGF0IGNhbiBiZSB1c2VkIHRvIHNldCB1cCBtb2NrIGltcGxlbWVudGF0aW9ucyBiZWZvcmUgY29tcGlsaW5nXHJcbiAqIFxyXG4gKiBAcmV0dXJucyBUZXN0aW5nTW9kdWxlQnVpbGRlclxyXG4gKi9cclxuZXhwb3J0IGZ1bmN0aW9uIGNyZWF0ZVRlc3RpbmdNb2R1bGVCdWlsZGVyKCkge1xyXG4gIHJldHVybiBUZXN0LmNyZWF0ZVRlc3RpbmdNb2R1bGUoe1xyXG4gICAgcHJvdmlkZXJzOiBbXHJcbiAgICAgIHtcclxuICAgICAgICBwcm92aWRlOiBQcmlzbWFTZXJ2aWNlLFxyXG4gICAgICAgIHVzZVZhbHVlOiBtb2NrUHJpc21hU2VydmljZSxcclxuICAgICAgfSxcclxuICAgIF0sXHJcbiAgfSk7XHJcbn1cclxuXHJcbi8qKlxyXG4gKiBIZWxwZXIgdG8gbW9jayBhIHNlcnZpY2UgbWV0aG9kIHRoYXQgcmV0dXJucyBhIHByb21pc2VcclxuICovXHJcbmV4cG9ydCBjb25zdCBtb2NrUHJvbWlzZSA9IDxUPihkYXRhOiBUKTogUHJvbWlzZTxUPiA9PiBcclxuICBQcm9taXNlLnJlc29sdmUoZGF0YSk7XHJcblxyXG4vKipcclxuICogSGVscGVyIHRvIG1vY2sgYSBzZXJ2aWNlIG1ldGhvZCB0aGF0IHRocm93cyBhbiBlcnJvclxyXG4gKi9cclxuZXhwb3J0IGNvbnN0IG1vY2tFcnJvciA9IDxFIGV4dGVuZHMgRXJyb3I+KGVycm9yOiBFKTogUHJvbWlzZTxuZXZlcj4gPT4gXHJcbiAgUHJvbWlzZS5yZWplY3QoZXJyb3IpO1xyXG4iXSwibWFwcGluZ3MiOiI7O0FBQUE7Ozs7OztBQUFBO0FBQUEsU0FBQUEsY0FBQTtFQUFBLElBQUFDLElBQUE7RUFBQSxJQUFBQyxJQUFBO0VBQUEsSUFBQUMsTUFBQSxPQUFBQyxRQUFBO0VBQUEsSUFBQUMsR0FBQTtFQUFBLElBQUFDLFlBQUE7SUFBQUwsSUFBQTtJQUFBTSxZQUFBO01BQUE7UUFBQUMsS0FBQTtVQUFBQyxJQUFBO1VBQUFDLE1BQUE7UUFBQTtRQUFBQyxHQUFBO1VBQUFGLElBQUE7VUFBQUMsTUFBQTtRQUFBO01BQUE7TUFBQTtRQUFBRixLQUFBO1VBQUFDLElBQUE7VUFBQUMsTUFBQTtRQUFBO1FBQUFDLEdBQUE7VUFBQUYsSUFBQTtVQUFBQyxNQUFBO1FBQUE7TUFBQTtNQUFBO1FBQUFGLEtBQUE7VUFBQUMsSUFBQTtVQUFBQyxNQUFBO1FBQUE7UUFBQUMsR0FBQTtVQUFBRixJQUFBO1VBQUFDLE1BQUE7UUFBQTtNQUFBO01BQUE7UUFBQUYsS0FBQTtVQUFBQyxJQUFBO1VBQUFDLE1BQUE7UUFBQTtRQUFBQyxHQUFBO1VBQUFGLElBQUE7VUFBQUMsTUFBQTtRQUFBO01BQUE7TUFBQTtRQUFBRixLQUFBO1VBQUFDLElBQUE7VUFBQUMsTUFBQTtRQUFBO1FBQUFDLEdBQUE7VUFBQUYsSUFBQTtVQUFBQyxNQUFBO1FBQUE7TUFBQTtNQUFBO1FBQUFGLEtBQUE7VUFBQUMsSUFBQTtVQUFBQyxNQUFBO1FBQUE7UUFBQUMsR0FBQTtVQUFBRixJQUFBO1VBQUFDLE1BQUE7UUFBQTtNQUFBO01BQUE7UUFBQUYsS0FBQTtVQUFBQyxJQUFBO1VBQUFDLE1BQUE7UUFBQTtRQUFBQyxHQUFBO1VBQUFGLElBQUE7VUFBQUMsTUFBQTtRQUFBO01BQUE7TUFBQTtRQUFBRixLQUFBO1VBQUFDLElBQUE7VUFBQUMsTUFBQTtRQUFBO1FBQUFDLEdBQUE7VUFBQUYsSUFBQTtVQUFBQyxNQUFBO1FBQUE7TUFBQTtNQUFBO1FBQUFGLEtBQUE7VUFBQUMsSUFBQTtVQUFBQyxNQUFBO1FBQUE7UUFBQUMsR0FBQTtVQUFBRixJQUFBO1VBQUFDLE1BQUE7UUFBQTtNQUFBO01BQUE7UUFBQUYsS0FBQTtVQUFBQyxJQUFBO1VBQUFDLE1BQUE7UUFBQTtRQUFBQyxHQUFBO1VBQUFGLElBQUE7VUFBQUMsTUFBQTtRQUFBO01BQUE7TUFBQTtRQUFBRixLQUFBO1VBQUFDLElBQUE7VUFBQUMsTUFBQTtRQUFBO1FBQUFDLEdBQUE7VUFBQUYsSUFBQTtVQUFBQyxNQUFBO1FBQUE7TUFBQTtNQUFBO1FBQUFGLEtBQUE7VUFBQUMsSUFBQTtVQUFBQyxNQUFBO1FBQUE7UUFBQUMsR0FBQTtVQUFBRixJQUFBO1VBQUFDLE1BQUE7UUFBQTtNQUFBO01BQUE7UUFBQUYsS0FBQTtVQUFBQyxJQUFBO1VBQUFDLE1BQUE7UUFBQTtRQUFBQyxHQUFBO1VBQUFGLElBQUE7VUFBQUMsTUFBQTtRQUFBO01BQUE7TUFBQTtRQUFBRixLQUFBO1VBQUFDLElBQUE7VUFBQUMsTUFBQTtRQUFBO1FBQUFDLEdBQUE7VUFBQUYsSUFBQTtVQUFBQyxNQUFBO1FBQUE7TUFBQTtNQUFBO1FBQUFGLEtBQUE7VUFBQUMsSUFBQTtVQUFBQyxNQUFBO1FBQUE7UUFBQUMsR0FBQTtVQUFBRixJQUFBO1VBQUFDLE1BQUE7UUFBQTtNQUFBO01BQUE7UUFBQUYsS0FBQTtVQUFBQyxJQUFBO1VBQUFDLE1BQUE7UUFBQTtRQUFBQyxHQUFBO1VBQUFGLElBQUE7VUFBQUMsTUFBQTtRQUFBO01BQUE7TUFBQTtRQUFBRixLQUFBO1VBQUFDLElBQUE7VUFBQUMsTUFBQTtRQUFBO1FBQUFDLEdBQUE7VUFBQUYsSUFBQTtVQUFBQyxNQUFBO1FBQUE7TUFBQTtNQUFBO1FBQUFGLEtBQUE7VUFBQUMsSUFBQTtVQUFBQyxNQUFBO1FBQUE7UUFBQUMsR0FBQTtVQUFBRixJQUFBO1VBQUFDLE1BQUE7UUFBQTtNQUFBO01BQUE7UUFBQUYsS0FBQTtVQUFBQyxJQUFBO1VBQUFDLE1BQUE7UUFBQTtRQUFBQyxHQUFBO1VBQUFGLElBQUE7VUFBQUMsTUFBQTtRQUFBO01BQUE7TUFBQTtRQUFBRixLQUFBO1VBQUFDLElBQUE7VUFBQUMsTUFBQTtRQUFBO1FBQUFDLEdBQUE7VUFBQUYsSUFBQTtVQUFBQyxNQUFBO1FBQUE7TUFBQTtNQUFBO1FBQUFGLEtBQUE7VUFBQUMsSUFBQTtVQUFBQyxNQUFBO1FBQUE7UUFBQUMsR0FBQTtVQUFBRixJQUFBO1VBQUFDLE1BQUE7UUFBQTtNQUFBO01BQUE7UUFBQUYsS0FBQTtVQUFBQyxJQUFBO1VBQUFDLE1BQUE7UUFBQTtRQUFBQyxHQUFBO1VBQUFGLElBQUE7VUFBQUMsTUFBQTtRQUFBO01BQUE7TUFBQTtRQUFBRixLQUFBO1VBQUFDLElBQUE7VUFBQUMsTUFBQTtRQUFBO1FBQUFDLEdBQUE7VUFBQUYsSUFBQTtVQUFBQyxNQUFBO1FBQUE7TUFBQTtNQUFBO1FBQUFGLEtBQUE7VUFBQUMsSUFBQTtVQUFBQyxNQUFBO1FBQUE7UUFBQUMsR0FBQTtVQUFBRixJQUFBO1VBQUFDLE1BQUE7UUFBQTtNQUFBO01BQUE7UUFBQUYsS0FBQTtVQUFBQyxJQUFBO1VBQUFDLE1BQUE7UUFBQTtRQUFBQyxHQUFBO1VBQUFGLElBQUE7VUFBQUMsTUFBQTtRQUFBO01BQUE7SUFBQTtJQUFBRSxLQUFBO01BQUE7UUFBQUMsSUFBQTtRQUFBQyxJQUFBO1VBQUFOLEtBQUE7WUFBQUMsSUFBQTtZQUFBQyxNQUFBO1VBQUE7VUFBQUMsR0FBQTtZQUFBRixJQUFBO1lBQUFDLE1BQUE7VUFBQTtRQUFBO1FBQUFLLEdBQUE7VUFBQVAsS0FBQTtZQUFBQyxJQUFBO1lBQUFDLE1BQUE7VUFBQTtVQUFBQyxHQUFBO1lBQUFGLElBQUE7WUFBQUMsTUFBQTtVQUFBO1FBQUE7UUFBQUQsSUFBQTtNQUFBO01BQUE7UUFBQUksSUFBQTtRQUFBQyxJQUFBO1VBQUFOLEtBQUE7WUFBQUMsSUFBQTtZQUFBQyxNQUFBO1VBQUE7VUFBQUMsR0FBQTtZQUFBRixJQUFBO1lBQUFDLE1BQUE7VUFBQTtRQUFBO1FBQUFLLEdBQUE7VUFBQVAsS0FBQTtZQUFBQyxJQUFBO1lBQUFDLE1BQUE7VUFBQTtVQUFBQyxHQUFBO1lBQUFGLElBQUE7WUFBQUMsTUFBQTtVQUFBO1FBQUE7UUFBQUQsSUFBQTtNQUFBO01BQUE7UUFBQUksSUFBQTtRQUFBQyxJQUFBO1VBQUFOLEtBQUE7WUFBQUMsSUFBQTtZQUFBQyxNQUFBO1VBQUE7VUFBQUMsR0FBQTtZQUFBRixJQUFBO1lBQUFDLE1BQUE7VUFBQTtRQUFBO1FBQUFLLEdBQUE7VUFBQVAsS0FBQTtZQUFBQyxJQUFBO1lBQUFDLE1BQUE7VUFBQTtVQUFBQyxHQUFBO1lBQUFGLElBQUE7WUFBQUMsTUFBQTtVQUFBO1FBQUE7UUFBQUQsSUFBQTtNQUFBO01BQUE7UUFBQUksSUFBQTtRQUFBQyxJQUFBO1VBQUFOLEtBQUE7WUFBQUMsSUFBQTtZQUFBQyxNQUFBO1VBQUE7VUFBQUMsR0FBQTtZQUFBRixJQUFBO1lBQUFDLE1BQUE7VUFBQTtRQUFBO1FBQUFLLEdBQUE7VUFBQVAsS0FBQTtZQUFBQyxJQUFBO1lBQUFDLE1BQUE7VUFBQTtVQUFBQyxHQUFBO1lBQUFGLElBQUE7WUFBQUMsTUFBQTtVQUFBO1FBQUE7UUFBQUQsSUFBQTtNQUFBO01BQUE7UUFBQUksSUFBQTtRQUFBQyxJQUFBO1VBQUFOLEtBQUE7WUFBQUMsSUFBQTtZQUFBQyxNQUFBO1VBQUE7VUFBQUMsR0FBQTtZQUFBRixJQUFBO1lBQUFDLE1BQUE7VUFBQTtRQUFBO1FBQUFLLEdBQUE7VUFBQVAsS0FBQTtZQUFBQyxJQUFBO1lBQUFDLE1BQUE7VUFBQTtVQUFBQyxHQUFBO1lBQUFGLElBQUE7WUFBQUMsTUFBQTtVQUFBO1FBQUE7UUFBQUQsSUFBQTtNQUFBO01BQUE7UUFBQUksSUFBQTtRQUFBQyxJQUFBO1VBQUFOLEtBQUE7WUFBQUMsSUFBQTtZQUFBQyxNQUFBO1VBQUE7VUFBQUMsR0FBQTtZQUFBRixJQUFBO1lBQUFDLE1BQUE7VUFBQTtRQUFBO1FBQUFLLEdBQUE7VUFBQVAsS0FBQTtZQUFBQyxJQUFBO1lBQUFDLE1BQUE7VUFBQTtVQUFBQyxHQUFBO1lBQUFGLElBQUE7WUFBQUMsTUFBQTtVQUFBO1FBQUE7UUFBQUQsSUFBQTtNQUFBO01BQUE7UUFBQUksSUFBQTtRQUFBQyxJQUFBO1VBQUFOLEtBQUE7WUFBQUMsSUFBQTtZQUFBQyxNQUFBO1VBQUE7VUFBQUMsR0FBQTtZQUFBRixJQUFBO1lBQUFDLE1BQUE7VUFBQTtRQUFBO1FBQUFLLEdBQUE7VUFBQVAsS0FBQTtZQUFBQyxJQUFBO1lBQUFDLE1BQUE7VUFBQTtVQUFBQyxHQUFBO1lBQUFGLElBQUE7WUFBQUMsTUFBQTtVQUFBO1FBQUE7UUFBQUQsSUFBQTtNQUFBO01BQUE7UUFBQUksSUFBQTtRQUFBQyxJQUFBO1VBQUFOLEtBQUE7WUFBQUMsSUFBQTtZQUFBQyxNQUFBO1VBQUE7VUFBQUMsR0FBQTtZQUFBRixJQUFBO1lBQUFDLE1BQUE7VUFBQTtRQUFBO1FBQUFLLEdBQUE7VUFBQVAsS0FBQTtZQUFBQyxJQUFBO1lBQUFDLE1BQUE7VUFBQTtVQUFBQyxHQUFBO1lBQUFGLElBQUE7WUFBQUMsTUFBQTtVQUFBO1FBQUE7UUFBQUQsSUFBQTtNQUFBO0lBQUE7SUFBQU8sU0FBQTtNQUFBO1FBQUFELEdBQUE7VUFBQVAsS0FBQTtZQUFBQyxJQUFBO1lBQUFDLE1BQUE7VUFBQTtVQUFBQyxHQUFBO1lBQUFGLElBQUE7WUFBQUMsTUFBQTtVQUFBO1FBQUE7UUFBQU8sSUFBQTtRQUFBQyxTQUFBO1VBQUFWLEtBQUE7WUFBQUMsSUFBQTtZQUFBQyxNQUFBO1VBQUE7VUFBQUMsR0FBQTtZQUFBRixJQUFBO1lBQUFDLE1BQUE7VUFBQTtRQUFBO1FBQUFELElBQUE7TUFBQTtNQUFBO1FBQUFNLEdBQUE7VUFBQVAsS0FBQTtZQUFBQyxJQUFBO1lBQUFDLE1BQUE7VUFBQTtVQUFBQyxHQUFBO1lBQUFGLElBQUE7WUFBQUMsTUFBQTtVQUFBO1FBQUE7UUFBQU8sSUFBQTtRQUFBQyxTQUFBO1VBQUFWLEtBQUE7WUFBQUMsSUFBQTtZQUFBQyxNQUFBO1VBQUE7VUFBQUMsR0FBQTtZQUFBRixJQUFBO1lBQUFDLE1BQUE7VUFBQTtRQUFBO1FBQUFELElBQUE7TUFBQTtNQUFBO1FBQUFNLEdBQUE7VUFBQVAsS0FBQTtZQUFBQyxJQUFBO1lBQUFDLE1BQUE7VUFBQTtVQUFBQyxHQUFBO1lBQUFGLElBQUE7WUFBQUMsTUFBQTtVQUFBO1FBQUE7UUFBQU8sSUFBQTtRQUFBQyxTQUFBO1VBQUFWLEtBQUE7WUFBQUMsSUFBQTtZQUFBQyxNQUFBO1VBQUE7VUFBQUMsR0FBQTtZQUFBRixJQUFBO1lBQUFDLE1BQUE7VUFBQTtRQUFBO1FBQUFELElBQUE7TUFBQTtNQUFBO1FBQUFNLEdBQUE7VUFBQVAsS0FBQTtZQUFBQyxJQUFBO1lBQUFDLE1BQUE7VUFBQTtVQUFBQyxHQUFBO1lBQUFGLElBQUE7WUFBQUMsTUFBQTtVQUFBO1FBQUE7UUFBQU8sSUFBQTtRQUFBQyxTQUFBO1VBQUFWLEtBQUE7WUFBQUMsSUFBQTtZQUFBQyxNQUFBO1VBQUE7VUFBQUMsR0FBQTtZQUFBRixJQUFBO1lBQUFDLE1BQUE7VUFBQTtRQUFBO1FBQUFELElBQUE7TUFBQTtNQUFBO1FBQUFNLEdBQUE7VUFBQVAsS0FBQTtZQUFBQyxJQUFBO1lBQUFDLE1BQUE7VUFBQTtVQUFBQyxHQUFBO1lBQUFGLElBQUE7WUFBQUMsTUFBQTtVQUFBO1FBQUE7UUFBQU8sSUFBQTtRQUFBQyxTQUFBO1VBQUFWLEtBQUE7WUFBQUMsSUFBQTtZQUFBQyxNQUFBO1VBQUE7VUFBQUMsR0FBQTtZQUFBRixJQUFBO1lBQUFDLE1BQUE7VUFBQTtRQUFBO1FBQUFELElBQUE7TUFBQTtNQUFBO1FBQUFNLEdBQUE7VUFBQVAsS0FBQTtZQUFBQyxJQUFBO1lBQUFDLE1BQUE7VUFBQTtVQUFBQyxHQUFBO1lBQUFGLElBQUE7WUFBQUMsTUFBQTtVQUFBO1FBQUE7UUFBQU8sSUFBQTtRQUFBQyxTQUFBO1VBQUFWLEtBQUE7WUFBQUMsSUFBQTtZQUFBQyxNQUFBO1VBQUE7VUFBQUMsR0FBQTtZQUFBRixJQUFBO1lBQUFDLE1BQUE7VUFBQTtRQUFBO1FBQUFELElBQUE7TUFBQTtJQUFBO0lBQUFVLENBQUE7TUFBQTtNQUFBO01BQUE7TUFBQTtNQUFBO01BQUE7TUFBQTtNQUFBO01BQUE7TUFBQTtNQUFBO01BQUE7TUFBQTtNQUFBO01BQUE7TUFBQTtNQUFBO01BQUE7TUFBQTtNQUFBO01BQUE7TUFBQTtNQUFBO01BQUE7TUFBQTtJQUFBO0lBQUFDLENBQUE7TUFBQTtNQUFBO01BQUE7TUFBQTtNQUFBO01BQUE7TUFBQTtNQUFBO0lBQUE7SUFBQUMsQ0FBQTtNQUFBO01BQUE7TUFBQTtNQUFBO01BQUE7TUFBQTtJQUFBO0lBQUFDLGNBQUE7TUFBQUMsSUFB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

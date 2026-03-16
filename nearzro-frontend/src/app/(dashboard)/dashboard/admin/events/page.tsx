@@ -6,11 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  Calendar, DollarSign, CheckCircle2, Clock, Eye, Edit, Trash2,
-  Search, Filter, MapPin, Users, TrendingUp
+  Calendar, CheckCircle2, Clock, Eye, Search, TrendingUp
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
+import { extractArray } from "@/lib/api-response";
 
 interface Event {
   id: number;
@@ -45,7 +45,8 @@ export default function AdminEventsPage() {
     try {
       setLoading(true);
       const response = await api.get("/events");
-      setEvents(response.data.data || response.data || []);
+      const eventsData = extractArray<Event>(response);
+      setEvents(eventsData);
     } catch (error: any) {
       console.error("Failed to load events:", error);
       toast.error("Failed to load events");

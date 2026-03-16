@@ -1,0 +1,1 @@
+{"version":3,"names":[],"sources":["C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\ai-planner\\providers\\ai-provider.interface.ts"],"sourcesContent":["export interface AIProvider {\r\n  generate(prompt: string): Promise<string>;\r\n}\r\n"],"mappings":"","ignoreList":[]}

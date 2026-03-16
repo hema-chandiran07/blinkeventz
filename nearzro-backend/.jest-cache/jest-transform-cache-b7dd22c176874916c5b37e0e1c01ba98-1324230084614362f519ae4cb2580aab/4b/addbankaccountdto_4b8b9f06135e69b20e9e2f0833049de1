@@ -1,0 +1,74 @@
+ef469eb2ff7258f26c9c54416ab8ac54
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.AddBankAccountDto = void 0;
+const class_validator_1 = require("class-validator");
+const swagger_1 = require("@nestjs/swagger");
+class AddBankAccountDto {
+    accountHolder;
+    accountNumber;
+    ifsc;
+    bankName;
+    branchName;
+}
+exports.AddBankAccountDto = AddBankAccountDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        description: 'Account holder full name',
+        example: 'Rahul Sharma',
+    }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], AddBankAccountDto.prototype, "accountHolder", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        description: 'Bank account number (digits only, 9-18 chars)',
+        example: '1234567890123',
+    }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.Length)(9, 18),
+    (0, class_validator_1.Matches)(/^\d+$/, {
+        message: 'Account number must contain only digits',
+    }),
+    __metadata("design:type", String)
+], AddBankAccountDto.prototype, "accountNumber", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        description: 'IFSC code (e.g., SBIN0001234)',
+        example: 'SBIN0001234',
+    }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.Matches)(/^[A-Z]{4}0[A-Z0-9]{6}$/, {
+        message: 'Invalid IFSC code format',
+    }),
+    __metadata("design:type", String)
+], AddBankAccountDto.prototype, "ifsc", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        description: 'Bank name',
+        example: 'State Bank of India',
+    }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], AddBankAccountDto.prototype, "bankName", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        description: 'Branch name',
+        example: 'Koramangala Branch',
+    }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], AddBankAccountDto.prototype, "branchName", void 0);
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiQzpcXFVzZXJzXFxIZW1hY2hhbmRpcmFuXFxJbnRlcm5zaGlwXFxOZWFyenJvXFxuZWFyenJvLWJhY2tlbmRcXHNyY1xca3ljXFxkdG9cXGFkZC1iYW5rLWFjY291bnQuZHRvLnRzIiwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7OztBQUFBLHFEQU15QjtBQUN6Qiw2Q0FBbUU7QUFFbkUsTUFBYSxpQkFBaUI7SUFPNUIsYUFBYSxDQUFTO0lBV3RCLGFBQWEsQ0FBUztJQVV0QixJQUFJLENBQVM7SUFRYixRQUFRLENBQVM7SUFRakIsVUFBVSxDQUFVO0NBQ3JCO0FBN0NELDhDQTZDQztBQXRDQztJQU5DLElBQUEscUJBQVcsRUFBQztRQUNYLFdBQVcsRUFBRSwwQkFBMEI7UUFDdkMsT0FBTyxFQUFFLGNBQWM7S0FDeEIsQ0FBQztJQUNELElBQUEsMEJBQVEsR0FBRTtJQUNWLElBQUEsNEJBQVUsR0FBRTs7d0RBQ1M7QUFXdEI7SUFUQyxJQUFBLHFCQUFXLEVBQUM7UUFDWCxXQUFXLEVBQUUsK0NBQStDO1FBQzVELE9BQU8sRUFBRSxlQUFlO0tBQ3pCLENBQUM7SUFDRCxJQUFBLDBCQUFRLEdBQUU7SUFDVixJQUFBLHdCQUFNLEVBQUMsQ0FBQyxFQUFFLEVBQUUsQ0FBQztJQUNiLElBQUEseUJBQU8sRUFBQyxPQUFPLEVBQUU7UUFDaEIsT0FBTyxFQUFFLHlDQUF5QztLQUNuRCxDQUFDOzt3REFDb0I7QUFVdEI7SUFSQyxJQUFBLHFCQUFXLEVBQUM7UUFDWCxXQUFXLEVBQUUsK0JBQStCO1FBQzVDLE9BQU8sRUFBRSxhQUFhO0tBQ3ZCLENBQUM7SUFDRCxJQUFBLDBCQUFRLEdBQUU7SUFDVixJQUFBLHlCQUFPLEVBQUMsd0JBQXdCLEVBQUU7UUFDakMsT0FBTyxFQUFFLDBCQUEwQjtLQUNwQyxDQUFDOzsrQ0FDVztBQVFiO0lBTkMsSUFBQSxxQkFBVyxFQUFDO1FBQ1gsV0FBVyxFQUFFLFdBQVc7UUFDeEIsT0FBTyxFQUFFLHFCQUFxQjtLQUMvQixDQUFDO0lBQ0QsSUFBQSwwQkFBUSxHQUFFO0lBQ1YsSUFBQSw0QkFBVSxHQUFFOzttREFDSTtBQVFqQjtJQU5DLElBQUEsNkJBQW1CLEVBQUM7UUFDbkIsV0FBVyxFQUFFLGFBQWE7UUFDMUIsT0FBTyxFQUFFLG9CQUFvQjtLQUM5QixDQUFDO0lBQ0QsSUFBQSw0QkFBVSxHQUFFO0lBQ1osSUFBQSwwQkFBUSxHQUFFOztxREFDUyIsIm5hbWVzIjpbXSwic291cmNlcyI6WyJDOlxcVXNlcnNcXEhlbWFjaGFuZGlyYW5cXEludGVybnNoaXBcXE5lYXJ6cm9cXG5lYXJ6cm8tYmFja2VuZFxcc3JjXFxreWNcXGR0b1xcYWRkLWJhbmstYWNjb3VudC5kdG8udHMiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHtcclxuICBJc05vdEVtcHR5LFxyXG4gIElzT3B0aW9uYWwsXHJcbiAgSXNTdHJpbmcsXHJcbiAgTGVuZ3RoLFxyXG4gIE1hdGNoZXMsXHJcbn0gZnJvbSAnY2xhc3MtdmFsaWRhdG9yJztcclxuaW1wb3J0IHsgQXBpUHJvcGVydHksIEFwaVByb3BlcnR5T3B0aW9uYWwgfSBmcm9tICdAbmVzdGpzL3N3YWdnZXInO1xyXG5cclxuZXhwb3J0IGNsYXNzIEFkZEJhbmtBY2NvdW50RHRvIHtcclxuICBAQXBpUHJvcGVydHkoe1xyXG4gICAgZGVzY3JpcHRpb246ICdBY2NvdW50IGhvbGRlciBmdWxsIG5hbWUnLFxyXG4gICAgZXhhbXBsZTogJ1JhaHVsIFNoYXJtYScsXHJcbiAgfSlcclxuICBASXNTdHJpbmcoKVxyXG4gIEBJc05vdEVtcHR5KClcclxuICBhY2NvdW50SG9sZGVyOiBzdHJpbmc7XHJcblxyXG4gIEBBcGlQcm9wZXJ0eSh7XHJcbiAgICBkZXNjcmlwdGlvbjogJ0JhbmsgYWNjb3VudCBudW1iZXIgKGRpZ2l0cyBvbmx5LCA5LTE4IGNoYXJzKScsXHJcbiAgICBleGFtcGxlOiAnMTIzNDU2Nzg5MDEyMycsXHJcbiAgfSlcclxuICBASXNTdHJpbmcoKVxyXG4gIEBMZW5ndGgoOSwgMTgpXHJcbiAgQE1hdGNoZXMoL15cXGQrJC8sIHtcclxuICAgIG1lc3NhZ2U6ICdBY2NvdW50IG51bWJlciBtdXN0IGNvbnRhaW4gb25seSBkaWdpdHMnLFxyXG4gIH0pXHJcbiAgYWNjb3VudE51bWJlcjogc3RyaW5nO1xyXG5cclxuICBAQXBpUHJvcGVydHkoe1xyXG4gICAgZGVzY3JpcHRpb246ICdJRlNDIGNvZGUgKGUuZy4sIFNCSU4wMDAxMjM0KScsXHJcbiAgICBleGFtcGxlOiAnU0JJTjAwMDEyMzQnLFxyXG4gIH0pXHJcbiAgQElzU3RyaW5nKClcclxuICBATWF0Y2hlcygvXltBLVpdezR9MFtBLVowLTldezZ9JC8sIHtcclxuICAgIG1lc3NhZ2U6ICdJbnZhbGlkIElGU0MgY29kZSBmb3JtYXQnLFxyXG4gIH0pXHJcbiAgaWZzYzogc3RyaW5nO1xyXG5cclxuICBAQXBpUHJvcGVydHkoe1xyXG4gICAgZGVzY3JpcHRpb246ICdCYW5rIG5hbWUnLFxyXG4gICAgZXhhbXBsZTogJ1N0YXRlIEJhbmsgb2YgSW5kaWEnLFxyXG4gIH0pXHJcbiAgQElzU3RyaW5nKClcclxuICBASXNOb3RFbXB0eSgpXHJcbiAgYmFua05hbWU6IHN0cmluZztcclxuXHJcbiAgQEFwaVByb3BlcnR5T3B0aW9uYWwoe1xyXG4gICAgZGVzY3JpcHRpb246ICdCcmFuY2ggbmFtZScsXHJcbiAgICBleGFtcGxlOiAnS29yYW1hbmdhbGEgQnJhbmNoJyxcclxuICB9KVxyXG4gIEBJc09wdGlvbmFsKClcclxuICBASXNTdHJpbmcoKVxyXG4gIGJyYW5jaE5hbWU/OiBzdHJpbmc7XHJcbn1cclxuIl0sInZlcnNpb24iOjN9

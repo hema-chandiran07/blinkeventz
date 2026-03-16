@@ -63,18 +63,21 @@ export class NotificationsService {
       throw new Error('Notification not found');
     }
 
-    if (dto.action === 'ACCEPT') {
-      await this.prisma.event.update({
-        where: { id: notification.eventId! },
-        data: { status: 'CONFIRMED' },
-      });
-    }
+    // Only update event if eventId exists and action is ACCEPT or REJECT
+    if (notification.eventId) {
+      if (dto.action === 'ACCEPT') {
+        await this.prisma.event.update({
+          where: { id: notification.eventId },
+          data: { status: 'CONFIRMED' },
+        });
+      }
 
-    if (dto.action === 'REJECT') {
-      await this.prisma.event.update({
-        where: { id: notification.eventId! },
-        data: { status: 'CANCELLED' },
-      });
+      if (dto.action === 'REJECT') {
+        await this.prisma.event.update({
+          where: { id: notification.eventId },
+          data: { status: 'CANCELLED' },
+        });
+      }
     }
 
     await this.prisma.notification.update({

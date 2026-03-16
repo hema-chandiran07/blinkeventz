@@ -1,0 +1,38 @@
+c6e20055868449041034bea3c422e7f5
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.NotificationQueue = void 0;
+const bull_1 = require("@nestjs/bull");
+const common_1 = require("@nestjs/common");
+let NotificationQueue = class NotificationQueue {
+    queue;
+    constructor(queue) {
+        this.queue = queue;
+    }
+    async add(data) {
+        await this.queue.add('send', data, {
+            attempts: 3,
+            backoff: { type: 'exponential', delay: 3000 },
+            removeOnComplete: true,
+        });
+    }
+};
+exports.NotificationQueue = NotificationQueue;
+exports.NotificationQueue = NotificationQueue = __decorate([
+    (0, common_1.Injectable)(),
+    __param(0, (0, bull_1.InjectQueue)('notifications')),
+    __metadata("design:paramtypes", [Object])
+], NotificationQueue);
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiQzpcXFVzZXJzXFxIZW1hY2hhbmRpcmFuXFxJbnRlcm5zaGlwXFxOZWFyenJvXFxuZWFyenJvLWJhY2tlbmRcXHNyY1xcbm90aWZpY2F0aW9uc1xccXVldWVcXG5vdGlmaWNhdGlvbi5xdWV1ZS50cyIsIm1hcHBpbmdzIjoiOzs7Ozs7Ozs7Ozs7Ozs7QUFBQSx1Q0FBMkM7QUFDM0MsMkNBQTRDO0FBSXJDLElBQU0saUJBQWlCLEdBQXZCLE1BQU0saUJBQWlCO0lBR1Q7SUFGbkIsWUFFbUIsS0FBWTtRQUFaLFVBQUssR0FBTCxLQUFLLENBQU87SUFDNUIsQ0FBQztJQUVKLEtBQUssQ0FBQyxHQUFHLENBQUMsSUFHVDtRQUNDLE1BQU0sSUFBSSxDQUFDLEtBQUssQ0FBQyxHQUFHLENBQUMsTUFBTSxFQUFFLElBQUksRUFBRTtZQUNqQyxRQUFRLEVBQUUsQ0FBQztZQUNYLE9BQU8sRUFBRSxFQUFFLElBQUksRUFBRSxhQUFhLEVBQUUsS0FBSyxFQUFFLElBQUksRUFBRTtZQUM3QyxnQkFBZ0IsRUFBRSxJQUFJO1NBQ3ZCLENBQUMsQ0FBQztJQUNMLENBQUM7Q0FDRixDQUFBO0FBaEJZLDhDQUFpQjs0QkFBakIsaUJBQWlCO0lBRDdCLElBQUEsbUJBQVUsR0FBRTtJQUdSLFdBQUEsSUFBQSxrQkFBVyxFQUFDLGVBQWUsQ0FBQyxDQUFBOztHQUZwQixpQkFBaUIsQ0FnQjdCIiwibmFtZXMiOltdLCJzb3VyY2VzIjpbIkM6XFxVc2Vyc1xcSGVtYWNoYW5kaXJhblxcSW50ZXJuc2hpcFxcTmVhcnpyb1xcbmVhcnpyby1iYWNrZW5kXFxzcmNcXG5vdGlmaWNhdGlvbnNcXHF1ZXVlXFxub3RpZmljYXRpb24ucXVldWUudHMiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHsgSW5qZWN0UXVldWUgfSBmcm9tICdAbmVzdGpzL2J1bGwnO1xyXG5pbXBvcnQgeyBJbmplY3RhYmxlIH0gZnJvbSAnQG5lc3Rqcy9jb21tb24nO1xyXG5pbXBvcnQgdHlwZSB7IFF1ZXVlIH0gZnJvbSAnYnVsbCc7XHJcblxyXG5ASW5qZWN0YWJsZSgpXHJcbmV4cG9ydCBjbGFzcyBOb3RpZmljYXRpb25RdWV1ZSB7XHJcbiAgY29uc3RydWN0b3IoXHJcbiAgICBASW5qZWN0UXVldWUoJ25vdGlmaWNhdGlvbnMnKSAvLyDinIUgTVVTVCBNQVRDSCBNT0RVTEVcclxuICAgIHByaXZhdGUgcmVhZG9ubHkgcXVldWU6IFF1ZXVlLFxyXG4gICkge31cclxuXHJcbiAgYXN5bmMgYWRkKGRhdGE6IHtcclxuICAgIG5vdGlmaWNhdGlvbklkOiBudW1iZXI7XHJcbiAgICBjaGFubmVsOiAnRU1BSUwnIHwgJ1NNUycgfCAnV0hBVFNBUFAnIHwgJ1BVU0gnO1xyXG4gIH0pIHtcclxuICAgIGF3YWl0IHRoaXMucXVldWUuYWRkKCdzZW5kJywgZGF0YSwge1xyXG4gICAgICBhdHRlbXB0czogMyxcclxuICAgICAgYmFja29mZjogeyB0eXBlOiAnZXhwb25lbnRpYWwnLCBkZWxheTogMzAwMCB9LFxyXG4gICAgICByZW1vdmVPbkNvbXBsZXRlOiB0cnVlLFxyXG4gICAgfSk7XHJcbiAgfVxyXG59XHJcbiJdLCJ2ZXJzaW9uIjozfQ==

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
@@ -12,12 +12,17 @@ export class JwtStrategy extends PassportStrategy(Strategy,'jwt') {
     });
   }
 
-async validate(payload: { sub: number; email: string; role: string }) {
-  return {
-    userId: payload.sub,
-    email: payload.email,
-    role: payload.role,
-  };
-}
+  async validate(payload: any) {
+    // Handle null/undefined payload gracefully
+    if (!payload) {
+      return { userId: null, email: null, role: null };
+    }
+
+    return {
+      userId: payload.sub,
+      email: payload.email,
+      role: payload.role,
+    };
+  }
 
 }

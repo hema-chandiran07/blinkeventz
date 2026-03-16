@@ -14,7 +14,8 @@
     "^src/(.*)$": "<rootDir>/../src/$1"
   },
   "setupFilesAfterEnv": [
-    "<rootDir>/setup.ts"
+    "<rootDir>/setup.ts",
+    "<rootDir>/jest.setup.ts"
   ],
   "collectCoverageFrom": [
     "src/**/*.(t|j)s",
@@ -23,8 +24,11 @@
   ],
   "coverageDirectory": "../coverage",
   "testTimeout": 30000,
-  "maxWorkers": 2,
+  "maxWorkers": 1,
   "forceExit": true,
   "clearMocks": true,
-  "verbose": true
+  "resetMocks": true,
+  "restoreMocks": true,
+  "verbose": true,
+  "detectOpenHandles": true
 }

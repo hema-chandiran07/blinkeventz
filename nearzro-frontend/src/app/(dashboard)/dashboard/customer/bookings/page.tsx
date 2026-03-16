@@ -3,16 +3,17 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
-  Calendar, Clock, MapPin, Users, DollarSign, Search,
+  Calendar, Clock, DollarSign, Search,
   CheckCircle2, AlertCircle, Package, ArrowLeft
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
+import { extractArray } from "@/lib/api-response";
 import { motion } from "framer-motion";
 
 interface Booking {
@@ -48,7 +49,8 @@ export default function CustomerBookingsPage() {
     try {
       setLoading(true);
       const response = await api.get("/bookings/my");
-      setBookings(response.data || []);
+      const bookingsData = extractArray<Booking>(response);
+      setBookings(bookingsData);
     } catch (error: any) {
       console.error("Error loading bookings:", error);
       toast.error(error?.response?.data?.message || "Failed to load bookings");

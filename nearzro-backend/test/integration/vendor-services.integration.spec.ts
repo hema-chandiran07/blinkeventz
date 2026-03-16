@@ -7,12 +7,16 @@
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
-import { VendorServicesModule } from '../../src/vendors/vendor-services/vendor-services.module';
+import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { VendorServicesService } from '../../src/vendors/vendor-services/vendor-services.service';
-import { VendorsService } from '../../src/vendors/vendors.service';
 import { ServiceType, VendorPricingModel } from '@prisma/client';
 import { CreateVendorServiceDto } from '../../src/vendors/vendor-services/dto/create-vendor-service.dto';
+import * as dotenv from 'dotenv';
+
+// Load test environment
+dotenv.config({ path: '.env.test' });
+dotenv.config();
 
 const TEST_TIMEOUT = 30000;
 
@@ -45,72 +49,99 @@ function createMinimalServiceDto(overrides?: Partial<CreateVendorServiceDto>): C
   };
 }
 
-function createInvalidServiceDto(): Partial<CreateVendorServiceDto> {
-  return {
-    name: '',
-    serviceType: 'INVALID_TYPE' as any,
-    baseRate: -100,
-    pricingModel: 'INVALID' as any,
-    minGuests: 100,
-    maxGuests: 50, // Invalid: greater than min
-  };
-}
-
 describe('VendorServices Integration Tests', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   let vendorServicesService: VendorServicesService;
-  let vendorsService: VendorsService;
-
-  let testVendorUser: any;
-  let testVendor: any;
 
   beforeAll(async () => {
+    // Use full AppModule for proper DI
     const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [VendorServicesModule],
+      imports: [AppModule],
     }).compile();
 
     app = moduleFixture.createNestApplication();
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }));
+    
+    // Connect to database
+    prisma = app.get<PrismaService>(PrismaService);
+    await prisma.$connect();
+    
     await app.init();
 
-    prisma = app.get<PrismaService>(PrismaService);
     vendorServicesService = app.get<VendorServicesService>(VendorServicesService);
-    vendorsService = app.get<VendorsService>(VendorsService);
 
-    // Create test vendor user and vendor
-    testVendorUser = await prisma.user.create({
-      data: {
-        name: 'Service Test Vendor',
-        email: 'service-integration-test@test.com',
-        passwordHash: '$2b$10$test',
-        role: 'VENDOR',
-        isEmailVerified: true,
-        isActive: true,
-      },
-    });
-
-    testVendor = await vendorsService.createVendor(
-      testVendorUser.id,
-      {
-        businessName: 'Service Test Business',
-        city: 'Chennai',
-        area: 'Velachery',
-      },
-      true
-    );
+    // Clean up any existing test data first
+    await cleanupDatabase(prisma);
   }, TEST_TIMEOUT);
 
   afterAll(async () => {
-    await prisma.vendorService.deleteMany();
-    await prisma.vendor.deleteMany();
-    await prisma.user.deleteMany();
-    await app.close();
+    // Cleanup - disconnect database first, then close app
+    if (prisma) {
+      try {
+        await cleanupDatabase(prisma);
+        await prisma.$disconnect();
+      } catch (e) {
+        console.warn('Cleanup error:', e);
+      }
+    }
+
+    if (app) {
+      try {
+        await app.close();
+      } catch (e) {
+        console.warn('App close error:', e);
+      }
+    }
   });
 
   beforeEach(async () => {
-    await prisma.vendorService.deleteMany();
+    // Clean vendor services first, then vendors, then users
+    // This ensures proper cleanup order for foreign key constraints
+    await prisma.vendorService.deleteMany().catch(() => {});
+    await prisma.vendor.deleteMany().catch(() => {});
+    await prisma.user.deleteMany().catch(() => {});
   });
+
+  // ============================================
+  // HELPER FUNCTIONS
+  // ============================================
+
+  async function cleanupDatabase(prisma: PrismaService) {
+    // Clean in correct order: child tables first, then parent tables
+    await prisma.vendorService.deleteMany().catch(() => {});
+    await prisma.vendor.deleteMany().catch(() => {});
+    await prisma.user.deleteMany().catch(() => {});
+  }
+
+  // Each test creates its own user and vendor for complete isolation
+  async function createTestUserWithVendor() {
+    // Create unique user
+    const timestamp = Date.now() + Math.random();
+    const user = await prisma.user.create({
+      data: {
+        email: `vendor_${timestamp}@test.com`,
+        passwordHash: "test_hash",
+        name: "Test Vendor",
+        role: "VENDOR",
+        isEmailVerified: true,
+        isActive: true,
+      }
+    });
+    
+    // Create vendor for this user
+    const vendor = await prisma.vendor.create({
+      data: {
+        userId: user.id,
+        businessName: "Test Vendor Business",
+        city: "Chennai",
+        area: "Adyar",
+        serviceRadiusKm: 10
+      }
+    });
+    
+    return { user, vendor };
+  }
 
   // ============================================
   // CREATE TESTS
@@ -118,42 +149,73 @@ describe('VendorServices Integration Tests', () => {
 
   describe('create()', () => {
     it('should create a vendor service with valid data', async () => {
+      const { user, vendor } = await createTestUserWithVendor();
+      
       const dto = createServiceDto();
-      const service = await vendorServicesService.create(testVendor.id, dto);
+      // The service create method expects userId to look up the vendor
+      const service = await vendorServicesService.create(user.id, dto);
 
       expect(service).toBeDefined();
       expect(service.name).toBe(dto.name);
       expect(service.baseRate).toBe(dto.baseRate);
       expect(service.isActive).toBe(false);
+      expect(service.vendorId).toBe(vendor.id);
     });
 
     it('should create service with minimal required fields', async () => {
+      const { user } = await createTestUserWithVendor();
+      
       const dto = createMinimalServiceDto();
-      const service = await vendorServicesService.create(testVendor.id, dto);
+      const service = await vendorServicesService.create(user.id, dto);
 
       expect(service).toBeDefined();
       expect(service.isActive).toBe(false);
     });
 
     it('should create service with per-event pricing', async () => {
+      const { user } = await createTestUserWithVendor();
+      
       const dto = createServiceDto({
         pricingModel: VendorPricingModel.PER_EVENT,
         baseRate: 15000,
       });
-      const service = await vendorServicesService.create(testVendor.id, dto);
+      const service = await vendorServicesService.create(user.id, dto);
 
       expect(service.pricingModel).toBe(VendorPricingModel.PER_EVENT);
       expect(service.baseRate).toBe(15000);
     });
 
     it('should create service with per-day pricing', async () => {
+      const { user } = await createTestUserWithVendor();
+      
       const dto = createServiceDto({
         pricingModel: VendorPricingModel.PER_DAY,
         baseRate: 25000,
       });
-      const service = await vendorServicesService.create(testVendor.id, dto);
+      const service = await vendorServicesService.create(user.id, dto);
 
       expect(service.pricingModel).toBe(VendorPricingModel.PER_DAY);
+    });
+
+    it('should fail when vendor profile does not exist', async () => {
+      // Create user but no vendor
+      const timestamp = Date.now() + Math.random();
+      const user = await prisma.user.create({
+        data: {
+          email: `vendor_notexist_${timestamp}@test.com`,
+          passwordHash: "test_hash",
+          name: "Test Vendor",
+          role: "VENDOR",
+          isEmailVerified: true,
+          isActive: true,
+        }
+      });
+      
+      const dto = createServiceDto();
+      
+      await expect(
+        vendorServicesService.create(user.id, dto)
+      ).rejects.toThrow('Vendor profile not found');
     });
   });
 
@@ -162,22 +224,22 @@ describe('VendorServices Integration Tests', () => {
   // ============================================
 
   describe('findByVendor()', () => {
-    beforeEach(async () => {
-      // Create multiple services
-      await vendorServicesService.create(testVendor.id, createServiceDto({ name: 'Service One' }));
-      await vendorServicesService.create(testVendor.id, createServiceDto({ name: 'Service Two' }));
-    });
-
     it('should get all services for vendor', async () => {
-      const services = await vendorServicesService.findByVendor(testVendor.id);
+      const { user, vendor } = await createTestUserWithVendor();
+      
+      // Create multiple services
+      await vendorServicesService.create(user.id, createServiceDto({ name: 'Service One' }));
+      await vendorServicesService.create(user.id, createServiceDto({ name: 'Service Two' }));
 
-      expect(services.length).toBeGreaterThanOrEqual(2);
+      const services = await vendorServicesService.findByVendor(vendor.id);
+
+      expect(services.length).toBe(2);
     });
 
     it('should return empty array when no services exist', async () => {
-      await prisma.vendorService.deleteMany();
+      const { vendor } = await createTestUserWithVendor();
       
-      const services = await vendorServicesService.findByVendor(testVendor.id);
+      const services = await vendorServicesService.findByVendor(vendor.id);
       
       expect(services).toEqual([]);
     });
@@ -188,23 +250,28 @@ describe('VendorServices Integration Tests', () => {
   // ============================================
 
   describe('activate()', () => {
-    let inactiveService: any;
-
-    beforeEach(async () => {
-      inactiveService = await vendorServicesService.create(
-        testVendor.id,
+    it('should activate a service', async () => {
+      const { user } = await createTestUserWithVendor();
+      
+      const service = await vendorServicesService.create(
+        user.id,
         createServiceDto({ name: 'Service To Activate' })
       );
-    });
 
-    it('should activate a service', async () => {
-      const activated = await vendorServicesService.activate(inactiveService.id);
+      const activated = await vendorServicesService.activate(service.id);
 
       expect(activated.isActive).toBe(true);
     });
 
     it('should allow admin to activate any service', async () => {
-      const activated = await vendorServicesService.activate(inactiveService.id);
+      const { user } = await createTestUserWithVendor();
+      
+      const service = await vendorServicesService.create(
+        user.id,
+        createServiceDto({ name: 'Service To Activate' })
+      );
+
+      const activated = await vendorServicesService.activate(service.id, undefined, true);
 
       expect(activated.isActive).toBe(true);
     });
@@ -219,18 +286,16 @@ describe('VendorServices Integration Tests', () => {
   // ============================================
 
   describe('deactivate()', () => {
-    let activeService: any;
-
-    beforeEach(async () => {
-      activeService = await vendorServicesService.create(
-        testVendor.id,
+    it('should deactivate a service', async () => {
+      const { user } = await createTestUserWithVendor();
+      
+      const service = await vendorServicesService.create(
+        user.id,
         createServiceDto({ name: 'Service To Deactivate' })
       );
-      await vendorServicesService.activate(activeService.id);
-    });
+      await vendorServicesService.activate(service.id);
 
-    it('should deactivate a service', async () => {
-      const deactivated = await vendorServicesService.deactivate(activeService.id);
+      const deactivated = await vendorServicesService.deactivate(service.id);
 
       expect(deactivated.isActive).toBe(false);
     });
@@ -246,70 +311,84 @@ describe('VendorServices Integration Tests', () => {
 
   describe('Edge Cases', () => {
     it('should handle very large baseRate', async () => {
+      const { user } = await createTestUserWithVendor();
+      
       const dto = createServiceDto({ baseRate: 10000000 });
-      const service = await vendorServicesService.create(testVendor.id, dto);
+      const service = await vendorServicesService.create(user.id, dto);
 
       expect(service.baseRate).toBe(10000000);
     });
 
     it('should handle zero baseRate', async () => {
+      const { user } = await createTestUserWithVendor();
+      
       const dto = createServiceDto({ baseRate: 0 });
-      const service = await vendorServicesService.create(testVendor.id, dto);
+      const service = await vendorServicesService.create(user.id, dto);
 
       expect(service.baseRate).toBe(0);
     });
 
     it('should handle zero guest counts', async () => {
+      const { user } = await createTestUserWithVendor();
+      
       const dto = createServiceDto({ minGuests: 0, maxGuests: 0 });
-      const service = await vendorServicesService.create(testVendor.id, dto);
+      const service = await vendorServicesService.create(user.id, dto);
 
       expect(service.minGuests).toBe(0);
       expect(service.maxGuests).toBe(0);
     });
 
     it('should handle large guest capacity', async () => {
+      const { user } = await createTestUserWithVendor();
+      
       const dto = createServiceDto({ minGuests: 100, maxGuests: 10000 });
-      const service = await vendorServicesService.create(testVendor.id, dto);
+      const service = await vendorServicesService.create(user.id, dto);
 
       expect(service.minGuests).toBe(100);
       expect(service.maxGuests).toBe(10000);
     });
 
     it('should handle long description', async () => {
+      const { user } = await createTestUserWithVendor();
+      
       const longDescription = 'A'.repeat(2000);
       const dto = createServiceDto({ description: longDescription });
-      const service = await vendorServicesService.create(testVendor.id, dto);
+      const service = await vendorServicesService.create(user.id, dto);
 
       expect(service.description?.length).toBe(2000);
     });
 
     it('should handle multiple services for same vendor', async () => {
+      const { user, vendor } = await createTestUserWithVendor();
+      
       const count = 5;
       for (let i = 0; i < count; i++) {
         await vendorServicesService.create(
-          testVendor.id,
+          user.id,
           createServiceDto({ name: `Service ${i + 1}`, baseRate: 1000 * (i + 1) })
         );
       }
 
-      const services = await vendorServicesService.findByVendor(testVendor.id);
-      expect(services.length).toBeGreaterThanOrEqual(count);
+      const services = await vendorServicesService.findByVendor(vendor.id);
+      expect(services.length).toBe(count);
     });
 
     it('should toggle service status correctly', async () => {
+      const { user, vendor } = await createTestUserWithVendor();
+      
       const service = await vendorServicesService.create(
-        testVendor.id,
+        user.id,
         createServiceDto({ name: 'Toggle Test Service' })
       );
 
       // Activate
       await vendorServicesService.activate(service.id);
-      let result = await vendorServicesService.findByVendor(testVendor.id);
+      let result = await vendorServicesService.findByVendor(vendor.id);
       expect(result.find(s => s.id === service.id)?.isActive).toBe(true);
 
       // Deactivate
       await vendorServicesService.deactivate(service.id);
-      result = await vendorServicesService.findByVendor(testVendor.id);
+      result = await vendorServicesService.findByVendor(vendor.id);
       expect(result.find(s => s.id === service.id)?.isActive).toBe(false);
     });
   });

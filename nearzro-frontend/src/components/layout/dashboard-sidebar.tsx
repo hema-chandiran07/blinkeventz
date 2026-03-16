@@ -14,7 +14,6 @@ import {
   Building2,
   Users,
   CheckSquare,
-  Sparkles,
   CreditCard,
   BarChart3,
   DollarSign,

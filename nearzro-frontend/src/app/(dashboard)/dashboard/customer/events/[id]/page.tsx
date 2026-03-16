@@ -6,8 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  ArrowLeft, Calendar, MapPin, Users, DollarSign, Clock,
-  CheckCircle2, Download, FileText, Phone, Mail, Building
+  ArrowLeft, Calendar, MapPin, Clock,
+  CheckCircle2, Download, FileText, Phone, Building
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";

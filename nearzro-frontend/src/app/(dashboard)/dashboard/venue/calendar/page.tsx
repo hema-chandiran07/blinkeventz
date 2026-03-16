@@ -7,8 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AvailabilityCalendar, type TimeSlot, type TimeSlotType } from "@/components/venues/availability-calendar";
 import { toast } from "sonner";
-import { Calendar, DollarSign, CheckCircle2, XCircle, Save, Upload } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Calendar, DollarSign, CheckCircle2, XCircle, Save } from "lucide-react";
 import api from "@/lib/api";
 
 interface BlockedSlot {

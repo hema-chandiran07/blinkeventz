@@ -1,0 +1,312 @@
+947e5dfbc4f1caf8109573a1135b7e01
+"use strict";
+
+/* istanbul ignore next */
+function cov_2h0cocj276() {
+  var path = "C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\notifications\\enums\\notification-type.enum.ts";
+  var hash = "d361aba79ba9e14f1a21742b02332ec8756fb43a";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\notifications\\enums\\notification-type.enum.ts",
+    statementMap: {
+      "0": {
+        start: {
+          line: 2,
+          column: 0
+        },
+        end: {
+          line: 2,
+          column: 62
+        }
+      },
+      "1": {
+        start: {
+          line: 3,
+          column: 0
+        },
+        end: {
+          line: 3,
+          column: 34
+        }
+      },
+      "2": {
+        start: {
+          line: 5,
+          column: 0
+        },
+        end: {
+          line: 17,
+          column: 75
+        }
+      },
+      "3": {
+        start: {
+          line: 6,
+          column: 4
+        },
+        end: {
+          line: 6,
+          column: 60
+        }
+      },
+      "4": {
+        start: {
+          line: 7,
+          column: 4
+        },
+        end: {
+          line: 7,
+          column: 64
+        }
+      },
+      "5": {
+        start: {
+          line: 8,
+          column: 4
+        },
+        end: {
+          line: 8,
+          column: 64
+        }
+      },
+      "6": {
+        start: {
+          line: 9,
+          column: 4
+        },
+        end: {
+          line: 9,
+          column: 60
+        }
+      },
+      "7": {
+        start: {
+          line: 10,
+          column: 4
+        },
+        end: {
+          line: 10,
+          column: 60
+        }
+      },
+      "8": {
+        start: {
+          line: 11,
+          column: 4
+        },
+        end: {
+          line: 11,
+          column: 58
+        }
+      },
+      "9": {
+        start: {
+          line: 12,
+          column: 4
+        },
+        end: {
+          line: 12,
+          column: 58
+        }
+      },
+      "10": {
+        start: {
+          line: 13,
+          column: 4
+        },
+        end: {
+          line: 13,
+          column: 60
+        }
+      },
+      "11": {
+        start: {
+          line: 14,
+          column: 4
+        },
+        end: {
+          line: 14,
+          column: 58
+        }
+      },
+      "12": {
+        start: {
+          line: 15,
+          column: 4
+        },
+        end: {
+          line: 15,
+          column: 58
+        }
+      },
+      "13": {
+        start: {
+          line: 16,
+          column: 4
+        },
+        end: {
+          line: 16,
+          column: 54
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "(anonymous_0)",
+        decl: {
+          start: {
+            line: 5,
+            column: 1
+          },
+          end: {
+            line: 5,
+            column: 2
+          }
+        },
+        loc: {
+          start: {
+            line: 5,
+            column: 29
+          },
+          end: {
+            line: 17,
+            column: 1
+          }
+        },
+        line: 5
+      }
+    },
+    branchMap: {
+      "0": {
+        loc: {
+          start: {
+            line: 17,
+            column: 3
+          },
+          end: {
+            line: 17,
+            column: 73
+          }
+        },
+        type: "binary-expr",
+        locations: [{
+          start: {
+            line: 17,
+            column: 3
+          },
+          end: {
+            line: 17,
+            column: 19
+          }
+        }, {
+          start: {
+            line: 17,
+            column: 24
+          },
+          end: {
+            line: 17,
+            column: 72
+          }
+        }],
+        line: 17
+      }
+    },
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0,
+      "8": 0,
+      "9": 0,
+      "10": 0,
+      "11": 0,
+      "12": 0,
+      "13": 0
+    },
+    f: {
+      "0": 0
+    },
+    b: {
+      "0": [0, 0]
+    },
+    inputSourceMap: {
+      file: "C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\notifications\\enums\\notification-type.enum.ts",
+      mappings: ";;;AAAA,IAAY,gBAgBX;AAhBD,WAAY,gBAAgB;IAC1B,uDAAmC,CAAA;IACnC,2DAAuC,CAAA;IACvC,2DAAuC,CAAA;IAEvC,uDAAmC,CAAA;IACnC,uDAAmC,CAAA;IAEnC,qDAAiC,CAAA;IACjC,qDAAiC,CAAA;IAEjC,uDAAmC,CAAA;IACnC,qDAAiC,CAAA;IAEjC,qDAAiC,CAAA;IACjC,iDAA6B,CAAA;AAC/B,CAAC,EAhBW,gBAAgB,gCAAhB,gBAAgB,QAgB3B",
+      names: [],
+      sources: ["C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\notifications\\enums\\notification-type.enum.ts"],
+      sourcesContent: ["export enum NotificationType {\r\n  BOOKING_REQUEST = 'BOOKING_REQUEST',\r\n  BOOKING_CONFIRMED = 'BOOKING_CONFIRMED',\r\n  BOOKING_CANCELLED = 'BOOKING_CANCELLED',\r\n\r\n  VENDOR_APPROVED = 'VENDOR_APPROVED',\r\n  VENDOR_REJECTED = 'VENDOR_REJECTED',\r\n\r\n  VENUE_APPROVED = 'VENUE_APPROVED',\r\n  VENUE_REJECTED = 'VENUE_REJECTED',\r\n\r\n  PAYMENT_SUCCESS = 'PAYMENT_SUCCESS',\r\n  PAYMENT_FAILED = 'PAYMENT_FAILED',\r\n\r\n  EVENT_REMINDER = 'EVENT_REMINDER',\r\n  SYSTEM_ALERT = 'SYSTEM_ALERT',\r\n}\r\n"],
+      version: 3
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "d361aba79ba9e14f1a21742b02332ec8756fb43a"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_2h0cocj276 = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_2h0cocj276();
+cov_2h0cocj276().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_2h0cocj276().s[1]++;
+exports.NotificationType = void 0;
+var NotificationType;
+/* istanbul ignore next */
+cov_2h0cocj276().s[2]++;
+(function (NotificationType) {
+  /* istanbul ignore next */
+  cov_2h0cocj276().f[0]++;
+  cov_2h0cocj276().s[3]++;
+  NotificationType["BOOKING_REQUEST"] = "BOOKING_REQUEST";
+  /* istanbul ignore next */
+  cov_2h0cocj276().s[4]++;
+  NotificationType["BOOKING_CONFIRMED"] = "BOOKING_CONFIRMED";
+  /* istanbul ignore next */
+  cov_2h0cocj276().s[5]++;
+  NotificationType["BOOKING_CANCELLED"] = "BOOKING_CANCELLED";
+  /* istanbul ignore next */
+  cov_2h0cocj276().s[6]++;
+  NotificationType["VENDOR_APPROVED"] = "VENDOR_APPROVED";
+  /* istanbul ignore next */
+  cov_2h0cocj276().s[7]++;
+  NotificationType["VENDOR_REJECTED"] = "VENDOR_REJECTED";
+  /* istanbul ignore next */
+  cov_2h0cocj276().s[8]++;
+  NotificationType["VENUE_APPROVED"] = "VENUE_APPROVED";
+  /* istanbul ignore next */
+  cov_2h0cocj276().s[9]++;
+  NotificationType["VENUE_REJECTED"] = "VENUE_REJECTED";
+  /* istanbul ignore next */
+  cov_2h0cocj276().s[10]++;
+  NotificationType["PAYMENT_SUCCESS"] = "PAYMENT_SUCCESS";
+  /* istanbul ignore next */
+  cov_2h0cocj276().s[11]++;
+  NotificationType["PAYMENT_FAILED"] = "PAYMENT_FAILED";
+  /* istanbul ignore next */
+  cov_2h0cocj276().s[12]++;
+  NotificationType["EVENT_REMINDER"] = "EVENT_REMINDER";
+  /* istanbul ignore next */
+  cov_2h0cocj276().s[13]++;
+  NotificationType["SYSTEM_ALERT"] = "SYSTEM_ALERT";
+})(
+/* istanbul ignore next */
+(cov_2h0cocj276().b[0][0]++, NotificationType) ||
+/* istanbul ignore next */
+(cov_2h0cocj276().b[0][1]++, exports.NotificationType = NotificationType = {}));
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJjb3ZfMmgwY29jajI3NiIsImFjdHVhbENvdmVyYWdlIiwicyIsIk5vdGlmaWNhdGlvblR5cGUiLCJmIiwiYiIsImV4cG9ydHMiXSwic291cmNlcyI6WyJDOlxcVXNlcnNcXEhlbWFjaGFuZGlyYW5cXEludGVybnNoaXBcXE5lYXJ6cm9cXG5lYXJ6cm8tYmFja2VuZFxcc3JjXFxub3RpZmljYXRpb25zXFxlbnVtc1xcbm90aWZpY2F0aW9uLXR5cGUuZW51bS50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJleHBvcnQgZW51bSBOb3RpZmljYXRpb25UeXBlIHtcclxuICBCT09LSU5HX1JFUVVFU1QgPSAnQk9PS0lOR19SRVFVRVNUJyxcclxuICBCT09LSU5HX0NPTkZJUk1FRCA9ICdCT09LSU5HX0NPTkZJUk1FRCcsXHJcbiAgQk9PS0lOR19DQU5DRUxMRUQgPSAnQk9PS0lOR19DQU5DRUxMRUQnLFxyXG5cclxuICBWRU5ET1JfQVBQUk9WRUQgPSAnVkVORE9SX0FQUFJPVkVEJyxcclxuICBWRU5ET1JfUkVKRUNURUQgPSAnVkVORE9SX1JFSkVDVEVEJyxcclxuXHJcbiAgVkVOVUVfQVBQUk9WRUQgPSAnVkVOVUVfQVBQUk9WRUQnLFxyXG4gIFZFTlVFX1JFSkVDVEVEID0gJ1ZFTlVFX1JFSkVDVEVEJyxcclxuXHJcbiAgUEFZTUVOVF9TVUNDRVNTID0gJ1BBWU1FTlRfU1VDQ0VTUycsXHJcbiAgUEFZTUVOVF9GQUlMRUQgPSAnUEFZTUVOVF9GQUlMRUQnLFxyXG5cclxuICBFVkVOVF9SRU1JTkRFUiA9ICdFVkVOVF9SRU1JTkRFUicsXHJcbiAgU1lTVEVNX0FMRVJUID0gJ1NZU1RFTV9BTEVSVCcsXHJcbn1cclxuIl0sIm1hcHBpbmdzIjoiOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7SUFlRTtJQUFBQSxjQUFBLFlBQUFBLENBQUE7TUFBQSxPQUFBQyxjQUFBO0lBQUE7RUFBQTtFQUFBLE9BQUFBLGNBQUE7QUFBQTtBQUFBRCxjQUFBO0FBQUFBLGNBQUEsR0FBQUUsQ0FBQTs7Ozs7OztBQWZGLElBQVlDLGdCQWdCWDtBQUFBO0FBQUFILGNBQUEsR0FBQUUsQ0FBQTtBQWhCRCxXQUFZQyxnQkFBZ0I7RUFBQTtFQUFBSCxjQUFBLEdBQUFJLENBQUE7RUFBQUosY0FBQSxHQUFBRSxDQUFBO0VBQzFCQyxnQkFBQSx1Q0FBbUM7RUFBQTtFQUFBSCxjQUFBLEdBQUFFLENBQUE7RUFDbkNDLGdCQUFBLDJDQUF1QztFQUFBO0VBQUFILGNBQUEsR0FBQUUsQ0FBQTtFQUN2Q0MsZ0JBQUEsMkNBQXVDO0VBQUE7RUFBQUgsY0FBQSxHQUFBRSxDQUFBO0VBRXZDQyxnQkFBQSx1Q0FBbUM7RUFBQTtFQUFBSCxjQUFBLEdBQUFFLENBQUE7RUFDbkNDLGdCQUFBLHVDQUFtQztFQUFBO0VBQUFILGNBQUEsR0FBQUUsQ0FBQTtFQUVuQ0MsZ0JBQUEscUNBQWlDO0VBQUE7RUFBQUgsY0FBQSxHQUFBRSxDQUFBO0VBQ2pDQyxnQkFBQSxxQ0FBaUM7RUFBQTtFQUFBSCxjQUFBLEdBQUFFLENBQUE7RUFFakNDLGdCQUFBLHVDQUFtQztFQUFBO0VBQUFILGNBQUEsR0FBQUUsQ0FBQTtFQUNuQ0MsZ0JBQUEscUNBQWlDO0VBQUE7RUFBQUgsY0FBQSxHQUFBRSxDQUFBO0VBRWpDQyxnQkFBQSxxQ0FBaUM7RUFBQTtFQUFBSCxjQUFBLEdBQUFFLENBQUE7RUFDakNDLGdCQUFBLGlDQUE2QjtBQUMvQixDQUFDO0FBaEJXO0FBQUEsQ0FBQUgsY0FBQSxHQUFBSyxDQUFBLFVBQUFGLGdCQUFnQjtBQUFBO0FBQUEsQ0FBQUgsY0FBQSxHQUFBSyxDQUFBLFVBQUFDLE9BQUEsQ0FBQUgsZ0JBQUEsR0FBaEJBLGdCQUFnQiIsImlnbm9yZUxpc3QiOltdfQ==

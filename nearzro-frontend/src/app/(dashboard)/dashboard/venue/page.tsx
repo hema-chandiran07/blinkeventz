@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
   Building, Calendar, DollarSign, Plus, Search,
-  CheckCircle2, Clock, Star, MapPin, Settings
+  CheckCircle2, Clock, Star, MapPin
 } from "lucide-react";
 import api from "@/lib/api";
 import { motion } from "framer-motion";

@@ -6,12 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   ArrowLeft, CheckCircle2, XCircle, Building, Store, Mail, Phone,
-  MapPin, Calendar, DollarSign, Users, AlertCircle, Clock
+  MapPin, Calendar, Users, AlertCircle, Clock
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { approvalsApi } from "@/lib/api-endpoints";
 
 interface ApprovalDetail {
   id: number;

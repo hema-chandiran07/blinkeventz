@@ -1,0 +1,60 @@
+b51bd0d7e630ed35b16fa5f52f962ede
+"use strict";
+
+/* istanbul ignore next */
+function cov_9tz6mgcy() {
+  var path = "C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\ai-planner\\providers\\ai-provider.interface.ts";
+  var hash = "b5d89abf68ff91fbb5bbd958c624bb627f7fafdf";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\ai-planner\\providers\\ai-provider.interface.ts",
+    statementMap: {
+      "0": {
+        start: {
+          line: 2,
+          column: 0
+        },
+        end: {
+          line: 2,
+          column: 62
+        }
+      }
+    },
+    fnMap: {},
+    branchMap: {},
+    s: {
+      "0": 0
+    },
+    f: {},
+    b: {},
+    inputSourceMap: {
+      file: "C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\ai-planner\\providers\\ai-provider.interface.ts",
+      mappings: "",
+      names: [],
+      sources: ["C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\ai-planner\\providers\\ai-provider.interface.ts"],
+      sourcesContent: ["export interface AIProvider {\r\n  generate(prompt: string): Promise<string>;\r\n}\r\n"],
+      version: 3
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "b5d89abf68ff91fbb5bbd958c624bb627f7fafdf"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_9tz6mgcy = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_9tz6mgcy();
+cov_9tz6mgcy().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6W10sInNvdXJjZXMiOlsiQzpcXFVzZXJzXFxIZW1hY2hhbmRpcmFuXFxJbnRlcm5zaGlwXFxOZWFyenJvXFxuZWFyenJvLWJhY2tlbmRcXHNyY1xcYWktcGxhbm5lclxccHJvdmlkZXJzXFxhaS1wcm92aWRlci5pbnRlcmZhY2UudHMiXSwic291cmNlc0NvbnRlbnQiOlsiZXhwb3J0IGludGVyZmFjZSBBSVByb3ZpZGVyIHtcclxuICBnZW5lcmF0ZShwcm9tcHQ6IHN0cmluZyk6IFByb21pc2U8c3RyaW5nPjtcclxufVxyXG4iXSwibWFwcGluZ3MiOiIiLCJpZ25vcmVMaXN0IjpbXX0=

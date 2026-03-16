@@ -48,5 +48,11 @@ import { NotificationGateway } from './websocket/notification.gateway';
     PushProvider,
     InAppProvider,
   ],
+
+  exports: [
+    EmailProvider,
+    SmsProvider,
+    NotificationsService,
+  ],
 })
 export class NotificationsModule {}

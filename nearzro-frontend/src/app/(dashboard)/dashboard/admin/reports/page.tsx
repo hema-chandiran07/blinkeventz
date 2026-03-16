@@ -2,9 +2,8 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
-  BarChart3, PieChart, TrendingUp, Download, Calendar,
+  BarChart3, TrendingUp, Download, Calendar,
   DollarSign, Users, Building, Store, ArrowRight
 } from "lucide-react";
 import { useRouter } from "next/navigation";

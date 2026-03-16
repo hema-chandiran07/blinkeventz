@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Plus, ArrowLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
+import { extractArray } from "@/lib/api-response";
 
 const SERVICE_TYPES = ["CATERING", "DECOR", "PHOTOGRAPHY", "MAKEUP", "DJ", "MUSIC", "CAR_RENTAL", "PRIEST", "OTHER"];
 const PRICING_MODELS = ["PER_EVENT", "PER_PERSON", "PER_DAY", "PACKAGE"];
@@ -46,7 +47,8 @@ export default function VendorServicesPage() {
   const loadService = async (serviceId: string) => {
     try {
       const response = await api.get(`/vendor-services/vendor/me`);
-      const service = (response.data || []).find((s: any) => s.id === Number(serviceId));
+      const services = extractArray<any>(response);
+      const service = services.find((s: any) => s.id === Number(serviceId));
       if (service) {
         setFormData({
           name: service.name,

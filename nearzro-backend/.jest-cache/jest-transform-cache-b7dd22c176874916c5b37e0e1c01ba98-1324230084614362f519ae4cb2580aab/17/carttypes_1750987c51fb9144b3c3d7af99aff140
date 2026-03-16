@@ -1,0 +1,60 @@
+64b5ebf0552683f6d5bf91a2444ad6d8
+"use strict";
+
+/* istanbul ignore next */
+function cov_2k8rrlecpf() {
+  var path = "C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\cart\\cart.types.ts";
+  var hash = "7aa47e62f101ae5ea54dcf72ceee7bea0c90c334";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\cart\\cart.types.ts",
+    statementMap: {
+      "0": {
+        start: {
+          line: 2,
+          column: 0
+        },
+        end: {
+          line: 2,
+          column: 62
+        }
+      }
+    },
+    fnMap: {},
+    branchMap: {},
+    s: {
+      "0": 0
+    },
+    f: {},
+    b: {},
+    inputSourceMap: {
+      file: "C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\cart\\cart.types.ts",
+      mappings: "",
+      names: [],
+      sources: ["C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\cart\\cart.types.ts"],
+      sourcesContent: ["import { Cart, CartItem } from '@prisma/client';\r\n\r\nexport type CartWithItems = Cart & {\r\n  items: CartItem[];\r\n};\r\n\r\nexport interface CheckoutResponse {\r\n  cartId: number;\r\n  totalAmount: number;\r\n  itemsCount: number;\r\n  status: 'CHECKOUT_SUCCESS';\r\n}\r\n"],
+      version: 3
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "7aa47e62f101ae5ea54dcf72ceee7bea0c90c334"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_2k8rrlecpf = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_2k8rrlecpf();
+cov_2k8rrlecpf().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6W10sInNvdXJjZXMiOlsiQzpcXFVzZXJzXFxIZW1hY2hhbmRpcmFuXFxJbnRlcm5zaGlwXFxOZWFyenJvXFxuZWFyenJvLWJhY2tlbmRcXHNyY1xcY2FydFxcY2FydC50eXBlcy50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyBDYXJ0LCBDYXJ0SXRlbSB9IGZyb20gJ0BwcmlzbWEvY2xpZW50JztcclxuXHJcbmV4cG9ydCB0eXBlIENhcnRXaXRoSXRlbXMgPSBDYXJ0ICYge1xyXG4gIGl0ZW1zOiBDYXJ0SXRlbVtdO1xyXG59O1xyXG5cclxuZXhwb3J0IGludGVyZmFjZSBDaGVja291dFJlc3BvbnNlIHtcclxuICBjYXJ0SWQ6IG51bWJlcjtcclxuICB0b3RhbEFtb3VudDogbnVtYmVyO1xyXG4gIGl0ZW1zQ291bnQ6IG51bWJlcjtcclxuICBzdGF0dXM6ICdDSEVDS09VVF9TVUNDRVNTJztcclxufVxyXG4iXSwibWFwcGluZ3MiOiIiLCJpZ25vcmVMaXN0IjpbXX0=

@@ -9,6 +9,7 @@
  * - Clean specific tables to isolate tests
  * - Seed minimal required test data
  * - Manage database transactions for test isolation
+ * - Properly disconnect after tests
  */
 
 import { PrismaService } from '../../src/prisma/prisma.service';
@@ -35,17 +36,31 @@ export async function cleanUserTables(prisma: PrismaService): Promise<void> {
  */
 export async function cleanAllTestData(prisma: PrismaService): Promise<void> {
   // Delete in correct order to respect foreign key constraints
-  await prisma.vendorService.deleteMany();
-  await prisma.vendor.deleteMany();
-  await prisma.user.deleteMany();
+  await prisma.vendorService.deleteMany().catch(() => {});
+  await prisma.vendor.deleteMany().catch(() => {});
+  await prisma.user.deleteMany().catch(() => {});
 }
 
 /**
  * Reset database to clean state
  * Use this in beforeEach() to ensure test isolation
  */
-export async function resetTestDatabase(prisma: PrismaService): Promise<void> {
+export async function resetDatabase(prisma: PrismaService): Promise<void> {
   await cleanAllTestData(prisma);
+}
+
+/**
+ * Disconnect Prisma service properly
+ * Call this in afterAll() to avoid open handles
+ */
+export async function disconnectDatabase(prisma: PrismaService | null): Promise<void> {
+  if (prisma) {
+    try {
+      await prisma.$disconnect();
+    } catch (e) {
+      console.warn('Prisma disconnect error:', e);
+    }
+  }
 }
 
 /**
@@ -166,6 +181,33 @@ export async function createTestVendorService(
       minGuests: 10,
       maxGuests: 100,
       isActive: overrides?.isActive ?? true,
+    } as any,
+  });
+}
+
+/**
+ * Create a test user
+ */
+export async function createTestUser(
+  prisma: PrismaService,
+  overrides?: {
+    email?: string;
+    name?: string;
+    role?: string;
+    isActive?: boolean;
+    isEmailVerified?: boolean;
+  },
+): Promise<any> {
+  const uniqueEmail = overrides?.email || `user-${Date.now()}@nearzro.com`;
+  
+  return prisma.user.create({
+    data: {
+      name: overrides?.name || 'Test User',
+      email: uniqueEmail,
+      passwordHash: '$2b$10$test',
+      role: overrides?.role || 'CUSTOMER',
+      isActive: overrides?.isActive ?? true,
+      isEmailVerified: overrides?.isEmailVerified ?? true,
     } as any,
   });
 }

@@ -5,14 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import {
-  DollarSign, CreditCard, TrendingUp, Calendar, Download,
-  Search, Filter, CheckCircle2, Clock, XCircle, ArrowRight
+import { TrendingUp, Download,
+  Search, CheckCircle2, Clock, XCircle, ArrowRight
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { payoutsApi } from "@/lib/api-endpoints";
 
 const PAYOUT_DATA = [
   { id: 1, vendor: "Elite Photography", amount: 45000, date: "2024-03-15", status: "Pending", method: "Bank Transfer" },

@@ -1,0 +1,38 @@
+1442c4b1f709570e8ed5a334038e7114
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.HealthController = void 0;
+const common_1 = require("@nestjs/common");
+const swagger_1 = require("@nestjs/swagger");
+const public_decorator_1 = require("../common/decorators/public.decorator");
+let HealthController = class HealthController {
+    check() {
+        return {
+            success: true,
+            status: 'ok',
+            timestamp: new Date().toISOString(),
+        };
+    }
+};
+exports.HealthController = HealthController;
+__decorate([
+    (0, public_decorator_1.Public)(),
+    (0, common_1.Get)(),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], HealthController.prototype, "check", null);
+exports.HealthController = HealthController = __decorate([
+    (0, swagger_1.ApiTags)('health'),
+    (0, common_1.Controller)('health')
+], HealthController);
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiQzpcXFVzZXJzXFxIZW1hY2hhbmRpcmFuXFxJbnRlcm5zaGlwXFxOZWFyenJvXFxuZWFyenJvLWJhY2tlbmRcXHNyY1xcaGVhbHRoXFxoZWFsdGguY29udHJvbGxlci50cyIsIm1hcHBpbmdzIjoiOzs7Ozs7Ozs7Ozs7QUFBQSwyQ0FBaUQ7QUFDakQsNkNBQXVDO0FBQ3ZDLDRFQUErRDtBQUd4RCxJQUFNLGdCQUFnQixHQUF0QixNQUFNLGdCQUFnQjtJQUczQixLQUFLO1FBQ0gsT0FBTztZQUNMLE9BQU8sRUFBRSxJQUFJO1lBQ2IsTUFBTSxFQUFFLElBQUk7WUFDWixTQUFTLEVBQUUsSUFBSSxJQUFJLEVBQUUsQ0FBQyxXQUFXLEVBQUU7U0FDcEMsQ0FBQztJQUNKLENBQUM7Q0FDRixDQUFBO0FBVlksNENBQWdCO0FBRzNCO0lBRkMsSUFBQSx5QkFBTSxHQUFFO0lBQ1IsSUFBQSxZQUFHLEdBQUU7Ozs7NkNBT0w7MkJBVFUsZ0JBQWdCO0lBRjVCLElBQUEsaUJBQU8sRUFBQyxRQUFRLENBQUM7SUFDakIsSUFBQSxtQkFBVSxFQUFDLFFBQVEsQ0FBQztHQUNSLGdCQUFnQixDQVU1QiIsIm5hbWVzIjpbXSwic291cmNlcyI6WyJDOlxcVXNlcnNcXEhlbWFjaGFuZGlyYW5cXEludGVybnNoaXBcXE5lYXJ6cm9cXG5lYXJ6cm8tYmFja2VuZFxcc3JjXFxoZWFsdGhcXGhlYWx0aC5jb250cm9sbGVyLnRzIl0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IENvbnRyb2xsZXIsIEdldCB9IGZyb20gJ0BuZXN0anMvY29tbW9uJztcclxuaW1wb3J0e0FwaVRhZ3N9IGZyb20gJ0BuZXN0anMvc3dhZ2dlcic7XHJcbmltcG9ydCB7IFB1YmxpYyB9IGZyb20gJy4uL2NvbW1vbi9kZWNvcmF0b3JzL3B1YmxpYy5kZWNvcmF0b3InO1xyXG5AQXBpVGFncygnaGVhbHRoJylcclxuQENvbnRyb2xsZXIoJ2hlYWx0aCcpXHJcbmV4cG9ydCBjbGFzcyBIZWFsdGhDb250cm9sbGVyIHtcclxuICBAUHVibGljKClcclxuICBAR2V0KClcclxuICBjaGVjaygpIHtcclxuICAgIHJldHVybiB7XHJcbiAgICAgIHN1Y2Nlc3M6IHRydWUsXHJcbiAgICAgIHN0YXR1czogJ29rJyxcclxuICAgICAgdGltZXN0YW1wOiBuZXcgRGF0ZSgpLnRvSVNPU3RyaW5nKCksXHJcbiAgICB9O1xyXG4gIH1cclxufVxyXG4iXSwidmVyc2lvbiI6M30=

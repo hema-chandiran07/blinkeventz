@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import {
   User, Lock, Bell, Shield, Mail, Phone, MapPin, Camera, Save, X,
   Eye, EyeOff, Key, Globe, Moon, Sun, AlertTriangle, CheckCircle2,
-  RefreshCw, LogOut, Trash2, Download, Upload
+  RefreshCw, Trash2, Download
 } from "lucide-react";
 import { toast } from "sonner";
 

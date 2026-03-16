@@ -11,7 +11,6 @@ import {
   Package, Calendar, DollarSign, Plus, Search,
   CheckCircle2, Clock, Star, Sparkles, Bell
 } from "lucide-react";
-import api from "@/lib/api";
 import type { VendorService } from "@/types";
 import { motion } from "framer-motion";
 

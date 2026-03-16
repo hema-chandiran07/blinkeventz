@@ -1,0 +1,242 @@
+783c7acfe695694ee2aea71c7ea4af15
+"use strict";
+
+/* istanbul ignore next */
+function cov_laq0c87eh() {
+  var path = "C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\common\\enums\\role.enum.ts";
+  var hash = "d02662b60da2fb6de9c0a16011fd6a91a05354f0";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\common\\enums\\role.enum.ts",
+    statementMap: {
+      "0": {
+        start: {
+          line: 2,
+          column: 0
+        },
+        end: {
+          line: 2,
+          column: 62
+        }
+      },
+      "1": {
+        start: {
+          line: 3,
+          column: 0
+        },
+        end: {
+          line: 3,
+          column: 22
+        }
+      },
+      "2": {
+        start: {
+          line: 5,
+          column: 0
+        },
+        end: {
+          line: 12,
+          column: 39
+        }
+      },
+      "3": {
+        start: {
+          line: 6,
+          column: 4
+        },
+        end: {
+          line: 6,
+          column: 34
+        }
+      },
+      "4": {
+        start: {
+          line: 7,
+          column: 4
+        },
+        end: {
+          line: 7,
+          column: 30
+        }
+      },
+      "5": {
+        start: {
+          line: 8,
+          column: 4
+        },
+        end: {
+          line: 8,
+          column: 40
+        }
+      },
+      "6": {
+        start: {
+          line: 9,
+          column: 4
+        },
+        end: {
+          line: 9,
+          column: 28
+        }
+      },
+      "7": {
+        start: {
+          line: 10,
+          column: 4
+        },
+        end: {
+          line: 10,
+          column: 44
+        }
+      },
+      "8": {
+        start: {
+          line: 11,
+          column: 4
+        },
+        end: {
+          line: 11,
+          column: 32
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "(anonymous_0)",
+        decl: {
+          start: {
+            line: 5,
+            column: 1
+          },
+          end: {
+            line: 5,
+            column: 2
+          }
+        },
+        loc: {
+          start: {
+            line: 5,
+            column: 17
+          },
+          end: {
+            line: 12,
+            column: 1
+          }
+        },
+        line: 5
+      }
+    },
+    branchMap: {
+      "0": {
+        loc: {
+          start: {
+            line: 12,
+            column: 3
+          },
+          end: {
+            line: 12,
+            column: 37
+          }
+        },
+        type: "binary-expr",
+        locations: [{
+          start: {
+            line: 12,
+            column: 3
+          },
+          end: {
+            line: 12,
+            column: 7
+          }
+        }, {
+          start: {
+            line: 12,
+            column: 12
+          },
+          end: {
+            line: 12,
+            column: 36
+          }
+        }],
+        line: 12
+      }
+    },
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0,
+      "8": 0
+    },
+    f: {
+      "0": 0
+    },
+    b: {
+      "0": [0, 0]
+    },
+    inputSourceMap: {
+      file: "C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\common\\enums\\role.enum.ts",
+      mappings: ";;;AAAA,IAAY,IAOX;AAPD,WAAY,IAAI;IACd,6BAAqB,CAAA;IACrB,yBAAiB,CAAA;IACjB,mCAA2B,CAAA;IAC3B,uBAAe,CAAA;IACf,uCAA+B,CAAA;IAC/B,2BAAmB,CAAA;AACrB,CAAC,EAPW,IAAI,oBAAJ,IAAI,QAOf",
+      names: [],
+      sources: ["C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\common\\enums\\role.enum.ts"],
+      sourcesContent: ["export enum Role {\r\n  CUSTOMER = 'CUSTOMER',\r\n  VENDOR = 'VENDOR',\r\n  VENUE_OWNER = 'VENUE_OWNER',\r\n  ADMIN = 'ADMIN',\r\n  EVENT_MANAGER = 'EVENT_MANAGER',\r\n  SUPPORT = 'SUPPORT',\r\n}\r\n"],
+      version: 3
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "d02662b60da2fb6de9c0a16011fd6a91a05354f0"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_laq0c87eh = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_laq0c87eh();
+cov_laq0c87eh().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_laq0c87eh().s[1]++;
+exports.Role = void 0;
+var Role;
+/* istanbul ignore next */
+cov_laq0c87eh().s[2]++;
+(function (Role) {
+  /* istanbul ignore next */
+  cov_laq0c87eh().f[0]++;
+  cov_laq0c87eh().s[3]++;
+  Role["CUSTOMER"] = "CUSTOMER";
+  /* istanbul ignore next */
+  cov_laq0c87eh().s[4]++;
+  Role["VENDOR"] = "VENDOR";
+  /* istanbul ignore next */
+  cov_laq0c87eh().s[5]++;
+  Role["VENUE_OWNER"] = "VENUE_OWNER";
+  /* istanbul ignore next */
+  cov_laq0c87eh().s[6]++;
+  Role["ADMIN"] = "ADMIN";
+  /* istanbul ignore next */
+  cov_laq0c87eh().s[7]++;
+  Role["EVENT_MANAGER"] = "EVENT_MANAGER";
+  /* istanbul ignore next */
+  cov_laq0c87eh().s[8]++;
+  Role["SUPPORT"] = "SUPPORT";
+})(
+/* istanbul ignore next */
+(cov_laq0c87eh().b[0][0]++, Role) ||
+/* istanbul ignore next */
+(cov_laq0c87eh().b[0][1]++, exports.Role = Role = {}));
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJSb2xlIiwiY292X2xhcTBjODdlaCIsInMiLCJmIiwiYiIsImV4cG9ydHMiXSwic291cmNlcyI6WyJDOlxcVXNlcnNcXEhlbWFjaGFuZGlyYW5cXEludGVybnNoaXBcXE5lYXJ6cm9cXG5lYXJ6cm8tYmFja2VuZFxcc3JjXFxjb21tb25cXGVudW1zXFxyb2xlLmVudW0udHMiXSwic291cmNlc0NvbnRlbnQiOlsiZXhwb3J0IGVudW0gUm9sZSB7XHJcbiAgQ1VTVE9NRVIgPSAnQ1VTVE9NRVInLFxyXG4gIFZFTkRPUiA9ICdWRU5ET1InLFxyXG4gIFZFTlVFX09XTkVSID0gJ1ZFTlVFX09XTkVSJyxcclxuICBBRE1JTiA9ICdBRE1JTicsXHJcbiAgRVZFTlRfTUFOQUdFUiA9ICdFVkVOVF9NQU5BR0VSJyxcclxuICBTVVBQT1JUID0gJ1NVUFBPUlQnLFxyXG59XHJcbiJdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7QUFBQSxJQUFZQSxJQU9YO0FBQUE7QUFBQUMsYUFBQSxHQUFBQyxDQUFBO0FBUEQsV0FBWUYsSUFBSTtFQUFBO0VBQUFDLGFBQUEsR0FBQUUsQ0FBQTtFQUFBRixhQUFBLEdBQUFDLENBQUE7RUFDZEYsSUFBQSx5QkFBcUI7RUFBQTtFQUFBQyxhQUFBLEdBQUFDLENBQUE7RUFDckJGLElBQUEscUJBQWlCO0VBQUE7RUFBQUMsYUFBQSxHQUFBQyxDQUFBO0VBQ2pCRixJQUFBLCtCQUEyQjtFQUFBO0VBQUFDLGFBQUEsR0FBQUMsQ0FBQTtFQUMzQkYsSUFBQSxtQkFBZTtFQUFBO0VBQUFDLGFBQUEsR0FBQUMsQ0FBQTtFQUNmRixJQUFBLG1DQUErQjtFQUFBO0VBQUFDLGFBQUEsR0FBQUMsQ0FBQTtFQUMvQkYsSUFBQSx1QkFBbUI7QUFDckIsQ0FBQztBQVBXO0FBQUEsQ0FBQUMsYUFBQSxHQUFBRyxDQUFBLFVBQUFKLElBQUk7QUFBQTtBQUFBLENBQUFDLGFBQUEsR0FBQUcsQ0FBQSxVQUFBQyxPQUFBLENBQUFMLElBQUEsR0FBSkEsSUFBSSIsImlnbm9yZUxpc3QiOltdfQ==

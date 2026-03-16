@@ -6,11 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  Store, CheckCircle2, XCircle, Clock, Eye, Edit, Trash2,
-  Search, Filter, Mail, Phone, MapPin, DollarSign
+  Store, CheckCircle2, XCircle, Clock, Eye, Search, MapPin, Mail, DollarSign
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
+import { extractArray } from "@/lib/api-response";
 
 interface Vendor {
   id: number;
@@ -43,7 +43,8 @@ export default function AdminVendorsPage() {
     try {
       setLoading(true);
       const response = await api.get("/vendors");
-      setVendors(response.data.data || response.data || []);
+      const vendorsData = extractArray<Vendor>(response);
+      setVendors(vendorsData);
     } catch (error: any) {
       console.error("Failed to load vendors:", error);
       toast.error("Failed to load vendors");

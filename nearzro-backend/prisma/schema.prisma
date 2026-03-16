@@ -20,10 +20,21 @@ model User {
   isActive                Boolean                  @default(true)
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
+  
+  // Password reset security
+  passwordResetToken      String?                  // Hashed token - never expose
   passwordResetExpiry     DateTime?
-  passwordResetToken      String?
+  
+  // Account security
+  failedLoginAttempts    Int                       @default(0)
+  lockedUntil            DateTime?
+  lastLoginAt            DateTime?
+  
+  // OAuth
   facebookId              String?                  @unique
   isEmailVerified         Boolean                  @default(false)
+  
+  // Relations
   AIPlan                  AIPlan[]
   bankAccounts            BankAccount[]
   bookings                Booking[]
@@ -41,6 +52,32 @@ model User {
   reviewVotes             ReviewVote[]
   vendor                  Vendor?
   venues                  Venue[]
+  refreshTokens           RefreshToken[]
+
+  // Indexes for authentication queries
+  @@index([email])
+  @@index([googleId])
+  @@index([facebookId])
+  @@index([passwordResetToken])
+}
+
+/// Refresh Token Model for JWT refresh mechanism
+model RefreshToken {
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  token       String    // Hashed token for security
+  expiresAt   DateTime
+  revoked     Boolean   @default(false)
+  revokedAt   DateTime?
+  deviceInfo  String?
+  createdAt   DateTime  @default(now())
+  
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Indexes
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
 }
 
 model CustomerProfile {
@@ -126,6 +163,17 @@ model Venue {
   reviews          Review[]
   owner            User               @relation(fields: [ownerId], references: [id])
   photos           VenuePhoto[]
+
+  // ============================================
+  // DATABASE INDEXES FOR PERFORMANCE
+  // ============================================
+  @@index([city])
+  @@index([area])
+  @@index([status])
+  @@index([ownerId])
+  @@index([city, status])
+  @@index([type, status])
+  @@index([createdAt(sort: Desc)])
 }
 
 model VenuePhoto {
@@ -363,6 +411,21 @@ model Event {
   payments          Payment[]
   payouts           Payout[]
   reviews           Review[]
+
+  // ============================================
+  // DATABASE INDEXES FOR PERFORMANCE
+  // ============================================
+  @@index([customerId])
+  @@index([assignedManagerId])
+  @@index([venueId])
+  @@index([date])
+  @@index([city])
+  @@index([status])
+  @@index([isExpress])
+  @@index([createdAt(sort: Desc)])
+  @@index([date, status])
+  @@index([city, date])
+  @@index([customerId, status])
 }
 
 model Promotion {
@@ -438,6 +501,15 @@ model EventService {
   event           Event              @relation(fields: [eventId], references: [id])
   vendorService   VendorService?     @relation(fields: [vendorServiceId], references: [id])
   venue           Venue?             @relation(fields: [venueId], references: [id])
+
+  // ============================================
+  // DATABASE INDEXES FOR PERFORMANCE
+  // ============================================
+  @@index([eventId])
+  @@index([venueId])
+  @@index([vendorServiceId])
+  @@index([itemType])
+  @@index([status])
 }
 
 model Notification {
@@ -670,6 +742,8 @@ enum VenueStatus {
   INACTIVE
   SUSPENDED
   DELISTED
+  REJECTED
+
 }
 
 enum EntityType {
