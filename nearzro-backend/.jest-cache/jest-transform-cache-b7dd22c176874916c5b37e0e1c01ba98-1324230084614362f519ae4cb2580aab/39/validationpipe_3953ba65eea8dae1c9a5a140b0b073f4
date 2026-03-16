@@ -1,0 +1,106 @@
+62d21e211dba4ea0f7df97a69afb1651
+"use strict";
+
+/* istanbul ignore next */
+function cov_2h1m1yipxd() {
+  var path = "C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\common\\pipes\\validation.pipe.ts";
+  var hash = "b4e47ab8cc504ad5fa30a1dd2292c92298b94140";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\common\\pipes\\validation.pipe.ts",
+    statementMap: {
+      "0": {
+        start: {
+          line: 2,
+          column: 0
+        },
+        end: {
+          line: 2,
+          column: 62
+        }
+      },
+      "1": {
+        start: {
+          line: 3,
+          column: 0
+        },
+        end: {
+          line: 3,
+          column: 38
+        }
+      },
+      "2": {
+        start: {
+          line: 4,
+          column: 17
+        },
+        end: {
+          line: 4,
+          column: 42
+        }
+      },
+      "3": {
+        start: {
+          line: 5,
+          column: 0
+        },
+        end: {
+          line: 9,
+          column: 3
+        }
+      }
+    },
+    fnMap: {},
+    branchMap: {},
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0
+    },
+    f: {},
+    b: {},
+    inputSourceMap: {
+      file: "C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\common\\pipes\\validation.pipe.ts",
+      mappings: ";;;AAAA,2CAAgD;AAEnC,QAAA,oBAAoB,GAAG,IAAI,uBAAc,CAAC;IACrD,SAAS,EAAE,IAAI;IACf,oBAAoB,EAAE,IAAI;IAC1B,SAAS,EAAE,IAAI;CAChB,CAAC,CAAC",
+      names: [],
+      sources: ["C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\common\\pipes\\validation.pipe.ts"],
+      sourcesContent: ["import { ValidationPipe } from '@nestjs/common';\r\n\r\nexport const GlobalValidationPipe = new ValidationPipe({\r\n  whitelist: true,\r\n  forbidNonWhitelisted: true,\r\n  transform: true,\r\n});\r\n"],
+      version: 3
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "b4e47ab8cc504ad5fa30a1dd2292c92298b94140"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_2h1m1yipxd = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_2h1m1yipxd();
+cov_2h1m1yipxd().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_2h1m1yipxd().s[1]++;
+exports.GlobalValidationPipe = void 0;
+const common_1 =
+/* istanbul ignore next */
+(cov_2h1m1yipxd().s[2]++, require("@nestjs/common"));
+/* istanbul ignore next */
+cov_2h1m1yipxd().s[3]++;
+exports.GlobalValidationPipe = new common_1.ValidationPipe({
+  whitelist: true,
+  forbidNonWhitelisted: true,
+  transform: true
+});
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJjb21tb25fMSIsImNvdl8yaDFtMXlpcHhkIiwicyIsInJlcXVpcmUiLCJleHBvcnRzIiwiR2xvYmFsVmFsaWRhdGlvblBpcGUiLCJWYWxpZGF0aW9uUGlwZSIsIndoaXRlbGlzdCIsImZvcmJpZE5vbldoaXRlbGlzdGVkIiwidHJhbnNmb3JtIl0sInNvdXJjZXMiOlsiQzpcXFVzZXJzXFxIZW1hY2hhbmRpcmFuXFxJbnRlcm5zaGlwXFxOZWFyenJvXFxuZWFyenJvLWJhY2tlbmRcXHNyY1xcY29tbW9uXFxwaXBlc1xcdmFsaWRhdGlvbi5waXBlLnRzIl0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IFZhbGlkYXRpb25QaXBlIH0gZnJvbSAnQG5lc3Rqcy9jb21tb24nO1xyXG5cclxuZXhwb3J0IGNvbnN0IEdsb2JhbFZhbGlkYXRpb25QaXBlID0gbmV3IFZhbGlkYXRpb25QaXBlKHtcclxuICB3aGl0ZWxpc3Q6IHRydWUsXHJcbiAgZm9yYmlkTm9uV2hpdGVsaXN0ZWQ6IHRydWUsXHJcbiAgdHJhbnNmb3JtOiB0cnVlLFxyXG59KTtcclxuIl0sIm1hcHBpbmdzIjoiOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7O0FBQUEsTUFBQUEsUUFBQTtBQUFBO0FBQUEsQ0FBQUMsY0FBQSxHQUFBQyxDQUFBLE9BQUFDLE9BQUE7QUFBZ0Q7QUFBQUYsY0FBQSxHQUFBQyxDQUFBO0FBRW5DRSxPQUFBLENBQUFDLG9CQUFvQixHQUFHLElBQUlMLFFBQUEsQ0FBQU0sY0FBYyxDQUFDO0VBQ3JEQyxTQUFTLEVBQUUsSUFBSTtFQUNmQyxvQkFBb0IsRUFBRSxJQUFJO0VBQzFCQyxTQUFTLEVBQUU7Q0FDWixDQUFDIiwiaWdub3JlTGlzdCI6W119

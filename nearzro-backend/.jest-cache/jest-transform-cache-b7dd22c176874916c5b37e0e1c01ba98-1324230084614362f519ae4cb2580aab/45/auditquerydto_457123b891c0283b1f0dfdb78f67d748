@@ -1,0 +1,63 @@
+e6f1ef02187c34c162f818a5b0ad94b0
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var _a;
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.AuditQueryDto = void 0;
+// src/audit/dto/audit-query.dto.ts
+const class_validator_1 = require("class-validator");
+const class_transformer_1 = require("class-transformer");
+const client_1 = require("@prisma/client");
+const swagger_1 = require("@nestjs/swagger");
+class AuditQueryDto {
+    entityType;
+    actorId;
+    severity;
+    limit;
+    page;
+}
+exports.AuditQueryDto = AuditQueryDto;
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ example: 'BOOKING' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], AuditQueryDto.prototype, "entityType", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ example: 12 }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Type)(() => Number),
+    (0, class_validator_1.IsInt)(),
+    __metadata("design:type", Number)
+], AuditQueryDto.prototype, "actorId", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ enum: client_1.AuditSeverity }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsEnum)(client_1.AuditSeverity),
+    __metadata("design:type", typeof (_a = typeof client_1.AuditSeverity !== "undefined" && client_1.AuditSeverity) === "function" ? _a : Object)
+], AuditQueryDto.prototype, "severity", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ example: 50, default: 50 }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Type)(() => Number),
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(1),
+    __metadata("design:type", Number)
+], AuditQueryDto.prototype, "limit", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ example: 1, default: 1 }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Type)(() => Number),
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(1),
+    __metadata("design:type", Number)
+], AuditQueryDto.prototype, "page", void 0);
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiQzpcXFVzZXJzXFxIZW1hY2hhbmRpcmFuXFxJbnRlcm5zaGlwXFxOZWFyenJvXFxuZWFyenJvLWJhY2tlbmRcXHNyY1xcYXVkaXRcXGR0b1xcYXVkaXQtcXVlcnkuZHRvLnRzIiwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7QUFBQSxtQ0FBbUM7QUFDbkMscURBQTJFO0FBQzNFLHlEQUF5QztBQUN6QywyQ0FBK0M7QUFDL0MsNkNBQXNEO0FBRXRELE1BQWEsYUFBYTtJQUl4QixVQUFVLENBQVU7SUFNcEIsT0FBTyxDQUFVO0lBS2pCLFFBQVEsQ0FBaUI7SUFPekIsS0FBSyxDQUFVO0lBT2YsSUFBSSxDQUFVO0NBQ2Y7QUE5QkQsc0NBOEJDO0FBMUJDO0lBSEMsSUFBQSw2QkFBbUIsRUFBQyxFQUFFLE9BQU8sRUFBRSxTQUFTLEVBQUUsQ0FBQztJQUMzQyxJQUFBLDRCQUFVLEdBQUU7SUFDWixJQUFBLDBCQUFRLEdBQUU7O2lEQUNTO0FBTXBCO0lBSkMsSUFBQSw2QkFBbUIsRUFBQyxFQUFFLE9BQU8sRUFBRSxFQUFFLEVBQUUsQ0FBQztJQUNwQyxJQUFBLDRCQUFVLEdBQUU7SUFDWixJQUFBLHdCQUFJLEVBQUMsR0FBRyxFQUFFLENBQUMsTUFBTSxDQUFDO0lBQ2xCLElBQUEsdUJBQUssR0FBRTs7OENBQ1M7QUFLakI7SUFIQyxJQUFBLDZCQUFtQixFQUFDLEVBQUUsSUFBSSxFQUFFLHNCQUFhLEVBQUUsQ0FBQztJQUM1QyxJQUFBLDRCQUFVLEdBQUU7SUFDWixJQUFBLHdCQUFNLEVBQUMsc0JBQWEsQ0FBQztrREFDWCxzQkFBYSxvQkFBYixzQkFBYTsrQ0FBQztBQU96QjtJQUxDLElBQUEsNkJBQW1CLEVBQUMsRUFBRSxPQUFPLEVBQUUsRUFBRSxFQUFFLE9BQU8sRUFBRSxFQUFFLEVBQUUsQ0FBQztJQUNqRCxJQUFBLDRCQUFVLEdBQUU7SUFDWixJQUFBLHdCQUFJLEVBQUMsR0FBRyxFQUFFLENBQUMsTUFBTSxDQUFDO0lBQ2xCLElBQUEsdUJBQUssR0FBRTtJQUNQLElBQUEscUJBQUcsRUFBQyxDQUFDLENBQUM7OzRDQUNRO0FBT2Y7SUFMQyxJQUFBLDZCQUFtQixFQUFDLEVBQUUsT0FBTyxFQUFFLENBQUMsRUFBRSxPQUFPLEVBQUUsQ0FBQyxFQUFFLENBQUM7SUFDL0MsSUFBQSw0QkFBVSxHQUFFO0lBQ1osSUFBQSx3QkFBSSxFQUFDLEdBQUcsRUFBRSxDQUFDLE1BQU0sQ0FBQztJQUNsQixJQUFBLHVCQUFLLEdBQUU7SUFDUCxJQUFBLHFCQUFHLEVBQUMsQ0FBQyxDQUFDOzsyQ0FDTyIsIm5hbWVzIjpbXSwic291cmNlcyI6WyJDOlxcVXNlcnNcXEhlbWFjaGFuZGlyYW5cXEludGVybnNoaXBcXE5lYXJ6cm9cXG5lYXJ6cm8tYmFja2VuZFxcc3JjXFxhdWRpdFxcZHRvXFxhdWRpdC1xdWVyeS5kdG8udHMiXSwic291cmNlc0NvbnRlbnQiOlsiLy8gc3JjL2F1ZGl0L2R0by9hdWRpdC1xdWVyeS5kdG8udHNcclxuaW1wb3J0IHsgSXNFbnVtLCBJc0ludCwgSXNPcHRpb25hbCwgSXNTdHJpbmcsIE1pbiB9IGZyb20gJ2NsYXNzLXZhbGlkYXRvcic7XHJcbmltcG9ydCB7IFR5cGUgfSBmcm9tICdjbGFzcy10cmFuc2Zvcm1lcic7XHJcbmltcG9ydCB7IEF1ZGl0U2V2ZXJpdHkgfSBmcm9tICdAcHJpc21hL2NsaWVudCc7XHJcbmltcG9ydCB7IEFwaVByb3BlcnR5T3B0aW9uYWwgfSBmcm9tICdAbmVzdGpzL3N3YWdnZXInO1xyXG5cclxuZXhwb3J0IGNsYXNzIEF1ZGl0UXVlcnlEdG8ge1xyXG4gIEBBcGlQcm9wZXJ0eU9wdGlvbmFsKHsgZXhhbXBsZTogJ0JPT0tJTkcnIH0pXHJcbiAgQElzT3B0aW9uYWwoKVxyXG4gIEBJc1N0cmluZygpXHJcbiAgZW50aXR5VHlwZT86IHN0cmluZztcclxuXHJcbiAgQEFwaVByb3BlcnR5T3B0aW9uYWwoeyBleGFtcGxlOiAxMiB9KVxyXG4gIEBJc09wdGlvbmFsKClcclxuICBAVHlwZSgoKSA9PiBOdW1iZXIpXHJcbiAgQElzSW50KClcclxuICBhY3RvcklkPzogbnVtYmVyO1xyXG5cclxuICBAQXBpUHJvcGVydHlPcHRpb25hbCh7IGVudW06IEF1ZGl0U2V2ZXJpdHkgfSlcclxuICBASXNPcHRpb25hbCgpXHJcbiAgQElzRW51bShBdWRpdFNldmVyaXR5KVxyXG4gIHNldmVyaXR5PzogQXVkaXRTZXZlcml0eTtcclxuXHJcbiAgQEFwaVByb3BlcnR5T3B0aW9uYWwoeyBleGFtcGxlOiA1MCwgZGVmYXVsdDogNTAgfSlcclxuICBASXNPcHRpb25hbCgpXHJcbiAgQFR5cGUoKCkgPT4gTnVtYmVyKVxyXG4gIEBJc0ludCgpXHJcbiAgQE1pbigxKVxyXG4gIGxpbWl0PzogbnVtYmVyO1xyXG5cclxuICBAQXBpUHJvcGVydHlPcHRpb25hbCh7IGV4YW1wbGU6IDEsIGRlZmF1bHQ6IDEgfSlcclxuICBASXNPcHRpb25hbCgpXHJcbiAgQFR5cGUoKCkgPT4gTnVtYmVyKVxyXG4gIEBJc0ludCgpXHJcbiAgQE1pbigxKVxyXG4gIHBhZ2U/OiBudW1iZXI7XHJcbn0iXSwidmVyc2lvbiI6M30=

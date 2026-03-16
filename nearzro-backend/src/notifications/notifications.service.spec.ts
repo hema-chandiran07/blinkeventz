@@ -186,14 +186,13 @@ describe('NotificationsService', () => {
       // Act
       await service.send(dto);
 
-      // Assert
+      // Assert - now filtering enabled in code, so we fetch all and filter
       expect(prisma.notificationPreference.findMany).toHaveBeenCalledWith({
         where: {
           userId: dto.userId,
           type: dto.type,
-          enabled: true,
         },
-        select: { channel: true },
+        select: { channel: true, enabled: true },
       });
     });
 

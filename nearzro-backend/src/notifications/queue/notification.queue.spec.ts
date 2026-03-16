@@ -10,17 +10,12 @@
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotificationQueue } from './notification.queue';
+import { getQueueToken } from '@nestjs/bull';
 
-// Mock Bull Queue
+// Mock Bull queue
 const mockQueue = {
   add: jest.fn().mockResolvedValue({ id: 'test-job-id' }),
 };
-
-jest.mock('@nestjs/bull', () => ({
-  InjectQueue: () => (target: any, key: string) => {
-    // Mock decorator
-  },
-}));
 
 describe('NotificationQueue', () => {
   let queue: NotificationQueue;
@@ -32,14 +27,11 @@ describe('NotificationQueue', () => {
       providers: [
         NotificationQueue,
         {
-          provide: 'BULL_QUEUE_NOTIFICATIONS',
+          provide: getQueueToken('notifications'),
           useValue: mockQueue,
         },
       ],
-    })
-      .overrideProvider('BULL_QUEUE_NOTIFICATIONS')
-      .useValue(mockQueue)
-      .compile();
+    }).compile();
 
     queue = module.get<NotificationQueue>(NotificationQueue);
   });

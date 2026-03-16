@@ -1,0 +1,87 @@
+90198d953fe3e49d16de62d417d0d446
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var _a, _b;
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.CreateVendorServiceDto = void 0;
+const swagger_1 = require("@nestjs/swagger");
+const class_validator_1 = require("class-validator");
+const client_1 = require("@prisma/client");
+class CreateVendorServiceDto {
+    name;
+    serviceType;
+    pricingModel;
+    baseRate;
+    minGuests;
+    maxGuests;
+    description;
+    inclusions;
+    exclusions;
+}
+exports.CreateVendorServiceDto = CreateVendorServiceDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: 'Wedding Photography' }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(255, { message: 'name must not exceed 255 characters' }),
+    __metadata("design:type", String)
+], CreateVendorServiceDto.prototype, "name", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ enum: client_1.ServiceType, example: client_1.ServiceType.PHOTOGRAPHY }),
+    (0, class_validator_1.IsEnum)(client_1.ServiceType, { message: 'Invalid service type' }),
+    __metadata("design:type", typeof (_a = typeof client_1.ServiceType !== "undefined" && client_1.ServiceType) === "function" ? _a : Object)
+], CreateVendorServiceDto.prototype, "serviceType", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ enum: client_1.VendorPricingModel, example: client_1.VendorPricingModel.PER_EVENT }),
+    (0, class_validator_1.IsEnum)(client_1.VendorPricingModel, { message: 'Invalid pricing model' }),
+    __metadata("design:type", typeof (_b = typeof client_1.VendorPricingModel !== "undefined" && client_1.VendorPricingModel) === "function" ? _b : Object)
+], CreateVendorServiceDto.prototype, "pricingModel", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: 50000 }),
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(0, { message: 'baseRate must be greater than or equal to 0' }),
+    __metadata("design:type", Number)
+], CreateVendorServiceDto.prototype, "baseRate", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ example: 100 }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(0, { message: 'minGuests must be greater than or equal to 0' }),
+    __metadata("design:type", Number)
+], CreateVendorServiceDto.prototype, "minGuests", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ example: 500 }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(0, { message: 'maxGuests must be greater than or equal to 0' }),
+    __metadata("design:type", Number)
+], CreateVendorServiceDto.prototype, "maxGuests", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ example: 'Full day coverage' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(2000, { message: 'description must not exceed 2000 characters' }),
+    __metadata("design:type", String)
+], CreateVendorServiceDto.prototype, "description", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ example: 'Album, drone shots' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(1000, { message: 'inclusions must not exceed 1000 characters' }),
+    __metadata("design:type", String)
+], CreateVendorServiceDto.prototype, "inclusions", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ example: 'Travel charges excluded' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(1000, { message: 'exclusions must not exceed 1000 characters' }),
+    __metadata("design:type", String)
+], CreateVendorServiceDto.prototype, "exclusions", void 0);
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiQzpcXFVzZXJzXFxIZW1hY2hhbmRpcmFuXFxJbnRlcm5zaGlwXFxOZWFyenJvXFxuZWFyenJvLWJhY2tlbmRcXHNyY1xcdmVuZG9yc1xcdmVuZG9yLXNlcnZpY2VzXFxkdG9cXGNyZWF0ZS12ZW5kb3Itc2VydmljZS5kdG8udHMiLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7OztBQUFBLDZDQUFtRTtBQUNuRSxxREFBa0c7QUFDbEcsMkNBQWlFO0FBRWpFLE1BQWEsc0JBQXNCO0lBSWpDLElBQUksQ0FBUztJQUliLFdBQVcsQ0FBYztJQUl6QixZQUFZLENBQXFCO0lBS2pDLFFBQVEsQ0FBUztJQU1qQixTQUFTLENBQVU7SUFNbkIsU0FBUyxDQUFVO0lBTW5CLFdBQVcsQ0FBVTtJQU1yQixVQUFVLENBQVU7SUFNcEIsVUFBVSxDQUFVO0NBS3JCO0FBcERELHdEQW9EQztBQWhEQztJQUhDLElBQUEscUJBQVcsRUFBQyxFQUFFLE9BQU8sRUFBRSxxQkFBcUIsRUFBRSxDQUFDO0lBQy9DLElBQUEsMEJBQVEsR0FBRTtJQUNWLElBQUEsMkJBQVMsRUFBQyxHQUFHLEVBQUUsRUFBRSxPQUFPLEVBQUUscUNBQXFDLEVBQUUsQ0FBQzs7b0RBQ3REO0FBSWI7SUFGQyxJQUFBLHFCQUFXLEVBQUMsRUFBRSxJQUFJLEVBQUUsb0JBQVcsRUFBRSxPQUFPLEVBQUUsb0JBQVcsQ0FBQyxXQUFXLEVBQUUsQ0FBQztJQUNwRSxJQUFBLHdCQUFNLEVBQUMsb0JBQVcsRUFBRSxFQUFFLE9BQU8sRUFBRSxzQkFBc0IsRUFBRSxDQUFDO2tEQUM1QyxvQkFBVyxvQkFBWCxvQkFBVzsyREFBQztBQUl6QjtJQUZDLElBQUEscUJBQVcsRUFBQyxFQUFFLElBQUksRUFBRSwyQkFBa0IsRUFBRSxPQUFPLEVBQUUsMkJBQWtCLENBQUMsU0FBUyxFQUFFLENBQUM7SUFDaEYsSUFBQSx3QkFBTSxFQUFDLDJCQUFrQixFQUFFLEVBQUUsT0FBTyxFQUFFLHVCQUF1QixFQUFFLENBQUM7a0RBQ25ELDJCQUFrQixvQkFBbEIsMkJBQWtCOzREQUFDO0FBS2pDO0lBSEMsSUFBQSxxQkFBVyxFQUFDLEVBQUUsT0FBTyxFQUFFLEtBQUssRUFBRSxDQUFDO0lBQy9CLElBQUEsdUJBQUssR0FBRTtJQUNQLElBQUEscUJBQUcsRUFBQyxDQUFDLEVBQUUsRUFBRSxPQUFPLEVBQUUsNkNBQTZDLEVBQUUsQ0FBQzs7d0RBQ2xEO0FBTWpCO0lBSkMsSUFBQSw2QkFBbUIsRUFBQyxFQUFFLE9BQU8sRUFBRSxHQUFHLEVBQUUsQ0FBQztJQUNyQyxJQUFBLDRCQUFVLEdBQUU7SUFDWixJQUFBLHVCQUFLLEdBQUU7SUFDUCxJQUFBLHFCQUFHLEVBQUMsQ0FBQyxFQUFFLEVBQUUsT0FBTyxFQUFFLDhDQUE4QyxFQUFFLENBQUM7O3lEQUNqRDtBQU1uQjtJQUpDLElBQUEsNkJBQW1CLEVBQUMsRUFBRSxPQUFPLEVBQUUsR0FBRyxFQUFFLENBQUM7SUFDckMsSUFBQSw0QkFBVSxHQUFFO0lBQ1osSUFBQSx1QkFBSyxHQUFFO0lBQ1AsSUFBQSxxQkFBRyxFQUFDLENBQUMsRUFBRSxFQUFFLE9BQU8sRUFBRSw4Q0FBOEMsRUFBRSxDQUFDOzt5REFDakQ7QUFNbkI7SUFKQyxJQUFBLDZCQUFtQixFQUFDLEVBQUUsT0FBTyxFQUFFLG1CQUFtQixFQUFFLENBQUM7SUFDckQsSUFBQSw0QkFBVSxHQUFFO0lBQ1osSUFBQSwwQkFBUSxHQUFFO0lBQ1YsSUFBQSwyQkFBUyxFQUFDLElBQUksRUFBRSxFQUFFLE9BQU8sRUFBRSw2Q0FBNkMsRUFBRSxDQUFDOzsyREFDdkQ7QUFNckI7SUFKQyxJQUFBLDZCQUFtQixFQUFDLEVBQUUsT0FBTyxFQUFFLG9CQUFvQixFQUFFLENBQUM7SUFDdEQsSUFBQSw0QkFBVSxHQUFFO0lBQ1osSUFBQSwwQkFBUSxHQUFFO0lBQ1YsSUFBQSwyQkFBUyxFQUFDLElBQUksRUFBRSxFQUFFLE9BQU8sRUFBRSw0Q0FBNEMsRUFBRSxDQUFDOzswREFDdkQ7QUFNcEI7SUFKQyxJQUFBLDZCQUFtQixFQUFDLEVBQUUsT0FBTyxFQUFFLHlCQUF5QixFQUFFLENBQUM7SUFDM0QsSUFBQSw0QkFBVSxHQUFFO0lBQ1osSUFBQSwwQkFBUSxHQUFFO0lBQ1YsSUFBQSwyQkFBUyxFQUFDLElBQUksRUFBRSxFQUFFLE9BQU8sRUFBRSw0Q0FBNEMsRUFBRSxDQUFDOzswREFDdkQiLCJuYW1lcyI6W10sInNvdXJjZXMiOlsiQzpcXFVzZXJzXFxIZW1hY2hhbmRpcmFuXFxJbnRlcm5zaGlwXFxOZWFyenJvXFxuZWFyenJvLWJhY2tlbmRcXHNyY1xcdmVuZG9yc1xcdmVuZG9yLXNlcnZpY2VzXFxkdG9cXGNyZWF0ZS12ZW5kb3Itc2VydmljZS5kdG8udHMiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHsgQXBpUHJvcGVydHksIEFwaVByb3BlcnR5T3B0aW9uYWwgfSBmcm9tICdAbmVzdGpzL3N3YWdnZXInO1xyXG5pbXBvcnQgeyBJc0VudW0sIElzSW50LCBJc09wdGlvbmFsLCBJc1N0cmluZywgTWluLCBNYXhMZW5ndGgsIFZhbGlkYXRlSWYgfSBmcm9tICdjbGFzcy12YWxpZGF0b3InO1xyXG5pbXBvcnQgeyBTZXJ2aWNlVHlwZSwgVmVuZG9yUHJpY2luZ01vZGVsIH0gZnJvbSAnQHByaXNtYS9jbGllbnQnO1xyXG5cclxuZXhwb3J0IGNsYXNzIENyZWF0ZVZlbmRvclNlcnZpY2VEdG8ge1xyXG4gIEBBcGlQcm9wZXJ0eSh7IGV4YW1wbGU6ICdXZWRkaW5nIFBob3RvZ3JhcGh5JyB9KVxyXG4gIEBJc1N0cmluZygpXHJcbiAgQE1heExlbmd0aCgyNTUsIHsgbWVzc2FnZTogJ25hbWUgbXVzdCBub3QgZXhjZWVkIDI1NSBjaGFyYWN0ZXJzJyB9KVxyXG4gIG5hbWU6IHN0cmluZztcclxuXHJcbiAgQEFwaVByb3BlcnR5KHsgZW51bTogU2VydmljZVR5cGUsIGV4YW1wbGU6IFNlcnZpY2VUeXBlLlBIT1RPR1JBUEhZIH0pXHJcbiAgQElzRW51bShTZXJ2aWNlVHlwZSwgeyBtZXNzYWdlOiAnSW52YWxpZCBzZXJ2aWNlIHR5cGUnIH0pXHJcbiAgc2VydmljZVR5cGU6IFNlcnZpY2VUeXBlO1xyXG5cclxuICBAQXBpUHJvcGVydHkoeyBlbnVtOiBWZW5kb3JQcmljaW5nTW9kZWwsIGV4YW1wbGU6IFZlbmRvclByaWNpbmdNb2RlbC5QRVJfRVZFTlQgfSlcclxuICBASXNFbnVtKFZlbmRvclByaWNpbmdNb2RlbCwgeyBtZXNzYWdlOiAnSW52YWxpZCBwcmljaW5nIG1vZGVsJyB9KVxyXG4gIHByaWNpbmdNb2RlbDogVmVuZG9yUHJpY2luZ01vZGVsO1xyXG5cclxuICBAQXBpUHJvcGVydHkoeyBleGFtcGxlOiA1MDAwMCB9KVxyXG4gIEBJc0ludCgpXHJcbiAgQE1pbigwLCB7IG1lc3NhZ2U6ICdiYXNlUmF0ZSBtdXN0IGJlIGdyZWF0ZXIgdGhhbiBvciBlcXVhbCB0byAwJyB9KVxyXG4gIGJhc2VSYXRlOiBudW1iZXI7XHJcblxyXG4gIEBBcGlQcm9wZXJ0eU9wdGlvbmFsKHsgZXhhbXBsZTogMTAwIH0pXHJcbiAgQElzT3B0aW9uYWwoKVxyXG4gIEBJc0ludCgpXHJcbiAgQE1pbigwLCB7IG1lc3NhZ2U6ICdtaW5HdWVzdHMgbXVzdCBiZSBncmVhdGVyIHRoYW4gb3IgZXF1YWwgdG8gMCcgfSlcclxuICBtaW5HdWVzdHM/OiBudW1iZXI7XHJcblxyXG4gIEBBcGlQcm9wZXJ0eU9wdGlvbmFsKHsgZXhhbXBsZTogNTAwIH0pXHJcbiAgQElzT3B0aW9uYWwoKVxyXG4gIEBJc0ludCgpXHJcbiAgQE1pbigwLCB7IG1lc3NhZ2U6ICdtYXhHdWVzdHMgbXVzdCBiZSBncmVhdGVyIHRoYW4gb3IgZXF1YWwgdG8gMCcgfSlcclxuICBtYXhHdWVzdHM/OiBudW1iZXI7XHJcblxyXG4gIEBBcGlQcm9wZXJ0eU9wdGlvbmFsKHsgZXhhbXBsZTogJ0Z1bGwgZGF5IGNvdmVyYWdlJyB9KVxyXG4gIEBJc09wdGlvbmFsKClcclxuICBASXNTdHJpbmcoKVxyXG4gIEBNYXhMZW5ndGgoMjAwMCwgeyBtZXNzYWdlOiAnZGVzY3JpcHRpb24gbXVzdCBub3QgZXhjZWVkIDIwMDAgY2hhcmFjdGVycycgfSlcclxuICBkZXNjcmlwdGlvbj86IHN0cmluZztcclxuXHJcbiAgQEFwaVByb3BlcnR5T3B0aW9uYWwoeyBleGFtcGxlOiAnQWxidW0sIGRyb25lIHNob3RzJyB9KVxyXG4gIEBJc09wdGlvbmFsKClcclxuICBASXNTdHJpbmcoKVxyXG4gIEBNYXhMZW5ndGgoMTAwMCwgeyBtZXNzYWdlOiAnaW5jbHVzaW9ucyBtdXN0IG5vdCBleGNlZWQgMTAwMCBjaGFyYWN0ZXJzJyB9KVxyXG4gIGluY2x1c2lvbnM/OiBzdHJpbmc7XHJcblxyXG4gIEBBcGlQcm9wZXJ0eU9wdGlvbmFsKHsgZXhhbXBsZTogJ1RyYXZlbCBjaGFyZ2VzIGV4Y2x1ZGVkJyB9KVxyXG4gIEBJc09wdGlvbmFsKClcclxuICBASXNTdHJpbmcoKVxyXG4gIEBNYXhMZW5ndGgoMTAwMCwgeyBtZXNzYWdlOiAnZXhjbHVzaW9ucyBtdXN0IG5vdCBleGNlZWQgMTAwMCBjaGFyYWN0ZXJzJyB9KVxyXG4gIGV4Y2x1c2lvbnM/OiBzdHJpbmc7XHJcblxyXG4gIC8vIEN1c3RvbSB2YWxpZGF0b3IgZm9yIG1pbkd1ZXN0cyA8PSBtYXhHdWVzdHNcclxuICAvLyBUaGlzIG5lZWRzIHRvIGJlIHZhbGlkYXRlZCBhdCB0aGUgc2VydmljZSBsZXZlbCBzaW5jZSBjbGFzcy12YWxpZGF0b3JcclxuICAvLyBkb2Vzbid0IGhhdmUgYSBidWlsdC1pbiBjb21wYXJpc29uIHZhbGlkYXRvciBmb3IgZGlmZmVyZW50IGZpZWxkc1xyXG59XHJcbiJdLCJ2ZXJzaW9uIjozfQ==

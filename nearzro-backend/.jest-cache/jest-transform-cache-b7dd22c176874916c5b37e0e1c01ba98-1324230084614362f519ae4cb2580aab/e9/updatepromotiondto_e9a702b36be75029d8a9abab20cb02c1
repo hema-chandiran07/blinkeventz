@@ -1,0 +1,119 @@
+452eaa6cf245bede866d2cd0657037d2
+"use strict";
+
+/* istanbul ignore next */
+function cov_1hwy9aw6xw() {
+  var path = "C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\promotions\\dto\\update-promotion.dto.ts";
+  var hash = "8621b370096ea83491de260728729330a3ec8e31";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\promotions\\dto\\update-promotion.dto.ts",
+    statementMap: {
+      "0": {
+        start: {
+          line: 2,
+          column: 0
+        },
+        end: {
+          line: 2,
+          column: 62
+        }
+      },
+      "1": {
+        start: {
+          line: 3,
+          column: 0
+        },
+        end: {
+          line: 3,
+          column: 36
+        }
+      },
+      "2": {
+        start: {
+          line: 4,
+          column: 18
+        },
+        end: {
+          line: 4,
+          column: 44
+        }
+      },
+      "3": {
+        start: {
+          line: 5,
+          column: 31
+        },
+        end: {
+          line: 5,
+          column: 64
+        }
+      },
+      "4": {
+        start: {
+          line: 8,
+          column: 0
+        },
+        end: {
+          line: 8,
+          column: 48
+        }
+      }
+    },
+    fnMap: {},
+    branchMap: {},
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0
+    },
+    f: {},
+    b: {},
+    inputSourceMap: {
+      file: "C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\promotions\\dto\\update-promotion.dto.ts",
+      mappings: ";;;AAAA,6CAA8C;AAC9C,iEAA4D;AAE5D,MAAa,kBAAmB,SAAQ,IAAA,qBAAW,EAAC,yCAAkB,CAAC;CAAG;AAA1E,gDAA0E",
+      names: [],
+      sources: ["C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\promotions\\dto\\update-promotion.dto.ts"],
+      sourcesContent: ["import { PartialType } from '@nestjs/swagger';\r\nimport { CreatePromotionDto } from './create-promotion.dto';\r\n\r\nexport class UpdatePromotionDto extends PartialType(CreatePromotionDto) {}\r\n"],
+      version: 3
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "8621b370096ea83491de260728729330a3ec8e31"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_1hwy9aw6xw = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_1hwy9aw6xw();
+cov_1hwy9aw6xw().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_1hwy9aw6xw().s[1]++;
+exports.UpdatePromotionDto = void 0;
+const swagger_1 =
+/* istanbul ignore next */
+(cov_1hwy9aw6xw().s[2]++, require("@nestjs/swagger"));
+const create_promotion_dto_1 =
+/* istanbul ignore next */
+(cov_1hwy9aw6xw().s[3]++, require("./create-promotion.dto"));
+class UpdatePromotionDto extends
+/* istanbul ignore next */
+((0, swagger_1.PartialType)(create_promotion_dto_1.CreatePromotionDto)) {}
+/* istanbul ignore next */
+cov_1hwy9aw6xw().s[4]++;
+exports.UpdatePromotionDto = UpdatePromotionDto;
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJzd2FnZ2VyXzEiLCJjb3ZfMWh3eTlhdzZ4dyIsInMiLCJyZXF1aXJlIiwiY3JlYXRlX3Byb21vdGlvbl9kdG9fMSIsIlVwZGF0ZVByb21vdGlvbkR0byIsIlBhcnRpYWxUeXBlIiwiQ3JlYXRlUHJvbW90aW9uRHRvIiwiZXhwb3J0cyJdLCJzb3VyY2VzIjpbIkM6XFxVc2Vyc1xcSGVtYWNoYW5kaXJhblxcSW50ZXJuc2hpcFxcTmVhcnpyb1xcbmVhcnpyby1iYWNrZW5kXFxzcmNcXHByb21vdGlvbnNcXGR0b1xcdXBkYXRlLXByb21vdGlvbi5kdG8udHMiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHsgUGFydGlhbFR5cGUgfSBmcm9tICdAbmVzdGpzL3N3YWdnZXInO1xyXG5pbXBvcnQgeyBDcmVhdGVQcm9tb3Rpb25EdG8gfSBmcm9tICcuL2NyZWF0ZS1wcm9tb3Rpb24uZHRvJztcclxuXHJcbmV4cG9ydCBjbGFzcyBVcGRhdGVQcm9tb3Rpb25EdG8gZXh0ZW5kcyBQYXJ0aWFsVHlwZShDcmVhdGVQcm9tb3Rpb25EdG8pIHt9XHJcbiJdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7O0FBQUEsTUFBQUEsU0FBQTtBQUFBO0FBQUEsQ0FBQUMsY0FBQSxHQUFBQyxDQUFBLE9BQUFDLE9BQUE7QUFDQSxNQUFBQyxzQkFBQTtBQUFBO0FBQUEsQ0FBQUgsY0FBQSxHQUFBQyxDQUFBLE9BQUFDLE9BQUE7QUFFQSxNQUFhRSxrQkFBbUI7QUFBQTtBQUFBLENBQVEsSUFBQUwsU0FBQSxDQUFBTSxXQUFXLEVBQUNGLHNCQUFBLENBQUFHLGtCQUFrQixDQUFDO0FBQUc7QUFBQU4sY0FBQSxHQUFBQyxDQUFBO0FBQTFFTSxPQUFBLENBQUFILGtCQUFBLEdBQUFBLGtCQUFBIiwiaWdub3JlTGlzdCI6W119

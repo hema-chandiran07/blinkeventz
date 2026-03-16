@@ -1,6 +1,11 @@
 /**
  * Backend Jest Configuration
  * NearZro Event Management Platform
+ * 
+ * Optimized for:
+ * - CI/CD pipeline stability
+ * - Flaky test prevention
+ * - Proper mock isolation
  */
 
 module.exports = {
@@ -37,12 +42,21 @@ module.exports = {
   silent: false,
   // Force Jest to exit after all tests complete
   forceExit: true,
-  // Clear mocks between tests
+  // Clear mocks between tests - prevents state leakage
   clearMocks: true,
+  // Reset mock implementations between tests
   resetMocks: true,
+  // Restore mocks to original implementations
   restoreMocks: true,
-  // Detect open handles to find resource leaks
+  // Detect open handles to find resource leaks (enable for debugging)
   detectOpenHandles: false,
-  // Test timeout
+  // Test timeout - 30 seconds for integration tests
   testTimeout: 30000,
+  // Run tests serially to avoid parallel execution issues
+  maxWorkers: 1,
+  // Bail on first failure in CI
+  bail: process.env.CI ? 1 : 0,
+  // Cache for performance
+  cache: true,
+  cacheDirectory: '<rootDir>/.jest-cache',
 };

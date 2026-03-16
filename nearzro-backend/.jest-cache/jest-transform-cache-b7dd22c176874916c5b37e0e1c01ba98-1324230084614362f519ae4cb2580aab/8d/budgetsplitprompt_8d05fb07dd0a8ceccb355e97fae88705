@@ -1,0 +1,35 @@
+cef9236268e5ed2bdb8d80de1dceba29
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.budgetSplitPrompt = budgetSplitPrompt;
+function budgetSplitPrompt(input) {
+    return `
+Create a budget allocation plan for an event.
+
+Rules:
+- Budget must be fully distributed
+- Use realistic Indian pricing
+- Respond ONLY in valid JSON
+- No markdown
+
+Input:
+${JSON.stringify(input)}
+
+Output format:
+{
+  "summary": {
+    "eventType": "",
+    "city": "",
+    "guestCount": 0,
+    "totalBudget": 0
+  },
+  "allocations": [
+    { "category": "Venue", "amount": 0, "notes": "" },
+    { "category": "Catering", "amount": 0, "notes": "" },
+    { "category": "Decor", "amount": 0, "notes": "" },
+    { "category": "Entertainment", "amount": 0, "notes": "" }
+  ]
+}
+`;
+}
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiQzpcXFVzZXJzXFxIZW1hY2hhbmRpcmFuXFxJbnRlcm5zaGlwXFxOZWFyenJvXFxuZWFyenJvLWJhY2tlbmRcXHNyY1xcYWktcGxhbm5lclxccHJvbXB0c1xcYnVkZ2V0LXNwbGl0LnByb21wdC50cyIsIm1hcHBpbmdzIjoiOztBQUFBLDhDQW1DQztBQW5DRCxTQUFnQixpQkFBaUIsQ0FBQyxLQU1qQztJQUNDLE9BQU87Ozs7Ozs7Ozs7RUFVUCxJQUFJLENBQUMsU0FBUyxDQUFDLEtBQUssQ0FBQzs7Ozs7Ozs7Ozs7Ozs7Ozs7Q0FpQnRCLENBQUM7QUFDRixDQUFDIiwibmFtZXMiOltdLCJzb3VyY2VzIjpbIkM6XFxVc2Vyc1xcSGVtYWNoYW5kaXJhblxcSW50ZXJuc2hpcFxcTmVhcnpyb1xcbmVhcnpyby1iYWNrZW5kXFxzcmNcXGFpLXBsYW5uZXJcXHByb21wdHNcXGJ1ZGdldC1zcGxpdC5wcm9tcHQudHMiXSwic291cmNlc0NvbnRlbnQiOlsiZXhwb3J0IGZ1bmN0aW9uIGJ1ZGdldFNwbGl0UHJvbXB0KGlucHV0OiB7XHJcbiAgYnVkZ2V0OiBudW1iZXI7XHJcbiAgZXZlbnRUeXBlOiBzdHJpbmc7XHJcbiAgY2l0eTogc3RyaW5nO1xyXG4gIGFyZWE6IHN0cmluZztcclxuICBndWVzdENvdW50OiBudW1iZXI7XHJcbn0pIHtcclxuICByZXR1cm4gYFxyXG5DcmVhdGUgYSBidWRnZXQgYWxsb2NhdGlvbiBwbGFuIGZvciBhbiBldmVudC5cclxuXHJcblJ1bGVzOlxyXG4tIEJ1ZGdldCBtdXN0IGJlIGZ1bGx5IGRpc3RyaWJ1dGVkXHJcbi0gVXNlIHJlYWxpc3RpYyBJbmRpYW4gcHJpY2luZ1xyXG4tIFJlc3BvbmQgT05MWSBpbiB2YWxpZCBKU09OXHJcbi0gTm8gbWFya2Rvd25cclxuXHJcbklucHV0OlxyXG4ke0pTT04uc3RyaW5naWZ5KGlucHV0KX1cclxuXHJcbk91dHB1dCBmb3JtYXQ6XHJcbntcclxuICBcInN1bW1hcnlcIjoge1xyXG4gICAgXCJldmVudFR5cGVcIjogXCJcIixcclxuICAgIFwiY2l0eVwiOiBcIlwiLFxyXG4gICAgXCJndWVzdENvdW50XCI6IDAsXHJcbiAgICBcInRvdGFsQnVkZ2V0XCI6IDBcclxuICB9LFxyXG4gIFwiYWxsb2NhdGlvbnNcIjogW1xyXG4gICAgeyBcImNhdGVnb3J5XCI6IFwiVmVudWVcIiwgXCJhbW91bnRcIjogMCwgXCJub3Rlc1wiOiBcIlwiIH0sXHJcbiAgICB7IFwiY2F0ZWdvcnlcIjogXCJDYXRlcmluZ1wiLCBcImFtb3VudFwiOiAwLCBcIm5vdGVzXCI6IFwiXCIgfSxcclxuICAgIHsgXCJjYXRlZ29yeVwiOiBcIkRlY29yXCIsIFwiYW1vdW50XCI6IDAsIFwibm90ZXNcIjogXCJcIiB9LFxyXG4gICAgeyBcImNhdGVnb3J5XCI6IFwiRW50ZXJ0YWlubWVudFwiLCBcImFtb3VudFwiOiAwLCBcIm5vdGVzXCI6IFwiXCIgfVxyXG4gIF1cclxufVxyXG5gO1xyXG59XHJcbiJdLCJ2ZXJzaW9uIjozfQ==

@@ -1,6 +1,14 @@
 /**
  * Test Utilities and Mock Data for Notifications Module
  * NearZro Event Management Platform
+ * 
+ * Provides comprehensive mocking utilities for:
+ * - Prisma service
+ * - Bull queues
+ * - Notification providers (Email, SMS, WhatsApp, Push)
+ * - WebSocket gateway
+ * - Config service
+ * - DTOs and entities
  */
 
 // Import DTOs
@@ -12,6 +20,10 @@ import { NotificationType, NotificationPriority, NotificationChannel as PrismaNo
 
 // Re-export NotificationChannel from local enum
 export { NotificationChannel } from './enums/notification-channel.enum';
+
+// ============================================
+// DTO MOCKS
+// ============================================
 
 /**
  * Create a mock SendNotificationDto
@@ -41,7 +53,7 @@ export function mockNotificationActionDto(overrides: Partial<NotificationActionD
 }
 
 // ============================================
-// Mock User Data
+// USER MOCKS
 // ============================================
 
 /**
@@ -110,7 +122,7 @@ export function mockNotificationPreference(
 }
 
 // ============================================
-// Mock Notification Data
+// NOTIFICATION MOCKS
 // ============================================
 
 /**
@@ -142,7 +154,7 @@ export function mockNotifications(count: number = 5): any[] {
 }
 
 // ============================================
-// Mock Queue Jobs
+// QUEUE MOCKS
 // ============================================
 
 /**
@@ -174,8 +186,20 @@ export function mockBullJob(data: Record<string, any> = {}): any {
   };
 }
 
+/**
+ * Create a mock Bull queue
+ */
+export function createMockQueue(): any {
+  return {
+    add: jest.fn().mockResolvedValue({ id: 'test-job-id' }),
+    process: jest.fn(),
+    remove: jest.fn(),
+    close: jest.fn().mockResolvedValue(undefined),
+  };
+}
+
 // ============================================
-// Mock Providers
+// PROVIDER MOCKS
 // ============================================
 
 /**
@@ -222,6 +246,19 @@ export function createMockPushProvider(): any {
 }
 
 /**
+ * Create mock InAppProvider
+ */
+export function createMockInAppProvider(): any {
+  return {
+    send: jest.fn().mockResolvedValue(true),
+  };
+}
+
+// ============================================
+// GATEWAY MOCKS
+// ============================================
+
+/**
  * Create mock NotificationGateway
  */
 export function createMockNotificationGateway(): any {
@@ -246,6 +283,10 @@ export function createMockNotificationQueue(): any {
     }),
   };
 }
+
+// ============================================
+// PRISMA SERVICE MOCK
+// ============================================
 
 /**
  * Create mock PrismaService
@@ -280,6 +321,10 @@ export function createMockPrismaService(): any {
   };
 }
 
+// ============================================
+// CONFIG SERVICE MOCK
+// ============================================
+
 /**
  * Create mock ConfigService
  */
@@ -305,7 +350,7 @@ export function createMockConfigService(overrides: Record<string, any> = {}): an
 }
 
 // ============================================
-// OTP Mock Data
+// OTP MOCK DATA
 // ============================================
 
 /**
@@ -330,7 +375,7 @@ export function mockExpiredOtpData(): { otp: string; expiresAt: Date } {
 }
 
 // ============================================
-// Test Utilities
+// TEST UTILITIES
 // ============================================
 
 /**
@@ -352,4 +397,45 @@ export function createMockFn<T = any>(returnValue?: T): jest.Mock<Promise<T>, []
  */
 export function createRejectedMockFn(error: Error): jest.Mock<Promise<never>, []> {
   return jest.fn().mockRejectedValue(error);
+}
+
+/**
+ * Generate a random email for testing
+ */
+export function generateRandomEmail(): string {
+  return `test_${Date.now()}_${Math.random().toString(36).substring(7)}@example.com`;
+}
+
+/**
+ * Generate a random phone number for testing
+ */
+export function generateRandomPhone(): string {
+  return `+1${Math.floor(Math.random() * 1000000000).toString().padStart(10, '0')}`;
+}
+
+/**
+ * Create mock notification with all channels
+ */
+export function mockNotificationAllChannels(overrides: Record<string, any> = {}): any[] {
+  return [
+    { channel: PrismaNotificationChannel.EMAIL, enabled: true },
+    { channel: PrismaNotificationChannel.SMS, enabled: true },
+    { channel: PrismaNotificationChannel.WHATSAPP, enabled: true },
+    { channel: PrismaNotificationChannel.PUSH, enabled: true },
+    { channel: PrismaNotificationChannel.IN_APP, enabled: true },
+    ...(overrides.channels || []),
+  ];
+}
+
+/**
+ * Create mock notification with only disabled channels
+ */
+export function mockNotificationDisabledChannels(): any[] {
+  return [
+    { channel: PrismaNotificationChannel.EMAIL, enabled: false },
+    { channel: PrismaNotificationChannel.SMS, enabled: false },
+    { channel: PrismaNotificationChannel.WHATSAPP, enabled: false },
+    { channel: PrismaNotificationChannel.PUSH, enabled: false },
+    { channel: PrismaNotificationChannel.IN_APP, enabled: false },
+  ];
 }

@@ -1,0 +1,173 @@
+b7c9dc391c7b713cb7cdeed04ddc01da
+"use strict";
+
+/* istanbul ignore next */
+function cov_173xcm19wa() {
+  var path = "C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\common\\decorators\\roles.decorator.ts";
+  var hash = "cebf243e81520b216740c72b8fa15dee620d74eb";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\common\\decorators\\roles.decorator.ts",
+    statementMap: {
+      "0": {
+        start: {
+          line: 2,
+          column: 0
+        },
+        end: {
+          line: 2,
+          column: 62
+        }
+      },
+      "1": {
+        start: {
+          line: 3,
+          column: 0
+        },
+        end: {
+          line: 3,
+          column: 43
+        }
+      },
+      "2": {
+        start: {
+          line: 4,
+          column: 17
+        },
+        end: {
+          line: 4,
+          column: 42
+        }
+      },
+      "3": {
+        start: {
+          line: 5,
+          column: 0
+        },
+        end: {
+          line: 5,
+          column: 28
+        }
+      },
+      "4": {
+        start: {
+          line: 6,
+          column: 14
+        },
+        end: {
+          line: 6,
+          column: 79
+        }
+      },
+      "5": {
+        start: {
+          line: 6,
+          column: 28
+        },
+        end: {
+          line: 6,
+          column: 79
+        }
+      },
+      "6": {
+        start: {
+          line: 7,
+          column: 0
+        },
+        end: {
+          line: 7,
+          column: 22
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "(anonymous_0)",
+        decl: {
+          start: {
+            line: 6,
+            column: 14
+          },
+          end: {
+            line: 6,
+            column: 15
+          }
+        },
+        loc: {
+          start: {
+            line: 6,
+            column: 28
+          },
+          end: {
+            line: 6,
+            column: 79
+          }
+        },
+        line: 6
+      }
+    },
+    branchMap: {},
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0
+    },
+    f: {
+      "0": 0
+    },
+    b: {},
+    inputSourceMap: {
+      file: "C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\common\\decorators\\roles.decorator.ts",
+      mappings: ";;;AAAA,2CAA6C;AAGhC,QAAA,SAAS,GAAG,OAAO,CAAC;AAC1B,MAAM,KAAK,GAAG,CAAC,GAAG,KAAa,EAAE,EAAE,CACxC,IAAA,oBAAW,EAAC,iBAAS,EAAE,KAAK,CAAC,CAAC;AADnB,QAAA,KAAK,SACc",
+      names: [],
+      sources: ["C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\common\\decorators\\roles.decorator.ts"],
+      sourcesContent: ["import { SetMetadata } from '@nestjs/common';\r\nimport { Role } from '@prisma/client';\r\n\r\nexport const ROLES_KEY = 'roles';\r\nexport const Roles = (...roles: Role[]) =>\r\n  SetMetadata(ROLES_KEY, roles);\r\n"],
+      version: 3
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "cebf243e81520b216740c72b8fa15dee620d74eb"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_173xcm19wa = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_173xcm19wa();
+cov_173xcm19wa().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_173xcm19wa().s[1]++;
+exports.Roles = exports.ROLES_KEY = void 0;
+const common_1 =
+/* istanbul ignore next */
+(cov_173xcm19wa().s[2]++, require("@nestjs/common"));
+/* istanbul ignore next */
+cov_173xcm19wa().s[3]++;
+exports.ROLES_KEY = 'roles';
+/* istanbul ignore next */
+cov_173xcm19wa().s[4]++;
+const Roles = (...roles) => {
+  /* istanbul ignore next */
+  cov_173xcm19wa().f[0]++;
+  cov_173xcm19wa().s[5]++;
+  return (0, common_1.SetMetadata)(exports.ROLES_KEY, roles);
+};
+/* istanbul ignore next */
+cov_173xcm19wa().s[6]++;
+exports.Roles = Roles;
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJjb21tb25fMSIsImNvdl8xNzN4Y20xOXdhIiwicyIsInJlcXVpcmUiLCJleHBvcnRzIiwiUk9MRVNfS0VZIiwiUm9sZXMiLCJyb2xlcyIsImYiLCJTZXRNZXRhZGF0YSJdLCJzb3VyY2VzIjpbIkM6XFxVc2Vyc1xcSGVtYWNoYW5kaXJhblxcSW50ZXJuc2hpcFxcTmVhcnpyb1xcbmVhcnpyby1iYWNrZW5kXFxzcmNcXGNvbW1vblxcZGVjb3JhdG9yc1xccm9sZXMuZGVjb3JhdG9yLnRzIl0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IFNldE1ldGFkYXRhIH0gZnJvbSAnQG5lc3Rqcy9jb21tb24nO1xyXG5pbXBvcnQgeyBSb2xlIH0gZnJvbSAnQHByaXNtYS9jbGllbnQnO1xyXG5cclxuZXhwb3J0IGNvbnN0IFJPTEVTX0tFWSA9ICdyb2xlcyc7XHJcbmV4cG9ydCBjb25zdCBSb2xlcyA9ICguLi5yb2xlczogUm9sZVtdKSA9PlxyXG4gIFNldE1ldGFkYXRhKFJPTEVTX0tFWSwgcm9sZXMpO1xyXG4iXSwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7QUFBQSxNQUFBQSxRQUFBO0FBQUE7QUFBQSxDQUFBQyxjQUFBLEdBQUFDLENBQUEsT0FBQUMsT0FBQTtBQUE2QztBQUFBRixjQUFBLEdBQUFDLENBQUE7QUFHaENFLE9BQUEsQ0FBQUMsU0FBUyxHQUFHLE9BQU87QUFBQztBQUFBSixjQUFBLEdBQUFDLENBQUE7QUFDMUIsTUFBTUksS0FBSyxHQUFHQSxDQUFDLEdBQUdDLEtBQWEsS0FDcEM7RUFBQTtFQUFBTixjQUFBLEdBQUFPLENBQUE7RUFBQVAsY0FBQSxHQUFBQyxDQUFBO0VBQUEsV0FBQUYsUUFBQSxDQUFBUyxXQUFXLEVBQUNMLE9BQUEsQ0FBQUMsU0FBUyxFQUFFRSxLQUFLLENBQUM7QUFBRCxDQUFDO0FBQUM7QUFBQU4sY0FBQSxHQUFBQyxDQUFBO0FBRG5CRSxPQUFBLENBQUFFLEtBQUssR0FBQUEsS0FBQSIsImlnbm9yZUxpc3QiOltdfQ==

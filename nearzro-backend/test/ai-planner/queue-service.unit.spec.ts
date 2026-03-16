@@ -5,34 +5,13 @@ import { OpenAIProvider } from '../../src/ai-planner/providers/openai.provider';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { ConfigService } from '@nestjs/config';
 
-// Mock Prisma
-const mockPrisma = {
-  aIPlan: {
-    create: jest.fn().mockResolvedValue({ id: 1, userId: 1 }),
-    findFirst: jest.fn(),
-  },
-};
-
-// Mock Cache
-const mockCache = {
-  get: jest.fn().mockResolvedValue(null),
-  set: jest.fn().mockResolvedValue(undefined),
-};
-
-// Mock OpenAI Provider
-const mockAIProvider = {
-  generateWithCircuitBreaker: jest.fn(),
-  isAvailable: jest.fn().mockReturnValue(true),
-};
-
-// Mock ConfigService
-const mockConfigService = {
-  get: jest.fn().mockReturnValue('fake-api-key'),
-};
-
 describe('AIPlannerQueueService', () => {
   let service: AIPlannerQueueService;
-  let ai: typeof mockAIProvider;
+  let prismaCreate: jest.Mock;
+  let prismaFindFirst: jest.Mock;
+  let cacheGet: jest.Mock;
+  let cacheSet: jest.Mock;
+  let aiGenerate: jest.Mock;
 
   const validJobData: GeneratePlanJobData = {
     userId: 1,
@@ -54,6 +33,34 @@ describe('AIPlannerQueueService', () => {
   });
 
   beforeEach(async () => {
+    // Create fresh mock functions for each test
+    prismaCreate = jest.fn().mockResolvedValue({ id: 1, userId: 1 });
+    prismaFindFirst = jest.fn();
+    cacheGet = jest.fn().mockResolvedValue(null);
+    cacheSet = jest.fn().mockResolvedValue(undefined);
+    aiGenerate = jest.fn();
+
+    const mockPrisma = {
+      aIPlan: {
+        create: prismaCreate,
+        findFirst: prismaFindFirst,
+      },
+    };
+
+    const mockCache = {
+      get: cacheGet,
+      set: cacheSet,
+    };
+
+    const mockAIProvider = {
+      generateWithCircuitBreaker: aiGenerate,
+      isAvailable: jest.fn().mockReturnValue(true),
+    };
+
+    const mockConfigService = {
+      get: jest.fn().mockReturnValue('fake-api-key'),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AIPlannerQueueService,
@@ -77,11 +84,6 @@ describe('AIPlannerQueueService', () => {
     }).compile();
 
     service = module.get<AIPlannerQueueService>(AIPlannerQueueService);
-    ai = module.get(OpenAIProvider);
-  });
-
-  beforeEach(() => {
-    jest.clearAllMocks();
   });
 
   // ==========================================
@@ -90,30 +92,27 @@ describe('AIPlannerQueueService', () => {
 
   describe('processGeneratePlanJob - Success Cases', () => {
     it('should successfully process a valid job', async () => {
-      mockAIProvider.generateWithCircuitBreaker.mockResolvedValueOnce(validAIResponse);
-      mockCache.get.mockResolvedValueOnce(null);
+      aiGenerate.mockResolvedValueOnce(validAIResponse);
 
       const result = await service.processGeneratePlanJob(validJobData);
 
       expect(result.status).toBe('success');
       expect(result.planId).toBe(1);
-      expect(mockPrisma.aIPlan.create).toHaveBeenCalled();
-      expect(mockCache.set).toHaveBeenCalled();
+      expect(prismaCreate).toHaveBeenCalled();
+      expect(cacheSet).toHaveBeenCalled();
     });
 
     it('should return cached result if available', async () => {
-      const cachedPlan = { id: 999, userId: 1 };
-      mockCache.get.mockResolvedValueOnce(cachedPlan);
+      cacheGet.mockResolvedValueOnce({ id: 999 });
 
       const result = await service.processGeneratePlanJob(validJobData);
 
       expect(result.status).toBe('success');
       expect(result.planId).toBe(999);
-      expect(mockPrisma.aIPlan.create).not.toHaveBeenCalled();
+      expect(prismaCreate).not.toHaveBeenCalled();
     });
 
     it('should process job with high budget', async () => {
-      // AI response must match high budget
       const highBudgetAIResponse = JSON.stringify({
         summary: { eventType: 'Wedding', city: 'Chennai', guestCount: 300, totalBudget: 10000000 },
         allocations: [
@@ -124,8 +123,7 @@ describe('AIPlannerQueueService', () => {
         ],
       });
 
-      mockAIProvider.generateWithCircuitBreaker.mockResolvedValueOnce(highBudgetAIResponse);
-      mockCache.get.mockResolvedValueOnce(null);
+      aiGenerate.mockResolvedValueOnce(highBudgetAIResponse);
 
       const highBudgetData = { ...validJobData, budget: 10000000 };
 
@@ -135,8 +133,7 @@ describe('AIPlannerQueueService', () => {
     });
 
     it('should process job with large guest count', async () => {
-      mockAIProvider.generateWithCircuitBreaker.mockResolvedValueOnce(validAIResponse);
-      mockCache.get.mockResolvedValueOnce(null);
+      aiGenerate.mockResolvedValueOnce(validAIResponse);
 
       const largeGuestData = { ...validJobData, guestCount: 5000 };
 
@@ -146,8 +143,7 @@ describe('AIPlannerQueueService', () => {
     });
 
     it('should handle different cities', async () => {
-      mockAIProvider.generateWithCircuitBreaker.mockResolvedValueOnce(validAIResponse);
-      mockCache.get.mockResolvedValueOnce(null);
+      aiGenerate.mockResolvedValueOnce(validAIResponse);
 
       const mumbaiData = { ...validJobData, city: 'Mumbai', area: 'Bandra' };
 
@@ -170,8 +166,7 @@ describe('AIPlannerQueueService', () => {
         ],
       });
 
-      mockAIProvider.generateWithCircuitBreaker.mockResolvedValueOnce(mismatchedResponse);
-      mockCache.get.mockResolvedValueOnce(null);
+      aiGenerate.mockResolvedValueOnce(mismatchedResponse);
 
       const result = await service.processGeneratePlanJob(validJobData);
 
@@ -180,10 +175,7 @@ describe('AIPlannerQueueService', () => {
     });
 
     it('should fail when AI service is unavailable', async () => {
-      mockAIProvider.generateWithCircuitBreaker.mockRejectedValueOnce(
-        new Error('AI service unavailable'),
-      );
-      mockCache.get.mockResolvedValueOnce(null);
+      aiGenerate.mockRejectedValueOnce(new Error('AI service unavailable'));
 
       const result = await service.processGeneratePlanJob(validJobData);
 
@@ -192,8 +184,7 @@ describe('AIPlannerQueueService', () => {
     });
 
     it('should fail on invalid JSON from AI', async () => {
-      mockAIProvider.generateWithCircuitBreaker.mockResolvedValueOnce('not valid json');
-      mockCache.get.mockResolvedValueOnce(null);
+      aiGenerate.mockResolvedValueOnce('not valid json');
 
       const result = await service.processGeneratePlanJob(validJobData);
 
@@ -202,8 +193,7 @@ describe('AIPlannerQueueService', () => {
     });
 
     it('should fail on empty AI response', async () => {
-      mockAIProvider.generateWithCircuitBreaker.mockResolvedValueOnce('');
-      mockCache.get.mockResolvedValueOnce(null);
+      aiGenerate.mockResolvedValueOnce('');
 
       const result = await service.processGeneratePlanJob(validJobData);
 
@@ -226,7 +216,6 @@ describe('AIPlannerQueueService', () => {
         guestCount: 200,
       };
 
-      // AI response must match existing plan's budget
       const regenerationAIResponse = JSON.stringify({
         summary: { eventType: 'Regenerated', city: 'Mumbai', guestCount: 200, totalBudget: 300000 },
         allocations: [
@@ -236,9 +225,8 @@ describe('AIPlannerQueueService', () => {
         ],
       });
 
-      mockPrisma.aIPlan.findFirst.mockResolvedValue(existingPlan);
-      mockAIProvider.generateWithCircuitBreaker.mockResolvedValueOnce(regenerationAIResponse);
-      mockCache.get.mockResolvedValueOnce(null);
+      prismaFindFirst.mockResolvedValue(existingPlan);
+      aiGenerate.mockResolvedValueOnce(regenerationAIResponse);
 
       const regenerationData: GeneratePlanJobData = {
         userId: 1,
@@ -252,16 +240,15 @@ describe('AIPlannerQueueService', () => {
 
       const result = await service.processGeneratePlanJob(regenerationData);
 
-      expect(mockPrisma.aIPlan.findFirst).toHaveBeenCalledWith({
+      expect(prismaFindFirst).toHaveBeenCalledWith({
         where: { id: 10, userId: 1 },
       });
       expect(result.status).toBe('success');
     });
 
     it('should handle regeneration when existing plan not found', async () => {
-      mockPrisma.aIPlan.findFirst.mockResolvedValue(null);
-      mockAIProvider.generateWithCircuitBreaker.mockResolvedValueOnce(validAIResponse);
-      mockCache.get.mockResolvedValueOnce(null);
+      prismaFindFirst.mockResolvedValue(null);
+      aiGenerate.mockResolvedValueOnce(validAIResponse);
 
       const regenerationData: GeneratePlanJobData = {
         userId: 1,
@@ -288,16 +275,14 @@ describe('AIPlannerQueueService', () => {
   describe('processGeneratePlanJob - Retry Behavior', () => {
     it('should eventually succeed after initial failure', async () => {
       // First call fails, second succeeds
-      mockAIProvider.generateWithCircuitBreaker
+      aiGenerate
         .mockRejectedValueOnce(new Error('timeout'))
         .mockResolvedValueOnce(validAIResponse);
-
-      mockCache.get.mockResolvedValue(null);
 
       const result = await service.processGeneratePlanJob(validJobData);
 
       // Should have retried and eventually succeeded
-      expect(mockAIProvider.generateWithCircuitBreaker).toHaveBeenCalled();
+      expect(aiGenerate).toHaveBeenCalled();
     });
   });
 });

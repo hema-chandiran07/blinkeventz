@@ -1,0 +1,203 @@
+5fff1b6814edfe0f5971420a4f681870
+"use strict";
+
+/* istanbul ignore next */
+function cov_1xaocxapqm() {
+  var path = "C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\ai-planner\\ai-providers\\ai-provider.interface.ts";
+  var hash = "5c63fa9350994ea6918eb802a8392df8267e6484";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\ai-planner\\ai-providers\\ai-provider.interface.ts",
+    statementMap: {
+      "0": {
+        start: {
+          line: 2,
+          column: 0
+        },
+        end: {
+          line: 2,
+          column: 62
+        }
+      },
+      "1": {
+        start: {
+          line: 3,
+          column: 0
+        },
+        end: {
+          line: 3,
+          column: 32
+        }
+      },
+      "2": {
+        start: {
+          line: 8,
+          column: 0
+        },
+        end: {
+          line: 12,
+          column: 69
+        }
+      },
+      "3": {
+        start: {
+          line: 9,
+          column: 4
+        },
+        end: {
+          line: 9,
+          column: 40
+        }
+      },
+      "4": {
+        start: {
+          line: 10,
+          column: 4
+        },
+        end: {
+          line: 10,
+          column: 46
+        }
+      },
+      "5": {
+        start: {
+          line: 11,
+          column: 4
+        },
+        end: {
+          line: 11,
+          column: 40
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "(anonymous_0)",
+        decl: {
+          start: {
+            line: 8,
+            column: 1
+          },
+          end: {
+            line: 8,
+            column: 2
+          }
+        },
+        loc: {
+          start: {
+            line: 8,
+            column: 27
+          },
+          end: {
+            line: 12,
+            column: 1
+          }
+        },
+        line: 8
+      }
+    },
+    branchMap: {
+      "0": {
+        loc: {
+          start: {
+            line: 12,
+            column: 3
+          },
+          end: {
+            line: 12,
+            column: 67
+          }
+        },
+        type: "binary-expr",
+        locations: [{
+          start: {
+            line: 12,
+            column: 3
+          },
+          end: {
+            line: 12,
+            column: 17
+          }
+        }, {
+          start: {
+            line: 12,
+            column: 22
+          },
+          end: {
+            line: 12,
+            column: 66
+          }
+        }],
+        line: 12
+      }
+    },
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0
+    },
+    f: {
+      "0": 0
+    },
+    b: {
+      "0": [0, 0]
+    },
+    inputSourceMap: {
+      file: "C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\ai-planner\\ai-providers\\ai-provider.interface.ts",
+      mappings: ";;;AAiCA;;GAEG;AACH,IAAY,cAIX;AAJD,WAAY,cAAc;IACxB,mCAAiB,CAAA;IACjB,yCAAuB,CAAA;IACvB,mCAAiB,CAAA;AACnB,CAAC,EAJW,cAAc,8BAAd,cAAc,QAIzB",
+      names: [],
+      sources: ["C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\ai-planner\\ai-providers\\ai-provider.interface.ts"],
+      sourcesContent: ["/**\r\n * AI Provider Interface\r\n * \r\n * Defines the contract for AI providers.\r\n * Supports multiple AI backends (OpenAI, Anthropic, Gemini).\r\n */\r\nexport interface AIProvider {\r\n  /**\r\n   * Generate AI response from prompt\r\n   */\r\n  generate(prompt: string): Promise<string>;\r\n\r\n  /**\r\n   * Check if provider is available\r\n   */\r\n  isAvailable(): boolean;\r\n\r\n  /**\r\n   * Get provider name\r\n   */\r\n  getProviderName(): string;\r\n\r\n  /**\r\n   * Get estimated cost per 1K tokens\r\n   */\r\n  getCostPer1KTokens(): number;\r\n  \r\n  /**\r\n   * Check if circuit breaker allows requests (optional - for backward compatibility)\r\n   */\r\n  isCircuitOpen?(): boolean;\r\n}\r\n\r\n/**\r\n * AI Provider Types\r\n */\r\nexport enum AIProviderType {\r\n  OPENAI = 'OPENAI',\r\n  ANTHROPIC = 'ANTHROPIC',\r\n  GEMINI = 'GEMINI',\r\n}\r\n\r\n/**\r\n * AI Request options\r\n */\r\nexport interface AIRequestOptions {\r\n  temperature?: number;\r\n  maxTokens?: number;\r\n  timeout?: number;\r\n}\r\n\r\n/**\r\n * AI Response\r\n */\r\nexport interface AIResponse {\r\n  content: string;\r\n  provider: AIProviderType;\r\n  tokensUsed: number;\r\n  cost: number;\r\n}\r\n\r\n/**\r\n * AI Provider with Circuit Breaker Support\r\n */\r\nexport interface AICircuitBreakerProvider extends AIProvider {\r\n  /**\r\n   * Execute with circuit breaker protection\r\n   */\r\n  generateWithCircuitBreaker(prompt: string): Promise<string>;\r\n  \r\n  /**\r\n   * Get circuit breaker stats\r\n   */\r\n  getCircuitBreakerStats(): {\r\n    state: string;\r\n    failureCount: number;\r\n    successCount: number;\r\n    isAvailable: boolean;\r\n  };\r\n}\r\n"],
+      version: 3
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "5c63fa9350994ea6918eb802a8392df8267e6484"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_1xaocxapqm = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_1xaocxapqm();
+cov_1xaocxapqm().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_1xaocxapqm().s[1]++;
+exports.AIProviderType = void 0;
+/**
+ * AI Provider Types
+ */
+var AIProviderType;
+/* istanbul ignore next */
+cov_1xaocxapqm().s[2]++;
+(function (AIProviderType) {
+  /* istanbul ignore next */
+  cov_1xaocxapqm().f[0]++;
+  cov_1xaocxapqm().s[3]++;
+  AIProviderType["OPENAI"] = "OPENAI";
+  /* istanbul ignore next */
+  cov_1xaocxapqm().s[4]++;
+  AIProviderType["ANTHROPIC"] = "ANTHROPIC";
+  /* istanbul ignore next */
+  cov_1xaocxapqm().s[5]++;
+  AIProviderType["GEMINI"] = "GEMINI";
+})(
+/* istanbul ignore next */
+(cov_1xaocxapqm().b[0][0]++, AIProviderType) ||
+/* istanbul ignore next */
+(cov_1xaocxapqm().b[0][1]++, exports.AIProviderType = AIProviderType = {}));
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJBSVByb3ZpZGVyVHlwZSIsImNvdl8xeGFvY3hhcHFtIiwicyIsImYiLCJiIiwiZXhwb3J0cyJdLCJzb3VyY2VzIjpbIkM6XFxVc2Vyc1xcSGVtYWNoYW5kaXJhblxcSW50ZXJuc2hpcFxcTmVhcnpyb1xcbmVhcnpyby1iYWNrZW5kXFxzcmNcXGFpLXBsYW5uZXJcXGFpLXByb3ZpZGVyc1xcYWktcHJvdmlkZXIuaW50ZXJmYWNlLnRzIl0sInNvdXJjZXNDb250ZW50IjpbIi8qKlxyXG4gKiBBSSBQcm92aWRlciBJbnRlcmZhY2VcclxuICogXHJcbiAqIERlZmluZXMgdGhlIGNvbnRyYWN0IGZvciBBSSBwcm92aWRlcnMuXHJcbiAqIFN1cHBvcnRzIG11bHRpcGxlIEFJIGJhY2tlbmRzIChPcGVuQUksIEFudGhyb3BpYywgR2VtaW5pKS5cclxuICovXHJcbmV4cG9ydCBpbnRlcmZhY2UgQUlQcm92aWRlciB7XHJcbiAgLyoqXHJcbiAgICogR2VuZXJhdGUgQUkgcmVzcG9uc2UgZnJvbSBwcm9tcHRcclxuICAgKi9cclxuICBnZW5lcmF0ZShwcm9tcHQ6IHN0cmluZyk6IFByb21pc2U8c3RyaW5nPjtcclxuXHJcbiAgLyoqXHJcbiAgICogQ2hlY2sgaWYgcHJvdmlkZXIgaXMgYXZhaWxhYmxlXHJcbiAgICovXHJcbiAgaXNBdmFpbGFibGUoKTogYm9vbGVhbjtcclxuXHJcbiAgLyoqXHJcbiAgICogR2V0IHByb3ZpZGVyIG5hbWVcclxuICAgKi9cclxuICBnZXRQcm92aWRlck5hbWUoKTogc3RyaW5nO1xyXG5cclxuICAvKipcclxuICAgKiBHZXQgZXN0aW1hdGVkIGNvc3QgcGVyIDFLIHRva2Vuc1xyXG4gICAqL1xyXG4gIGdldENvc3RQZXIxS1Rva2VucygpOiBudW1iZXI7XHJcbiAgXHJcbiAgLyoqXHJcbiAgICogQ2hlY2sgaWYgY2lyY3VpdCBicmVha2VyIGFsbG93cyByZXF1ZXN0cyAob3B0aW9uYWwgLSBmb3IgYmFja3dhcmQgY29tcGF0aWJpbGl0eSlcclxuICAgKi9cclxuICBpc0NpcmN1aXRPcGVuPygpOiBib29sZWFuO1xyXG59XHJcblxyXG4vKipcclxuICogQUkgUHJvdmlkZXIgVHlwZXNcclxuICovXHJcbmV4cG9ydCBlbnVtIEFJUHJvdmlkZXJUeXBlIHtcclxuICBPUEVOQUkgPSAnT1BFTkFJJyxcclxuICBBTlRIUk9QSUMgPSAnQU5USFJPUElDJyxcclxuICBHRU1JTkkgPSAnR0VNSU5JJyxcclxufVxyXG5cclxuLyoqXHJcbiAqIEFJIFJlcXVlc3Qgb3B0aW9uc1xyXG4gKi9cclxuZXhwb3J0IGludGVyZmFjZSBBSVJlcXVlc3RPcHRpb25zIHtcclxuICB0ZW1wZXJhdHVyZT86IG51bWJlcjtcclxuICBtYXhUb2tlbnM/OiBudW1iZXI7XHJcbiAgdGltZW91dD86IG51bWJlcjtcclxufVxyXG5cclxuLyoqXHJcbiAqIEFJIFJlc3BvbnNlXHJcbiAqL1xyXG5leHBvcnQgaW50ZXJmYWNlIEFJUmVzcG9uc2Uge1xyXG4gIGNvbnRlbnQ6IHN0cmluZztcclxuICBwcm92aWRlcjogQUlQcm92aWRlclR5cGU7XHJcbiAgdG9rZW5zVXNlZDogbnVtYmVyO1xyXG4gIGNvc3Q6IG51bWJlcjtcclxufVxyXG5cclxuLyoqXHJcbiAqIEFJIFByb3ZpZGVyIHdpdGggQ2lyY3VpdCBCcmVha2VyIFN1cHBvcnRcclxuICovXHJcbmV4cG9ydCBpbnRlcmZhY2UgQUlDaXJjdWl0QnJlYWtlclByb3ZpZGVyIGV4dGVuZHMgQUlQcm92aWRlciB7XHJcbiAgLyoqXHJcbiAgICogRXhlY3V0ZSB3aXRoIGNpcmN1aXQgYnJlYWtlciBwcm90ZWN0aW9uXHJcbiAgICovXHJcbiAgZ2VuZXJhdGVXaXRoQ2lyY3VpdEJyZWFrZXIocHJvbXB0OiBzdHJpbmcpOiBQcm9taXNlPHN0cmluZz47XHJcbiAgXHJcbiAgLyoqXHJcbiAgICogR2V0IGNpcmN1aXQgYnJlYWtlciBzdGF0c1xyXG4gICAqL1xyXG4gIGdldENpcmN1aXRCcmVha2VyU3RhdHMoKToge1xyXG4gICAgc3RhdGU6IHN0cmluZztcclxuICAgIGZhaWx1cmVDb3VudDogbnVtYmVyO1xyXG4gICAgc3VjY2Vzc0NvdW50OiBudW1iZXI7XHJcbiAgICBpc0F2YWlsYWJsZTogYm9vbGVhbjtcclxuICB9O1xyXG59XHJcbiJdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7QUFpQ0E7OztBQUdBLElBQVlBLGNBSVg7QUFBQTtBQUFBQyxjQUFBLEdBQUFDLENBQUE7QUFKRCxXQUFZRixjQUFjO0VBQUE7RUFBQUMsY0FBQSxHQUFBRSxDQUFBO0VBQUFGLGNBQUEsR0FBQUMsQ0FBQTtFQUN4QkYsY0FBQSxxQkFBaUI7RUFBQTtFQUFBQyxjQUFBLEdBQUFDLENBQUE7RUFDakJGLGNBQUEsMkJBQXVCO0VBQUE7RUFBQUMsY0FBQSxHQUFBQyxDQUFBO0VBQ3ZCRixjQUFBLHFCQUFpQjtBQUNuQixDQUFDO0FBSlc7QUFBQSxDQUFBQyxjQUFBLEdBQUFHLENBQUEsVUFBQUosY0FBYztBQUFBO0FBQUEsQ0FBQUMsY0FBQSxHQUFBRyxDQUFBLFVBQUFDLE9BQUEsQ0FBQUwsY0FBQSxHQUFkQSxjQUFjIiwiaWdub3JlTGlzdCI6W119

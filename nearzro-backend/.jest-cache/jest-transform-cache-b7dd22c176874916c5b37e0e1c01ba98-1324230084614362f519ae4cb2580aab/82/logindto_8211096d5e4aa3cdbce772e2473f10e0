@@ -1,0 +1,43 @@
+fabc8ec18f044bebc1f60bfb29d186f2
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.LoginDto = void 0;
+const class_validator_1 = require("class-validator");
+const swagger_1 = require("@nestjs/swagger");
+class LoginDto {
+    email; // Can be email or username
+    password;
+}
+exports.LoginDto = LoginDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        example: 'john@example.com or username',
+        description: 'Email address or username'
+    }),
+    (0, class_validator_1.IsNotEmpty)({ message: 'Email/username is required' }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(3, { message: 'Email/username must be at least 3 characters' }),
+    (0, class_validator_1.MaxLength)(255, { message: 'Email/username must not exceed 255 characters' }),
+    __metadata("design:type", String)
+], LoginDto.prototype, "email", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        example: 'SecurePass123!',
+        description: 'User password'
+    }),
+    (0, class_validator_1.IsNotEmpty)({ message: 'Password is required' }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(1, { message: 'Password is required' }),
+    (0, class_validator_1.MaxLength)(128, { message: 'Password must not exceed 128 characters' }),
+    __metadata("design:type", String)
+], LoginDto.prototype, "password", void 0);
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiQzpcXFVzZXJzXFxIZW1hY2hhbmRpcmFuXFxJbnRlcm5zaGlwXFxOZWFyenJvXFxuZWFyenJvLWJhY2tlbmRcXHNyY1xcYXV0aFxcZHRvXFxsb2dpbi5kdG8udHMiLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7O0FBQUEscURBQTZFO0FBQzdFLDZDQUE4QztBQUU5QyxNQUFhLFFBQVE7SUFTbkIsS0FBSyxDQUFTLENBQUMsMkJBQTJCO0lBVTFDLFFBQVEsQ0FBUztDQUNsQjtBQXBCRCw0QkFvQkM7QUFYQztJQVJDLElBQUEscUJBQVcsRUFBQztRQUNYLE9BQU8sRUFBRSw4QkFBOEI7UUFDdkMsV0FBVyxFQUFFLDJCQUEyQjtLQUN6QyxDQUFDO0lBQ0QsSUFBQSw0QkFBVSxFQUFDLEVBQUUsT0FBTyxFQUFFLDRCQUE0QixFQUFFLENBQUM7SUFDckQsSUFBQSwwQkFBUSxHQUFFO0lBQ1YsSUFBQSwyQkFBUyxFQUFDLENBQUMsRUFBRSxFQUFFLE9BQU8sRUFBRSw4Q0FBOEMsRUFBRSxDQUFDO0lBQ3pFLElBQUEsMkJBQVMsRUFBQyxHQUFHLEVBQUUsRUFBRSxPQUFPLEVBQUUsK0NBQStDLEVBQUUsQ0FBQzs7dUNBQy9EO0FBVWQ7SUFSQyxJQUFBLHFCQUFXLEVBQUM7UUFDWCxPQUFPLEVBQUUsZ0JBQWdCO1FBQ3pCLFdBQVcsRUFBRSxlQUFlO0tBQzdCLENBQUM7SUFDRCxJQUFBLDRCQUFVLEVBQUMsRUFBRSxPQUFPLEVBQUUsc0JBQXNCLEVBQUUsQ0FBQztJQUMvQyxJQUFBLDBCQUFRLEdBQUU7SUFDVixJQUFBLDJCQUFTLEVBQUMsQ0FBQyxFQUFFLEVBQUUsT0FBTyxFQUFFLHNCQUFzQixFQUFFLENBQUM7SUFDakQsSUFBQSwyQkFBUyxFQUFDLEdBQUcsRUFBRSxFQUFFLE9BQU8sRUFBRSx5Q0FBeUMsRUFBRSxDQUFDOzswQ0FDdEQiLCJuYW1lcyI6W10sInNvdXJjZXMiOlsiQzpcXFVzZXJzXFxIZW1hY2hhbmRpcmFuXFxJbnRlcm5zaGlwXFxOZWFyenJvXFxuZWFyenJvLWJhY2tlbmRcXHNyY1xcYXV0aFxcZHRvXFxsb2dpbi5kdG8udHMiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHsgSXNOb3RFbXB0eSwgSXNTdHJpbmcsIE1pbkxlbmd0aCwgTWF4TGVuZ3RoIH0gZnJvbSAnY2xhc3MtdmFsaWRhdG9yJztcclxuaW1wb3J0IHsgQXBpUHJvcGVydHkgfSBmcm9tICdAbmVzdGpzL3N3YWdnZXInO1xyXG5cclxuZXhwb3J0IGNsYXNzIExvZ2luRHRvIHtcclxuICBAQXBpUHJvcGVydHkoeyBcclxuICAgIGV4YW1wbGU6ICdqb2huQGV4YW1wbGUuY29tIG9yIHVzZXJuYW1lJywgXHJcbiAgICBkZXNjcmlwdGlvbjogJ0VtYWlsIGFkZHJlc3Mgb3IgdXNlcm5hbWUnIFxyXG4gIH0pXHJcbiAgQElzTm90RW1wdHkoeyBtZXNzYWdlOiAnRW1haWwvdXNlcm5hbWUgaXMgcmVxdWlyZWQnIH0pXHJcbiAgQElzU3RyaW5nKClcclxuICBATWluTGVuZ3RoKDMsIHsgbWVzc2FnZTogJ0VtYWlsL3VzZXJuYW1lIG11c3QgYmUgYXQgbGVhc3QgMyBjaGFyYWN0ZXJzJyB9KVxyXG4gIEBNYXhMZW5ndGgoMjU1LCB7IG1lc3NhZ2U6ICdFbWFpbC91c2VybmFtZSBtdXN0IG5vdCBleGNlZWQgMjU1IGNoYXJhY3RlcnMnIH0pXHJcbiAgZW1haWw6IHN0cmluZzsgLy8gQ2FuIGJlIGVtYWlsIG9yIHVzZXJuYW1lXHJcblxyXG4gIEBBcGlQcm9wZXJ0eSh7IFxyXG4gICAgZXhhbXBsZTogJ1NlY3VyZVBhc3MxMjMhJywgXHJcbiAgICBkZXNjcmlwdGlvbjogJ1VzZXIgcGFzc3dvcmQnXHJcbiAgfSlcclxuICBASXNOb3RFbXB0eSh7IG1lc3NhZ2U6ICdQYXNzd29yZCBpcyByZXF1aXJlZCcgfSlcclxuICBASXNTdHJpbmcoKVxyXG4gIEBNaW5MZW5ndGgoMSwgeyBtZXNzYWdlOiAnUGFzc3dvcmQgaXMgcmVxdWlyZWQnIH0pXHJcbiAgQE1heExlbmd0aCgxMjgsIHsgbWVzc2FnZTogJ1Bhc3N3b3JkIG11c3Qgbm90IGV4Y2VlZCAxMjggY2hhcmFjdGVycycgfSlcclxuICBwYXNzd29yZDogc3RyaW5nO1xyXG59XHJcbiJdLCJ2ZXJzaW9uIjozfQ==

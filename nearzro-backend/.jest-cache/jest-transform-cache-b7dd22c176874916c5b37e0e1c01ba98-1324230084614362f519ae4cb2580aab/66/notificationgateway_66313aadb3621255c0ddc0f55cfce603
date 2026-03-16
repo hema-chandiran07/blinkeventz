@@ -1,0 +1,52 @@
+2d2975843649829a2c3e46b45ef13773
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var NotificationGateway_1;
+var _a;
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.NotificationGateway = void 0;
+const websockets_1 = require("@nestjs/websockets");
+const socket_io_1 = require("socket.io");
+const common_1 = require("@nestjs/common");
+let NotificationGateway = NotificationGateway_1 = class NotificationGateway {
+    server;
+    logger = new common_1.Logger(NotificationGateway_1.name);
+    handleConnection(client) {
+        const userId = client.handshake.query.userId;
+        if (userId) {
+            client.join(`user_${userId}`);
+            this.logger.log(`User ${userId} connected to notifications`);
+        }
+    }
+    handleDisconnect(client) {
+        const userId = client.handshake.query.userId;
+        if (userId) {
+            this.logger.log(`User ${userId} disconnected`);
+        }
+    }
+    emitToUser(userId, payload) {
+        this.server.to(`user_${userId}`).emit('notification', payload);
+    }
+};
+exports.NotificationGateway = NotificationGateway;
+__decorate([
+    (0, websockets_1.WebSocketServer)(),
+    __metadata("design:type", typeof (_a = typeof socket_io_1.Server !== "undefined" && socket_io_1.Server) === "function" ? _a : Object)
+], NotificationGateway.prototype, "server", void 0);
+exports.NotificationGateway = NotificationGateway = NotificationGateway_1 = __decorate([
+    (0, websockets_1.WebSocketGateway)({
+        namespace: '/notifications',
+        cors: {
+            origin: '*',
+        },
+    })
+], NotificationGateway);
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiQzpcXFVzZXJzXFxIZW1hY2hhbmRpcmFuXFxJbnRlcm5zaGlwXFxOZWFyenJvXFxuZWFyenJvLWJhY2tlbmRcXHNyY1xcbm90aWZpY2F0aW9uc1xcd2Vic29ja2V0XFxub3RpZmljYXRpb24uZ2F0ZXdheS50cyIsIm1hcHBpbmdzIjoiOzs7Ozs7Ozs7Ozs7OztBQUFBLG1EQUs0QjtBQUM1Qix5Q0FBMkM7QUFDM0MsMkNBQXdDO0FBU2pDLElBQU0sbUJBQW1CLDJCQUF6QixNQUFNLG1CQUFtQjtJQUk5QixNQUFNLENBQVM7SUFFRSxNQUFNLEdBQUcsSUFBSSxlQUFNLENBQUMscUJBQW1CLENBQUMsSUFBSSxDQUFDLENBQUM7SUFFL0QsZ0JBQWdCLENBQUMsTUFBYztRQUM3QixNQUFNLE1BQU0sR0FBRyxNQUFNLENBQUMsU0FBUyxDQUFDLEtBQUssQ0FBQyxNQUFNLENBQUM7UUFDN0MsSUFBSSxNQUFNLEVBQUUsQ0FBQztZQUNYLE1BQU0sQ0FBQyxJQUFJLENBQUMsUUFBUSxNQUFNLEVBQUUsQ0FBQyxDQUFDO1lBQzlCLElBQUksQ0FBQyxNQUFNLENBQUMsR0FBRyxDQUFDLFFBQVEsTUFBTSw2QkFBNkIsQ0FBQyxDQUFDO1FBQy9ELENBQUM7SUFDSCxDQUFDO0lBRUQsZ0JBQWdCLENBQUMsTUFBYztRQUM3QixNQUFNLE1BQU0sR0FBRyxNQUFNLENBQUMsU0FBUyxDQUFDLEtBQUssQ0FBQyxNQUFNLENBQUM7UUFDN0MsSUFBSSxNQUFNLEVBQUUsQ0FBQztZQUNYLElBQUksQ0FBQyxNQUFNLENBQUMsR0FBRyxDQUFDLFFBQVEsTUFBTSxlQUFlLENBQUMsQ0FBQztRQUNqRCxDQUFDO0lBQ0gsQ0FBQztJQUVELFVBQVUsQ0FBQyxNQUFjLEVBQUUsT0FBWTtRQUNyQyxJQUFJLENBQUMsTUFBTSxDQUFDLEVBQUUsQ0FBQyxRQUFRLE1BQU0sRUFBRSxDQUFDLENBQUMsSUFBSSxDQUFDLGNBQWMsRUFBRSxPQUFPLENBQUMsQ0FBQztJQUNqRSxDQUFDO0NBQ0YsQ0FBQTtBQTFCWSxrREFBbUI7QUFJOUI7SUFEQyxJQUFBLDRCQUFlLEdBQUU7a0RBQ1Ysa0JBQU0sb0JBQU4sa0JBQU07bURBQUM7OEJBSkosbUJBQW1CO0lBTi9CLElBQUEsNkJBQWdCLEVBQUM7UUFDaEIsU0FBUyxFQUFFLGdCQUFnQjtRQUMzQixJQUFJLEVBQUU7WUFDSixNQUFNLEVBQUUsR0FBRztTQUNaO0tBQ0YsQ0FBQztHQUNXLG1CQUFtQixDQTBCL0IiLCJuYW1lcyI6W10sInNvdXJjZXMiOlsiQzpcXFVzZXJzXFxIZW1hY2hhbmRpcmFuXFxJbnRlcm5zaGlwXFxOZWFyenJvXFxuZWFyenJvLWJhY2tlbmRcXHNyY1xcbm90aWZpY2F0aW9uc1xcd2Vic29ja2V0XFxub3RpZmljYXRpb24uZ2F0ZXdheS50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQge1xyXG4gIFdlYlNvY2tldEdhdGV3YXksXHJcbiAgV2ViU29ja2V0U2VydmVyLFxyXG4gIE9uR2F0ZXdheUNvbm5lY3Rpb24sXHJcbiAgT25HYXRld2F5RGlzY29ubmVjdCxcclxufSBmcm9tICdAbmVzdGpzL3dlYnNvY2tldHMnO1xyXG5pbXBvcnQgeyBTZXJ2ZXIsIFNvY2tldCB9IGZyb20gJ3NvY2tldC5pbyc7XHJcbmltcG9ydCB7IExvZ2dlciB9IGZyb20gJ0BuZXN0anMvY29tbW9uJztcclxuaW1wb3J0IHsgTm90aWZpY2F0aW9uIH0gZnJvbSAnQHByaXNtYS9jbGllbnQnO1xyXG5cclxuQFdlYlNvY2tldEdhdGV3YXkoe1xyXG4gIG5hbWVzcGFjZTogJy9ub3RpZmljYXRpb25zJyxcclxuICBjb3JzOiB7XHJcbiAgICBvcmlnaW46ICcqJyxcclxuICB9LFxyXG59KVxyXG5leHBvcnQgY2xhc3MgTm90aWZpY2F0aW9uR2F0ZXdheVxyXG4gIGltcGxlbWVudHMgT25HYXRld2F5Q29ubmVjdGlvbiwgT25HYXRld2F5RGlzY29ubmVjdFxyXG57XHJcbiAgQFdlYlNvY2tldFNlcnZlcigpXHJcbiAgc2VydmVyOiBTZXJ2ZXI7XHJcblxyXG4gIHByaXZhdGUgcmVhZG9ubHkgbG9nZ2VyID0gbmV3IExvZ2dlcihOb3RpZmljYXRpb25HYXRld2F5Lm5hbWUpO1xyXG5cclxuICBoYW5kbGVDb25uZWN0aW9uKGNsaWVudDogU29ja2V0KSB7XHJcbiAgICBjb25zdCB1c2VySWQgPSBjbGllbnQuaGFuZHNoYWtlLnF1ZXJ5LnVzZXJJZDtcclxuICAgIGlmICh1c2VySWQpIHtcclxuICAgICAgY2xpZW50LmpvaW4oYHVzZXJfJHt1c2VySWR9YCk7XHJcbiAgICAgIHRoaXMubG9nZ2VyLmxvZyhgVXNlciAke3VzZXJJZH0gY29ubmVjdGVkIHRvIG5vdGlmaWNhdGlvbnNgKTtcclxuICAgIH1cclxuICB9XHJcblxyXG4gIGhhbmRsZURpc2Nvbm5lY3QoY2xpZW50OiBTb2NrZXQpIHtcclxuICAgIGNvbnN0IHVzZXJJZCA9IGNsaWVudC5oYW5kc2hha2UucXVlcnkudXNlcklkO1xyXG4gICAgaWYgKHVzZXJJZCkge1xyXG4gICAgICB0aGlzLmxvZ2dlci5sb2coYFVzZXIgJHt1c2VySWR9IGRpc2Nvbm5lY3RlZGApO1xyXG4gICAgfVxyXG4gIH1cclxuXHJcbiAgZW1pdFRvVXNlcih1c2VySWQ6IG51bWJlciwgcGF5bG9hZDogYW55KSB7XHJcbiAgICB0aGlzLnNlcnZlci50byhgdXNlcl8ke3VzZXJJZH1gKS5lbWl0KCdub3RpZmljYXRpb24nLCBwYXlsb2FkKTtcclxuICB9XHJcbn1cclxuIl0sInZlcnNpb24iOjN9

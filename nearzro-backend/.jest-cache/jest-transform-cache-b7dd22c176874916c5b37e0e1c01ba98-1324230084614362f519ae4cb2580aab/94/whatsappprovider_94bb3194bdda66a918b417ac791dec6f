@@ -1,0 +1,35 @@
+65aea1f456296174f55f42f9997d8999
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.WhatsappProvider = void 0;
+// src/notifications/providers/whatsapp.provider.ts
+const common_1 = require("@nestjs/common");
+const twilio_1 = require("twilio");
+let WhatsappProvider = class WhatsappProvider {
+    client;
+    constructor() {
+        this.client = new twilio_1.Twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+    }
+    async send(to, message) {
+        await this.client.messages.create({
+            from: process.env.TWILIO_WHATSAPP_FROM,
+            to: `whatsapp:${to}`,
+            body: message,
+        });
+    }
+};
+exports.WhatsappProvider = WhatsappProvider;
+exports.WhatsappProvider = WhatsappProvider = __decorate([
+    (0, common_1.Injectable)(),
+    __metadata("design:paramtypes", [])
+], WhatsappProvider);
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiQzpcXFVzZXJzXFxIZW1hY2hhbmRpcmFuXFxJbnRlcm5zaGlwXFxOZWFyenJvXFxuZWFyenJvLWJhY2tlbmRcXHNyY1xcbm90aWZpY2F0aW9uc1xccHJvdmlkZXJzXFx3aGF0c2FwcC5wcm92aWRlci50cyIsIm1hcHBpbmdzIjoiOzs7Ozs7Ozs7Ozs7QUFBQSxtREFBbUQ7QUFDbkQsMkNBQTRDO0FBQzVDLG1DQUFnQztBQUd6QixJQUFNLGdCQUFnQixHQUF0QixNQUFNLGdCQUFnQjtJQUNuQixNQUFNLENBQVM7SUFFdkI7UUFDRSxJQUFJLENBQUMsTUFBTSxHQUFHLElBQUksZUFBTSxDQUN0QixPQUFPLENBQUMsR0FBRyxDQUFDLGtCQUFtQixFQUMvQixPQUFPLENBQUMsR0FBRyxDQUFDLGlCQUFrQixDQUMvQixDQUFDO0lBQ0osQ0FBQztJQUVELEtBQUssQ0FBQyxJQUFJLENBQUMsRUFBVSxFQUFFLE9BQWU7UUFDcEMsTUFBTSxJQUFJLENBQUMsTUFBTSxDQUFDLFFBQVEsQ0FBQyxNQUFNLENBQUM7WUFDaEMsSUFBSSxFQUFFLE9BQU8sQ0FBQyxHQUFHLENBQUMsb0JBQXFCO1lBQ3ZDLEVBQUUsRUFBRSxZQUFZLEVBQUUsRUFBRTtZQUNwQixJQUFJLEVBQUUsT0FBTztTQUNkLENBQUMsQ0FBQztJQUNMLENBQUM7Q0FDRixDQUFBO0FBakJZLDRDQUFnQjsyQkFBaEIsZ0JBQWdCO0lBRDVCLElBQUEsbUJBQVUsR0FBRTs7R0FDQSxnQkFBZ0IsQ0FpQjVCIiwibmFtZXMiOltdLCJzb3VyY2VzIjpbIkM6XFxVc2Vyc1xcSGVtYWNoYW5kaXJhblxcSW50ZXJuc2hpcFxcTmVhcnpyb1xcbmVhcnpyby1iYWNrZW5kXFxzcmNcXG5vdGlmaWNhdGlvbnNcXHByb3ZpZGVyc1xcd2hhdHNhcHAucHJvdmlkZXIudHMiXSwic291cmNlc0NvbnRlbnQiOlsiLy8gc3JjL25vdGlmaWNhdGlvbnMvcHJvdmlkZXJzL3doYXRzYXBwLnByb3ZpZGVyLnRzXHJcbmltcG9ydCB7IEluamVjdGFibGUgfSBmcm9tICdAbmVzdGpzL2NvbW1vbic7XHJcbmltcG9ydCB7IFR3aWxpbyB9IGZyb20gJ3R3aWxpbyc7XHJcblxyXG5ASW5qZWN0YWJsZSgpXHJcbmV4cG9ydCBjbGFzcyBXaGF0c2FwcFByb3ZpZGVyIHtcclxuICBwcml2YXRlIGNsaWVudDogVHdpbGlvO1xyXG5cclxuICBjb25zdHJ1Y3RvcigpIHtcclxuICAgIHRoaXMuY2xpZW50ID0gbmV3IFR3aWxpbyhcclxuICAgICAgcHJvY2Vzcy5lbnYuVFdJTElPX0FDQ09VTlRfU0lEISxcclxuICAgICAgcHJvY2Vzcy5lbnYuVFdJTElPX0FVVEhfVE9LRU4hLFxyXG4gICAgKTtcclxuICB9XHJcblxyXG4gIGFzeW5jIHNlbmQodG86IHN0cmluZywgbWVzc2FnZTogc3RyaW5nKSB7XHJcbiAgICBhd2FpdCB0aGlzLmNsaWVudC5tZXNzYWdlcy5jcmVhdGUoe1xyXG4gICAgICBmcm9tOiBwcm9jZXNzLmVudi5UV0lMSU9fV0hBVFNBUFBfRlJPTSEsXHJcbiAgICAgIHRvOiBgd2hhdHNhcHA6JHt0b31gLFxyXG4gICAgICBib2R5OiBtZXNzYWdlLFxyXG4gICAgfSk7XHJcbiAgfVxyXG59XHJcbiJdLCJ2ZXJzaW9uIjozfQ==

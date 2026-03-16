@@ -1,0 +1,74 @@
+819e3c294c25d053cb085d1681915017
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.CreateVendorDto = void 0;
+const swagger_1 = require("@nestjs/swagger");
+const class_validator_1 = require("class-validator");
+class CreateVendorDto {
+    businessName;
+    description;
+    city;
+    area;
+    serviceRadiusKm;
+}
+exports.CreateVendorDto = CreateVendorDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        example: 'Royal Catering Services',
+        description: 'Vendor business name',
+    }),
+    (0, class_validator_1.IsNotEmpty)({ message: 'businessName is required' }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(255, { message: 'businessName must not exceed 255 characters' }),
+    __metadata("design:type", String)
+], CreateVendorDto.prototype, "businessName", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        example: 'We provide premium wedding catering services',
+        description: 'Optional vendor description',
+    }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(2000, { message: 'description must not exceed 2000 characters' }),
+    __metadata("design:type", String)
+], CreateVendorDto.prototype, "description", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        example: 'Chennai',
+        description: 'City where vendor operates',
+    }),
+    (0, class_validator_1.IsNotEmpty)({ message: 'city is required' }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(100, { message: 'city must not exceed 100 characters' }),
+    __metadata("design:type", String)
+], CreateVendorDto.prototype, "city", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        example: 'Velachery',
+        description: 'Service area',
+    }),
+    (0, class_validator_1.IsNotEmpty)({ message: 'area is required' }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(100, { message: 'area must not exceed 100 characters' }),
+    __metadata("design:type", String)
+], CreateVendorDto.prototype, "area", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        example: 25,
+        description: 'Service radius in kilometers',
+    }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(0, { message: 'serviceRadiusKm must be greater than or equal to 0' }),
+    __metadata("design:type", Number)
+], CreateVendorDto.prototype, "serviceRadiusKm", void 0);
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiQzpcXFVzZXJzXFxIZW1hY2hhbmRpcmFuXFxJbnRlcm5zaGlwXFxOZWFyenJvXFxuZWFyenJvLWJhY2tlbmRcXHNyY1xcdmVuZG9yc1xcZHRvXFxjcmVhdGUtdmVuZG9yLmR0by50cyIsIm1hcHBpbmdzIjoiOzs7Ozs7Ozs7Ozs7QUFBQSw2Q0FBbUU7QUFDbkUscURBQTBGO0FBRTFGLE1BQWEsZUFBZTtJQVExQixZQUFZLENBQVM7SUFTckIsV0FBVyxDQUFVO0lBU3JCLElBQUksQ0FBUztJQVNiLElBQUksQ0FBUztJQVNiLGVBQWUsQ0FBVTtDQUMxQjtBQTdDRCwwQ0E2Q0M7QUFyQ0M7SUFQQyxJQUFBLHFCQUFXLEVBQUM7UUFDWCxPQUFPLEVBQUUseUJBQXlCO1FBQ2xDLFdBQVcsRUFBRSxzQkFBc0I7S0FDcEMsQ0FBQztJQUNELElBQUEsNEJBQVUsRUFBQyxFQUFFLE9BQU8sRUFBRSwwQkFBMEIsRUFBRSxDQUFDO0lBQ25ELElBQUEsMEJBQVEsR0FBRTtJQUNWLElBQUEsMkJBQVMsRUFBQyxHQUFHLEVBQUUsRUFBRSxPQUFPLEVBQUUsNkNBQTZDLEVBQUUsQ0FBQzs7cURBQ3REO0FBU3JCO0lBUEMsSUFBQSw2QkFBbUIsRUFBQztRQUNuQixPQUFPLEVBQUUsOENBQThDO1FBQ3ZELFdBQVcsRUFBRSw2QkFBNkI7S0FDM0MsQ0FBQztJQUNELElBQUEsNEJBQVUsR0FBRTtJQUNaLElBQUEsMEJBQVEsR0FBRTtJQUNWLElBQUEsMkJBQVMsRUFBQyxJQUFJLEVBQUUsRUFBRSxPQUFPLEVBQUUsNkNBQTZDLEVBQUUsQ0FBQzs7b0RBQ3ZEO0FBU3JCO0lBUEMsSUFBQSxxQkFBVyxFQUFDO1FBQ1gsT0FBTyxFQUFFLFNBQVM7UUFDbEIsV0FBVyxFQUFFLDRCQUE0QjtLQUMxQyxDQUFDO0lBQ0QsSUFBQSw0QkFBVSxFQUFDLEVBQUUsT0FBTyxFQUFFLGtCQUFrQixFQUFFLENBQUM7SUFDM0MsSUFBQSwwQkFBUSxHQUFFO0lBQ1YsSUFBQSwyQkFBUyxFQUFDLEdBQUcsRUFBRSxFQUFFLE9BQU8sRUFBRSxxQ0FBcUMsRUFBRSxDQUFDOzs2Q0FDdEQ7QUFTYjtJQVBDLElBQUEscUJBQVcsRUFBQztRQUNYLE9BQU8sRUFBRSxXQUFXO1FBQ3BCLFdBQVcsRUFBRSxjQUFjO0tBQzVCLENBQUM7SUFDRCxJQUFBLDRCQUFVLEVBQUMsRUFBRSxPQUFPLEVBQUUsa0JBQWtCLEVBQUUsQ0FBQztJQUMzQyxJQUFBLDBCQUFRLEdBQUU7SUFDVixJQUFBLDJCQUFTLEVBQUMsR0FBRyxFQUFFLEVBQUUsT0FBTyxFQUFFLHFDQUFxQyxFQUFFLENBQUM7OzZDQUN0RDtBQVNiO0lBUEMsSUFBQSw2QkFBbUIsRUFBQztRQUNuQixPQUFPLEVBQUUsRUFBRTtRQUNYLFdBQVcsRUFBRSw4QkFBOEI7S0FDNUMsQ0FBQztJQUNELElBQUEsNEJBQVUsR0FBRTtJQUNaLElBQUEsdUJBQUssR0FBRTtJQUNQLElBQUEscUJBQUcsRUFBQyxDQUFDLEVBQUUsRUFBRSxPQUFPLEVBQUUsb0RBQW9ELEVBQUUsQ0FBQzs7d0RBQ2pEIiwibmFtZXMiOltdLCJzb3VyY2VzIjpbIkM6XFxVc2Vyc1xcSGVtYWNoYW5kaXJhblxcSW50ZXJuc2hpcFxcTmVhcnpyb1xcbmVhcnpyby1iYWNrZW5kXFxzcmNcXHZlbmRvcnNcXGR0b1xcY3JlYXRlLXZlbmRvci5kdG8udHMiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHsgQXBpUHJvcGVydHksIEFwaVByb3BlcnR5T3B0aW9uYWwgfSBmcm9tICdAbmVzdGpzL3N3YWdnZXInO1xyXG5pbXBvcnQgeyBJc1N0cmluZywgSXNPcHRpb25hbCwgSXNJbnQsIE1pbiwgTWF4TGVuZ3RoLCBJc05vdEVtcHR5IH0gZnJvbSAnY2xhc3MtdmFsaWRhdG9yJztcclxuXHJcbmV4cG9ydCBjbGFzcyBDcmVhdGVWZW5kb3JEdG8ge1xyXG4gIEBBcGlQcm9wZXJ0eSh7XHJcbiAgICBleGFtcGxlOiAnUm95YWwgQ2F0ZXJpbmcgU2VydmljZXMnLFxyXG4gICAgZGVzY3JpcHRpb246ICdWZW5kb3IgYnVzaW5lc3MgbmFtZScsXHJcbiAgfSlcclxuICBASXNOb3RFbXB0eSh7IG1lc3NhZ2U6ICdidXNpbmVzc05hbWUgaXMgcmVxdWlyZWQnIH0pXHJcbiAgQElzU3RyaW5nKClcclxuICBATWF4TGVuZ3RoKDI1NSwgeyBtZXNzYWdlOiAnYnVzaW5lc3NOYW1lIG11c3Qgbm90IGV4Y2VlZCAyNTUgY2hhcmFjdGVycycgfSlcclxuICBidXNpbmVzc05hbWU6IHN0cmluZztcclxuXHJcbiAgQEFwaVByb3BlcnR5T3B0aW9uYWwoe1xyXG4gICAgZXhhbXBsZTogJ1dlIHByb3ZpZGUgcHJlbWl1bSB3ZWRkaW5nIGNhdGVyaW5nIHNlcnZpY2VzJyxcclxuICAgIGRlc2NyaXB0aW9uOiAnT3B0aW9uYWwgdmVuZG9yIGRlc2NyaXB0aW9uJyxcclxuICB9KVxyXG4gIEBJc09wdGlvbmFsKClcclxuICBASXNTdHJpbmcoKVxyXG4gIEBNYXhMZW5ndGgoMjAwMCwgeyBtZXNzYWdlOiAnZGVzY3JpcHRpb24gbXVzdCBub3QgZXhjZWVkIDIwMDAgY2hhcmFjdGVycycgfSlcclxuICBkZXNjcmlwdGlvbj86IHN0cmluZztcclxuXHJcbiAgQEFwaVByb3BlcnR5KHtcclxuICAgIGV4YW1wbGU6ICdDaGVubmFpJyxcclxuICAgIGRlc2NyaXB0aW9uOiAnQ2l0eSB3aGVyZSB2ZW5kb3Igb3BlcmF0ZXMnLFxyXG4gIH0pXHJcbiAgQElzTm90RW1wdHkoeyBtZXNzYWdlOiAnY2l0eSBpcyByZXF1aXJlZCcgfSlcclxuICBASXNTdHJpbmcoKVxyXG4gIEBNYXhMZW5ndGgoMTAwLCB7IG1lc3NhZ2U6ICdjaXR5IG11c3Qgbm90IGV4Y2VlZCAxMDAgY2hhcmFjdGVycycgfSlcclxuICBjaXR5OiBzdHJpbmc7XHJcblxyXG4gIEBBcGlQcm9wZXJ0eSh7XHJcbiAgICBleGFtcGxlOiAnVmVsYWNoZXJ5JyxcclxuICAgIGRlc2NyaXB0aW9uOiAnU2VydmljZSBhcmVhJyxcclxuICB9KVxyXG4gIEBJc05vdEVtcHR5KHsgbWVzc2FnZTogJ2FyZWEgaXMgcmVxdWlyZWQnIH0pXHJcbiAgQElzU3RyaW5nKClcclxuICBATWF4TGVuZ3RoKDEwMCwgeyBtZXNzYWdlOiAnYXJlYSBtdXN0IG5vdCBleGNlZWQgMTAwIGNoYXJhY3RlcnMnIH0pXHJcbiAgYXJlYTogc3RyaW5nO1xyXG5cclxuICBAQXBpUHJvcGVydHlPcHRpb25hbCh7XHJcbiAgICBleGFtcGxlOiAyNSxcclxuICAgIGRlc2NyaXB0aW9uOiAnU2VydmljZSByYWRpdXMgaW4ga2lsb21ldGVycycsXHJcbiAgfSlcclxuICBASXNPcHRpb25hbCgpXHJcbiAgQElzSW50KClcclxuICBATWluKDAsIHsgbWVzc2FnZTogJ3NlcnZpY2VSYWRpdXNLbSBtdXN0IGJlIGdyZWF0ZXIgdGhhbiBvciBlcXVhbCB0byAwJyB9KVxyXG4gIHNlcnZpY2VSYWRpdXNLbT86IG51bWJlcjtcclxufVxyXG4iXSwidmVyc2lvbiI6M30=
