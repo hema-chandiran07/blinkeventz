@@ -16,6 +16,15 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
+import * as dotenv from 'dotenv';
+
+// Load test environment
+dotenv.config({ path: '.env.test' });
+dotenv.config();
+
+// Set environment variables
+process.env.NODE_ENV = 'test';
+process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres:2006@localhost:5432/nearzro_test';
 
 let app: any = null;
 let prisma: PrismaService | null = null;

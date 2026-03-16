@@ -12,16 +12,19 @@ import { BadRequestException, UnauthorizedException, ForbiddenException } from '
 import * as bcrypt from 'bcrypt';
 import { Role } from '@prisma/client';
 import { OtpService } from './otp.service';
+import { EmailProvider } from '../notifications/providers/email.provider';
 
 // Mock crypto module
 jest.mock('crypto', () => ({
-  randomBytes: jest.fn().mockReturnValue(Buffer.from('mock-token-data')),
-  createHash: jest.fn().mockReturnValue({
+  randomBytes: jest.fn(() => ({
+    toString: jest.fn(() => 'mock-random-token-string'),
+  })),
+  createHash: jest.fn(() => ({
     update: jest.fn().mockReturnValue({
       digest: jest.fn().mockReturnValue('hashed-token'),
     }),
-  }),
-  randomInt: jest.fn().mockReturnValue(123456),
+  })),
+  randomInt: jest.fn(() => 123456),
 }));
 
 // Mock bcrypt
@@ -99,14 +102,20 @@ describe('AuthService - Comprehensive Unit Tests', () => {
     verifyOtp: jest.fn().mockResolvedValue({ success: true, message: 'OTP verified successfully' }),
   };
 
+  const mockEmailProvider = {
+    send: jest.fn().mockResolvedValue(true),
+    sendOtpEmail: jest.fn().mockResolvedValue(true),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: JwtService, useValue: mockJwt },
-        { provide: ConfigService, useValue: mockConfigService },
         { provide: OtpService, useValue: mockOtpService },
+        { provide: EmailProvider, useValue: mockEmailProvider },
+        { provide: ConfigService, useValue: mockConfigService },
       ],
     }).compile();
 
@@ -115,6 +124,10 @@ describe('AuthService - Comprehensive Unit Tests', () => {
     otpService = module.get<OtpService>(OtpService);
 
     jest.clearAllMocks();
+  });
+
+  it('should be defined', () => {
+    expect(service).toBeDefined();
   });
 
   // ========================================
@@ -139,6 +152,7 @@ describe('AuthService - Comprehensive Unit Tests', () => {
       });
       mockOtpService.sendOtp.mockResolvedValue({ success: true, message: 'OTP sent' });
 
+      expect(service).toBeDefined();
       const result = await service.register(validCustomerDto);
 
       expect(result).toBeDefined();
@@ -422,7 +436,7 @@ describe('AuthService - Comprehensive Unit Tests', () => {
       const user = {
         id: 1,
         email: 'test@test.com',
-        passwordHash: await bcrypt.hash('CorrectPassword123!', 12),
+        passwordHash: '$2b$12$hashedpassword',
         failedLoginAttempts: 0,
         lockedUntil: null,
         isActive: true,
@@ -453,7 +467,7 @@ describe('AuthService - Comprehensive Unit Tests', () => {
       const inactiveUser = {
         id: 1,
         email: 'inactive@test.com',
-        passwordHash: await bcrypt.hash('Password123!', 12),
+        passwordHash: '$2b$12$hashedpassword',
         isActive: false,
         vendor: null,
         venues: [],
@@ -488,7 +502,7 @@ describe('AuthService - Comprehensive Unit Tests', () => {
       const lockedUser = {
         id: 1,
         email: 'locked@test.com',
-        passwordHash: await bcrypt.hash('Password123!', 12),
+        passwordHash: '$2b$12$hashedpassword',
         isActive: true,
         lockedUntil: new Date(Date.now() + 60 * 60 * 1000), // Locked for 1 hour
         failedLoginAttempts: 5,
@@ -863,7 +877,7 @@ describe('AuthService - Comprehensive Unit Tests', () => {
         id: 1,
         email: 'test@test.com',
         name: 'testuser',
-        passwordHash: await bcrypt.hash('Password123!', 12),
+        passwordHash: '$2b$12$hashedpassword',
         role: Role.CUSTOMER,
         isActive: true,
         failedLoginAttempts: 0,

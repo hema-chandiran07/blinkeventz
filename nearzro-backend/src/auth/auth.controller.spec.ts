@@ -283,6 +283,8 @@ describe('AuthController', () => {
       });
 
       it('should reject reset with mismatched passwords', async () => {
+        mockAuthService.resetPassword.mockRejectedValue(new BadRequestException('Passwords do not match'));
+
         await expect(
           controller.resetPassword({
             token: 'some-token',

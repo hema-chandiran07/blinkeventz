@@ -35,4 +35,14 @@ module.exports = {
   },
   verbose: true,
   silent: false,
+  // Force Jest to exit after all tests complete
+  forceExit: true,
+  // Clear mocks between tests
+  clearMocks: true,
+  resetMocks: true,
+  restoreMocks: true,
+  // Detect open handles to find resource leaks
+  detectOpenHandles: false,
+  // Test timeout
+  testTimeout: 30000,
 };

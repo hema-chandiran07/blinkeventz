@@ -60,6 +60,11 @@ import { ApprovalsModule } from './approvals/approvals.module';
         
         // Feature Flags
         USE_REDIS: Joi.boolean().default(true),
+
+        // Email - Gmail SMTP (Optional)
+        GMAIL_USER: Joi.string().optional(),
+        GMAIL_APP_PASSWORD: Joi.string().optional(),
+        EMAIL_FROM: Joi.string().optional(),
       }),
       validationOptions: {
         allowUnknown: true,
