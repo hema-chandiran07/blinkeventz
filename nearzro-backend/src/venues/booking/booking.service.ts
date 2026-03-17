@@ -6,6 +6,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+<<<<<<< Updated upstream
+=======
+import { SlotStatus, EntityType } from '@prisma/client';
+>>>>>>> Stashed changes
 
 // Define SlotStatus locally
 const SlotStatus = {
@@ -213,5 +217,60 @@ export class BookingService {
       },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  async createBookingWithSlot(
+    userId: number,
+    venueId: number,
+    date: Date,
+    timeSlot: string,
+  ) {
+    // Find or create availability slot
+    let slot = await this.prisma.availabilitySlot.findFirst({
+      where: {
+        entityType: EntityType.VENUE,
+        entityId: venueId,
+        date,
+        timeSlot,
+      },
+    });
+
+    if (!slot) {
+      // Create new availability slot
+      slot = await this.prisma.availabilitySlot.create({
+        data: {
+          entityType: EntityType.VENUE,
+          entityId: venueId,
+          date,
+          timeSlot,
+          status: SlotStatus.AVAILABLE,
+        },
+      });
+    }
+
+    if (slot.status !== SlotStatus.AVAILABLE) {
+      throw new BadRequestException('Slot already booked');
+    }
+
+    // Create booking
+    const booking = await this.prisma.booking.create({
+      data: {
+        userId,
+        slotId: slot.id,
+      },
+      include: {
+        slot: true,
+      },
+    });
+
+    // Mark slot as booked
+    await this.prisma.availabilitySlot.update({
+      where: { id: slot.id },
+      data: {
+        status: SlotStatus.BOOKED,
+      },
+    });
+
+    return booking;
   }
 }

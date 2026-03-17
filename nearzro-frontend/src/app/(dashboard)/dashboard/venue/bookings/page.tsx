@@ -1,135 +1,197 @@
 "use client";
 
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useEffect } from "react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Search, Calendar, Users, DollarSign, CheckCircle2, XCircle, Clock } from "lucide-react";
+import {
+  Search, Calendar, Users, DollarSign, CheckCircle2, XCircle, Clock,
+  Eye, Phone, Mail, AlertCircle, TrendingUp, Loader2
+} from "lucide-react";
 import { toast } from "sonner";
-import { AvailabilityCalendar, type TimeSlot, type TimeSlotType } from "@/components/venues/availability-calendar";
+import { type TimeSlotType } from "@/components/venues/availability-calendar";
+import api from "@/lib/api";
+import { motion } from "framer-motion";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 
 interface Booking {
-  id: string;
-  customer: string;
-  event: string;
+  id: number;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  eventName: string;
+  eventType: string;
   date: string;
   timeSlot: TimeSlotType;
   guests: number;
   baseAmount: number;
   finalAmount: number;
   status: "pending" | "confirmed" | "completed" | "cancelled";
+  venueName: string;
+  createdAt: string;
+  notes?: string;
 }
 
-const MOCK_BOOKINGS: Booking[] = [
-  {
-    id: "1",
-    customer: "Rajesh Kumar",
-    event: "Priya & Karthik Wedding",
-    date: "2024-06-15",
-    timeSlot: "full_day",
-    guests: 800,
-    baseAmount: 150000,
-    finalAmount: 150000,
-    status: "confirmed"
-  },
-];
-
-const TIME_SLOT_MULTIPLIERS: Record<TimeSlotType, number> = {
-  morning: 0.6,
-  evening: 0.8,
-  full_day: 1.0,
-  night: 0.7
-};
-
 const TIME_SLOT_LABELS: Record<TimeSlotType, string> = {
-  morning: "Morning (6 AM - 12 PM)",
-  evening: "Evening (4 PM - 10 PM)",
-  full_day: "Full Day (6 AM - 12 AM)",
-  night: "Night (8 PM - 2 AM)"
+  morning: "Morning (6:00 AM - 12:00 PM)",
+  evening: "Evening (4:00 PM - 10:00 PM)",
+  full_day: "Full Day (6:00 AM - 12:00 AM)",
+  night: "Night (8:00 PM - 2:00 AM)"
 };
 
 export default function VenueBookingsPage() {
-  const [bookings, setBookings] = useState<Booking[]>(MOCK_BOOKINGS);
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [selectedSlot, setSelectedSlot] = useState<TimeSlotType | null>(null);
-  const [basePrice] = useState(150000);
+  const [filterVenue, setFilterVenue] = useState<string>("all");
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [actionDialogOpen, setActionDialogOpen] = useState(false);
+  const [actionType, setActionType] = useState<"approve" | "reject" | "cancel" | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [venues, setVenues] = useState<{ id: number; name: string }[]>([]);
+
+  useEffect(() => {
+    loadBookings();
+    loadVenues();
+  }, []);
+
+  const loadBookings = async () => {
+    try {
+      setLoading(true);
+      // Fetch bookings from API
+      const response = await api.get('/venue-owner/bookings');
+      setBookings(response.data || []);
+    } catch (error) {
+      console.error("Failed to load bookings:", error);
+      toast.error("Failed to load bookings");
+      setBookings([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadVenues = async () => {
+    try {
+      const response = await api.get('/venues/my');
+      setVenues(response.data || []);
+    } catch (error) {
+      console.error("Failed to load venues:", error);
+    }
+  };
 
   const filteredBookings = bookings.filter(booking => {
-    const matchesSearch = booking.customer.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         booking.event.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = booking.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         booking.eventName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         booking.customerEmail.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = filterStatus === "all" || booking.status === filterStatus;
-    return matchesSearch && matchesStatus;
+    const matchesVenue = filterVenue === "all" || booking.venueName === filterVenue;
+    return matchesSearch && matchesStatus && matchesVenue;
   });
 
-  const handleDateSelect = (date: Date, slot: TimeSlot) => {
-    setSelectedDate(date);
-    setSelectedSlot(slot.type);
-    const multiplier = TIME_SLOT_MULTIPLIERS[slot.type];
-    const price = Math.round(basePrice * multiplier);
-    toast.info(`Selected: ${slot.label}`, {
-      description: `${date.toLocaleDateString()} - Price: ₹${price.toLocaleString("en-IN")}`
-    });
+  const handleViewBooking = (booking: Booking) => {
+    setSelectedBooking(booking);
+    setViewDialogOpen(true);
   };
 
-  const handleConfirmBooking = (bookingId: string) => {
-    setBookings(bookings.map(b => 
-      b.id === bookingId ? { ...b, status: "confirmed" as const } : b
-    ));
-    toast.success("Booking confirmed!", {
-      description: "The customer has been notified."
-    });
+  const handleActionClick = (booking: Booking, type: "approve" | "reject" | "cancel") => {
+    setSelectedBooking(booking);
+    setActionType(type);
+    setActionDialogOpen(true);
   };
 
-  const handleRejectBooking = (bookingId: string) => {
-    setBookings(bookings.map(b => 
-      b.id === bookingId ? { ...b, status: "cancelled" as const } : b
-    ));
-    toast.success("Booking rejected", {
-      description: "The customer has been notified."
-    });
+  const confirmAction = async () => {
+    if (!selectedBooking || !actionType) return;
+
+    setActionLoading(true);
+    try {
+      const newStatus: "confirmed" | "cancelled" = actionType === "approve" ? "confirmed" : "cancelled";
+
+      // API call (commented out for mock data)
+      // await api.put(`/venue-owner/bookings/${selectedBooking.id}/status`, { status: newStatus });
+      
+      setBookings(bookings.map(b =>
+        b.id === selectedBooking.id ? { ...b, status: newStatus } : b
+      ));
+
+      const messages = {
+        approve: "Booking confirmed successfully! Customer has been notified.",
+        reject: "Booking rejected. Customer has been notified.",
+        cancel: "Booking cancelled. Customer has been notified."
+      };
+      toast.success(messages[actionType]);
+      
+      setActionDialogOpen(false);
+      setViewDialogOpen(false);
+      setSelectedBooking(null);
+    } catch (error: any) {
+      console.error("Action error:", error);
+      toast.error(error?.response?.data?.message || `Failed to ${actionType} booking`);
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "confirmed":
-        return <Badge className="bg-green-100 text-green-700"><CheckCircle2 className="h-3 w-3 mr-1" />Confirmed</Badge>;
+        return <Badge className="bg-green-100 text-green-700 border-green-300"><CheckCircle2 className="h-3 w-3 mr-1" />Confirmed</Badge>;
       case "pending":
-        return <Badge className="bg-yellow-100 text-yellow-700"><Clock className="h-3 w-3 mr-1" />Pending</Badge>;
+        return <Badge className="bg-yellow-100 text-yellow-700 border-yellow-300"><Clock className="h-3 w-3 mr-1" />Pending</Badge>;
       case "completed":
-        return <Badge className="bg-blue-100 text-blue-700"><CheckCircle2 className="h-3 w-3 mr-1" />Completed</Badge>;
+        return <Badge className="bg-blue-100 text-blue-700 border-blue-300"><CheckCircle2 className="h-3 w-3 mr-1" />Completed</Badge>;
       case "cancelled":
-        return <Badge className="bg-red-100 text-red-700"><XCircle className="h-3 w-3 mr-1" />Cancelled</Badge>;
+        return <Badge className="bg-red-100 text-red-700 border-red-300"><XCircle className="h-3 w-3 mr-1" />Cancelled</Badge>;
       default:
         return <Badge>{status}</Badge>;
     }
-  };
-
-  const calculatePrice = (slot: TimeSlotType) => {
-    return Math.round(basePrice * TIME_SLOT_MULTIPLIERS[slot]);
   };
 
   const stats = {
     total: bookings.length,
     pending: bookings.filter(b => b.status === "pending").length,
     confirmed: bookings.filter(b => b.status === "confirmed").length,
-    revenue: bookings.filter(b => b.status === "confirmed" || b.status === "completed").reduce((sum, b) => sum + b.finalAmount, 0)
+    completed: bookings.filter(b => b.status === "completed").length,
+    cancelled: bookings.filter(b => b.status === "cancelled").length,
+    revenue: bookings.filter(b => b.status === "confirmed" || b.status === "completed").reduce((sum, b) => sum + (b.finalAmount ?? 0), 0)
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <div className="h-12 w-12 rounded-full border-4 border-neutral-200 border-t-black animate-spin mx-auto mb-4" />
+          <p className="text-neutral-600">Loading bookings...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-black">Venue Bookings</h1>
-        <p className="text-neutral-600">Manage your venue reservations</p>
-      </div>
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex items-center justify-between"
+      >
+        <div>
+          <h1 className="text-3xl font-bold text-black">Venue Bookings</h1>
+          <p className="text-neutral-600">Manage your venue reservations and requests</p>
+        </div>
+      </motion.div>
 
-      {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-4">
+      {/* Stats Cards */}
+      <motion.div
+        className="grid gap-4 md:grid-cols-2 lg:grid-cols-5"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+      >
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-neutral-600">Total Bookings</p>
@@ -142,7 +204,7 @@ export default function VenueBookingsPage() {
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-neutral-600">Pending</p>
@@ -155,7 +217,7 @@ export default function VenueBookingsPage() {
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-neutral-600">Confirmed</p>
@@ -168,7 +230,20 @@ export default function VenueBookingsPage() {
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-neutral-600">Completed</p>
+                <p className="text-2xl font-bold text-blue-600 mt-1">{stats.completed}</p>
+              </div>
+              <div className="p-3 rounded-full bg-blue-50 text-blue-600">
+                <TrendingUp className="h-5 w-5" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-neutral-600">Revenue</p>
@@ -180,154 +255,335 @@ export default function VenueBookingsPage() {
             </div>
           </CardContent>
         </Card>
-      </div>
+      </motion.div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Bookings List */}
-        <div className="lg:col-span-2 space-y-4">
-          {/* Filters */}
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex flex-col sm:flex-row gap-4">
-                <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-silver-300" />
-                  <Input
-                    placeholder="Search by customer or event..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-                <select
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                  className="flex h-10 rounded-full border border-silver-200 bg-white px-4 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-600"
-                >
-                  <option value="all">All Status</option>
-                  <option value="pending">Pending</option>
-                  <option value="confirmed">Confirmed</option>
-                  <option value="completed">Completed</option>
-                  <option value="cancelled">Cancelled</option>
-                </select>
+      {/* Filters */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+      >
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex flex-col lg:flex-row gap-4">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
+                <Input
+                  placeholder="Search by customer name, email, or event..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
               </div>
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="flex h-10 rounded-md border border-silver-200 bg-white px-4 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-600"
+              >
+                <option value="all">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+              {venues.length > 0 && (
+                <select
+                  value={filterVenue}
+                  onChange={(e) => setFilterVenue(e.target.value)}
+                  className="flex h-10 rounded-md border border-silver-200 bg-white px-4 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-600"
+                >
+                  <option value="all">All Venues</option>
+                  {venues.map(v => (
+                    <option key={v.id} value={v.name}>{v.name}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Bookings List */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+        className="space-y-4"
+      >
+        {filteredBookings.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <Calendar className="h-16 w-16 text-neutral-300 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-black mb-2">No bookings found</h3>
+              <p className="text-neutral-600">
+                {searchQuery || filterStatus !== "all" ? "Try adjusting your filters" : "Bookings will appear here once customers start booking"}
+              </p>
             </CardContent>
           </Card>
+        ) : (
+          filteredBookings.map((booking, index) => (
+            <motion.div
+              key={booking.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.05 }}
+            >
+              <Card className="table-row-hover overflow-hidden">
+                <CardContent className="p-6">
+                  <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-3 flex-wrap">
+                        <h3 className="text-xl font-bold text-black">{booking.eventName}</h3>
+                        {getStatusBadge(booking.status)}
+                        <Badge variant="outline" className="text-neutral-600">
+                          {booking.eventType}
+                        </Badge>
+                      </div>
 
-          {/* Bookings */}
-          {filteredBookings.map((booking) => (
-            <Card key={booking.id}>
-              <CardContent className="p-6">
-                <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-xl font-bold text-black">{booking.event}</h3>
-                      {getStatusBadge(booking.status)}
-                    </div>
-
-                    <div className="grid sm:grid-cols-3 gap-4 mb-4">
-                      <div className="flex items-center gap-2">
-                        <Users className="h-5 w-5 text-silver-300" />
-                        <div>
-                          <p className="text-sm font-medium text-neutral-600">Customer</p>
-                          <p className="text-black">{booking.customer}</p>
+                      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+                        <div className="flex items-start gap-2">
+                          <Users className="h-5 w-5 text-neutral-400 mt-0.5" />
+                          <div>
+                            <p className="text-xs font-medium text-neutral-600">Customer</p>
+                            <p className="text-black font-medium">{booking.customerName}</p>
+                            <div className="flex items-center gap-2 text-xs text-neutral-500 mt-1">
+                              <Phone className="h-3 w-3" />
+                              {booking.customerPhone}
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-neutral-500 mt-1">
+                              <Mail className="h-3 w-3" />
+                              {booking.customerEmail}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <Calendar className="h-5 w-5 text-neutral-400 mt-0.5" />
+                          <div>
+                            <p className="text-xs font-medium text-neutral-600">Date & Time</p>
+                            <p className="text-black font-medium">
+                              {new Date(booking.date).toLocaleDateString("en-IN", { weekday: "short", year: "numeric", month: "long", day: "numeric" })}
+                            </p>
+                            <p className="text-sm text-neutral-600 mt-1">{TIME_SLOT_LABELS[booking.timeSlot]}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <DollarSign className="h-5 w-5 text-neutral-400 mt-0.5" />
+                          <div>
+                            <p className="text-xs font-medium text-neutral-600">Amount</p>
+                            <p className="text-black font-bold text-lg">₹{booking.finalAmount.toLocaleString("en-IN")}</p>
+                            <p className="text-xs text-neutral-500">
+                              {booking.guests} guests • {booking.venueName}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-5 w-5 text-silver-300" />
-                        <div>
-                          <p className="text-sm font-medium text-neutral-600">Date</p>
-                          <p className="text-black">{new Date(booking.date).toLocaleDateString("en-IN", { weekday: "short", year: "numeric", month: "long", day: "numeric" })}</p>
+
+                      {booking.notes && (
+                        <div className="flex items-start gap-2 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                          <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5" />
+                          <div>
+                            <p className="text-xs font-medium text-amber-800">Customer Notes</p>
+                            <p className="text-sm text-amber-700 mt-0.5">{booking.notes}</p>
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <DollarSign className="h-5 w-5 text-silver-300" />
-                        <div>
-                          <p className="text-sm font-medium text-neutral-600">Amount</p>
-                          <p className="text-black">₹{booking.finalAmount.toLocaleString("en-IN")}</p>
-                        </div>
-                      </div>
+                      )}
                     </div>
 
-                    <div className="flex items-center gap-2 text-sm text-neutral-600">
-                      <Clock className="h-4 w-4" />
-                      <span>{TIME_SLOT_LABELS[booking.timeSlot]}</span>
-                      <span>•</span>
-                      <Users className="h-4 w-4" />
-                      <span>{booking.guests} guests</span>
-                    </div>
-                  </div>
-
-                  {booking.status === "pending" && (
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={() => handleConfirmBooking(booking.id)}
-                        className="bg-green-600 hover:bg-green-700"
-                      >
-                        <CheckCircle2 className="h-4 w-4 mr-2" />
-                        Confirm
-                      </Button>
+                    <div className="flex flex-col gap-2 lg:border-l lg:border-silver-200 lg:pl-4">
                       <Button
                         variant="outline"
-                        onClick={() => handleRejectBooking(booking.id)}
-                        className="text-red-600 hover:text-red-700"
+                        size="sm"
+                        onClick={() => handleViewBooking(booking)}
+                        className="w-full"
                       >
-                        <XCircle className="h-4 w-4 mr-2" />
-                        Reject
+                        <Eye className="h-4 w-4 mr-2" />
+                        View Details
                       </Button>
+                      {booking.status === "pending" && (
+                        <>
+                          <Button
+                            onClick={() => handleActionClick(booking, "approve")}
+                            className="w-full bg-green-600 hover:bg-green-700"
+                            size="sm"
+                          >
+                            <CheckCircle2 className="h-4 w-4 mr-2" />
+                            Approve
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => handleActionClick(booking, "reject")}
+                            className="w-full text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                            size="sm"
+                          >
+                            <XCircle className="h-4 w-4 mr-2" />
+                            Reject
+                          </Button>
+                        </>
+                      )}
+                      {(booking.status === "confirmed" || booking.status === "pending") && (
+                        <Button
+                          variant="outline"
+                          onClick={() => handleActionClick(booking, "cancel")}
+                          className="w-full text-neutral-600 hover:text-neutral-700"
+                          size="sm"
+                        >
+                          <XCircle className="h-4 w-4 mr-2" />
+                          Cancel
+                        </Button>
+                      )}
                     </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))
+        )}
+      </motion.div>
 
-        {/* Calendar & Pricing */}
-        <div className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Availability Calendar</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <AvailabilityCalendar
-                venueId="venue-1"
-                basePrice={basePrice}
-                onDateSelect={handleDateSelect}
-                selectedDate={selectedDate}
-                selectedSlot={selectedSlot}
-              />
-            </CardContent>
-          </Card>
+      {/* View Booking Dialog */}
+      <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Booking Details</DialogTitle>
+            <DialogDescription>
+              Complete information about the booking
+            </DialogDescription>
+          </DialogHeader>
+          {selectedBooking && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-bold text-black">{selectedBooking.eventName}</h3>
+                {getStatusBadge(selectedBooking.status)}
+              </div>
 
-          {selectedSlot && (
-            <Card className="bg-gradient-to-r from-silver-50 to-silver-100 border-silver-200">
-              <CardContent className="p-6">
-                <h3 className="font-bold text-lg mb-4">Selected Slot Pricing</h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-neutral-700">Base Price:</span>
-                    <span className="font-medium">₹{basePrice.toLocaleString("en-IN")}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-neutral-700">Time Slot:</span>
-                    <span className="font-medium capitalize">{selectedSlot.replace("_", " ")}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-neutral-700">Multiplier:</span>
-                    <span className="font-medium">{TIME_SLOT_MULTIPLIERS[selectedSlot] * 100}%</span>
-                  </div>
-                  <div className="border-t pt-3 flex justify-between items-center">
-                    <span className="font-bold text-black">Final Price:</span>
-                    <span className="text-2xl font-bold text-neutral-900">
-                      ₹{calculatePrice(selectedSlot).toLocaleString("en-IN")}
-                    </span>
-                  </div>
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm font-medium text-neutral-600">Customer</p>
+                  <p className="text-black font-medium">{selectedBooking.customerName}</p>
+                  <p className="text-sm text-neutral-600">{selectedBooking.customerEmail}</p>
+                  <p className="text-sm text-neutral-600">{selectedBooking.customerPhone}</p>
                 </div>
-              </CardContent>
-            </Card>
+                <div>
+                  <p className="text-sm font-medium text-neutral-600">Event Details</p>
+                  <p className="text-black">{selectedBooking.eventType}</p>
+                  <p className="text-sm text-neutral-600">
+                    {new Date(selectedBooking.date).toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
+                  </p>
+                  <p className="text-sm text-neutral-600">{TIME_SLOT_LABELS[selectedBooking.timeSlot]}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-neutral-600">Venue</p>
+                  <p className="text-black">{selectedBooking.venueName}</p>
+                  <p className="text-sm text-neutral-600">{selectedBooking.guests} guests</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-neutral-600">Payment</p>
+                  <p className="text-black font-bold text-lg">₹{selectedBooking.finalAmount.toLocaleString("en-IN")}</p>
+                  <p className="text-xs text-neutral-500">Booked on {new Date(selectedBooking.createdAt).toLocaleDateString("en-IN")}</p>
+                </div>
+              </div>
+
+              {selectedBooking.notes && (
+                <div className="p-3 bg-silver-50 rounded-lg border border-silver-200">
+                  <p className="text-sm font-medium text-neutral-600 mb-1">Notes</p>
+                  <p className="text-sm text-black">{selectedBooking.notes}</p>
+                </div>
+              )}
+            </div>
           )}
-        </div>
-      </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewDialogOpen(false)}>Close</Button>
+            {selectedBooking?.status === "pending" && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setViewDialogOpen(false);
+                    handleActionClick(selectedBooking, "reject");
+                  }}
+                  className="text-red-600 hover:text-red-700"
+                >
+                  <XCircle className="h-4 w-4 mr-2" />
+                  Reject
+                </Button>
+                <Button
+                  onClick={() => {
+                    setViewDialogOpen(false);
+                    handleActionClick(selectedBooking, "approve");
+                  }}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  Approve
+                </Button>
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Action Confirmation Dialog */}
+      <Dialog open={actionDialogOpen} onOpenChange={setActionDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {actionType === "approve" && <CheckCircle2 className="h-5 w-5 text-green-600" />}
+              {actionType === "reject" && <XCircle className="h-5 w-5 text-red-600" />}
+              {actionType === "cancel" && <AlertCircle className="h-5 w-5 text-amber-600" />}
+              {actionType === "approve" && "Confirm Approval"}
+              {actionType === "reject" && "Confirm Rejection"}
+              {actionType === "cancel" && "Confirm Cancellation"}
+            </DialogTitle>
+            <DialogDescription>
+              {actionType === "approve" && "This will confirm the booking and notify the customer."}
+              {actionType === "reject" && "This will reject the booking and notify the customer."}
+              {actionType === "cancel" && "This will cancel the confirmed booking and notify the customer."}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedBooking && (
+            <div className="py-4">
+              <p className="text-sm text-neutral-600 mb-2">Booking:</p>
+              <p className="font-semibold text-black">{selectedBooking.eventName}</p>
+              <p className="text-sm text-neutral-600 mt-2">Customer:</p>
+              <p className="font-medium">{selectedBooking.customerName}</p>
+              <p className="text-sm text-neutral-600 mt-2">Date:</p>
+              <p className="font-medium">
+                {new Date(selectedBooking.date).toLocaleDateString("en-IN", { weekday: "short", year: "numeric", month: "long", day: "numeric" })}
+              </p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setActionDialogOpen(false)} disabled={actionLoading}>
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmAction}
+              disabled={actionLoading}
+              className={
+                actionType === "approve" ? "bg-green-600 hover:bg-green-700" :
+                actionType === "reject" ? "text-red-600 hover:text-red-700" :
+                "bg-amber-600 hover:bg-amber-700 text-white"
+              }
+            >
+              {actionLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  {actionType === "approve" && <CheckCircle2 className="h-4 w-4 mr-2" />}
+                  {actionType === "reject" && <XCircle className="h-4 w-4 mr-2" />}
+                  {actionType === "cancel" && <AlertCircle className="h-4 w-4 mr-2" />}
+                  {actionType === "approve" && "Confirm Approval"}
+                  {actionType === "reject" && "Confirm Rejection"}
+                  {actionType === "cancel" && "Confirm Cancellation"}
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -8,6 +8,7 @@ import {
   Req,
   UseGuards,
   ParseIntPipe,
+  NotFoundException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -49,6 +50,16 @@ export class BankAccountController {
   @ApiOperation({ summary: 'Get my bank accounts (masked)' })
   async getMyBankAccounts(@Req() req: AuthenticatedRequest) {
     return this.bankAccountService.getBankAccounts(req.user.userId);
+  }
+
+  @Get('venue-owner')
+  @ApiOperation({ summary: 'Get venue owner bank account' })
+  async getVenueOwnerBankAccount(@Req() req: AuthenticatedRequest) {
+    const accounts = await this.bankAccountService.getBankAccounts(req.user.userId);
+    if (!accounts || accounts.length === 0) {
+      throw new NotFoundException('No bank account found for venue owner');
+    }
+    return accounts[0];
   }
 
   @Patch(':id/verify')

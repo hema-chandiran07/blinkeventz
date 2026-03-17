@@ -81,7 +81,7 @@ export class BankAccountService {
     });
 
     if (!accounts.length) {
-      throw new NotFoundException('No bank accounts found');
+      return [];
     }
 
     return accounts.map((acc) => this.toSafeResponse(acc));
