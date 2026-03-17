@@ -210,18 +210,24 @@ model Booking {
 }
 
 model Cart {
-  id        Int        @id @default(autoincrement())
+  id        Int         @id @default(autoincrement())
   userId    Int
-  status    CartStatus @default(ACTIVE)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  user      User       @relation(fields: [userId], references: [id])
+  status    CartStatus  @default(ACTIVE)
+  expiresAt DateTime?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   items     CartItem[]
   Payment   Payment[]
+
+  // Ensure only one ACTIVE cart per user
+  @@unique([userId, status])
+  @@index([userId])
+  @@index([status])
 }
 
 model CartItem {
-  id              Int            @id @default(autoincrement())
+  id              Int           @id @default(autoincrement())
   cartId          Int
   itemType        ItemType
   venueId         Int?
@@ -229,18 +235,19 @@ model CartItem {
   addonId         Int?
   date            DateTime?
   timeSlot        String?
-  quantity        Int            @default(1)
-  unitPrice       Int
-  totalPrice      Int
+  quantity        Int           @default(1)
+  unitPrice       Decimal       @db.Decimal(10, 2)  // Server-calculated only
+  totalPrice      Decimal       @db.Decimal(10, 2)  // Server-calculated only
   meta            Json?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-  cart            Cart           @relation(fields: [cartId], references: [id])
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  cart            Cart          @relation(fields: [cartId], references: [id], onDelete: Cascade)
   vendorService   VendorService? @relation(fields: [vendorServiceId], references: [id])
-  venue           Venue?         @relation(fields: [venueId], references: [id])
+  venue           Venue?        @relation(fields: [venueId], references: [id])
 
   @@index([cartId])
   @@index([vendorServiceId])
+  @@index([venueId])
 }
 
 model AIPlan {

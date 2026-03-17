@@ -23,8 +23,9 @@
     "test:ci": "npm run test:unit -- --ci --coverage --passWithNoTests",
     "test:db:create": "node -e \"const {Client} = require('pg'); const c = new Client({host:'localhost', user:'postgres', password:'2006', database:'postgres'}); c.connect().then(() => c.query('CREATE DATABASE nearzro_test')).then(() => c.end()).catch(() => c.end())\"",
     "test:db:migrate": "cross-env DATABASE_URL=\"postgresql://postgres:2006@localhost:5432/nearzro_test\" npx prisma migrate deploy",
+    "test:db:push": "cross-env DATABASE_URL=\"postgresql://postgres:2006@localhost:5432/nearzro_test\" npx prisma db push --skip-generate --force-reset --accept-data-loss",
     "test:db:reset": "cross-env DATABASE_URL=\"postgresql://postgres:2006@localhost:5432/nearzro_test\" npx prisma migrate reset --force --skip-seed",
-    "test:db:setup": "npm run test:db:create && npm run test:db:migrate"
+    "test:db:setup": "npm run test:db:create && npm run test:db:push"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"

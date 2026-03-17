@@ -1,6 +1,7 @@
 // src/payments/payments.service.ts
 import { Injectable, BadRequestException, Inject } from '@nestjs/common';
 import * as crypto from 'crypto';
+import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaymentProvider, PaymentStatus, CartStatus } from '@prisma/client';
 
@@ -41,11 +42,12 @@ export class PaymentsService {
       throw new BadRequestException('Cart is empty');
     }
 
-    // 💰 Calculate amount securely from DB
+    // 💰 Calculate amount securely from DB using Decimal
+    const zero = new Decimal(0);
     const amount = cart.items.reduce(
-      (sum, item) => sum + item.totalPrice,
-      0,
-    );
+      (sum, item) => sum.add(new Decimal(item.totalPrice.toString())),
+      zero,
+    ).toNumber();
 
     // 🔒 Lock cart before payment
     await this.prisma.cart.update({

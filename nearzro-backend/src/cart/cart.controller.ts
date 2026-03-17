@@ -8,13 +8,16 @@ import {
   Param,
   UseGuards,
   Req,
+  HttpCode,
+  HttpStatus,
+  ParseIntPipe,
+  Headers,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiHeader } from '@nestjs/swagger';
 import { CartService } from './cart.service';
 import { AddCartItemDto } from './dto/add-cart-item.dto';
 import { UpdateCartItemDto } from './dto/update-cart-item.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { Public } from '../common/decorators/public.decorator';
 
 @ApiTags('Cart')
 @ApiBearerAuth()
@@ -23,42 +26,72 @@ import { Public } from '../common/decorators/public.decorator';
 export class CartController {
   constructor(private readonly cartService: CartService) {}
 
-  @Public()
   @Get()
+  @ApiOperation({ summary: 'Get user cart with items and totals' })
   async getCart(@Req() req: any) {
-    const userId = req.user?.id || null; // Allow guest carts
+    const userId = req.user.userId;
     return this.cartService.getCart(userId);
   }
 
-  @Public()
   @Post('items')
-  async addItem(@Req() req: any, @Body() dto: AddCartItemDto) {
-    const userId = req.user?.id || null;
-    return this.cartService.addItem(userId, dto);
+  @ApiOperation({ summary: 'Add item to cart' })
+  @ApiHeader({
+    name: 'Idempotency-Key',
+    description: 'Optional key for idempotent requests',
+    required: false,
+  })
+  async addItem(
+    @Req() req: any,
+    @Body() dto: AddCartItemDto,
+    @Headers('idempotency-key') idempotencyKey?: string,
+  ) {
+    const userId = req.user.userId;
+    return this.cartService.addItem(userId, dto, idempotencyKey);
   }
 
-  @Public()
   @Patch('items/:id')
+  @ApiOperation({ summary: 'Update cart item quantity or metadata' })
   async updateItem(
     @Req() req: any,
-    @Param('id') id: string,
+    @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateCartItemDto,
   ) {
-    const userId = req.user?.id || null;
-    return this.cartService.updateItem(userId, +id, dto);
+    const userId = req.user.userId;
+    return this.cartService.updateItem(userId, id, dto);
   }
 
-  @Public()
   @Delete('items/:id')
-  async removeItem(@Req() req: any, @Param('id') id: string) {
-    const userId = req.user?.id || null;
-    return this.cartService.removeItem(userId, +id);
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Remove item from cart' })
+  async removeItem(
+    @Req() req: any,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    const userId = req.user.userId;
+    return this.cartService.removeItem(userId, id);
   }
 
-  @Public()
   @Delete('clear')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Clear all items from cart' })
   async clearCart(@Req() req: any) {
-    const userId = req.user?.id || null;
+    const userId = req.user.userId;
     return this.cartService.clearCart(userId);
+  }
+
+  @Post('checkout')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Process checkout - lock cart and return payment data' })
+  @ApiHeader({
+    name: 'Idempotency-Key',
+    description: 'Optional key for idempotent checkout requests',
+    required: false,
+  })
+  async checkout(
+    @Req() req: any,
+    @Headers('idempotency-key') idempotencyKey?: string,
+  ) {
+    const userId = req.user.userId;
+    return this.cartService.checkout(userId, idempotencyKey);
   }
 }

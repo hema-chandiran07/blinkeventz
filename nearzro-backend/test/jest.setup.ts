@@ -28,6 +28,9 @@ process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres:20
 process.env.SENDGRID_API_KEY = process.env.SENDGRID_API_KEY || 'test-sendgrid-key';
 process.env.FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || 'test-project';
 
+// ENCRYPTION_KEY - Required by env.validation.ts (must be 32 characters)
+process.env.ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || '12345678901234567890123456789012';
+
 // Set default Twilio credentials for tests
 process.env.TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID || 'test_sid';
 process.env.TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN || 'test_token';
