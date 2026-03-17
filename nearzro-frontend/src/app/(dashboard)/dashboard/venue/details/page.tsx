@@ -12,12 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, ArrowLeft, Loader2, Upload, X, Image as ImageIcon, Trash2, Star } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
-<<<<<<< Updated upstream
-import { extractArray } from "@/lib/api-response";
-=======
 import { motion } from "framer-motion";
 import Image from "next/image";
->>>>>>> Stashed changes
 
 const VENUE_TYPES = ["HALL", "MANDAPAM", "LAWN", "RESORT", "BANQUET"];
 
@@ -70,12 +66,7 @@ export default function VenueDetailsPage() {
   const loadVenue = async (id: number) => {
     try {
       const response = await api.get('/venues/my');
-<<<<<<< Updated upstream
-      const venues = extractArray<any>(response);
-      const venue = venues.find((v: any) => v.id === Number(venueId));
-=======
       const venue = (response.data || []).find((v: any) => v.id === id);
->>>>>>> Stashed changes
       if (venue) {
         setFormData({
           name: venue.name,

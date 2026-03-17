@@ -3,20 +3,12 @@
 import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-<<<<<<< Updated upstream
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { AvailabilityCalendar, type TimeSlot, type TimeSlotType } from "@/components/venues/availability-calendar";
-import { toast } from "sonner";
-import { Calendar, DollarSign, CheckCircle2, XCircle, Save } from "lucide-react";
-=======
 import { Badge } from "@/components/ui/badge";
 import {
   ChevronLeft, ChevronRight, Calendar as CalendarIcon, CheckCircle2, XCircle,
   Clock, DollarSign, Plus, Trash2, Loader2
 } from "lucide-react";
 import { toast } from "sonner";
->>>>>>> Stashed changes
 import api from "@/lib/api";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
