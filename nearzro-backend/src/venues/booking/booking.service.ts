@@ -6,19 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-<<<<<<< Updated upstream
-=======
 import { SlotStatus, EntityType } from '@prisma/client';
->>>>>>> Stashed changes
-
-// Define SlotStatus locally
-const SlotStatus = {
-  AVAILABLE: 'AVAILABLE',
-  BOOKED: 'BOOKED',
-  BLOCKED: 'BLOCKED',
-  HOLD: 'HOLD',
-} as const;
-export type SlotStatus = typeof SlotStatus[keyof typeof SlotStatus];
 
 /**
  * Booking Service - Production Ready

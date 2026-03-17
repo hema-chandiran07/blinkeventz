@@ -1,0 +1,68 @@
+6c5421ad69b81bddd505720c76edf8a9
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var _a, _b, _c, _d;
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.NotificationProcessor = void 0;
+const bull_1 = require("@nestjs/bull");
+const prisma_service_1 = require("../../prisma/prisma.service");
+const email_provider_1 = require("../providers/email.provider");
+const sms_provider_1 = require("../providers/sms.provider");
+const whatsapp_provider_1 = require("../providers/whatsapp.provider");
+let NotificationProcessor = class NotificationProcessor {
+    prisma;
+    email;
+    sms;
+    whatsapp;
+    constructor(prisma, email, sms, whatsapp) {
+        this.prisma = prisma;
+        this.email = email;
+        this.sms = sms;
+        this.whatsapp = whatsapp;
+    }
+    async handle(job) {
+        const { notificationId, channel } = job.data;
+        const notification = await this.prisma.notification.findUnique({
+            where: { id: notificationId },
+            include: { user: true },
+        });
+        if (!notification || !notification.user)
+            return;
+        const { user, title, message } = notification;
+        switch (channel) {
+            case 'EMAIL':
+                if (user.email)
+                    await this.email.send(user.email, title, message);
+                break;
+            case 'SMS':
+                if (user.phone)
+                    await this.sms.send(user.phone, message);
+                break;
+            case 'WHATSAPP':
+                if (user.phone)
+                    await this.whatsapp.send(user.phone, message);
+                break;
+        }
+    }
+};
+exports.NotificationProcessor = NotificationProcessor;
+__decorate([
+    (0, bull_1.Process)('send'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], NotificationProcessor.prototype, "handle", null);
+exports.NotificationProcessor = NotificationProcessor = __decorate([
+    (0, bull_1.Processor)('notifications') // ✅ SAME NAME
+    ,
+    __metadata("design:paramtypes", [typeof (_a = typeof prisma_service_1.PrismaService !== "undefined" && prisma_service_1.PrismaService) === "function" ? _a : Object, typeof (_b = typeof email_provider_1.EmailProvider !== "undefined" && email_provider_1.EmailProvider) === "function" ? _b : Object, typeof (_c = typeof sms_provider_1.SmsProvider !== "undefined" && sms_provider_1.SmsProvider) === "function" ? _c : Object, typeof (_d = typeof whatsapp_provider_1.WhatsappProvider !== "undefined" && whatsapp_provider_1.WhatsappProvider) === "function" ? _d : Object])
+], NotificationProcessor);
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiQzpcXFVzZXJzXFxhYjMxMVxcSW50ZXJzaGlwXFxibGlua2V2ZW50elxcbmVhcnpyby1iYWNrZW5kXFxzcmNcXG5vdGlmaWNhdGlvbnNcXHF1ZXVlXFxub3RpZmljYXRpb24ucHJvY2Vzc29yLnRzIiwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7QUFBQSx1Q0FBa0Q7QUFFbEQsZ0VBQTREO0FBQzVELGdFQUE0RDtBQUM1RCw0REFBd0Q7QUFDeEQsc0VBQWtFO0FBRzNELElBQU0scUJBQXFCLEdBQTNCLE1BQU0scUJBQXFCO0lBRWI7SUFDQTtJQUNBO0lBQ0E7SUFKbkIsWUFDbUIsTUFBcUIsRUFDckIsS0FBb0IsRUFDcEIsR0FBZ0IsRUFDaEIsUUFBMEI7UUFIMUIsV0FBTSxHQUFOLE1BQU0sQ0FBZTtRQUNyQixVQUFLLEdBQUwsS0FBSyxDQUFlO1FBQ3BCLFFBQUcsR0FBSCxHQUFHLENBQWE7UUFDaEIsYUFBUSxHQUFSLFFBQVEsQ0FBa0I7SUFDMUMsQ0FBQztJQUdFLEFBQU4sS0FBSyxDQUFDLE1BQU0sQ0FDVixHQUdFO1FBRUYsTUFBTSxFQUFFLGNBQWMsRUFBRSxPQUFPLEVBQUUsR0FBRyxHQUFHLENBQUMsSUFBSSxDQUFDO1FBRTdDLE1BQU0sWUFBWSxHQUFHLE1BQU0sSUFBSSxDQUFDLE1BQU0sQ0FBQyxZQUFZLENBQUMsVUFBVSxDQUFDO1lBQzdELEtBQUssRUFBRSxFQUFFLEVBQUUsRUFBRSxjQUFjLEVBQUU7WUFDN0IsT0FBTyxFQUFFLEVBQUUsSUFBSSxFQUFFLElBQUksRUFBRTtTQUN4QixDQUFDLENBQUM7UUFFSCxJQUFJLENBQUMsWUFBWSxJQUFJLENBQUMsWUFBWSxDQUFDLElBQUk7WUFBRSxPQUFPO1FBRWhELE1BQU0sRUFBRSxJQUFJLEVBQUUsS0FBSyxFQUFFLE9BQU8sRUFBRSxHQUFHLFlBQVksQ0FBQztRQUU5QyxRQUFRLE9BQU8sRUFBRSxDQUFDO1lBQ2hCLEtBQUssT0FBTztnQkFDVixJQUFJLElBQUksQ0FBQyxLQUFLO29CQUFFLE1BQU0sSUFBSSxDQUFDLEtBQUssQ0FBQyxJQUFJLENBQUMsSUFBSSxDQUFDLEtBQUssRUFBRSxLQUFLLEVBQUUsT0FBTyxDQUFDLENBQUM7Z0JBQ2xFLE1BQU07WUFFUixLQUFLLEtBQUs7Z0JBQ1IsSUFBSSxJQUFJLENBQUMsS0FBSztvQkFBRSxNQUFNLElBQUksQ0FBQyxHQUFHLENBQUMsSUFBSSxDQUFDLElBQUksQ0FBQyxLQUFLLEVBQUUsT0FBTyxDQUFDLENBQUM7Z0JBQ3pELE1BQU07WUFFUixLQUFLLFVBQVU7Z0JBQ2IsSUFBSSxJQUFJLENBQUMsS0FBSztvQkFBRSxNQUFNLElBQUksQ0FBQyxRQUFRLENBQUMsSUFBSSxDQUFDLElBQUksQ0FBQyxLQUFLLEVBQUUsT0FBTyxDQUFDLENBQUM7Z0JBQzlELE1BQU07UUFDVixDQUFDO0lBQ0gsQ0FBQztDQUNGLENBQUE7QUF4Q1ksc0RBQXFCO0FBUzFCO0lBREwsSUFBQSxjQUFPLEVBQUMsTUFBTSxDQUFDOzs7O21EQStCZjtnQ0F2Q1UscUJBQXFCO0lBRGpDLElBQUEsZ0JBQVMsRUFBQyxlQUFlLENBQUMsQ0FBQyxjQUFjOzt5REFHYiw4QkFBYSxvQkFBYiw4QkFBYSxvREFDZCw4QkFBYSxvQkFBYiw4QkFBYSxvREFDZiwwQkFBVyxvQkFBWCwwQkFBVyxvREFDTixvQ0FBZ0Isb0JBQWhCLG9DQUFnQjtHQUxsQyxxQkFBcUIsQ0F3Q2pDIiwibmFtZXMiOltdLCJzb3VyY2VzIjpbIkM6XFxVc2Vyc1xcYWIzMTFcXEludGVyc2hpcFxcYmxpbmtldmVudHpcXG5lYXJ6cm8tYmFja2VuZFxcc3JjXFxub3RpZmljYXRpb25zXFxxdWV1ZVxcbm90aWZpY2F0aW9uLnByb2Nlc3Nvci50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyBQcm9jZXNzb3IsIFByb2Nlc3MgfSBmcm9tICdAbmVzdGpzL2J1bGwnO1xyXG5pbXBvcnQgdHlwZSB7IEpvYiB9IGZyb20gJ2J1bGwnO1xyXG5pbXBvcnQgeyBQcmlzbWFTZXJ2aWNlIH0gZnJvbSAnLi4vLi4vcHJpc21hL3ByaXNtYS5zZXJ2aWNlJztcclxuaW1wb3J0IHsgRW1haWxQcm92aWRlciB9IGZyb20gJy4uL3Byb3ZpZGVycy9lbWFpbC5wcm92aWRlcic7XHJcbmltcG9ydCB7IFNtc1Byb3ZpZGVyIH0gZnJvbSAnLi4vcHJvdmlkZXJzL3Ntcy5wcm92aWRlcic7XHJcbmltcG9ydCB7IFdoYXRzYXBwUHJvdmlkZXIgfSBmcm9tICcuLi9wcm92aWRlcnMvd2hhdHNhcHAucHJvdmlkZXInO1xyXG5cclxuQFByb2Nlc3Nvcignbm90aWZpY2F0aW9ucycpIC8vIOKchSBTQU1FIE5BTUVcclxuZXhwb3J0IGNsYXNzIE5vdGlmaWNhdGlvblByb2Nlc3NvciB7XHJcbiAgY29uc3RydWN0b3IoXHJcbiAgICBwcml2YXRlIHJlYWRvbmx5IHByaXNtYTogUHJpc21hU2VydmljZSxcclxuICAgIHByaXZhdGUgcmVhZG9ubHkgZW1haWw6IEVtYWlsUHJvdmlkZXIsXHJcbiAgICBwcml2YXRlIHJlYWRvbmx5IHNtczogU21zUHJvdmlkZXIsXHJcbiAgICBwcml2YXRlIHJlYWRvbmx5IHdoYXRzYXBwOiBXaGF0c2FwcFByb3ZpZGVyLFxyXG4gICkge31cclxuXHJcbiAgQFByb2Nlc3MoJ3NlbmQnKVxyXG4gIGFzeW5jIGhhbmRsZShcclxuICAgIGpvYjogSm9iPHtcclxuICAgICAgbm90aWZpY2F0aW9uSWQ6IG51bWJlcjtcclxuICAgICAgY2hhbm5lbDogJ0VNQUlMJyB8ICdTTVMnIHwgJ1dIQVRTQVBQJyB8ICdQVVNIJztcclxuICAgIH0+LFxyXG4gICkge1xyXG4gICAgY29uc3QgeyBub3RpZmljYXRpb25JZCwgY2hhbm5lbCB9ID0gam9iLmRhdGE7XHJcblxyXG4gICAgY29uc3Qgbm90aWZpY2F0aW9uID0gYXdhaXQgdGhpcy5wcmlzbWEubm90aWZpY2F0aW9uLmZpbmRVbmlxdWUoe1xyXG4gICAgICB3aGVyZTogeyBpZDogbm90aWZpY2F0aW9uSWQgfSxcclxuICAgICAgaW5jbHVkZTogeyB1c2VyOiB0cnVlIH0sXHJcbiAgICB9KTtcclxuXHJcbiAgICBpZiAoIW5vdGlmaWNhdGlvbiB8fCAhbm90aWZpY2F0aW9uLnVzZXIpIHJldHVybjtcclxuXHJcbiAgICBjb25zdCB7IHVzZXIsIHRpdGxlLCBtZXNzYWdlIH0gPSBub3RpZmljYXRpb247XHJcblxyXG4gICAgc3dpdGNoIChjaGFubmVsKSB7XHJcbiAgICAgIGNhc2UgJ0VNQUlMJzpcclxuICAgICAgICBpZiAodXNlci5lbWFpbCkgYXdhaXQgdGhpcy5lbWFpbC5zZW5kKHVzZXIuZW1haWwsIHRpdGxlLCBtZXNzYWdlKTtcclxuICAgICAgICBicmVhaztcclxuXHJcbiAgICAgIGNhc2UgJ1NNUyc6XHJcbiAgICAgICAgaWYgKHVzZXIucGhvbmUpIGF3YWl0IHRoaXMuc21zLnNlbmQodXNlci5waG9uZSwgbWVzc2FnZSk7XHJcbiAgICAgICAgYnJlYWs7XHJcblxyXG4gICAgICBjYXNlICdXSEFUU0FQUCc6XHJcbiAgICAgICAgaWYgKHVzZXIucGhvbmUpIGF3YWl0IHRoaXMud2hhdHNhcHAuc2VuZCh1c2VyLnBob25lLCBtZXNzYWdlKTtcclxuICAgICAgICBicmVhaztcclxuICAgIH1cclxuICB9XHJcbn1cclxuIl0sInZlcnNpb24iOjN9

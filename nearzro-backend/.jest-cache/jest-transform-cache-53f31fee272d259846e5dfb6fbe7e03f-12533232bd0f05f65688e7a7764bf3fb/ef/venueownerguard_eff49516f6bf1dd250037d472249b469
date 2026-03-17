@@ -1,0 +1,73 @@
+0ca7e9a10f24ed2321cb9b85c84e297d
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var _a, _b;
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.VenueOwnerGuard = void 0;
+const common_1 = require("@nestjs/common");
+const core_1 = require("@nestjs/core");
+const prisma_service_1 = require("../../prisma/prisma.service");
+/**
+ * Venue Owner Guard
+ *
+ * Validates that the current user owns the venue being accessed.
+ * This guard should be used for PATCH/DELETE operations on venues.
+ *
+ * Usage:
+ * @UseGuards(JwtAuthGuard, VenueOwnerGuard)
+ * @Patch(':id')
+ * updateVenue(@Param('id') id: number) { ... }
+ */
+let VenueOwnerGuard = class VenueOwnerGuard {
+    reflector;
+    prisma;
+    constructor(reflector, prisma) {
+        this.reflector = reflector;
+        this.prisma = prisma;
+    }
+    async canActivate(context) {
+        const request = context.switchToHttp().getRequest();
+        const user = request.user;
+        // If no user is authenticated, deny access
+        if (!user) {
+            throw new common_1.ForbiddenException('Authentication required');
+        }
+        // Get venue ID from params
+        const venueId = parseInt(request.params.id, 10);
+        // Validate venue ID is a valid number
+        if (isNaN(venueId) || venueId <= 0) {
+            throw new common_1.NotFoundException('Invalid venue ID');
+        }
+        // Check if user is admin - admins can access any venue
+        if (user.role === 'ADMIN') {
+            return true;
+        }
+        // Find the venue and check ownership
+        const venue = await this.prisma.venue.findUnique({
+            where: { id: venueId },
+            select: { ownerId: true },
+        });
+        if (!venue) {
+            throw new common_1.NotFoundException(`Venue with ID ${venueId} not found`);
+        }
+        // Check if the current user owns the venue
+        if (venue.ownerId !== user.userId) {
+            throw new common_1.ForbiddenException('You do not have permission to modify this venue. Only the venue owner can perform this action.');
+        }
+        return true;
+    }
+};
+exports.VenueOwnerGuard = VenueOwnerGuard;
+exports.VenueOwnerGuard = VenueOwnerGuard = __decorate([
+    (0, common_1.Injectable)(),
+    __metadata("design:paramtypes", [typeof (_a = typeof core_1.Reflector !== "undefined" && core_1.Reflector) === "function" ? _a : Object, typeof (_b = typeof prisma_service_1.PrismaService !== "undefined" && prisma_service_1.PrismaService) === "function" ? _b : Object])
+], VenueOwnerGuard);
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiQzpcXFVzZXJzXFxhYjMxMVxcSW50ZXJzaGlwXFxibGlua2V2ZW50elxcbmVhcnpyby1iYWNrZW5kXFxzcmNcXHZlbnVlc1xcZ3VhcmRzXFx2ZW51ZS1vd25lci5ndWFyZC50cyIsIm1hcHBpbmdzIjoiOzs7Ozs7Ozs7Ozs7O0FBQUEsMkNBTXdCO0FBQ3hCLHVDQUF5QztBQUN6QyxnRUFBNEQ7QUFFNUQ7Ozs7Ozs7Ozs7R0FVRztBQUVJLElBQU0sZUFBZSxHQUFyQixNQUFNLGVBQWU7SUFFaEI7SUFDQTtJQUZWLFlBQ1UsU0FBb0IsRUFDcEIsTUFBcUI7UUFEckIsY0FBUyxHQUFULFNBQVMsQ0FBVztRQUNwQixXQUFNLEdBQU4sTUFBTSxDQUFlO0lBQzVCLENBQUM7SUFFSixLQUFLLENBQUMsV0FBVyxDQUFDLE9BQXlCO1FBQ3pDLE1BQU0sT0FBTyxHQUFHLE9BQU8sQ0FBQyxZQUFZLEVBQUUsQ0FBQyxVQUFVLEVBQUUsQ0FBQztRQUNwRCxNQUFNLElBQUksR0FBRyxPQUFPLENBQUMsSUFBSSxDQUFDO1FBRTFCLDJDQUEyQztRQUMzQyxJQUFJLENBQUMsSUFBSSxFQUFFLENBQUM7WUFDVixNQUFNLElBQUksMkJBQWtCLENBQUMseUJBQXlCLENBQUMsQ0FBQztRQUMxRCxDQUFDO1FBRUQsMkJBQTJCO1FBQzNCLE1BQU0sT0FBTyxHQUFHLFFBQVEsQ0FBQyxPQUFPLENBQUMsTUFBTSxDQUFDLEVBQUUsRUFBRSxFQUFFLENBQUMsQ0FBQztRQUVoRCxzQ0FBc0M7UUFDdEMsSUFBSSxLQUFLLENBQUMsT0FBTyxDQUFDLElBQUksT0FBTyxJQUFJLENBQUMsRUFBRSxDQUFDO1lBQ25DLE1BQU0sSUFBSSwwQkFBaUIsQ0FBQyxrQkFBa0IsQ0FBQyxDQUFDO1FBQ2xELENBQUM7UUFFRCx1REFBdUQ7UUFDdkQsSUFBSSxJQUFJLENBQUMsSUFBSSxLQUFLLE9BQU8sRUFBRSxDQUFDO1lBQzFCLE9BQU8sSUFBSSxDQUFDO1FBQ2QsQ0FBQztRQUVELHFDQUFxQztRQUNyQyxNQUFNLEtBQUssR0FBRyxNQUFNLElBQUksQ0FBQyxNQUFNLENBQUMsS0FBSyxDQUFDLFVBQVUsQ0FBQztZQUMvQyxLQUFLLEVBQUUsRUFBRSxFQUFFLEVBQUUsT0FBTyxFQUFFO1lBQ3RCLE1BQU0sRUFBRSxFQUFFLE9BQU8sRUFBRSxJQUFJLEVBQUU7U0FDMUIsQ0FBQyxDQUFDO1FBRUgsSUFBSSxDQUFDLEtBQUssRUFBRSxDQUFDO1lBQ1gsTUFBTSxJQUFJLDBCQUFpQixDQUFDLGlCQUFpQixPQUFPLFlBQVksQ0FBQyxDQUFDO1FBQ3BFLENBQUM7UUFFRCwyQ0FBMkM7UUFDM0MsSUFBSSxLQUFLLENBQUMsT0FBTyxLQUFLLElBQUksQ0FBQyxNQUFNLEVBQUUsQ0FBQztZQUNsQyxNQUFNLElBQUksMkJBQWtCLENBQzFCLGdHQUFnRyxDQUNqRyxDQUFDO1FBQ0osQ0FBQztRQUVELE9BQU8sSUFBSSxDQUFDO0lBQ2QsQ0FBQztDQUNGLENBQUE7QUEvQ1ksMENBQWU7MEJBQWYsZUFBZTtJQUQzQixJQUFBLG1CQUFVLEdBQUU7eURBR1UsZ0JBQVMsb0JBQVQsZ0JBQVMsb0RBQ1osOEJBQWEsb0JBQWIsOEJBQWE7R0FIcEIsZUFBZSxDQStDM0IiLCJuYW1lcyI6W10sInNvdXJjZXMiOlsiQzpcXFVzZXJzXFxhYjMxMVxcSW50ZXJzaGlwXFxibGlua2V2ZW50elxcbmVhcnpyby1iYWNrZW5kXFxzcmNcXHZlbnVlc1xcZ3VhcmRzXFx2ZW51ZS1vd25lci5ndWFyZC50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQge1xyXG4gIEluamVjdGFibGUsXHJcbiAgQ2FuQWN0aXZhdGUsXHJcbiAgRXhlY3V0aW9uQ29udGV4dCxcclxuICBOb3RGb3VuZEV4Y2VwdGlvbixcclxuICBGb3JiaWRkZW5FeGNlcHRpb24sXHJcbn0gZnJvbSAnQG5lc3Rqcy9jb21tb24nO1xyXG5pbXBvcnQgeyBSZWZsZWN0b3IgfSBmcm9tICdAbmVzdGpzL2NvcmUnO1xyXG5pbXBvcnQgeyBQcmlzbWFTZXJ2aWNlIH0gZnJvbSAnLi4vLi4vcHJpc21hL3ByaXNtYS5zZXJ2aWNlJztcclxuXHJcbi8qKlxyXG4gKiBWZW51ZSBPd25lciBHdWFyZFxyXG4gKiBcclxuICogVmFsaWRhdGVzIHRoYXQgdGhlIGN1cnJlbnQgdXNlciBvd25zIHRoZSB2ZW51ZSBiZWluZyBhY2Nlc3NlZC5cclxuICogVGhpcyBndWFyZCBzaG91bGQgYmUgdXNlZCBmb3IgUEFUQ0gvREVMRVRFIG9wZXJhdGlvbnMgb24gdmVudWVzLlxyXG4gKiBcclxuICogVXNhZ2U6XHJcbiAqIEBVc2VHdWFyZHMoSnd0QXV0aEd1YXJkLCBWZW51ZU93bmVyR3VhcmQpXHJcbiAqIEBQYXRjaCgnOmlkJylcclxuICogdXBkYXRlVmVudWUoQFBhcmFtKCdpZCcpIGlkOiBudW1iZXIpIHsgLi4uIH1cclxuICovXHJcbkBJbmplY3RhYmxlKClcclxuZXhwb3J0IGNsYXNzIFZlbnVlT3duZXJHdWFyZCBpbXBsZW1lbnRzIENhbkFjdGl2YXRlIHtcclxuICBjb25zdHJ1Y3RvcihcclxuICAgIHByaXZhdGUgcmVmbGVjdG9yOiBSZWZsZWN0b3IsXHJcbiAgICBwcml2YXRlIHByaXNtYTogUHJpc21hU2VydmljZSxcclxuICApIHt9XHJcblxyXG4gIGFzeW5jIGNhbkFjdGl2YXRlKGNvbnRleHQ6IEV4ZWN1dGlvbkNvbnRleHQpOiBQcm9taXNlPGJvb2xlYW4+IHtcclxuICAgIGNvbnN0IHJlcXVlc3QgPSBjb250ZXh0LnN3aXRjaFRvSHR0cCgpLmdldFJlcXVlc3QoKTtcclxuICAgIGNvbnN0IHVzZXIgPSByZXF1ZXN0LnVzZXI7XHJcblxyXG4gICAgLy8gSWYgbm8gdXNlciBpcyBhdXRoZW50aWNhdGVkLCBkZW55IGFjY2Vzc1xyXG4gICAgaWYgKCF1c2VyKSB7XHJcbiAgICAgIHRocm93IG5ldyBGb3JiaWRkZW5FeGNlcHRpb24oJ0F1dGhlbnRpY2F0aW9uIHJlcXVpcmVkJyk7XHJcbiAgICB9XHJcblxyXG4gICAgLy8gR2V0IHZlbnVlIElEIGZyb20gcGFyYW1zXHJcbiAgICBjb25zdCB2ZW51ZUlkID0gcGFyc2VJbnQocmVxdWVzdC5wYXJhbXMuaWQsIDEwKTtcclxuXHJcbiAgICAvLyBWYWxpZGF0ZSB2ZW51ZSBJRCBpcyBhIHZhbGlkIG51bWJlclxyXG4gICAgaWYgKGlzTmFOKHZlbnVlSWQpIHx8IHZlbnVlSWQgPD0gMCkge1xyXG4gICAgICB0aHJvdyBuZXcgTm90Rm91bmRFeGNlcHRpb24oJ0ludmFsaWQgdmVudWUgSUQnKTtcclxuICAgIH1cclxuXHJcbiAgICAvLyBDaGVjayBpZiB1c2VyIGlzIGFkbWluIC0gYWRtaW5zIGNhbiBhY2Nlc3MgYW55IHZlbnVlXHJcbiAgICBpZiAodXNlci5yb2xlID09PSAnQURNSU4nKSB7XHJcbiAgICAgIHJldHVybiB0cnVlO1xyXG4gICAgfVxyXG5cclxuICAgIC8vIEZpbmQgdGhlIHZlbnVlIGFuZCBjaGVjayBvd25lcnNoaXBcclxuICAgIGNvbnN0IHZlbnVlID0gYXdhaXQgdGhpcy5wcmlzbWEudmVudWUuZmluZFVuaXF1ZSh7XHJcbiAgICAgIHdoZXJlOiB7IGlkOiB2ZW51ZUlkIH0sXHJcbiAgICAgIHNlbGVjdDogeyBvd25lcklkOiB0cnVlIH0sXHJcbiAgICB9KTtcclxuXHJcbiAgICBpZiAoIXZlbnVlKSB7XHJcbiAgICAgIHRocm93IG5ldyBOb3RGb3VuZEV4Y2VwdGlvbihgVmVudWUgd2l0aCBJRCAke3ZlbnVlSWR9IG5vdCBmb3VuZGApO1xyXG4gICAgfVxyXG5cclxuICAgIC8vIENoZWNrIGlmIHRoZSBjdXJyZW50IHVzZXIgb3ducyB0aGUgdmVudWVcclxuICAgIGlmICh2ZW51ZS5vd25lcklkICE9PSB1c2VyLnVzZXJJZCkge1xyXG4gICAgICB0aHJvdyBuZXcgRm9yYmlkZGVuRXhjZXB0aW9uKFxyXG4gICAgICAgICdZb3UgZG8gbm90IGhhdmUgcGVybWlzc2lvbiB0byBtb2RpZnkgdGhpcyB2ZW51ZS4gT25seSB0aGUgdmVudWUgb3duZXIgY2FuIHBlcmZvcm0gdGhpcyBhY3Rpb24uJ1xyXG4gICAgICApO1xyXG4gICAgfVxyXG5cclxuICAgIHJldHVybiB0cnVlO1xyXG4gIH1cclxufVxyXG4iXSwidmVyc2lvbiI6M30=
