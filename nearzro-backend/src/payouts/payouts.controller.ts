@@ -16,7 +16,7 @@ import { PayoutsService } from './payouts.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
-import { Role } from '@prisma/client';
+import { Role } from '../common/enums/role.enum';
 import { Public } from '../common/decorators/public.decorator';
 
 @ApiTags('Payouts')
@@ -63,5 +63,19 @@ export class PayoutsController {
     res.header('Content-Type', 'text/csv');
     res.header('Content-Disposition', 'attachment; filename="payouts.csv"');
     res.send(data);
+  }
+
+  // Venue Owner - Get my payouts (must be before :id route to avoid conflict)
+  @UseGuards(JwtAuthGuard)
+  @Get('venue-owner/me')
+  async getVenueOwnerPayouts(@Req() req: any, @Query() query: any) {
+    return this.payoutsService.findByVenueOwner(req.user.userId, query);
+  }
+
+  // Venue Owner - Get my payout stats
+  @UseGuards(JwtAuthGuard)
+  @Get('venue-owner/stats')
+  async getVenueOwnerStats(@Req() req: any) {
+    return this.payoutsService.getVenueOwnerStats(req.user.userId);
   }
 }

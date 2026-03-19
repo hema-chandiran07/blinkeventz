@@ -1,31 +1,49 @@
 import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
+import unusedImports from "eslint-plugin-unused-imports";
 
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
-  // Override default ignores of eslint-config-next.
+
+  {
+    plugins: {
+      "unused-imports": unusedImports,
+    },
+
+    rules: {
+      // Faster development rules
+      "react/no-unescaped-entities": "off",
+      "@typescript-eslint/no-explicit-any": "off",
+      "react-hooks/purity": "off",
+      "react-hooks/set-state-in-effect": "off",
+
+      // Replace default unused-vars rule
+      "@typescript-eslint/no-unused-vars": "off",
+
+      // Auto remove unused imports
+      "unused-imports/no-unused-imports": "error",
+
+      // Warn unused variables but ignore "_" prefixed
+      "unused-imports/no-unused-vars": [
+        "warn",
+        {
+          vars: "all",
+          varsIgnorePattern: "^_",
+          args: "after-used",
+          argsIgnorePattern: "^_",
+        },
+      ],
+    },
+  },
+
   globalIgnores([
-    // Default ignores of eslint-config-next:
     ".next/**",
     "out/**",
     "build/**",
     "next-env.d.ts",
   ]),
-  {
-    rules: {
-      // Disable quote escaping requirement for faster development
-      "react/no-unescaped-entities": "off",
-      // Disable no-explicit-any for faster development (we'll fix types incrementally)
-      "@typescript-eslint/no-explicit-any": "off",
-      // Disable unused vars to warn instead of error
-      "@typescript-eslint/no-unused-vars": "warn",
-      // Disable React hooks purity checks for faster development
-      "react-hooks/purity": "off",
-      "react-hooks/set-state-in-effect": "off",
-    },
-  },
 ]);
 
 export default eslintConfig;

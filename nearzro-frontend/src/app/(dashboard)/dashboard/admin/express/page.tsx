@@ -6,7 +6,6 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { Timer, ArrowLeft, CheckCircle2, XCircle } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { expressApi } from "@/lib/api-endpoints";
 import { useState } from "react";
 
 export default function AdminExpressPage() {

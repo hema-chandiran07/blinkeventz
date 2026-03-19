@@ -1,0 +1,47 @@
+451b94cf443aaac16bebf91f204e741c
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.KycModule = void 0;
+const common_1 = require("@nestjs/common");
+const kyc_service_1 = require("./kyc.service");
+const kyc_controller_1 = require("./kyc.controller");
+const admin_kyc_controller_1 = require("./admin-kyc.controller");
+const bank_account_controller_1 = require("./bank-account.controller");
+const bank_account_service_1 = require("./bank-account/bank-account.service");
+const bank_webhook_controller_1 = require("./bank-webhook.controller");
+const prisma_module_1 = require("../prisma/prisma.module");
+const storage_module_1 = require("../storage/storage.module");
+const audit_module_1 = require("../audit/audit.module");
+let KycModule = class KycModule {
+};
+exports.KycModule = KycModule;
+exports.KycModule = KycModule = __decorate([
+    (0, common_1.Module)({
+        imports: [
+            prisma_module_1.PrismaModule,
+            storage_module_1.StorageModule,
+            audit_module_1.AuditModule,
+        ],
+        controllers: [
+            kyc_controller_1.KycController,
+            admin_kyc_controller_1.AdminKycController,
+            bank_account_controller_1.BankAccountController,
+            bank_webhook_controller_1.BankWebhookController,
+        ],
+        providers: [
+            kyc_service_1.KycService,
+            bank_account_service_1.BankAccountService,
+        ],
+        exports: [
+            kyc_service_1.KycService,
+            bank_account_service_1.BankAccountService,
+        ],
+    })
+], KycModule);
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiQzpcXFVzZXJzXFxIZW1hY2hhbmRpcmFuXFxJbnRlcm5zaGlwXFxOZWFyenJvXFxuZWFyenJvLWJhY2tlbmRcXHNyY1xca3ljXFxreWMubW9kdWxlLnRzIiwibWFwcGluZ3MiOiI7Ozs7Ozs7OztBQUFBLDJDQUF3QztBQUN4QywrQ0FBMkM7QUFDM0MscURBQWlEO0FBQ2pELGlFQUE0RDtBQUM1RCx1RUFBa0U7QUFDbEUsOEVBQXlFO0FBQ3pFLHVFQUFrRTtBQUNsRSwyREFBdUQ7QUFDdkQsOERBQTBEO0FBQzFELHdEQUFvRDtBQXVCN0MsSUFBTSxTQUFTLEdBQWYsTUFBTSxTQUFTO0NBQUcsQ0FBQTtBQUFaLDhCQUFTO29CQUFULFNBQVM7SUFyQnJCLElBQUEsZUFBTSxFQUFDO1FBQ04sT0FBTyxFQUFFO1lBQ1AsNEJBQVk7WUFDWiw4QkFBYTtZQUNiLDBCQUFXO1NBQ1o7UUFDRCxXQUFXLEVBQUU7WUFDWCw4QkFBYTtZQUNiLHlDQUFrQjtZQUNsQiwrQ0FBcUI7WUFDckIsK0NBQXFCO1NBQ3RCO1FBQ0QsU0FBUyxFQUFFO1lBQ1Qsd0JBQVU7WUFDVix5Q0FBa0I7U0FDbkI7UUFDRCxPQUFPLEVBQUU7WUFDUCx3QkFBVTtZQUNWLHlDQUFrQjtTQUNuQjtLQUNGLENBQUM7R0FDVyxTQUFTLENBQUciLCJuYW1lcyI6W10sInNvdXJjZXMiOlsiQzpcXFVzZXJzXFxIZW1hY2hhbmRpcmFuXFxJbnRlcm5zaGlwXFxOZWFyenJvXFxuZWFyenJvLWJhY2tlbmRcXHNyY1xca3ljXFxreWMubW9kdWxlLnRzIl0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IE1vZHVsZSB9IGZyb20gJ0BuZXN0anMvY29tbW9uJztcclxuaW1wb3J0IHsgS3ljU2VydmljZSB9IGZyb20gJy4va3ljLnNlcnZpY2UnO1xyXG5pbXBvcnQgeyBLeWNDb250cm9sbGVyIH0gZnJvbSAnLi9reWMuY29udHJvbGxlcic7XHJcbmltcG9ydCB7IEFkbWluS3ljQ29udHJvbGxlciB9IGZyb20gJy4vYWRtaW4ta3ljLmNvbnRyb2xsZXInO1xyXG5pbXBvcnQgeyBCYW5rQWNjb3VudENvbnRyb2xsZXIgfSBmcm9tICcuL2JhbmstYWNjb3VudC5jb250cm9sbGVyJztcclxuaW1wb3J0IHsgQmFua0FjY291bnRTZXJ2aWNlIH0gZnJvbSAnLi9iYW5rLWFjY291bnQvYmFuay1hY2NvdW50LnNlcnZpY2UnO1xyXG5pbXBvcnQgeyBCYW5rV2ViaG9va0NvbnRyb2xsZXIgfSBmcm9tICcuL2Jhbmstd2ViaG9vay5jb250cm9sbGVyJztcclxuaW1wb3J0IHsgUHJpc21hTW9kdWxlIH0gZnJvbSAnLi4vcHJpc21hL3ByaXNtYS5tb2R1bGUnO1xyXG5pbXBvcnQgeyBTdG9yYWdlTW9kdWxlIH0gZnJvbSAnLi4vc3RvcmFnZS9zdG9yYWdlLm1vZHVsZSc7XHJcbmltcG9ydCB7IEF1ZGl0TW9kdWxlIH0gZnJvbSAnLi4vYXVkaXQvYXVkaXQubW9kdWxlJztcclxuXHJcbkBNb2R1bGUoe1xyXG4gIGltcG9ydHM6IFtcclxuICAgIFByaXNtYU1vZHVsZSxcclxuICAgIFN0b3JhZ2VNb2R1bGUsXHJcbiAgICBBdWRpdE1vZHVsZSxcclxuICBdLFxyXG4gIGNvbnRyb2xsZXJzOiBbXHJcbiAgICBLeWNDb250cm9sbGVyLFxyXG4gICAgQWRtaW5LeWNDb250cm9sbGVyLFxyXG4gICAgQmFua0FjY291bnRDb250cm9sbGVyLFxyXG4gICAgQmFua1dlYmhvb2tDb250cm9sbGVyLFxyXG4gIF0sXHJcbiAgcHJvdmlkZXJzOiBbXHJcbiAgICBLeWNTZXJ2aWNlLFxyXG4gICAgQmFua0FjY291bnRTZXJ2aWNlLFxyXG4gIF0sXHJcbiAgZXhwb3J0czogW1xyXG4gICAgS3ljU2VydmljZSxcclxuICAgIEJhbmtBY2NvdW50U2VydmljZSxcclxuICBdLFxyXG59KVxyXG5leHBvcnQgY2xhc3MgS3ljTW9kdWxlIHt9XHJcbiJdLCJ2ZXJzaW9uIjozfQ==

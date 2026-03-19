@@ -1,25 +1,37 @@
-import { IsNotEmpty, IsString, IsOptional, IsInt, Min, IsDateString } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import {
+  IsNotEmpty,
+  IsString,
+  IsOptional,
+  IsInt,
+  Min,
+  IsDateString,
+  ValidateIf,
+} from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ItemType } from '@prisma/client';
 
 export class AddCartItemDto {
-  @ApiProperty({ enum: ['VENUE', 'VENDOR_SERVICE', 'ADDON'] })
+  @ApiProperty({ enum: ['VENUE', 'VENDOR_SERVICE', 'ADDON'], enumName: 'ItemType' })
   @IsNotEmpty()
   @IsString()
   itemType: string;
 
-  @ApiProperty({ required: false })
-  @IsOptional()
+  @ApiProperty({ description: 'Venue ID - required if itemType is VENUE' })
+  @ValidateIf((o) => o.itemType === 'VENUE')
   @IsInt()
+  @Min(1)
   venueId?: number;
 
-  @ApiProperty({ required: false })
-  @IsOptional()
+  @ApiProperty({ description: 'Vendor Service ID - required if itemType is VENDOR_SERVICE' })
+  @ValidateIf((o) => o.itemType === 'VENDOR_SERVICE')
   @IsInt()
+  @Min(1)
   vendorServiceId?: number;
 
-  @ApiProperty({ required: false })
-  @IsOptional()
+  @ApiProperty({ description: 'Addon ID - required if itemType is ADDON' })
+  @ValidateIf((o) => o.itemType === 'ADDON')
   @IsInt()
+  @Min(1)
   addonId?: number;
 
   @ApiProperty({ required: false })
@@ -30,7 +42,7 @@ export class AddCartItemDto {
   @ApiProperty({ enum: ['MORNING', 'EVENING', 'FULL_DAY'], required: false })
   @IsOptional()
   @IsString()
-  timeSlot?: string;
+  timeSlot?: 'MORNING' | 'EVENING' | 'FULL_DAY';
 
   @ApiProperty({ required: false, default: 1 })
   @IsOptional()
@@ -38,12 +50,7 @@ export class AddCartItemDto {
   @Min(1)
   quantity?: number = 1;
 
-  @ApiProperty({ required: false })
-  @IsOptional()
-  @IsInt()
-  unitPrice?: number;
-
-  @ApiProperty({ required: false })
+  @ApiPropertyOptional({ description: 'Additional metadata for PER_PERSON pricing' })
   @IsOptional()
   meta?: {
     guestCount?: number;

@@ -1,8 +1,8 @@
-import { IsOptional, IsInt, Min, IsObject } from 'class-validator';
+import { IsOptional, IsInt, Min, IsObject, ValidateIf } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UpdateCartItemDto {
-  @ApiPropertyOptional({ default: 1 })
+  @ApiPropertyOptional({ default: 1, minimum: 1 })
   @IsOptional()
   @IsInt()
   @Min(1)
@@ -10,6 +10,7 @@ export class UpdateCartItemDto {
 
   @ApiPropertyOptional()
   @IsOptional()
+  @ValidateIf((o) => o.meta !== undefined)
   @IsObject()
   meta?: {
     guestCount?: number;

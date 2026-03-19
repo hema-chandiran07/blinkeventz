@@ -1,0 +1,123 @@
+1dec92500e59e5f1e64d02b0123684ab
+"use strict";
+
+/* istanbul ignore next */
+function cov_12s3h74mlc() {
+  var path = "C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\notifications\\templates\\booking-request.template.ts";
+  var hash = "c63ec5b9c8e2baeebd509cacdfe6481cb084dd97";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\notifications\\templates\\booking-request.template.ts",
+    statementMap: {
+      "0": {
+        start: {
+          line: 2,
+          column: 0
+        },
+        end: {
+          line: 2,
+          column: 62
+        }
+      },
+      "1": {
+        start: {
+          line: 3,
+          column: 0
+        },
+        end: {
+          line: 3,
+          column: 56
+        }
+      },
+      "2": {
+        start: {
+          line: 5,
+          column: 4
+        },
+        end: {
+          line: 10,
+          column: 6
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "bookingRequestTemplate",
+        decl: {
+          start: {
+            line: 4,
+            column: 9
+          },
+          end: {
+            line: 4,
+            column: 31
+          }
+        },
+        loc: {
+          start: {
+            line: 4,
+            column: 38
+          },
+          end: {
+            line: 11,
+            column: 1
+          }
+        },
+        line: 4
+      }
+    },
+    branchMap: {},
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0
+    },
+    f: {
+      "0": 0
+    },
+    b: {},
+    inputSourceMap: {
+      file: "C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\notifications\\templates\\booking-request.template.ts",
+      mappings: ";;AAAA,wDAOC;AAPD,SAAgB,sBAAsB,CAAC,IAAS;IAC9C,OAAO;QACL,KAAK,EAAE,wBAAwB;QAC/B,OAAO,EAAE,2BAA2B,IAAI,CAAC,UAAU,EAAE;QACrD,QAAQ,EAAE,kBAAkB,IAAI,CAAC,SAAS,EAAE;QAC5C,OAAO,EAAE,CAAC,QAAQ,EAAE,QAAQ,CAAC;KAC9B,CAAC;AACJ,CAAC",
+      names: [],
+      sources: ["C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\notifications\\templates\\booking-request.template.ts"],
+      sourcesContent: ["export function bookingRequestTemplate(data: any) {\r\n  return {\r\n    title: '\uD83D\uDCE5 New Booking Request',\r\n    message: `New booking request for ${data.eventTitle}`,\r\n    deepLink: `app://bookings/${data.bookingId}`,\r\n    actions: ['ACCEPT', 'REJECT'],\r\n  };\r\n}\r\n"],
+      version: 3
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "c63ec5b9c8e2baeebd509cacdfe6481cb084dd97"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_12s3h74mlc = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_12s3h74mlc();
+cov_12s3h74mlc().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_12s3h74mlc().s[1]++;
+exports.bookingRequestTemplate = bookingRequestTemplate;
+function bookingRequestTemplate(data) {
+  /* istanbul ignore next */
+  cov_12s3h74mlc().f[0]++;
+  cov_12s3h74mlc().s[2]++;
+  return {
+    title: '📥 New Booking Request',
+    message: `New booking request for ${data.eventTitle}`,
+    deepLink: `app://bookings/${data.bookingId}`,
+    actions: ['ACCEPT', 'REJECT']
+  };
+}
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJleHBvcnRzIiwiYm9va2luZ1JlcXVlc3RUZW1wbGF0ZSIsImRhdGEiLCJjb3ZfMTJzM2g3NG1sYyIsImYiLCJzIiwidGl0bGUiLCJtZXNzYWdlIiwiZXZlbnRUaXRsZSIsImRlZXBMaW5rIiwiYm9va2luZ0lkIiwiYWN0aW9ucyJdLCJzb3VyY2VzIjpbIkM6XFxVc2Vyc1xcSGVtYWNoYW5kaXJhblxcSW50ZXJuc2hpcFxcTmVhcnpyb1xcbmVhcnpyby1iYWNrZW5kXFxzcmNcXG5vdGlmaWNhdGlvbnNcXHRlbXBsYXRlc1xcYm9va2luZy1yZXF1ZXN0LnRlbXBsYXRlLnRzIl0sInNvdXJjZXNDb250ZW50IjpbImV4cG9ydCBmdW5jdGlvbiBib29raW5nUmVxdWVzdFRlbXBsYXRlKGRhdGE6IGFueSkge1xyXG4gIHJldHVybiB7XHJcbiAgICB0aXRsZTogJ/Cfk6UgTmV3IEJvb2tpbmcgUmVxdWVzdCcsXHJcbiAgICBtZXNzYWdlOiBgTmV3IGJvb2tpbmcgcmVxdWVzdCBmb3IgJHtkYXRhLmV2ZW50VGl0bGV9YCxcclxuICAgIGRlZXBMaW5rOiBgYXBwOi8vYm9va2luZ3MvJHtkYXRhLmJvb2tpbmdJZH1gLFxyXG4gICAgYWN0aW9uczogWydBQ0NFUFQnLCAnUkVKRUNUJ10sXHJcbiAgfTtcclxufVxyXG4iXSwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7QUFBQUEsT0FBQSxDQUFBQyxzQkFBQSxHQUFBQSxzQkFBQTtBQUFBLFNBQWdCQSxzQkFBc0JBLENBQUNDLElBQVM7RUFBQTtFQUFBQyxjQUFBLEdBQUFDLENBQUE7RUFBQUQsY0FBQSxHQUFBRSxDQUFBO0VBQzlDLE9BQU87SUFDTEMsS0FBSyxFQUFFLHdCQUF3QjtJQUMvQkMsT0FBTyxFQUFFLDJCQUEyQkwsSUFBSSxDQUFDTSxVQUFVLEVBQUU7SUFDckRDLFFBQVEsRUFBRSxrQkFBa0JQLElBQUksQ0FBQ1EsU0FBUyxFQUFFO0lBQzVDQyxPQUFPLEVBQUUsQ0FBQyxRQUFRLEVBQUUsUUFBUTtHQUM3QjtBQUNIIiwiaWdub3JlTGlzdCI6W119

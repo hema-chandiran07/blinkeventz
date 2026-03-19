@@ -1,0 +1,91 @@
+086562a4a092830b441e05758237f9ff
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var _a;
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.DashboardController = void 0;
+const common_1 = require("@nestjs/common");
+const swagger_1 = require("@nestjs/swagger");
+const dashboard_service_1 = require("./dashboard.service");
+const jwt_auth_guard_1 = require("../auth/jwt-auth.guard");
+const roles_decorator_1 = require("../common/decorators/roles.decorator");
+const role_enum_1 = require("../common/enums/role.enum");
+const roles_guard_1 = require("../common/guards/roles.guard");
+let DashboardController = class DashboardController {
+    dashboardService;
+    constructor(dashboardService) {
+        this.dashboardService = dashboardService;
+    }
+    async getAdminStats() {
+        return this.dashboardService.getAdminStats();
+    }
+    async getRevenueAnalytics() {
+        return this.dashboardService.getRevenueAnalytics();
+    }
+    async getRecentActivity() {
+        return this.dashboardService.getRecentActivity();
+    }
+    async getCustomerStats(req) {
+        return this.dashboardService.getCustomerStats(req.user.id);
+    }
+    async getProviderStats(req) {
+        return this.dashboardService.getProviderStats(req.user.id, req.user.role);
+    }
+};
+exports.DashboardController = DashboardController;
+__decorate([
+    (0, roles_decorator_1.Roles)(role_enum_1.Role.ADMIN),
+    (0, common_1.Get)('admin/stats'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], DashboardController.prototype, "getAdminStats", null);
+__decorate([
+    (0, roles_decorator_1.Roles)(role_enum_1.Role.ADMIN),
+    (0, common_1.Get)('admin/revenue'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], DashboardController.prototype, "getRevenueAnalytics", null);
+__decorate([
+    (0, roles_decorator_1.Roles)(role_enum_1.Role.ADMIN),
+    (0, common_1.Get)('admin/activity'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], DashboardController.prototype, "getRecentActivity", null);
+__decorate([
+    (0, roles_decorator_1.Roles)(role_enum_1.Role.CUSTOMER),
+    (0, common_1.Get)('customer/stats'),
+    __param(0, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], DashboardController.prototype, "getCustomerStats", null);
+__decorate([
+    (0, roles_decorator_1.Roles)(role_enum_1.Role.VENDOR, role_enum_1.Role.VENUE_OWNER),
+    (0, common_1.Get)('provider/stats'),
+    __param(0, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], DashboardController.prototype, "getProviderStats", null);
+exports.DashboardController = DashboardController = __decorate([
+    (0, swagger_1.ApiTags)('Dashboard'),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
+    (0, common_1.Controller)('dashboard'),
+    __metadata("design:paramtypes", [typeof (_a = typeof dashboard_service_1.DashboardService !== "undefined" && dashboard_service_1.DashboardService) === "function" ? _a : Object])
+], DashboardController);
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiQzpcXFVzZXJzXFxIZW1hY2hhbmRpcmFuXFxJbnRlcm5zaGlwXFxOZWFyenJvXFxuZWFyenJvLWJhY2tlbmRcXHNyY1xcZGFzaGJvYXJkXFxkYXNoYm9hcmQuY29udHJvbGxlci50cyIsIm1hcHBpbmdzIjoiOzs7Ozs7Ozs7Ozs7Ozs7O0FBQUEsMkNBQWlFO0FBQ2pFLDZDQUF5RDtBQUN6RCwyREFBdUQ7QUFDdkQsMkRBQXNEO0FBQ3RELDBFQUE2RDtBQUM3RCx5REFBaUQ7QUFDakQsOERBQTBEO0FBTW5ELElBQU0sbUJBQW1CLEdBQXpCLE1BQU0sbUJBQW1CO0lBQ0Q7SUFBN0IsWUFBNkIsZ0JBQWtDO1FBQWxDLHFCQUFnQixHQUFoQixnQkFBZ0IsQ0FBa0I7SUFBRyxDQUFDO0lBSTdELEFBQU4sS0FBSyxDQUFDLGFBQWE7UUFDakIsT0FBTyxJQUFJLENBQUMsZ0JBQWdCLENBQUMsYUFBYSxFQUFFLENBQUM7SUFDL0MsQ0FBQztJQUlLLEFBQU4sS0FBSyxDQUFDLG1CQUFtQjtRQUN2QixPQUFPLElBQUksQ0FBQyxnQkFBZ0IsQ0FBQyxtQkFBbUIsRUFBRSxDQUFDO0lBQ3JELENBQUM7SUFJSyxBQUFOLEtBQUssQ0FBQyxpQkFBaUI7UUFDckIsT0FBTyxJQUFJLENBQUMsZ0JBQWdCLENBQUMsaUJBQWlCLEVBQUUsQ0FBQztJQUNuRCxDQUFDO0lBSUssQUFBTixLQUFLLENBQUMsZ0JBQWdCLENBQVEsR0FBRztRQUMvQixPQUFPLElBQUksQ0FBQyxnQkFBZ0IsQ0FBQyxnQkFBZ0IsQ0FBQyxHQUFHLENBQUMsSUFBSSxDQUFDLEVBQUUsQ0FBQyxDQUFDO0lBQzdELENBQUM7SUFJSyxBQUFOLEtBQUssQ0FBQyxnQkFBZ0IsQ0FBUSxHQUFHO1FBQy9CLE9BQU8sSUFBSSxDQUFDLGdCQUFnQixDQUFDLGdCQUFnQixDQUFDLEdBQUcsQ0FBQyxJQUFJLENBQUMsRUFBRSxFQUFFLEdBQUcsQ0FBQyxJQUFJLENBQUMsSUFBSSxDQUFDLENBQUM7SUFDNUUsQ0FBQztDQUNGLENBQUE7QUFoQ1ksa0RBQW1CO0FBS3hCO0lBRkwsSUFBQSx1QkFBSyxFQUFDLGdCQUFJLENBQUMsS0FBSyxDQUFDO0lBQ2pCLElBQUEsWUFBRyxFQUFDLGFBQWEsQ0FBQzs7Ozt3REFHbEI7QUFJSztJQUZMLElBQUEsdUJBQUssRUFBQyxnQkFBSSxDQUFDLEtBQUssQ0FBQztJQUNqQixJQUFBLFlBQUcsRUFBQyxlQUFlLENBQUM7Ozs7OERBR3BCO0FBSUs7SUFGTCxJQUFBLHVCQUFLLEVBQUMsZ0JBQUksQ0FBQyxLQUFLLENBQUM7SUFDakIsSUFBQSxZQUFHLEVBQUMsZ0JBQWdCLENBQUM7Ozs7NERBR3JCO0FBSUs7SUFGTCxJQUFBLHVCQUFLLEVBQUMsZ0JBQUksQ0FBQyxRQUFRLENBQUM7SUFDcEIsSUFBQSxZQUFHLEVBQUMsZ0JBQWdCLENBQUM7SUFDRSxXQUFBLElBQUEsWUFBRyxHQUFFLENBQUE7Ozs7MkRBRTVCO0FBSUs7SUFGTCxJQUFBLHVCQUFLLEVBQUMsZ0JBQUksQ0FBQyxNQUFNLEVBQUUsZ0JBQUksQ0FBQyxXQUFXLENBQUM7SUFDcEMsSUFBQSxZQUFHLEVBQUMsZ0JBQWdCLENBQUM7SUFDRSxXQUFBLElBQUEsWUFBRyxHQUFFLENBQUE7Ozs7MkRBRTVCOzhCQS9CVSxtQkFBbUI7SUFKL0IsSUFBQSxpQkFBTyxFQUFDLFdBQVcsQ0FBQztJQUNwQixJQUFBLHVCQUFhLEdBQUU7SUFDZixJQUFBLGtCQUFTLEVBQUMsNkJBQVksRUFBRSx3QkFBVSxDQUFDO0lBQ25DLElBQUEsbUJBQVUsRUFBQyxXQUFXLENBQUM7eURBRXlCLG9DQUFnQixvQkFBaEIsb0NBQWdCO0dBRHBELG1CQUFtQixDQWdDL0IiLCJuYW1lcyI6W10sInNvdXJjZXMiOlsiQzpcXFVzZXJzXFxIZW1hY2hhbmRpcmFuXFxJbnRlcm5zaGlwXFxOZWFyenJvXFxuZWFyenJvLWJhY2tlbmRcXHNyY1xcZGFzaGJvYXJkXFxkYXNoYm9hcmQuY29udHJvbGxlci50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyBDb250cm9sbGVyLCBHZXQsIFVzZUd1YXJkcywgUmVxIH0gZnJvbSAnQG5lc3Rqcy9jb21tb24nO1xyXG5pbXBvcnQgeyBBcGlUYWdzLCBBcGlCZWFyZXJBdXRoIH0gZnJvbSAnQG5lc3Rqcy9zd2FnZ2VyJztcclxuaW1wb3J0IHsgRGFzaGJvYXJkU2VydmljZSB9IGZyb20gJy4vZGFzaGJvYXJkLnNlcnZpY2UnO1xyXG5pbXBvcnQgeyBKd3RBdXRoR3VhcmQgfSBmcm9tICcuLi9hdXRoL2p3dC1hdXRoLmd1YXJkJztcclxuaW1wb3J0IHsgUm9sZXMgfSBmcm9tICcuLi9jb21tb24vZGVjb3JhdG9ycy9yb2xlcy5kZWNvcmF0b3InO1xyXG5pbXBvcnQgeyBSb2xlIH0gZnJvbSAnLi4vY29tbW9uL2VudW1zL3JvbGUuZW51bSc7XHJcbmltcG9ydCB7IFJvbGVzR3VhcmQgfSBmcm9tICcuLi9jb21tb24vZ3VhcmRzL3JvbGVzLmd1YXJkJztcclxuXHJcbkBBcGlUYWdzKCdEYXNoYm9hcmQnKVxyXG5AQXBpQmVhcmVyQXV0aCgpXHJcbkBVc2VHdWFyZHMoSnd0QXV0aEd1YXJkLCBSb2xlc0d1YXJkKVxyXG5AQ29udHJvbGxlcignZGFzaGJvYXJkJylcclxuZXhwb3J0IGNsYXNzIERhc2hib2FyZENvbnRyb2xsZXIge1xyXG4gIGNvbnN0cnVjdG9yKHByaXZhdGUgcmVhZG9ubHkgZGFzaGJvYXJkU2VydmljZTogRGFzaGJvYXJkU2VydmljZSkge31cclxuXHJcbiAgQFJvbGVzKFJvbGUuQURNSU4pXHJcbiAgQEdldCgnYWRtaW4vc3RhdHMnKVxyXG4gIGFzeW5jIGdldEFkbWluU3RhdHMoKSB7XHJcbiAgICByZXR1cm4gdGhpcy5kYXNoYm9hcmRTZXJ2aWNlLmdldEFkbWluU3RhdHMoKTtcclxuICB9XHJcblxyXG4gIEBSb2xlcyhSb2xlLkFETUlOKVxyXG4gIEBHZXQoJ2FkbWluL3JldmVudWUnKVxyXG4gIGFzeW5jIGdldFJldmVudWVBbmFseXRpY3MoKSB7XHJcbiAgICByZXR1cm4gdGhpcy5kYXNoYm9hcmRTZXJ2aWNlLmdldFJldmVudWVBbmFseXRpY3MoKTtcclxuICB9XHJcblxyXG4gIEBSb2xlcyhSb2xlLkFETUlOKVxyXG4gIEBHZXQoJ2FkbWluL2FjdGl2aXR5JylcclxuICBhc3luYyBnZXRSZWNlbnRBY3Rpdml0eSgpIHtcclxuICAgIHJldHVybiB0aGlzLmRhc2hib2FyZFNlcnZpY2UuZ2V0UmVjZW50QWN0aXZpdHkoKTtcclxuICB9XHJcblxyXG4gIEBSb2xlcyhSb2xlLkNVU1RPTUVSKVxyXG4gIEBHZXQoJ2N1c3RvbWVyL3N0YXRzJylcclxuICBhc3luYyBnZXRDdXN0b21lclN0YXRzKEBSZXEoKSByZXEpIHtcclxuICAgIHJldHVybiB0aGlzLmRhc2hib2FyZFNlcnZpY2UuZ2V0Q3VzdG9tZXJTdGF0cyhyZXEudXNlci5pZCk7XHJcbiAgfVxyXG5cclxuICBAUm9sZXMoUm9sZS5WRU5ET1IsIFJvbGUuVkVOVUVfT1dORVIpXHJcbiAgQEdldCgncHJvdmlkZXIvc3RhdHMnKVxyXG4gIGFzeW5jIGdldFByb3ZpZGVyU3RhdHMoQFJlcSgpIHJlcSkge1xyXG4gICAgcmV0dXJuIHRoaXMuZGFzaGJvYXJkU2VydmljZS5nZXRQcm92aWRlclN0YXRzKHJlcS51c2VyLmlkLCByZXEudXNlci5yb2xlKTtcclxuICB9XHJcbn1cclxuIl0sInZlcnNpb24iOjN9

@@ -23,6 +23,16 @@ export const venuesApi = {
   reject: (id: number) => api.patch(`/venues/${id}/reject`),
   getBookings: (id: number) => api.get(`/venues/${id}/bookings`),
   updateAvailability: (id: number, data: any) => api.patch(`/venues/${id}/availability`, data),
+  getMyVenues: () => api.get("/venues/my"),
+  getVenueOwnerStats: () => api.get("/venues/venue-owner/stats"),
+};
+
+// ==================== BOOKING API ====================
+export const bookingApi = {
+  create: (data: { venueId: number; date: string; timeSlot: string; eventName?: string; guestCount?: number; specialNotes?: string }) => 
+    api.post("/booking/create", data),
+  book: (availabilitySlotId: number) => api.post("/booking", { availabilitySlotId }),
+  getVenueOwnerBookings: () => api.get("/venues/venue-owner/bookings"),
 };
 
 // ==================== VENDORS API ====================

@@ -1,0 +1,416 @@
+eb6ce31fcfb957acd80a35a4172e114d
+"use strict";
+
+/**
+ * AI Planner Constants
+ *
+ * Centralized configuration values for the AI Planner module.
+ * Eliminates magic numbers and hardcoded strings.
+ */
+/* istanbul ignore next */
+function cov_7cro1maab() {
+  var path = "C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\ai-planner\\constants\\ai-planner.constants.ts";
+  var hash = "b92f72ccf166c96e8d7e976250beb9967c17841a";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\ai-planner\\constants\\ai-planner.constants.ts",
+    statementMap: {
+      "0": {
+        start: {
+          line: 8,
+          column: 0
+        },
+        end: {
+          line: 8,
+          column: 62
+        }
+      },
+      "1": {
+        start: {
+          line: 9,
+          column: 0
+        },
+        end: {
+          line: 9,
+          column: 303
+        }
+      },
+      "2": {
+        start: {
+          line: 11,
+          column: 0
+        },
+        end: {
+          line: 24,
+          column: 2
+        }
+      },
+      "3": {
+        start: {
+          line: 26,
+          column: 0
+        },
+        end: {
+          line: 37,
+          column: 2
+        }
+      },
+      "4": {
+        start: {
+          line: 39,
+          column: 0
+        },
+        end: {
+          line: 56,
+          column: 2
+        }
+      },
+      "5": {
+        start: {
+          line: 58,
+          column: 0
+        },
+        end: {
+          line: 73,
+          column: 2
+        }
+      },
+      "6": {
+        start: {
+          line: 75,
+          column: 0
+        },
+        end: {
+          line: 96,
+          column: 2
+        }
+      },
+      "7": {
+        start: {
+          line: 98,
+          column: 0
+        },
+        end: {
+          line: 104,
+          column: 2
+        }
+      },
+      "8": {
+        start: {
+          line: 106,
+          column: 0
+        },
+        end: {
+          line: 121,
+          column: 2
+        }
+      },
+      "9": {
+        start: {
+          line: 123,
+          column: 0
+        },
+        end: {
+          line: 130,
+          column: 2
+        }
+      },
+      "10": {
+        start: {
+          line: 132,
+          column: 0
+        },
+        end: {
+          line: 147,
+          column: 2
+        }
+      },
+      "11": {
+        start: {
+          line: 149,
+          column: 0
+        },
+        end: {
+          line: 173,
+          column: 3
+        }
+      },
+      "12": {
+        start: {
+          line: 175,
+          column: 0
+        },
+        end: {
+          line: 180,
+          column: 2
+        }
+      },
+      "13": {
+        start: {
+          line: 182,
+          column: 0
+        },
+        end: {
+          line: 187,
+          column: 2
+        }
+      }
+    },
+    fnMap: {},
+    branchMap: {},
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0,
+      "8": 0,
+      "9": 0,
+      "10": 0,
+      "11": 0,
+      "12": 0,
+      "13": 0
+    },
+    f: {},
+    b: {},
+    inputSourceMap: {
+      file: "C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\ai-planner\\constants\\ai-planner.constants.ts",
+      mappings: "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",
+      names: [],
+      sources: ["C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\ai-planner\\constants\\ai-planner.constants.ts"],
+      sourcesContent: ["/**\r\n * AI Planner Constants\r\n * \r\n * Centralized configuration values for the AI Planner module.\r\n * Eliminates magic numbers and hardcoded strings.\r\n */\r\n\r\n// AI Configuration\r\nexport const AI_CONFIG = {\r\n  // OpenAI Model\r\n  MODEL: 'gpt-4o-mini',\r\n  \r\n  // Request settings\r\n  TEMPERATURE: 0.4,\r\n  TIMEOUT_MS: 10000, // 10 second timeout\r\n  \r\n  // Retry configuration\r\n  MAX_RETRIES: 3,\r\n  RETRY_DELAY_MS: 1000,\r\n  \r\n  // Response limits\r\n  MAX_TOKENS: 2000,\r\n  \r\n  // Prompt limits\r\n  MAX_PROMPT_LENGTH: 5000,\r\n} as const;\r\n\r\n// Cache Configuration\r\nexport const CACHE_CONFIG = {\r\n  // Cache TTL values (in seconds)\r\n  AI_PLAN_TTL: 600,        // 10 minutes\r\n  VENDOR_MATCH_TTL: 600,   // 10 minutes\r\n  VENDOR_LIST_TTL: 300,    // 5 minutes\r\n  \r\n  // Cache key prefixes\r\n  AI_PLAN_PREFIX: 'ai:plan:',\r\n  VENDOR_MATCH_PREFIX: 'ai:vendors:',\r\n  VENDOR_LIST_PREFIX: 'vendors:',\r\n  \r\n  // Cache key hashing\r\n  USE_HASH: true,\r\n} as const;\r\n\r\n// Budget Validation\r\nexport const BUDGET_CONFIG = {\r\n  // Minimum and maximum budget limits\r\n  MIN_BUDGET: 1000,\r\n  MAX_BUDGET: 100000000, // 10 Crore\r\n  \r\n  // Tolerance for AI budget allocation (\xB11%)\r\n  ALLOCATION_TOLERANCE_PERCENT: 0.01,\r\n  \r\n  // Default allocation categories\r\n  DEFAULT_CATEGORIES: [\r\n    'Venue',\r\n    'Catering',\r\n    'Decor',\r\n    'Entertainment',\r\n    'Photography',\r\n    'Transportation',\r\n    'Invitations',\r\n    'Miscellaneous',\r\n  ] as const,\r\n} as const;\r\n\r\n// Vendor Matching Configuration\r\nexport const VENDOR_MATCH_CONFIG = {\r\n  // Budget threshold multiplier (percentage of total budget)\r\n  // A vendor's baseRate should be within this percentage of per-category budget\r\n  BUDGET_THRESHOLD_PERCENT: 0.4,\r\n  \r\n  // Default result limit\r\n  DEFAULT_LIMIT: 10,\r\n  \r\n  // Weights for scoring algorithm\r\n  WEIGHTS: {\r\n    RATING: 0.35,\r\n    BUDGET_MATCH: 0.25,\r\n    VERIFICATION: 0.25,\r\n    PROXIMITY: 0.15,\r\n  } as const,\r\n  \r\n  // Minimum rating threshold\r\n  MIN_RATING: 3.0,\r\n} as const;\r\n\r\n// Rate Limiting Configuration\r\nexport const RATE_LIMIT_CONFIG = {\r\n  // AI generation limits\r\n  GENERATE: {\r\n    LIMIT: 10,      // 10 requests\r\n    TTL: 60,       // per minute\r\n  },\r\n  \r\n  // Regeneration limits\r\n  REGENERATE: {\r\n    LIMIT: 5,      // 5 requests\r\n    TTL: 60,       // per minute\r\n  },\r\n  \r\n  // Vendor matching limits\r\n  VENDOR_MATCH: {\r\n    LIMIT: 20,     // 20 requests\r\n    TTL: 60,      // per minute\r\n  },\r\n  \r\n  // Cart conversion limits\r\n  ACCEPT: {\r\n    LIMIT: 10,     // 10 requests\r\n    TTL: 60,      // per minute\r\n  },\r\n} as const;\r\n\r\n// Input Validation Limits\r\nexport const INPUT_LIMITS = {\r\n  CITY_MAX_LENGTH: 50,\r\n  AREA_MAX_LENGTH: 50,\r\n  EVENT_TYPE_MAX_LENGTH: 100,\r\n  GUEST_COUNT_MIN: 1,\r\n  GUEST_COUNT_MAX: 10000,\r\n} as const;\r\n\r\n// Queue Configuration\r\nexport const QUEUE_CONFIG = {\r\n  // Queue names\r\n  AI_PLANNER_QUEUE: 'ai-planner',\r\n  AI_PLANNER_DLQ: 'ai-planner-failed',\r\n  \r\n  // Job settings\r\n  ATTEMPTS: 3,\r\n  BACKOFF_DELAY: 2000,\r\n  TIMEOUT: 10000,\r\n  \r\n  // Cleanup settings\r\n  REMOVE_COMPLETE_AGE: 86400,    // 24 hours\r\n  REMOVE_COMPLETE_COUNT: 1000,\r\n  REMOVE_FAIL_AGE: 604800,      // 7 days\r\n  REMOVE_FAIL_COUNT: 500,\r\n  \r\n  // Concurrency\r\n  CONCURRENCY: 5,\r\n} as const;\r\n\r\n// Circuit Breaker Configuration\r\nexport const CIRCUIT_BREAKER_CONFIG = {\r\n  // Open circuit after this many failures\r\n  FAILURE_THRESHOLD: 5,\r\n  \r\n  // Half-open after this many seconds\r\n  RESET_TIMEOUT_SECONDS: 30,\r\n  \r\n  // Success needed to close circuit\r\n  SUCCESS_THRESHOLD: 1,\r\n} as const;\r\n\r\n// Error Messages\r\nexport const ERROR_MESSAGES = {\r\n  AI_SERVICE_UNAVAILABLE: 'AI planning service temporarily unavailable. Please try again later.',\r\n  BUDGET_ALLOCATION_MISMATCH: 'AI generated budget allocation does not match total budget.',\r\n  PLAN_NOT_FOUND: 'AI Plan not found or access denied.',\r\n  UNAUTHORIZED_ACCESS: 'You do not have access to this resource.',\r\n  INVALID_BUDGET: 'Budget must be between \u20B91,000 and \u20B910,00,00,000.',\r\n  INVALID_GUEST_COUNT: 'Guest count must be between 1 and 10,000.',\r\n  VENDOR_MATCH_FAILED: 'Unable to find matching vendors. Please try different criteria.',\r\n  CART_CREATION_FAILED: 'Failed to create cart from AI plan.',\r\n  PROMPT_TOO_LONG: 'Prompt exceeds maximum allowed length of 5000 characters.',\r\n  JOB_NOT_FOUND: 'Job not found.',\r\n  CIRCUIT_OPEN: 'AI service temporarily unavailable due to repeated failures.',\r\n  AI_RESPONSE_EMPTY: 'AI service returned an empty response.',\r\n  AI_INVALID_KEY: 'Invalid OpenAI API key.',\r\n  AI_RATE_LIMIT: 'OpenAI rate limit exceeded. Please try again later.',\r\n} as const;\r\n\r\n// System Prompt\r\nexport const SYSTEM_PROMPT = `You are an expert event planner AI assistant specialized in Indian weddings and events. Your role is to help users plan their events by providing budget allocation suggestions based on the event type, location, guest count, and total budget.\r\n\r\nWhen generating budget allocations:\r\n- Consider typical Indian wedding expenses (Venue, Catering, Decor, Photography, etc.)\r\n- Provide realistic amounts based on the city and guest count\r\n- Always ensure the total allocation matches the given budget\r\n- Include helpful notes for each category\r\n- Be specific to Indian context (e.g., vegetarian options, traditional venues)\r\n\r\nRespond ONLY with valid JSON in the following format:\r\n{\r\n  \"summary\": {\r\n    \"eventType\": \"string\",\r\n    \"city\": \"string\", \r\n    \"guestCount\": number,\r\n    \"totalBudget\": number\r\n  },\r\n  \"allocations\": [\r\n    {\r\n      \"category\": \"string\",\r\n      \"amount\": number,\r\n      \"notes\": \"string\"\r\n    }\r\n  ]\r\n}`;\r\n\r\n// Status Values\r\nexport const PLAN_STATUS = {\r\n  GENERATED: 'GENERATED',\r\n  ACCEPTED: 'ACCEPTED',\r\n  REJECTED: 'REJECTED',\r\n  EXPIRED: 'EXPIRED',\r\n} as const;\r\n\r\n// Job Status\r\nexport const JOB_STATUS = {\r\n  WAITING: 'waiting',\r\n  ACTIVE: 'active',\r\n  COMPLETED: 'completed',\r\n  FAILED: 'failed',\r\n} as const;\r\n"],
+      version: 3
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "b92f72ccf166c96e8d7e976250beb9967c17841a"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_7cro1maab = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_7cro1maab();
+cov_7cro1maab().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_7cro1maab().s[1]++;
+exports.JOB_STATUS = exports.PLAN_STATUS = exports.SYSTEM_PROMPT = exports.ERROR_MESSAGES = exports.CIRCUIT_BREAKER_CONFIG = exports.QUEUE_CONFIG = exports.INPUT_LIMITS = exports.RATE_LIMIT_CONFIG = exports.VENDOR_MATCH_CONFIG = exports.BUDGET_CONFIG = exports.CACHE_CONFIG = exports.AI_CONFIG = void 0;
+// AI Configuration
+/* istanbul ignore next */
+cov_7cro1maab().s[2]++;
+exports.AI_CONFIG = {
+  // OpenAI Model
+  MODEL: 'gpt-4o-mini',
+  // Request settings
+  TEMPERATURE: 0.4,
+  TIMEOUT_MS: 10000,
+  // 10 second timeout
+  // Retry configuration
+  MAX_RETRIES: 3,
+  RETRY_DELAY_MS: 1000,
+  // Response limits
+  MAX_TOKENS: 2000,
+  // Prompt limits
+  MAX_PROMPT_LENGTH: 5000
+};
+// Cache Configuration
+/* istanbul ignore next */
+cov_7cro1maab().s[3]++;
+exports.CACHE_CONFIG = {
+  // Cache TTL values (in seconds)
+  AI_PLAN_TTL: 600,
+  // 10 minutes
+  VENDOR_MATCH_TTL: 600,
+  // 10 minutes
+  VENDOR_LIST_TTL: 300,
+  // 5 minutes
+  // Cache key prefixes
+  AI_PLAN_PREFIX: 'ai:plan:',
+  VENDOR_MATCH_PREFIX: 'ai:vendors:',
+  VENDOR_LIST_PREFIX: 'vendors:',
+  // Cache key hashing
+  USE_HASH: true
+};
+// Budget Validation
+/* istanbul ignore next */
+cov_7cro1maab().s[4]++;
+exports.BUDGET_CONFIG = {
+  // Minimum and maximum budget limits
+  MIN_BUDGET: 1000,
+  MAX_BUDGET: 100000000,
+  // 10 Crore
+  // Tolerance for AI budget allocation (±1%)
+  ALLOCATION_TOLERANCE_PERCENT: 0.01,
+  // Default allocation categories
+  DEFAULT_CATEGORIES: ['Venue', 'Catering', 'Decor', 'Entertainment', 'Photography', 'Transportation', 'Invitations', 'Miscellaneous']
+};
+// Vendor Matching Configuration
+/* istanbul ignore next */
+cov_7cro1maab().s[5]++;
+exports.VENDOR_MATCH_CONFIG = {
+  // Budget threshold multiplier (percentage of total budget)
+  // A vendor's baseRate should be within this percentage of per-category budget
+  BUDGET_THRESHOLD_PERCENT: 0.4,
+  // Default result limit
+  DEFAULT_LIMIT: 10,
+  // Weights for scoring algorithm
+  WEIGHTS: {
+    RATING: 0.35,
+    BUDGET_MATCH: 0.25,
+    VERIFICATION: 0.25,
+    PROXIMITY: 0.15
+  },
+  // Minimum rating threshold
+  MIN_RATING: 3.0
+};
+// Rate Limiting Configuration
+/* istanbul ignore next */
+cov_7cro1maab().s[6]++;
+exports.RATE_LIMIT_CONFIG = {
+  // AI generation limits
+  GENERATE: {
+    LIMIT: 10,
+    // 10 requests
+    TTL: 60 // per minute
+  },
+  // Regeneration limits
+  REGENERATE: {
+    LIMIT: 5,
+    // 5 requests
+    TTL: 60 // per minute
+  },
+  // Vendor matching limits
+  VENDOR_MATCH: {
+    LIMIT: 20,
+    // 20 requests
+    TTL: 60 // per minute
+  },
+  // Cart conversion limits
+  ACCEPT: {
+    LIMIT: 10,
+    // 10 requests
+    TTL: 60 // per minute
+  }
+};
+// Input Validation Limits
+/* istanbul ignore next */
+cov_7cro1maab().s[7]++;
+exports.INPUT_LIMITS = {
+  CITY_MAX_LENGTH: 50,
+  AREA_MAX_LENGTH: 50,
+  EVENT_TYPE_MAX_LENGTH: 100,
+  GUEST_COUNT_MIN: 1,
+  GUEST_COUNT_MAX: 10000
+};
+// Queue Configuration
+/* istanbul ignore next */
+cov_7cro1maab().s[8]++;
+exports.QUEUE_CONFIG = {
+  // Queue names
+  AI_PLANNER_QUEUE: 'ai-planner',
+  AI_PLANNER_DLQ: 'ai-planner-failed',
+  // Job settings
+  ATTEMPTS: 3,
+  BACKOFF_DELAY: 2000,
+  TIMEOUT: 10000,
+  // Cleanup settings
+  REMOVE_COMPLETE_AGE: 86400,
+  // 24 hours
+  REMOVE_COMPLETE_COUNT: 1000,
+  REMOVE_FAIL_AGE: 604800,
+  // 7 days
+  REMOVE_FAIL_COUNT: 500,
+  // Concurrency
+  CONCURRENCY: 5
+};
+// Circuit Breaker Configuration
+/* istanbul ignore next */
+cov_7cro1maab().s[9]++;
+exports.CIRCUIT_BREAKER_CONFIG = {
+  // Open circuit after this many failures
+  FAILURE_THRESHOLD: 5,
+  // Half-open after this many seconds
+  RESET_TIMEOUT_SECONDS: 30,
+  // Success needed to close circuit
+  SUCCESS_THRESHOLD: 1
+};
+// Error Messages
+/* istanbul ignore next */
+cov_7cro1maab().s[10]++;
+exports.ERROR_MESSAGES = {
+  AI_SERVICE_UNAVAILABLE: 'AI planning service temporarily unavailable. Please try again later.',
+  BUDGET_ALLOCATION_MISMATCH: 'AI generated budget allocation does not match total budget.',
+  PLAN_NOT_FOUND: 'AI Plan not found or access denied.',
+  UNAUTHORIZED_ACCESS: 'You do not have access to this resource.',
+  INVALID_BUDGET: 'Budget must be between ₹1,000 and ₹10,00,00,000.',
+  INVALID_GUEST_COUNT: 'Guest count must be between 1 and 10,000.',
+  VENDOR_MATCH_FAILED: 'Unable to find matching vendors. Please try different criteria.',
+  CART_CREATION_FAILED: 'Failed to create cart from AI plan.',
+  PROMPT_TOO_LONG: 'Prompt exceeds maximum allowed length of 5000 characters.',
+  JOB_NOT_FOUND: 'Job not found.',
+  CIRCUIT_OPEN: 'AI service temporarily unavailable due to repeated failures.',
+  AI_RESPONSE_EMPTY: 'AI service returned an empty response.',
+  AI_INVALID_KEY: 'Invalid OpenAI API key.',
+  AI_RATE_LIMIT: 'OpenAI rate limit exceeded. Please try again later.'
+};
+// System Prompt
+/* istanbul ignore next */
+cov_7cro1maab().s[11]++;
+exports.SYSTEM_PROMPT = `You are an expert event planner AI assistant specialized in Indian weddings and events. Your role is to help users plan their events by providing budget allocation suggestions based on the event type, location, guest count, and total budget.
+
+When generating budget allocations:
+- Consider typical Indian wedding expenses (Venue, Catering, Decor, Photography, etc.)
+- Provide realistic amounts based on the city and guest count
+- Always ensure the total allocation matches the given budget
+- Include helpful notes for each category
+- Be specific to Indian context (e.g., vegetarian options, traditional venues)
+
+Respond ONLY with valid JSON in the following format:
+{
+  "summary": {
+    "eventType": "string",
+    "city": "string", 
+    "guestCount": number,
+    "totalBudget": number
+  },
+  "allocations": [
+    {
+      "category": "string",
+      "amount": number,
+      "notes": "string"
+    }
+  ]
+}`;
+// Status Values
+/* istanbul ignore next */
+cov_7cro1maab().s[12]++;
+exports.PLAN_STATUS = {
+  GENERATED: 'GENERATED',
+  ACCEPTED: 'ACCEPTED',
+  REJECTED: 'REJECTED',
+  EXPIRED: 'EXPIRED'
+};
+// Job Status
+/* istanbul ignore next */
+cov_7cro1maab().s[13]++;
+exports.JOB_STATUS = {
+  WAITING: 'waiting',
+  ACTIVE: 'active',
+  COMPLETED: 'completed',
+  FAILED: 'failed'
+};
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJjb3ZfN2NybzFtYWFiIiwicGF0aCIsImhhc2giLCJnbG9iYWwiLCJGdW5jdGlvbiIsImdjdiIsImNvdmVyYWdlRGF0YSIsInN0YXRlbWVudE1hcCIsInN0YXJ0IiwibGluZSIsImNvbHVtbiIsImVuZCIsImZuTWFwIiwiYnJhbmNoTWFwIiwicyIsImYiLCJiIiwiaW5wdXRTb3VyY2VNYXAiLCJmaWxlIiwibWFwcGluZ3MiLCJuYW1lcyIsInNvdXJjZXMiLCJzb3VyY2VzQ29udGVudCIsInZlcnNpb24iLCJfY292ZXJhZ2VTY2hlbWEiLCJjb3ZlcmFnZSIsImFjdHVhbENvdmVyYWdlIiwiZXhwb3J0cyIsIkFJX0NPTkZJRyIsIk1PREVMIiwiVEVNUEVSQVRVUkUiLCJUSU1FT1VUX01TIiwiTUFYX1JFVFJJRVMiLCJSRVRSWV9ERUxBWV9NUyIsIk1BWF9UT0tFTlMiLCJNQVhfUFJPTVBUX0xFTkdUSCIsIkNBQ0hFX0NPTkZJRyIsIkFJX1BMQU5fVFRMIiwiVkVORE9SX01BVENIX1RUTCIsIlZFTkRPUl9MSVNUX1RUTCIsIkFJX1BMQU5fUFJFRklYIiwiVkVORE9SX01BVENIX1BSRUZJWCIsIlZFTkRPUl9MSVNUX1BSRUZJWCIsIlVTRV9IQVNIIiwiQlVER0VUX0NPTkZJRyIsIk1JTl9CVURHRVQiLCJNQVhfQlVER0VUIiwiQUxMT0NBVElPTl9UT0xFUkFOQ0VfUEVSQ0VOVCIsIkRFRkFVTFRfQ0FURUdPUklFUyIsIlZFTkRPUl9NQVRDSF9DT05GSUciLCJCVURHRVRfVEhSRVNIT0xEX1BFUkNFTlQiLCJERUZBVUxUX0xJTUlUIiwiV0VJR0hUUyIsIlJBVElORyIsIkJVREdFVF9NQVRDSCIsIlZFUklGSUNBVElPTiIsIlBST1hJTUlUWSIsIk1JTl9SQVRJTkciLCJSQVRFX0xJTUlUX0NPTkZJRyIsIkdFTkVSQVRFIiwiTElNSVQiLCJUVEwiLCJSRUdFTkVSQVRFIiwiVkVORE9SX01BVENIIiwiQUNDRVBUIiwiSU5QVVRfTElNSVRTIiwiQ0lUWV9NQVhfTEVOR1RIIiwiQVJFQV9NQVhfTEVOR1RIIiwiRVZFTlRfVFlQRV9NQVhfTEVOR1RIIiwiR1VFU1RfQ09VTlRfTUlOIiwiR1VFU1RfQ09VTlRfTUFYIiwiUVVFVUVfQ09ORklHIiwiQUlfUExBTk5FUl9RVUVVRSIsIkFJX1BMQU5ORVJfRExRIiwiQVRURU1QVFMiLCJCQUNLT0ZGX0RFTEFZIiwiVElNRU9VVCIsIlJFTU9WRV9DT01QTEVURV9BR0UiLCJSRU1PVkVfQ09NUExFVEVfQ09VTlQiLCJSRU1PVkVfRkFJTF9BR0UiLCJSRU1PVkVfRkFJTF9DT1VOVCIsIkNPTkNVUlJFTkNZIiwiQ0lSQ1VJVF9CUkVBS0VSX0NPTkZJRyIsIkZBSUxVUkVfVEhSRVNIT0xEIiwiUkVTRVRfVElNRU9VVF9TRUNPTkRTIiwiU1VDQ0VTU19USFJFU0hPTEQiLCJFUlJPUl9NRVNTQUdFUyIsIkFJX1NFUlZJQ0VfVU5BVkFJTEFCTEUiLCJCVURHRVRfQUxMT0NBVElPTl9NSVNNQVRDSCIsIlBMQU5fTk9UX0ZPVU5EIiwiVU5BVVRIT1JJWkVEX0FDQ0VTUyIsIklOVkFMSURfQlVER0VUIiwiSU5WQUxJRF9HVUVTVF9DT1VOVCIsIlZFTkRPUl9NQVRDSF9GQUlMRUQiLCJDQVJUX0NSRUFUSU9OX0ZBSUxFRCIsIlBST01QVF9UT09fTE9ORyIsIkpPQl9OT1RfRk9VTkQiLCJDSVJDVUlUX09QRU4iLCJBSV9SRVNQT05TRV9FTVBUWSIsIkFJX0lOVkFMSURfS0VZIiwiQUlfUkFURV9MSU1JVCIsIlNZU1RFTV9QUk9NUFQiLCJQTEFOX1NUQVRVUyIsIkdFTkVSQVRFRCIsIkFDQ0VQVEVEIiwiUkVKRUNURUQiLCJFWFBJUkVEIiwiSk9CX1NUQVRVUyIsIldBSVRJTkciLCJBQ1RJVkUiLCJDT01QTEVURUQiLCJGQUlMRUQiXSwic291cmNlcyI6WyJDOlxcVXNlcnNcXEhlbWFjaGFuZGlyYW5cXEludGVybnNoaXBcXE5lYXJ6cm9cXG5lYXJ6cm8tYmFja2VuZFxcc3JjXFxhaS1wbGFubmVyXFxjb25zdGFudHNcXGFpLXBsYW5uZXIuY29uc3RhbnRzLnRzIl0sInNvdXJjZXNDb250ZW50IjpbIi8qKlxyXG4gKiBBSSBQbGFubmVyIENvbnN0YW50c1xyXG4gKiBcclxuICogQ2VudHJhbGl6ZWQgY29uZmlndXJhdGlvbiB2YWx1ZXMgZm9yIHRoZSBBSSBQbGFubmVyIG1vZHVsZS5cclxuICogRWxpbWluYXRlcyBtYWdpYyBudW1iZXJzIGFuZCBoYXJkY29kZWQgc3RyaW5ncy5cclxuICovXHJcblxyXG4vLyBBSSBDb25maWd1cmF0aW9uXHJcbmV4cG9ydCBjb25zdCBBSV9DT05GSUcgPSB7XHJcbiAgLy8gT3BlbkFJIE1vZGVsXHJcbiAgTU9ERUw6ICdncHQtNG8tbWluaScsXHJcbiAgXHJcbiAgLy8gUmVxdWVzdCBzZXR0aW5nc1xyXG4gIFRFTVBFUkFUVVJFOiAwLjQsXHJcbiAgVElNRU9VVF9NUzogMTAwMDAsIC8vIDEwIHNlY29uZCB0aW1lb3V0XHJcbiAgXHJcbiAgLy8gUmV0cnkgY29uZmlndXJhdGlvblxyXG4gIE1BWF9SRVRSSUVTOiAzLFxyXG4gIFJFVFJZX0RFTEFZX01TOiAxMDAwLFxyXG4gIFxyXG4gIC8vIFJlc3BvbnNlIGxpbWl0c1xyXG4gIE1BWF9UT0tFTlM6IDIwMDAsXHJcbiAgXHJcbiAgLy8gUHJvbXB0IGxpbWl0c1xyXG4gIE1BWF9QUk9NUFRfTEVOR1RIOiA1MDAwLFxyXG59IGFzIGNvbnN0O1xyXG5cclxuLy8gQ2FjaGUgQ29uZmlndXJhdGlvblxyXG5leHBvcnQgY29uc3QgQ0FDSEVfQ09ORklHID0ge1xyXG4gIC8vIENhY2hlIFRUTCB2YWx1ZXMgKGluIHNlY29uZHMpXHJcbiAgQUlfUExBTl9UVEw6IDYwMCwgICAgICAgIC8vIDEwIG1pbnV0ZXNcclxuICBWRU5ET1JfTUFUQ0hfVFRMOiA2MDAsICAgLy8gMTAgbWludXRlc1xyXG4gIFZFTkRPUl9MSVNUX1RUTDogMzAwLCAgICAvLyA1IG1pbnV0ZXNcclxuICBcclxuICAvLyBDYWNoZSBrZXkgcHJlZml4ZXNcclxuICBBSV9QTEFOX1BSRUZJWDogJ2FpOnBsYW46JyxcclxuICBWRU5ET1JfTUFUQ0hfUFJFRklYOiAnYWk6dmVuZG9yczonLFxyXG4gIFZFTkRPUl9MSVNUX1BSRUZJWDogJ3ZlbmRvcnM6JyxcclxuICBcclxuICAvLyBDYWNoZSBrZXkgaGFzaGluZ1xyXG4gIFVTRV9IQVNIOiB0cnVlLFxyXG59IGFzIGNvbnN0O1xyXG5cclxuLy8gQnVkZ2V0IFZhbGlkYXRpb25cclxuZXhwb3J0IGNvbnN0IEJVREdFVF9DT05GSUcgPSB7XHJcbiAgLy8gTWluaW11bSBhbmQgbWF4aW11bSBidWRnZXQgbGltaXRzXHJcbiAgTUlOX0JVREdFVDogMTAwMCxcclxuICBNQVhfQlVER0VUOiAxMDAwMDAwMDAsIC8vIDEwIENyb3JlXHJcbiAgXHJcbiAgLy8gVG9sZXJhbmNlIGZvciBBSSBidWRnZXQgYWxsb2NhdGlvbiAowrExJSlcclxuICBBTExPQ0FUSU9OX1RPTEVSQU5DRV9QRVJDRU5UOiAwLjAxLFxyXG4gIFxyXG4gIC8vIERlZmF1bHQgYWxsb2NhdGlvbiBjYXRlZ29yaWVzXHJcbiAgREVGQVVMVF9DQVRFR09SSUVTOiBbXHJcbiAgICAnVmVudWUnLFxyXG4gICAgJ0NhdGVyaW5nJyxcclxuICAgICdEZWNvcicsXHJcbiAgICAnRW50ZXJ0YWlubWVudCcsXHJcbiAgICAnUGhvdG9ncmFwaHknLFxyXG4gICAgJ1RyYW5zcG9ydGF0aW9uJyxcclxuICAgICdJbnZpdGF0aW9ucycsXHJcbiAgICAnTWlzY2VsbGFuZW91cycsXHJcbiAgXSBhcyBjb25zdCxcclxufSBhcyBjb25zdDtcclxuXHJcbi8vIFZlbmRvciBNYXRjaGluZyBDb25maWd1cmF0aW9uXHJcbmV4cG9ydCBjb25zdCBWRU5ET1JfTUFUQ0hfQ09ORklHID0ge1xyXG4gIC8vIEJ1ZGdldCB0aHJlc2hvbGQgbXVsdGlwbGllciAocGVyY2VudGFnZSBvZiB0b3RhbCBidWRnZXQpXHJcbiAgLy8gQSB2ZW5kb3IncyBiYXNlUmF0ZSBzaG91bGQgYmUgd2l0aGluIHRoaXMgcGVyY2VudGFnZSBvZiBwZXItY2F0ZWdvcnkgYnVkZ2V0XHJcbiAgQlVER0VUX1RIUkVTSE9MRF9QRVJDRU5UOiAwLjQsXHJcbiAgXHJcbiAgLy8gRGVmYXVsdCByZXN1bHQgbGltaXRcclxuICBERUZBVUxUX0xJTUlUOiAxMCxcclxuICBcclxuICAvLyBXZWlnaHRzIGZvciBzY29yaW5nIGFsZ29yaXRobVxyXG4gIFdFSUdIVFM6IHtcclxuICAgIFJBVElORzogMC4zNSxcclxuICAgIEJVREdFVF9NQVRDSDogMC4yNSxcclxuICAgIFZFUklGSUNBVElPTjogMC4yNSxcclxuICAgIFBST1hJTUlUWTogMC4xNSxcclxuICB9IGFzIGNvbnN0LFxyXG4gIFxyXG4gIC8vIE1pbmltdW0gcmF0aW5nIHRocmVzaG9sZFxyXG4gIE1JTl9SQVRJTkc6IDMuMCxcclxufSBhcyBjb25zdDtcclxuXHJcbi8vIFJhdGUgTGltaXRpbmcgQ29uZmlndXJhdGlvblxyXG5leHBvcnQgY29uc3QgUkFURV9MSU1JVF9DT05GSUcgPSB7XHJcbiAgLy8gQUkgZ2VuZXJhdGlvbiBsaW1pdHNcclxuICBHRU5FUkFURToge1xyXG4gICAgTElNSVQ6IDEwLCAgICAgIC8vIDEwIHJlcXVlc3RzXHJcbiAgICBUVEw6IDYwLCAgICAgICAvLyBwZXIgbWludXRlXHJcbiAgfSxcclxuICBcclxuICAvLyBSZWdlbmVyYXRpb24gbGltaXRzXHJcbiAgUkVHRU5FUkFURToge1xyXG4gICAgTElNSVQ6IDUsICAgICAgLy8gNSByZXF1ZXN0c1xyXG4gICAgVFRMOiA2MCwgICAgICAgLy8gcGVyIG1pbnV0ZVxyXG4gIH0sXHJcbiAgXHJcbiAgLy8gVmVuZG9yIG1hdGNoaW5nIGxpbWl0c1xyXG4gIFZFTkRPUl9NQVRDSDoge1xyXG4gICAgTElNSVQ6IDIwLCAgICAgLy8gMjAgcmVxdWVzdHNcclxuICAgIFRUTDogNjAsICAgICAgLy8gcGVyIG1pbnV0ZVxyXG4gIH0sXHJcbiAgXHJcbiAgLy8gQ2FydCBjb252ZXJzaW9uIGxpbWl0c1xyXG4gIEFDQ0VQVDoge1xyXG4gICAgTElNSVQ6IDEwLCAgICAgLy8gMTAgcmVxdWVzdHNcclxuICAgIFRUTDogNjAsICAgICAgLy8gcGVyIG1pbnV0ZVxyXG4gIH0sXHJcbn0gYXMgY29uc3Q7XHJcblxyXG4vLyBJbnB1dCBWYWxpZGF0aW9uIExpbWl0c1xyXG5leHBvcnQgY29uc3QgSU5QVVRfTElNSVRTID0ge1xyXG4gIENJVFlfTUFYX0xFTkdUSDogNTAsXHJcbiAgQVJFQV9NQVhfTEVOR1RIOiA1MCxcclxuICBFVkVOVF9UWVBFX01BWF9MRU5HVEg6IDEwMCxcclxuICBHVUVTVF9DT1VOVF9NSU46IDEsXHJcbiAgR1VFU1RfQ09VTlRfTUFYOiAxMDAwMCxcclxufSBhcyBjb25zdDtcclxuXHJcbi8vIFF1ZXVlIENvbmZpZ3VyYXRpb25cclxuZXhwb3J0IGNvbnN0IFFVRVVFX0NPTkZJRyA9IHtcclxuICAvLyBRdWV1ZSBuYW1lc1xyXG4gIEFJX1BMQU5ORVJfUVVFVUU6ICdhaS1wbGFubmVyJyxcclxuICBBSV9QTEFOTkVSX0RMUTogJ2FpLXBsYW5uZXItZmFpbGVkJyxcclxuICBcclxuICAvLyBKb2Igc2V0dGluZ3NcclxuICBBVFRFTVBUUzogMyxcclxuICBCQUNLT0ZGX0RFTEFZOiAyMDAwLFxyXG4gIFRJTUVPVVQ6IDEwMDAwLFxyXG4gIFxyXG4gIC8vIENsZWFudXAgc2V0dGluZ3NcclxuICBSRU1PVkVfQ09NUExFVEVfQUdFOiA4NjQwMCwgICAgLy8gMjQgaG91cnNcclxuICBSRU1PVkVfQ09NUExFVEVfQ09VTlQ6IDEwMDAsXHJcbiAgUkVNT1ZFX0ZBSUxfQUdFOiA2MDQ4MDAsICAgICAgLy8gNyBkYXlzXHJcbiAgUkVNT1ZFX0ZBSUxfQ09VTlQ6IDUwMCxcclxuICBcclxuICAvLyBDb25jdXJyZW5jeVxyXG4gIENPTkNVUlJFTkNZOiA1LFxyXG59IGFzIGNvbnN0O1xyXG5cclxuLy8gQ2lyY3VpdCBCcmVha2VyIENvbmZpZ3VyYXRpb25cclxuZXhwb3J0IGNvbnN0IENJUkNVSVRfQlJFQUtFUl9DT05GSUcgPSB7XHJcbiAgLy8gT3BlbiBjaXJjdWl0IGFmdGVyIHRoaXMgbWFueSBmYWlsdXJlc1xyXG4gIEZBSUxVUkVfVEhSRVNIT0xEOiA1LFxyXG4gIFxyXG4gIC8vIEhhbGYtb3BlbiBhZnRlciB0aGlzIG1hbnkgc2Vjb25kc1xyXG4gIFJFU0VUX1RJTUVPVVRfU0VDT05EUzogMzAsXHJcbiAgXHJcbiAgLy8gU3VjY2VzcyBuZWVkZWQgdG8gY2xvc2UgY2lyY3VpdFxyXG4gIFNVQ0NFU1NfVEhSRVNIT0xEOiAxLFxyXG59IGFzIGNvbnN0O1xyXG5cclxuLy8gRXJyb3IgTWVzc2FnZXNcclxuZXhwb3J0IGNvbnN0IEVSUk9SX01FU1NBR0VTID0ge1xyXG4gIEFJX1NFUlZJQ0VfVU5BVkFJTEFCTEU6ICdBSSBwbGFubmluZyBzZXJ2aWNlIHRlbXBvcmFyaWx5IHVuYXZhaWxhYmxlLiBQbGVhc2UgdHJ5IGFnYWluIGxhdGVyLicsXHJcbiAgQlVER0VUX0FMTE9DQVRJT05fTUlTTUFUQ0g6ICdBSSBnZW5lcmF0ZWQgYnVkZ2V0IGFsbG9jYXRpb24gZG9lcyBub3QgbWF0Y2ggdG90YWwgYnVkZ2V0LicsXHJcbiAgUExBTl9OT1RfRk9VTkQ6ICdBSSBQbGFuIG5vdCBmb3VuZCBvciBhY2Nlc3MgZGVuaWVkLicsXHJcbiAgVU5BVVRIT1JJWkVEX0FDQ0VTUzogJ1lvdSBkbyBub3QgaGF2ZSBhY2Nlc3MgdG8gdGhpcyByZXNvdXJjZS4nLFxyXG4gIElOVkFMSURfQlVER0VUOiAnQnVkZ2V0IG11c3QgYmUgYmV0d2VlbiDigrkxLDAwMCBhbmQg4oK5MTAsMDAsMDAsMDAwLicsXHJcbiAgSU5WQUxJRF9HVUVTVF9DT1VOVDogJ0d1ZXN0IGNvdW50IG11c3QgYmUgYmV0d2VlbiAxIGFuZCAxMCwwMDAuJyxcclxuICBWRU5ET1JfTUFUQ0hfRkFJTEVEOiAnVW5hYmxlIHRvIGZpbmQgbWF0Y2hpbmcgdmVuZG9ycy4gUGxlYXNlIHRyeSBkaWZmZXJlbnQgY3JpdGVyaWEuJyxcclxuICBDQVJUX0NSRUFUSU9OX0ZBSUxFRDogJ0ZhaWxlZCB0byBjcmVhdGUgY2FydCBmcm9tIEFJIHBsYW4uJyxcclxuICBQUk9NUFRfVE9PX0xPTkc6ICdQcm9tcHQgZXhjZWVkcyBtYXhpbXVtIGFsbG93ZWQgbGVuZ3RoIG9mIDUwMDAgY2hhcmFjdGVycy4nLFxyXG4gIEpPQl9OT1RfRk9VTkQ6ICdKb2Igbm90IGZvdW5kLicsXHJcbiAgQ0lSQ1VJVF9PUEVOOiAnQUkgc2VydmljZSB0ZW1wb3JhcmlseSB1bmF2YWlsYWJsZSBkdWUgdG8gcmVwZWF0ZWQgZmFpbHVyZXMuJyxcclxuICBBSV9SRVNQT05TRV9FTVBUWTogJ0FJIHNlcnZpY2UgcmV0dXJuZWQgYW4gZW1wdHkgcmVzcG9uc2UuJyxcclxuICBBSV9JTlZBTElEX0tFWTogJ0ludmFsaWQgT3BlbkFJIEFQSSBrZXkuJyxcclxuICBBSV9SQVRFX0xJTUlUOiAnT3BlbkFJIHJhdGUgbGltaXQgZXhjZWVkZWQuIFBsZWFzZSB0cnkgYWdhaW4gbGF0ZXIuJyxcclxufSBhcyBjb25zdDtcclxuXHJcbi8vIFN5c3RlbSBQcm9tcHRcclxuZXhwb3J0IGNvbnN0IFNZU1RFTV9QUk9NUFQgPSBgWW91IGFyZSBhbiBleHBlcnQgZXZlbnQgcGxhbm5lciBBSSBhc3Npc3RhbnQgc3BlY2lhbGl6ZWQgaW4gSW5kaWFuIHdlZGRpbmdzIGFuZCBldmVudHMuIFlvdXIgcm9sZSBpcyB0byBoZWxwIHVzZXJzIHBsYW4gdGhlaXIgZXZlbnRzIGJ5IHByb3ZpZGluZyBidWRnZXQgYWxsb2NhdGlvbiBzdWdnZXN0aW9ucyBiYXNlZCBvbiB0aGUgZXZlbnQgdHlwZSwgbG9jYXRpb24sIGd1ZXN0IGNvdW50LCBhbmQgdG90YWwgYnVkZ2V0LlxyXG5cclxuV2hlbiBnZW5lcmF0aW5nIGJ1ZGdldCBhbGxvY2F0aW9uczpcclxuLSBDb25zaWRlciB0eXBpY2FsIEluZGlhbiB3ZWRkaW5nIGV4cGVuc2VzIChWZW51ZSwgQ2F0ZXJpbmcsIERlY29yLCBQaG90b2dyYXBoeSwgZXRjLilcclxuLSBQcm92aWRlIHJlYWxpc3RpYyBhbW91bnRzIGJhc2VkIG9uIHRoZSBjaXR5IGFuZCBndWVzdCBjb3VudFxyXG4tIEFsd2F5cyBlbnN1cmUgdGhlIHRvdGFsIGFsbG9jYXRpb24gbWF0Y2hlcyB0aGUgZ2l2ZW4gYnVkZ2V0XHJcbi0gSW5jbHVkZSBoZWxwZnVsIG5vdGVzIGZvciBlYWNoIGNhdGVnb3J5XHJcbi0gQmUgc3BlY2lmaWMgdG8gSW5kaWFuIGNvbnRleHQgKGUuZy4sIHZlZ2V0YXJpYW4gb3B0aW9ucywgdHJhZGl0aW9uYWwgdmVudWVzKVxyXG5cclxuUmVzcG9uZCBPTkxZIHdpdGggdmFsaWQgSlNPTiBpbiB0aGUgZm9sbG93aW5nIGZvcm1hdDpcclxue1xyXG4gIFwic3VtbWFyeVwiOiB7XHJcbiAgICBcImV2ZW50VHlwZVwiOiBcInN0cmluZ1wiLFxyXG4gICAgXCJjaXR5XCI6IFwic3RyaW5nXCIsIFxyXG4gICAgXCJndWVzdENvdW50XCI6IG51bWJlcixcclxuICAgIFwidG90YWxCdWRnZXRcIjogbnVtYmVyXHJcbiAgfSxcclxuICBcImFsbG9jYXRpb25zXCI6IFtcclxuICAgIHtcclxuICAgICAgXCJjYXRlZ29yeVwiOiBcInN0cmluZ1wiLFxyXG4gICAgICBcImFtb3VudFwiOiBudW1iZXIsXHJcbiAgICAgIFwibm90ZXNcIjogXCJzdHJpbmdcIlxyXG4gICAgfVxyXG4gIF1cclxufWA7XHJcblxyXG4vLyBTdGF0dXMgVmFsdWVzXHJcbmV4cG9ydCBjb25zdCBQTEFOX1NUQVRVUyA9IHtcclxuICBHRU5FUkFURUQ6ICdHRU5FUkFURUQnLFxyXG4gIEFDQ0VQVEVEOiAnQUNDRVBURUQnLFxyXG4gIFJFSkVDVEVEOiAnUkVKRUNURUQnLFxyXG4gIEVYUElSRUQ6ICdFWFBJUkVEJyxcclxufSBhcyBjb25zdDtcclxuXHJcbi8vIEpvYiBTdGF0dXNcclxuZXhwb3J0IGNvbnN0IEpPQl9TVEFUVVMgPSB7XHJcbiAgV0FJVElORzogJ3dhaXRpbmcnLFxyXG4gIEFDVElWRTogJ2FjdGl2ZScsXHJcbiAgQ09NUExFVEVEOiAnY29tcGxldGVkJyxcclxuICBGQUlMRUQ6ICdmYWlsZWQnLFxyXG59IGFzIGNvbnN0O1xyXG4iXSwibWFwcGluZ3MiOiI7O0FBQUE7Ozs7OztBQUFBO0FBQUEsU0FBQUEsY0FBQTtFQUFBLElBQUFDLElBQUE7RUFBQSxJQUFBQyxJQUFBO0VBQUEsSUFBQUMsTUFBQSxPQUFBQyxRQUFBO0VBQUEsSUFBQUMsR0FBQTtFQUFBLElBQUFDLFlBQUE7SUFBQUwsSUFBQTtJQUFBTSxZQUFBO01BQUE7UUFBQUMsS0FBQTtVQUFBQyxJQUFBO1VBQUFDLE1BQUE7UUFBQTtRQUFBQyxHQUFBO1VBQUFGLElBQUE7VUFBQUMsTUFBQTtRQUFBO01BQUE7TUFBQTtRQUFBRixLQUFBO1VBQUFDLElBQUE7VUFBQUMsTUFBQTtRQUFBO1FBQUFDLEdBQUE7VUFBQUYsSUFBQTtVQUFBQyxNQUFBO1FBQUE7TUFBQTtNQUFBO1FBQUFGLEtBQUE7VUFBQUMsSUFBQTtVQUFBQyxNQUFBO1FBQUE7UUFBQUMsR0FBQTtVQUFBRixJQUFBO1VBQUFDLE1BQUE7UUFBQTtNQUFBO01BQUE7UUFBQUYsS0FBQTtVQUFBQyxJQUFBO1VBQUFDLE1BQUE7UUFBQTtRQUFBQyxHQUFBO1VBQUFGLElBQUE7VUFBQUMsTUFBQTtRQUFBO01BQUE7TUFBQTtRQUFBRixLQUFBO1VBQUFDLElBQUE7VUFBQUMsTUFBQTtRQUFBO1FBQUFDLEdBQUE7VUFBQUYsSUFBQTtVQUFBQyxNQUFBO1FBQUE7TUFBQTtNQUFBO1FBQUFGLEtBQUE7VUFBQUMsSUFBQTtVQUFBQyxNQUFBO1FBQUE7UUFBQUMsR0FBQTtVQUFBRixJQUFBO1VBQUFDLE1BQUE7UUFBQTtNQUFBO01BQUE7UUFBQUYsS0FBQTtVQUFBQyxJQUFBO1VBQUFDLE1BQUE7UUFBQTtRQUFBQyxHQUFBO1VBQUFGLElBQUE7VUFBQUMsTUFBQTtRQUFBO01BQUE7TUFBQTtRQUFBRixLQUFBO1VBQUFDLElBQUE7VUFBQUMsTUFBQTtRQUFBO1FBQUFDLEdBQUE7VUFBQUYsSUFBQTtVQUFBQyxNQUFBO1FBQUE7TUFBQTtNQUFBO1FBQUFGLEtBQUE7VUFBQUMsSUFBQTtVQUFBQyxNQUFBO1FBQUE7UUFBQUMsR0FBQTtVQUFBRixJQUFBO1VBQUFDLE1BQUE7UUFBQTtNQUFBO01BQUE7UUFBQUYsS0FBQTtVQUFBQyxJQUFBO1VBQUFDLE1BQUE7UUFBQTtRQUFBQyxHQUFBO1VBQUFGLElBQUE7VUFBQUMsTUFBQTtRQUFBO01BQUE7TUFBQTtRQUFBRixLQUFBO1VBQUFDLElBQUE7VUFBQUMsTUFBQTtRQUFBO1FBQUFDLEdBQUE7VUFBQUYsSUFBQTtVQUFBQyxNQUFBO1FBQUE7TUFBQTtNQUFBO1FBQUFGLEtBQUE7VUFBQUMsSUFBQTtVQUFBQyxNQUFBO1FBQUE7UUFBQUMsR0FBQTtVQUFBRixJQUFBO1VBQUFDLE1BQUE7UUFBQTtNQUFBO01BQUE7UUFBQUYsS0FBQTtVQUFBQyxJQUFBO1VBQUFDLE1BQUE7UUFBQTtRQUFBQyxHQUFBO1VBQUFGLElBQUE7VUFBQUMsTUFBQTtRQUFBO01BQUE7TUFBQTtRQUFBRixLQUFBO1VBQUFDLElBQUE7VUFBQUMsTUFBQTtRQUFBO1FBQUFDLEdBQUE7VUFBQUYsSUFBQTtVQUFBQyxNQUFBO1FBQUE7TUFBQTtJQUFBO0lBQUFFLEtBQUE7SUFBQUMsU0FBQTtJQUFBQyxDQUFBO01BQUE7TUFBQTtNQUFBO01BQUE7TUFBQTtNQUFBO01BQUE7TUFBQTtNQUFBO01BQUE7TUFBQTtNQUFBO01BQUE7TUFBQTtJQUFBO0lBQUFDLENBQUE7SUFBQUMsQ0FBQTtJQUFBQyxjQUFBO01BQUFDLElBQUE7TUFBQUMsUUFBQTtNQUFBQyxLQUFBO01BQUFDLE9BQUE7TUFBQUMsY0FBQTtNQUFBQyxPQUFBO0lBQUE7SUFBQUMsZUFBQTtJQUFBdEIsSUFBQTtFQUFBO0VBQUEsSUFBQXVCLFFBQUEsR0FBQXRCLE1BQUEsQ0FBQUUsR0FBQSxNQUFBRixNQUFBLENBQUFFLEdBQUE7RUFBQSxLQUFBb0IsUUFBQSxDQUFBeEIsSUFBQSxLQUFBd0IsUUFBQSxDQUFBeEIsSUFBQSxFQUFBQyxJQUFBLEtBQUFBLElBQUE7SUFBQXVCLFFBQUEs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

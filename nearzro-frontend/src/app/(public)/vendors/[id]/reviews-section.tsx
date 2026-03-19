@@ -49,7 +49,7 @@ const MOCK_REVIEWS: Review[] = [
   },
 ];
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+ 
 export function ReviewsSection({ venueId, venueName, initialRating }: ReviewsSectionProps) {
   const [reviews, setReviews] = useState<Review[]>(MOCK_REVIEWS);
   const [newRating, setNewRating] = useState(0);

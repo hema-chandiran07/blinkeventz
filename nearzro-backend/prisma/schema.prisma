@@ -20,11 +20,23 @@ model User {
   isActive                Boolean                  @default(true)
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
+  
+  // Password reset security
+  passwordResetToken      String?                  // Hashed token - never expose
   passwordResetExpiry     DateTime?
-  passwordResetToken      String?
+  
+  // Account security
+  failedLoginAttempts    Int                       @default(0)
+  lockedUntil            DateTime?
+  lastLoginAt            DateTime?
+  
+  // OAuth
   facebookId              String?                  @unique
   isEmailVerified         Boolean                  @default(false)
+  
+  // Relations
   AIPlan                  AIPlan[]
+  AIConversation         AIConversation[]
   bankAccounts            BankAccount[]
   bookings                Booking[]
   Cart                    Cart[]
@@ -41,6 +53,32 @@ model User {
   reviewVotes             ReviewVote[]
   vendor                  Vendor?
   venues                  Venue[]
+  refreshTokens           RefreshToken[]
+
+  // Indexes for authentication queries
+  @@index([email])
+  @@index([googleId])
+  @@index([facebookId])
+  @@index([passwordResetToken])
+}
+
+/// Refresh Token Model for JWT refresh mechanism
+model RefreshToken {
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  token       String    // Hashed token for security
+  expiresAt   DateTime
+  revoked     Boolean   @default(false)
+  revokedAt   DateTime?
+  deviceInfo  String?
+  createdAt   DateTime  @default(now())
+  
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Indexes
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
 }
 
 model CustomerProfile {
@@ -126,6 +164,17 @@ model Venue {
   reviews          Review[]
   owner            User               @relation(fields: [ownerId], references: [id])
   photos           VenuePhoto[]
+
+  // ============================================
+  // DATABASE INDEXES FOR PERFORMANCE
+  // ============================================
+  @@index([city])
+  @@index([area])
+  @@index([status])
+  @@index([ownerId])
+  @@index([city, status])
+  @@index([type, status])
+  @@index([createdAt(sort: Desc)])
 }
 
 model VenuePhoto {
@@ -162,18 +211,24 @@ model Booking {
 }
 
 model Cart {
-  id        Int        @id @default(autoincrement())
+  id        Int         @id @default(autoincrement())
   userId    Int
-  status    CartStatus @default(ACTIVE)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  user      User       @relation(fields: [userId], references: [id])
+  status    CartStatus  @default(ACTIVE)
+  expiresAt DateTime?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   items     CartItem[]
   Payment   Payment[]
+
+  // Ensure only one ACTIVE cart per user
+  @@unique([userId, status])
+  @@index([userId])
+  @@index([status])
 }
 
 model CartItem {
-  id              Int            @id @default(autoincrement())
+  id              Int           @id @default(autoincrement())
   cartId          Int
   itemType        ItemType
   venueId         Int?
@@ -181,18 +236,19 @@ model CartItem {
   addonId         Int?
   date            DateTime?
   timeSlot        String?
-  quantity        Int            @default(1)
-  unitPrice       Int
-  totalPrice      Int
+  quantity        Int           @default(1)
+  unitPrice       Decimal       @db.Decimal(10, 2)  // Server-calculated only
+  totalPrice      Decimal       @db.Decimal(10, 2)  // Server-calculated only
   meta            Json?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-  cart            Cart           @relation(fields: [cartId], references: [id])
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  cart            Cart          @relation(fields: [cartId], references: [id], onDelete: Cascade)
   vendorService   VendorService? @relation(fields: [vendorServiceId], references: [id])
-  venue           Venue?         @relation(fields: [venueId], references: [id])
+  venue           Venue?        @relation(fields: [venueId], references: [id])
 
   @@index([cartId])
   @@index([vendorServiceId])
+  @@index([venueId])
 }
 
 model AIPlan {
@@ -205,34 +261,111 @@ model AIPlan {
   guestCount Int
   planJson   Json
   status     AIPlanStatus @default(GENERATED)
+  shareId    String       @unique @default(uuid())  // For public sharing
+  isPublic   Boolean      @default(false)             // Enable/disable sharing
   createdAt  DateTime     @default(now())
   updatedAt  DateTime     @updatedAt
   Event      Event?       @relation(fields: [EventId], references: [id])
   user       User         @relation(fields: [userId], references: [id])
+  conversations  AIConversation[] 
 
   @@index([userId])
   @@index([EventId])
 }
 
-model Payment {
-  id                Int             @id @default(autoincrement())
-  userId            Int
-  cartId            Int
-  provider          PaymentProvider
-  providerOrderId   String          @unique
-  providerPaymentId String?
-  signature         String?
-  amount            Int
-  currency          String          @default("INR")
-  status            PaymentStatus
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
-  eventId           Int?
-  cart              Cart            @relation(fields: [cartId], references: [id])
-  Event             Event?          @relation(fields: [eventId], references: [id])
-  user              User            @relation(fields: [userId], references: [id])
+/// AI Chatbot Conversation
+model AIConversation {
+  id              String               @id @default(uuid())
+  userId          Int
+  state           Json
+  status          AIConversationStatus @default(COLLECTING)
+  planId          Int?
+  generationKey   String?              @unique  // For idempotency
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
 
+  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan            AIPlan?             @relation(fields: [planId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+}
+
+model Payment {
+  id                     Int              @id @default(autoincrement())
+  userId                 Int
+  cartId                 Int              @default(0)  // Default to 0 for simplified checkout (no cart)
+  provider               PaymentProvider
+  providerOrderId        String           @unique  // Razorpay order ID
+  providerPaymentId     String?          // Razorpay payment ID
+  providerWebhookEventId String?          @unique  // Razorpay webhook event ID - for deduplication
+  signature              String?          // Payment signature (for verification)
+  amount                 Int              // Amount in paise
+  currency               String           @default("INR")
+  status                 PaymentStatus
+  
+  // Idempotency
+  idempotencyKey         String?          @unique  // Client-provided idempotency key
+  
+  // Metadata
+  metadata               Json?            // Additional payment metadata
+  notes                  String?          // Internal notes
+  
+  // Timestamps
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
+  expiresAt              DateTime?        // Payment expiry time
+  completedAt            DateTime?        // When payment was completed
+  
+  // Relations
+  eventId                Int?
+  cart                   Cart?             @relation(fields: [cartId], references: [id])
+  event                  Event?            @relation(fields: [eventId], references: [id])
+  user                   User              @relation(fields: [userId], references: [id])
+  
+  // Audit trail
+  paymentEvents          PaymentEvent[]
+  
+  @@index([userId])
   @@index([cartId])
+  @@index([status])
+  @@index([providerOrderId])
+  @@index([createdAt])
+  @@index([expiresAt])
+}
+
+// Payment Event Audit Trail - tracks all state changes
+model PaymentEvent {
+  id              Int            @id @default(autoincrement())
+  paymentId       Int
+  eventType       String         // e.g., 'payment.created', 'payment.captured', 'payment.failed'
+  status          PaymentStatus // Status after this event
+  providerEventId String?        // Razorpay event ID
+  
+  // Event data
+  requestId       String?        // Internal request ID for tracing
+  ipAddress       String?        // Client IP
+  userAgent       String?        // Client user agent
+  
+  // Raw data
+  payload         Json?          // Raw webhook payload
+  response        Json?          // Response sent
+  
+  // Error handling
+  errorMessage    String?
+  retryCount      Int            @default(0)
+  
+  // Timestamps
+  createdAt       DateTime       @default(now())
+  processedAt     DateTime?
+  
+  // Relation
+  payment         Payment        @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  
+  @@index([paymentId])
+  @@index([eventType])
+  @@index([providerEventId])
+  @@index([createdAt])
 }
 
 model Payout {
@@ -363,6 +496,21 @@ model Event {
   payments          Payment[]
   payouts           Payout[]
   reviews           Review[]
+
+  // ============================================
+  // DATABASE INDEXES FOR PERFORMANCE
+  // ============================================
+  @@index([customerId])
+  @@index([assignedManagerId])
+  @@index([venueId])
+  @@index([date])
+  @@index([city])
+  @@index([status])
+  @@index([isExpress])
+  @@index([createdAt(sort: Desc)])
+  @@index([date, status])
+  @@index([city, date])
+  @@index([customerId, status])
 }
 
 model Promotion {
@@ -438,6 +586,15 @@ model EventService {
   event           Event              @relation(fields: [eventId], references: [id])
   vendorService   VendorService?     @relation(fields: [vendorServiceId], references: [id])
   venue           Venue?             @relation(fields: [venueId], references: [id])
+
+  // ============================================
+  // DATABASE INDEXES FOR PERFORMANCE
+  // ============================================
+  @@index([eventId])
+  @@index([venueId])
+  @@index([vendorServiceId])
+  @@index([itemType])
+  @@index([status])
 }
 
 model Notification {
@@ -626,11 +783,14 @@ enum ItemType {
 }
 
 enum PaymentStatus {
-  PENDING
-  AUTHORIZED
-  SUCCESS
-  FAILED
-  REFUNDED
+  PENDING       // Payment initiated, awaiting user action
+  CREATED       // Order created with provider
+  AUTHORIZED    // Payment authorized (pre-auth)
+  CAPTURED      // Payment successfully captured - FINAL SUCCESS STATE
+  FAILED        // Payment failed
+  REFUNDED      // Payment was refunded
+  CANCELLED     // Payment was cancelled
+  EXPIRED       // Payment expired (timeout)
 }
 
 enum PaymentProvider {
@@ -670,6 +830,8 @@ enum VenueStatus {
   INACTIVE
   SUSPENDED
   DELISTED
+  REJECTED
+
 }
 
 enum EntityType {
@@ -707,6 +869,17 @@ enum AIPlanStatus {
   ACCEPTED
   REJECTED
   EXPIRED
+}
+
+/// AI Chatbot Conversation Status
+enum AIConversationStatus {
+  COLLECTING
+  READY
+  GENERATING
+  GENERATED
+  MODIFYING
+  ACCEPTED
+  FAILED
 }
 
 enum EventStatus {

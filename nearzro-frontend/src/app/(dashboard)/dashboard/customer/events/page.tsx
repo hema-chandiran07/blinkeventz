@@ -7,10 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Calendar, DollarSign, CheckCircle2, Clock, Eye, Download,
-  MapPin, Users, FileText, AlertCircle, XCircle
+  MapPin, Users, AlertCircle, XCircle
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
+import { extractArray } from "@/lib/api-response";
 
 interface Event {
   id: number;
@@ -43,7 +44,8 @@ export default function CustomerEventsPage() {
   const loadEvents = async () => {
     try {
       const response = await api.get("/events/my");
-      setEvents(response.data || []);
+      const eventsData = extractArray<Event>(response);
+      setEvents(eventsData);
     } catch (error: any) {
       console.error("Failed to load events:", error);
       toast.error("Failed to load your events");

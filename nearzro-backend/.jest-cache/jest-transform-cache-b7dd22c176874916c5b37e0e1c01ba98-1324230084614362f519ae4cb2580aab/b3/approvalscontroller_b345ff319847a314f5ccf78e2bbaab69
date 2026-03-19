@@ -1,0 +1,84 @@
+2968151b6f5abe6bd532aee61225151c
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var _a;
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ApprovalsController = void 0;
+const common_1 = require("@nestjs/common");
+const swagger_1 = require("@nestjs/swagger");
+const approvals_service_1 = require("./approvals.service");
+const jwt_auth_guard_1 = require("../auth/jwt-auth.guard");
+const roles_guard_1 = require("../common/guards/roles.guard");
+const roles_decorator_1 = require("../common/decorators/roles.decorator");
+const client_1 = require("@prisma/client");
+let ApprovalsController = class ApprovalsController {
+    approvalsService;
+    constructor(approvalsService) {
+        this.approvalsService = approvalsService;
+    }
+    getPendingApprovals() {
+        return this.approvalsService.findPending();
+    }
+    getApprovalById(id) {
+        return this.approvalsService.findOne(+id);
+    }
+    approveApproval(id, body) {
+        return this.approvalsService.approve(+id, body.approvalType);
+    }
+    rejectApproval(id, body) {
+        return this.approvalsService.reject(+id, body.approvalType, body.reason);
+    }
+};
+exports.ApprovalsController = ApprovalsController;
+__decorate([
+    (0, roles_decorator_1.Roles)(client_1.Role.ADMIN),
+    (0, common_1.Get)('pending'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], ApprovalsController.prototype, "getPendingApprovals", null);
+__decorate([
+    (0, roles_decorator_1.Roles)(client_1.Role.ADMIN),
+    (0, common_1.Get)(':id'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], ApprovalsController.prototype, "getApprovalById", null);
+__decorate([
+    (0, roles_decorator_1.Roles)(client_1.Role.ADMIN),
+    (0, common_1.Patch)(':id/approve'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], ApprovalsController.prototype, "approveApproval", null);
+__decorate([
+    (0, roles_decorator_1.Roles)(client_1.Role.ADMIN),
+    (0, common_1.Patch)(':id/reject'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], ApprovalsController.prototype, "rejectApproval", null);
+exports.ApprovalsController = ApprovalsController = __decorate([
+    (0, swagger_1.ApiTags)('Approvals'),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
+    (0, common_1.Controller)('approvals'),
+    __metadata("design:paramtypes", [typeof (_a = typeof approvals_service_1.ApprovalsService !== "undefined" && approvals_service_1.ApprovalsService) === "function" ? _a : Object])
+], ApprovalsController);
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiQzpcXFVzZXJzXFxIZW1hY2hhbmRpcmFuXFxJbnRlcm5zaGlwXFxOZWFyenJvXFxuZWFyenJvLWJhY2tlbmRcXHNyY1xcYXBwcm92YWxzXFxhcHByb3ZhbHMuY29udHJvbGxlci50cyIsIm1hcHBpbmdzIjoiOzs7Ozs7Ozs7Ozs7Ozs7O0FBQUEsMkNBV3dCO0FBQ3hCLDZDQUF5RDtBQUN6RCwyREFBdUQ7QUFDdkQsMkRBQXNEO0FBQ3RELDhEQUEwRDtBQUMxRCwwRUFBNkQ7QUFDN0QsMkNBQXNDO0FBTS9CLElBQU0sbUJBQW1CLEdBQXpCLE1BQU0sbUJBQW1CO0lBQ0Q7SUFBN0IsWUFBNkIsZ0JBQWtDO1FBQWxDLHFCQUFnQixHQUFoQixnQkFBZ0IsQ0FBa0I7SUFBRyxDQUFDO0lBSW5FLG1CQUFtQjtRQUNqQixPQUFPLElBQUksQ0FBQyxnQkFBZ0IsQ0FBQyxXQUFXLEVBQUUsQ0FBQztJQUM3QyxDQUFDO0lBSUQsZUFBZSxDQUFjLEVBQVU7UUFDckMsT0FBTyxJQUFJLENBQUMsZ0JBQWdCLENBQUMsT0FBTyxDQUFDLENBQUMsRUFBRSxDQUFDLENBQUM7SUFDNUMsQ0FBQztJQUlELGVBQWUsQ0FBYyxFQUFVLEVBQVUsSUFBOEI7UUFDN0UsT0FBTyxJQUFJLENBQUMsZ0JBQWdCLENBQUMsT0FBTyxDQUFDLENBQUMsRUFBRSxFQUFFLElBQUksQ0FBQyxZQUFZLENBQUMsQ0FBQztJQUMvRCxDQUFDO0lBSUQsY0FBYyxDQUFjLEVBQVUsRUFBVSxJQUE4QztRQUM1RixPQUFPLElBQUksQ0FBQyxnQkFBZ0IsQ0FBQyxNQUFNLENBQUMsQ0FBQyxFQUFFLEVBQUUsSUFBSSxDQUFDLFlBQVksRUFBRSxJQUFJLENBQUMsTUFBTSxDQUFDLENBQUM7SUFDM0UsQ0FBQztDQUNGLENBQUE7QUExQlksa0RBQW1CO0FBSzlCO0lBRkMsSUFBQSx1QkFBSyxFQUFDLGFBQUksQ0FBQyxLQUFLLENBQUM7SUFDakIsSUFBQSxZQUFHLEVBQUMsU0FBUyxDQUFDOzs7OzhEQUdkO0FBSUQ7SUFGQyxJQUFBLHVCQUFLLEVBQUMsYUFBSSxDQUFDLEtBQUssQ0FBQztJQUNqQixJQUFBLFlBQUcsRUFBQyxLQUFLLENBQUM7SUFDTSxXQUFBLElBQUEsY0FBSyxFQUFDLElBQUksQ0FBQyxDQUFBOzs7OzBEQUUzQjtBQUlEO0lBRkMsSUFBQSx1QkFBSyxFQUFDLGFBQUksQ0FBQyxLQUFLLENBQUM7SUFDakIsSUFBQSxjQUFLLEVBQUMsYUFBYSxDQUFDO0lBQ0osV0FBQSxJQUFBLGNBQUssRUFBQyxJQUFJLENBQUMsQ0FBQTtJQUFjLFdBQUEsSUFBQSxhQUFJLEdBQUUsQ0FBQTs7OzswREFFL0M7QUFJRDtJQUZDLElBQUEsdUJBQUssRUFBQyxhQUFJLENBQUMsS0FBSyxDQUFDO0lBQ2pCLElBQUEsY0FBSyxFQUFDLFlBQVksQ0FBQztJQUNKLFdBQUEsSUFBQSxjQUFLLEVBQUMsSUFBSSxDQUFDLENBQUE7SUFBYyxXQUFBLElBQUEsYUFBSSxHQUFFLENBQUE7Ozs7eURBRTlDOzhCQXpCVSxtQkFBbUI7SUFKL0IsSUFBQSxpQkFBTyxFQUFDLFdBQVcsQ0FBQztJQUNwQixJQUFBLHVCQUFhLEdBQUU7SUFDZixJQUFBLGtCQUFTLEVBQUMsNkJBQVksRUFBRSx3QkFBVSxDQUFDO0lBQ25DLElBQUEsbUJBQVUsRUFBQyxXQUFXLENBQUM7eURBRXlCLG9DQUFnQixvQkFBaEIsb0NBQWdCO0dBRHBELG1CQUFtQixDQTBCL0IiLCJuYW1lcyI6W10sInNvdXJjZXMiOlsiQzpcXFVzZXJzXFxIZW1hY2hhbmRpcmFuXFxJbnRlcm5zaGlwXFxOZWFyenJvXFxuZWFyenJvLWJhY2tlbmRcXHNyY1xcYXBwcm92YWxzXFxhcHByb3ZhbHMuY29udHJvbGxlci50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQge1xyXG4gIENvbnRyb2xsZXIsXHJcbiAgR2V0LFxyXG4gIFBvc3QsXHJcbiAgUGF0Y2gsXHJcbiAgRGVsZXRlLFxyXG4gIEJvZHksXHJcbiAgUGFyYW0sXHJcbiAgUXVlcnksXHJcbiAgVXNlR3VhcmRzLFxyXG4gIFJlcSxcclxufSBmcm9tICdAbmVzdGpzL2NvbW1vbic7XHJcbmltcG9ydCB7IEFwaVRhZ3MsIEFwaUJlYXJlckF1dGggfSBmcm9tICdAbmVzdGpzL3N3YWdnZXInO1xyXG5pbXBvcnQgeyBBcHByb3ZhbHNTZXJ2aWNlIH0gZnJvbSAnLi9hcHByb3ZhbHMuc2VydmljZSc7XHJcbmltcG9ydCB7IEp3dEF1dGhHdWFyZCB9IGZyb20gJy4uL2F1dGgvand0LWF1dGguZ3VhcmQnO1xyXG5pbXBvcnQgeyBSb2xlc0d1YXJkIH0gZnJvbSAnLi4vY29tbW9uL2d1YXJkcy9yb2xlcy5ndWFyZCc7XHJcbmltcG9ydCB7IFJvbGVzIH0gZnJvbSAnLi4vY29tbW9uL2RlY29yYXRvcnMvcm9sZXMuZGVjb3JhdG9yJztcclxuaW1wb3J0IHsgUm9sZSB9IGZyb20gJ0BwcmlzbWEvY2xpZW50JztcclxuXHJcbkBBcGlUYWdzKCdBcHByb3ZhbHMnKVxyXG5AQXBpQmVhcmVyQXV0aCgpXHJcbkBVc2VHdWFyZHMoSnd0QXV0aEd1YXJkLCBSb2xlc0d1YXJkKVxyXG5AQ29udHJvbGxlcignYXBwcm92YWxzJylcclxuZXhwb3J0IGNsYXNzIEFwcHJvdmFsc0NvbnRyb2xsZXIge1xyXG4gIGNvbnN0cnVjdG9yKHByaXZhdGUgcmVhZG9ubHkgYXBwcm92YWxzU2VydmljZTogQXBwcm92YWxzU2VydmljZSkge31cclxuXHJcbiAgQFJvbGVzKFJvbGUuQURNSU4pXHJcbiAgQEdldCgncGVuZGluZycpXHJcbiAgZ2V0UGVuZGluZ0FwcHJvdmFscygpIHtcclxuICAgIHJldHVybiB0aGlzLmFwcHJvdmFsc1NlcnZpY2UuZmluZFBlbmRpbmcoKTtcclxuICB9XHJcblxyXG4gIEBSb2xlcyhSb2xlLkFETUlOKVxyXG4gIEBHZXQoJzppZCcpXHJcbiAgZ2V0QXBwcm92YWxCeUlkKEBQYXJhbSgnaWQnKSBpZDogc3RyaW5nKSB7XHJcbiAgICByZXR1cm4gdGhpcy5hcHByb3ZhbHNTZXJ2aWNlLmZpbmRPbmUoK2lkKTtcclxuICB9XHJcblxyXG4gIEBSb2xlcyhSb2xlLkFETUlOKVxyXG4gIEBQYXRjaCgnOmlkL2FwcHJvdmUnKVxyXG4gIGFwcHJvdmVBcHByb3ZhbChAUGFyYW0oJ2lkJykgaWQ6IHN0cmluZywgQEJvZHkoKSBib2R5OiB7IGFwcHJvdmFsVHlwZTogc3RyaW5nIH0pIHtcclxuICAgIHJldHVybiB0aGlzLmFwcHJvdmFsc1NlcnZpY2UuYXBwcm92ZSgraWQsIGJvZHkuYXBwcm92YWxUeXBlKTtcclxuICB9XHJcblxyXG4gIEBSb2xlcyhSb2xlLkFETUlOKVxyXG4gIEBQYXRjaCgnOmlkL3JlamVjdCcpXHJcbiAgcmVqZWN0QXBwcm92YWwoQFBhcmFtKCdpZCcpIGlkOiBzdHJpbmcsIEBCb2R5KCkgYm9keTogeyBhcHByb3ZhbFR5cGU6IHN0cmluZzsgcmVhc29uOiBzdHJpbmcgfSkge1xyXG4gICAgcmV0dXJuIHRoaXMuYXBwcm92YWxzU2VydmljZS5yZWplY3QoK2lkLCBib2R5LmFwcHJvdmFsVHlwZSwgYm9keS5yZWFzb24pO1xyXG4gIH1cclxufVxyXG4iXSwidmVyc2lvbiI6M30=

@@ -1,0 +1,34 @@
+4763e0c452fce944ad896a03a2aa576e
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.UpdateCartItemDto = void 0;
+const class_validator_1 = require("class-validator");
+const swagger_1 = require("@nestjs/swagger");
+class UpdateCartItemDto {
+    quantity;
+    meta;
+}
+exports.UpdateCartItemDto = UpdateCartItemDto;
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ default: 1 }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(1),
+    __metadata("design:type", Number)
+], UpdateCartItemDto.prototype, "quantity", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsObject)(),
+    __metadata("design:type", Object)
+], UpdateCartItemDto.prototype, "meta", void 0);
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiQzpcXFVzZXJzXFxIZW1hY2hhbmRpcmFuXFxJbnRlcm5zaGlwXFxOZWFyenJvXFxuZWFyenJvLWJhY2tlbmRcXHNyY1xcY2FydFxcZHRvXFx1cGRhdGUtY2FydC1pdGVtLmR0by50cyIsIm1hcHBpbmdzIjoiOzs7Ozs7Ozs7Ozs7QUFBQSxxREFBbUU7QUFDbkUsNkNBQXNEO0FBRXRELE1BQWEsaUJBQWlCO0lBSzVCLFFBQVEsQ0FBVTtJQUtsQixJQUFJLENBS0Y7Q0FDSDtBQWhCRCw4Q0FnQkM7QUFYQztJQUpDLElBQUEsNkJBQW1CLEVBQUMsRUFBRSxPQUFPLEVBQUUsQ0FBQyxFQUFFLENBQUM7SUFDbkMsSUFBQSw0QkFBVSxHQUFFO0lBQ1osSUFBQSx1QkFBSyxHQUFFO0lBQ1AsSUFBQSxxQkFBRyxFQUFDLENBQUMsQ0FBQzs7bURBQ1c7QUFLbEI7SUFIQyxJQUFBLDZCQUFtQixHQUFFO0lBQ3JCLElBQUEsNEJBQVUsR0FBRTtJQUNaLElBQUEsMEJBQVEsR0FBRTs7K0NBTVQiLCJuYW1lcyI6W10sInNvdXJjZXMiOlsiQzpcXFVzZXJzXFxIZW1hY2hhbmRpcmFuXFxJbnRlcm5zaGlwXFxOZWFyenJvXFxuZWFyenJvLWJhY2tlbmRcXHNyY1xcY2FydFxcZHRvXFx1cGRhdGUtY2FydC1pdGVtLmR0by50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyBJc09wdGlvbmFsLCBJc0ludCwgTWluLCBJc09iamVjdCB9IGZyb20gJ2NsYXNzLXZhbGlkYXRvcic7XHJcbmltcG9ydCB7IEFwaVByb3BlcnR5T3B0aW9uYWwgfSBmcm9tICdAbmVzdGpzL3N3YWdnZXInO1xyXG5cclxuZXhwb3J0IGNsYXNzIFVwZGF0ZUNhcnRJdGVtRHRvIHtcclxuICBAQXBpUHJvcGVydHlPcHRpb25hbCh7IGRlZmF1bHQ6IDEgfSlcclxuICBASXNPcHRpb25hbCgpXHJcbiAgQElzSW50KClcclxuICBATWluKDEpXHJcbiAgcXVhbnRpdHk/OiBudW1iZXI7XHJcblxyXG4gIEBBcGlQcm9wZXJ0eU9wdGlvbmFsKClcclxuICBASXNPcHRpb25hbCgpXHJcbiAgQElzT2JqZWN0KClcclxuICBtZXRhPzoge1xyXG4gICAgZ3Vlc3RDb3VudD86IG51bWJlcjtcclxuICAgIGFyZWE/OiBzdHJpbmc7XHJcbiAgICBjaXR5Pzogc3RyaW5nO1xyXG4gICAgc2VydmljZVR5cGU/OiBzdHJpbmc7XHJcbiAgfTtcclxufVxyXG4iXSwidmVyc2lvbiI6M30=

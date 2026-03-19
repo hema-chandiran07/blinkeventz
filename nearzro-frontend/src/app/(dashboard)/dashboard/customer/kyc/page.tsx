@@ -6,9 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import {
-  Upload, FileText, CheckCircle2, AlertCircle, Shield, Lock, User
+  Upload, FileText, CheckCircle2, Shield, Lock
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";

@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
+import { extractArray } from "@/lib/api-response";
 import { useAuth } from "@/context/auth-context";
 import { ReviewsSection } from "./reviews-section";
 
@@ -82,7 +83,8 @@ function VendorDetailContent() {
         // Fetch vendor's services
         try {
           const servicesResponse = await api.get(`/vendor-services/vendor/${vendorResponse.data.id}`);
-          const activeServices = (servicesResponse.data || []).filter((s: VendorService) => s.isActive);
+          const allServices = extractArray<VendorService>(servicesResponse);
+          const activeServices = allServices.filter((s: VendorService) => s.isActive);
           setServices(activeServices);
           if (activeServices.length > 0) {
             setSelectedService(activeServices[0]);

@@ -6,11 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  Building, CheckCircle2, XCircle, Clock, Eye, Edit, Trash2,
-  Search, Filter, Mail, Phone, MapPin, DollarSign, Users
+  Building, CheckCircle2, XCircle, Clock, Eye,
+  Search, MapPin, DollarSign, Users
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
+import { extractArray } from "@/lib/api-response";
 
 interface Venue {
   id: number;
@@ -45,7 +46,8 @@ export default function AdminVenuesPage() {
     try {
       setLoading(true);
       const response = await api.get("/venues");
-      setVenues(response.data.data || response.data || []);
+      const venuesData = extractArray<Venue>(response);
+      setVenues(venuesData);
     } catch (error: any) {
       console.error("Failed to load venues:", error);
       toast.error("Failed to load venues");

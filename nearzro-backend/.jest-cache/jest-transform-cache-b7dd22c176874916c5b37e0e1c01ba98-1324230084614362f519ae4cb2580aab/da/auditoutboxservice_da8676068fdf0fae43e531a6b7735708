@@ -1,0 +1,72 @@
+65507f494cdefe4abc5755f483795dac
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var AuditOutboxService_1;
+var _a;
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.AuditOutboxService = void 0;
+const common_1 = require("@nestjs/common");
+const prisma_service_1 = require("../prisma/prisma.service");
+const client_1 = require("@prisma/client");
+let AuditOutboxService = AuditOutboxService_1 = class AuditOutboxService {
+    prisma;
+    logger = new common_1.Logger(AuditOutboxService_1.name);
+    constructor(prisma) {
+        this.prisma = prisma;
+    }
+    /**
+     * Processes a batch of pending audit logs from the outbox
+     */
+    async processBatch(batchSize = 100) {
+        const items = await this.prisma.auditOutbox.findMany({
+            where: { status: client_1.AuditOutboxStatus.PENDING },
+            take: batchSize,
+            orderBy: { createdAt: 'asc' },
+        });
+        if (items.length === 0)
+            return;
+        for (const item of items) {
+            try {
+                await this.prisma.$transaction(async (tx) => {
+                    // 1. Create the actual Audit Log
+                    await tx.auditLog.create({
+                        data: item.payload,
+                    });
+                    // 2. Mark outbox item as processed
+                    await tx.auditOutbox.update({
+                        where: { id: item.id },
+                        data: {
+                            status: client_1.AuditOutboxStatus.PROCESSED,
+                            processedAt: new Date(),
+                        },
+                    });
+                });
+            }
+            catch (error) {
+                this.logger.error(`Failed to process audit outbox item ${item.id}:`, error);
+                await this.prisma.auditOutbox.update({
+                    where: { id: item.id },
+                    data: {
+                        status: client_1.AuditOutboxStatus.FAILED,
+                        attempts: { increment: 1 },
+                        lastError: error instanceof Error ? error.message : String(error),
+                    },
+                });
+            }
+        }
+    }
+};
+exports.AuditOutboxService = AuditOutboxService;
+exports.AuditOutboxService = AuditOutboxService = AuditOutboxService_1 = __decorate([
+    (0, common_1.Injectable)(),
+    __metadata("design:paramtypes", [typeof (_a = typeof prisma_service_1.PrismaService !== "undefined" && prisma_service_1.PrismaService) === "function" ? _a : Object])
+], AuditOutboxService);
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiQzpcXFVzZXJzXFxIZW1hY2hhbmRpcmFuXFxJbnRlcm5zaGlwXFxOZWFyenJvXFxuZWFyenJvLWJhY2tlbmRcXHNyY1xcYXVkaXRcXGF1ZGl0Lm91dGJveC5zZXJ2aWNlLnRzIiwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7O0FBQUEsMkNBQW9EO0FBQ3BELDZEQUF5RDtBQUN6RCwyQ0FBMkQ7QUFHcEQsSUFBTSxrQkFBa0IsMEJBQXhCLE1BQU0sa0JBQWtCO0lBR0E7SUFGWixNQUFNLEdBQUcsSUFBSSxlQUFNLENBQUMsb0JBQWtCLENBQUMsSUFBSSxDQUFDLENBQUM7SUFFOUQsWUFBNkIsTUFBcUI7UUFBckIsV0FBTSxHQUFOLE1BQU0sQ0FBZTtJQUFHLENBQUM7SUFFdEQ7O09BRUc7SUFDSCxLQUFLLENBQUMsWUFBWSxDQUFDLFlBQW9CLEdBQUc7UUFDeEMsTUFBTSxLQUFLLEdBQUcsTUFBTSxJQUFJLENBQUMsTUFBTSxDQUFDLFdBQVcsQ0FBQyxRQUFRLENBQUM7WUFDbkQsS0FBSyxFQUFFLEVBQUUsTUFBTSxFQUFFLDBCQUFpQixDQUFDLE9BQU8sRUFBRTtZQUM1QyxJQUFJLEVBQUUsU0FBUztZQUNmLE9BQU8sRUFBRSxFQUFFLFNBQVMsRUFBRSxLQUFLLEVBQUU7U0FDOUIsQ0FBQyxDQUFDO1FBRUgsSUFBSSxLQUFLLENBQUMsTUFBTSxLQUFLLENBQUM7WUFBRSxPQUFPO1FBRS9CLEtBQUssTUFBTSxJQUFJLElBQUksS0FBSyxFQUFFLENBQUM7WUFDekIsSUFBSSxDQUFDO2dCQUNILE1BQU0sSUFBSSxDQUFDLE1BQU0sQ0FBQyxZQUFZLENBQUMsS0FBSyxFQUFFLEVBQUUsRUFBRSxFQUFFO29CQUMxQyxpQ0FBaUM7b0JBQ2pDLE1BQU0sRUFBRSxDQUFDLFFBQVEsQ0FBQyxNQUFNLENBQUM7d0JBQ3ZCLElBQUksRUFBRSxJQUFJLENBQUMsT0FBZ0Q7cUJBQzVELENBQUMsQ0FBQztvQkFFSCxtQ0FBbUM7b0JBQ25DLE1BQU0sRUFBRSxDQUFDLFdBQVcsQ0FBQyxNQUFNLENBQUM7d0JBQzFCLEtBQUssRUFBRSxFQUFFLEVBQUUsRUFBRSxJQUFJLENBQUMsRUFBRSxFQUFFO3dCQUN0QixJQUFJLEVBQUU7NEJBQ0osTUFBTSxFQUFFLDBCQUFpQixDQUFDLFNBQVM7NEJBQ25DLFdBQVcsRUFBRSxJQUFJLElBQUksRUFBRTt5QkFDeEI7cUJBQ0YsQ0FBQyxDQUFDO2dCQUNMLENBQUMsQ0FBQyxDQUFDO1lBQ0wsQ0FBQztZQUFDLE9BQU8sS0FBSyxFQUFFLENBQUM7Z0JBQ2YsSUFBSSxDQUFDLE1BQU0sQ0FBQyxLQUFLLENBQUMsdUNBQXVDLElBQUksQ0FBQyxFQUFFLEdBQUcsRUFBRSxLQUFLLENBQUMsQ0FBQztnQkFFNUUsTUFBTSxJQUFJLENBQUMsTUFBTSxDQUFDLFdBQVcsQ0FBQyxNQUFNLENBQUM7b0JBQ25DLEtBQUssRUFBRSxFQUFFLEVBQUUsRUFBRSxJQUFJLENBQUMsRUFBRSxFQUFFO29CQUN0QixJQUFJLEVBQUU7d0JBQ0osTUFBTSxFQUFFLDBCQUFpQixDQUFDLE1BQU07d0JBQ2hDLFFBQVEsRUFBRSxFQUFFLFNBQVMsRUFBRSxDQUFDLEVBQUU7d0JBQzFCLFNBQVMsRUFBRSxLQUFLLFlBQVksS0FBSyxDQUFDLENBQUMsQ0FBQyxLQUFLLENBQUMsT0FBTyxDQUFDLENBQUMsQ0FBQyxNQUFNLENBQUMsS0FBSyxDQUFDO3FCQUNsRTtpQkFDRixDQUFDLENBQUM7WUFDTCxDQUFDO1FBQ0gsQ0FBQztJQUNILENBQUM7Q0FDRixDQUFBO0FBaERZLGdEQUFrQjs2QkFBbEIsa0JBQWtCO0lBRDlCLElBQUEsbUJBQVUsR0FBRTt5REFJMEIsOEJBQWEsb0JBQWIsOEJBQWE7R0FIdkMsa0JBQWtCLENBZ0Q5QiIsIm5hbWVzIjpbXSwic291cmNlcyI6WyJDOlxcVXNlcnNcXEhlbWFjaGFuZGlyYW5cXEludGVybnNoaXBcXE5lYXJ6cm9cXG5lYXJ6cm8tYmFja2VuZFxcc3JjXFxhdWRpdFxcYXVkaXQub3V0Ym94LnNlcnZpY2UudHMiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHsgSW5qZWN0YWJsZSwgTG9nZ2VyIH0gZnJvbSAnQG5lc3Rqcy9jb21tb24nO1xyXG5pbXBvcnQgeyBQcmlzbWFTZXJ2aWNlIH0gZnJvbSAnLi4vcHJpc21hL3ByaXNtYS5zZXJ2aWNlJztcclxuaW1wb3J0IHsgUHJpc21hLCBBdWRpdE91dGJveFN0YXR1cyB9IGZyb20gJ0BwcmlzbWEvY2xpZW50JztcclxuXHJcbkBJbmplY3RhYmxlKClcclxuZXhwb3J0IGNsYXNzIEF1ZGl0T3V0Ym94U2VydmljZSB7XHJcbiAgcHJpdmF0ZSByZWFkb25seSBsb2dnZXIgPSBuZXcgTG9nZ2VyKEF1ZGl0T3V0Ym94U2VydmljZS5uYW1lKTtcclxuXHJcbiAgY29uc3RydWN0b3IocHJpdmF0ZSByZWFkb25seSBwcmlzbWE6IFByaXNtYVNlcnZpY2UpIHt9XHJcblxyXG4gIC8qKlxyXG4gICAqIFByb2Nlc3NlcyBhIGJhdGNoIG9mIHBlbmRpbmcgYXVkaXQgbG9ncyBmcm9tIHRoZSBvdXRib3hcclxuICAgKi9cclxuICBhc3luYyBwcm9jZXNzQmF0Y2goYmF0Y2hTaXplOiBudW1iZXIgPSAxMDApOiBQcm9taXNlPHZvaWQ+IHtcclxuICAgIGNvbnN0IGl0ZW1zID0gYXdhaXQgdGhpcy5wcmlzbWEuYXVkaXRPdXRib3guZmluZE1hbnkoe1xyXG4gICAgICB3aGVyZTogeyBzdGF0dXM6IEF1ZGl0T3V0Ym94U3RhdHVzLlBFTkRJTkcgfSxcclxuICAgICAgdGFrZTogYmF0Y2hTaXplLFxyXG4gICAgICBvcmRlckJ5OiB7IGNyZWF0ZWRBdDogJ2FzYycgfSxcclxuICAgIH0pO1xyXG5cclxuICAgIGlmIChpdGVtcy5sZW5ndGggPT09IDApIHJldHVybjtcclxuXHJcbiAgICBmb3IgKGNvbnN0IGl0ZW0gb2YgaXRlbXMpIHtcclxuICAgICAgdHJ5IHtcclxuICAgICAgICBhd2FpdCB0aGlzLnByaXNtYS4kdHJhbnNhY3Rpb24oYXN5bmMgKHR4KSA9PiB7XHJcbiAgICAgICAgICAvLyAxLiBDcmVhdGUgdGhlIGFjdHVhbCBBdWRpdCBMb2dcclxuICAgICAgICAgIGF3YWl0IHR4LmF1ZGl0TG9nLmNyZWF0ZSh7XHJcbiAgICAgICAgICAgIGRhdGE6IGl0ZW0ucGF5bG9hZCBhcyB1bmtub3duIGFzIFByaXNtYS5BdWRpdExvZ0NyZWF0ZUlucHV0LFxyXG4gICAgICAgICAgfSk7XHJcblxyXG4gICAgICAgICAgLy8gMi4gTWFyayBvdXRib3ggaXRlbSBhcyBwcm9jZXNzZWRcclxuICAgICAgICAgIGF3YWl0IHR4LmF1ZGl0T3V0Ym94LnVwZGF0ZSh7XHJcbiAgICAgICAgICAgIHdoZXJlOiB7IGlkOiBpdGVtLmlkIH0sXHJcbiAgICAgICAgICAgIGRhdGE6IHtcclxuICAgICAgICAgICAgICBzdGF0dXM6IEF1ZGl0T3V0Ym94U3RhdHVzLlBST0NFU1NFRCxcclxuICAgICAgICAgICAgICBwcm9jZXNzZWRBdDogbmV3IERhdGUoKSxcclxuICAgICAgICAgICAgfSxcclxuICAgICAgICAgIH0pO1xyXG4gICAgICAgIH0pO1xyXG4gICAgICB9IGNhdGNoIChlcnJvcikge1xyXG4gICAgICAgIHRoaXMubG9nZ2VyLmVycm9yKGBGYWlsZWQgdG8gcHJvY2VzcyBhdWRpdCBvdXRib3ggaXRlbSAke2l0ZW0uaWR9OmAsIGVycm9yKTtcclxuXHJcbiAgICAgICAgYXdhaXQgdGhpcy5wcmlzbWEuYXVkaXRPdXRib3gudXBkYXRlKHtcclxuICAgICAgICAgIHdoZXJlOiB7IGlkOiBpdGVtLmlkIH0sXHJcbiAgICAgICAgICBkYXRhOiB7XHJcbiAgICAgICAgICAgIHN0YXR1czogQXVkaXRPdXRib3hTdGF0dXMuRkFJTEVELFxyXG4gICAgICAgICAgICBhdHRlbXB0czogeyBpbmNyZW1lbnQ6IDEgfSxcclxuICAgICAgICAgICAgbGFzdEVycm9yOiBlcnJvciBpbnN0YW5jZW9mIEVycm9yID8gZXJyb3IubWVzc2FnZSA6IFN0cmluZyhlcnJvciksXHJcbiAgICAgICAgICB9LFxyXG4gICAgICAgIH0pO1xyXG4gICAgICB9XHJcbiAgICB9XHJcbiAgfVxyXG59Il0sInZlcnNpb24iOjN9

@@ -6,12 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  CreditCard, DollarSign, TrendingUp, TrendingDown, Calendar,
-  Search, Filter, Download, Eye, ArrowLeft, CheckCircle2,
-  Clock, XCircle, AlertCircle
+  TrendingUp, TrendingDown, Search, Download, Eye, CheckCircle2,
+  Clock
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
+import { extractArray } from "@/lib/api-response";
 
 interface Transaction {
   id: number;
@@ -39,7 +39,7 @@ export default function AdminTransactionsPage() {
     try {
       setLoading(true);
       const response = await api.get("/payments");
-      const payments = response.data.data || response.data || [];
+      const payments = extractArray<any>(response);
       
       const formattedTransactions: Transaction[] = payments.map((p: any) => ({
         id: p.id,

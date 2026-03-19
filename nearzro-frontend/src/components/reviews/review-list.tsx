@@ -1,6 +1,6 @@
 "use client";
 
-import { Star, User, Calendar } from "lucide-react";
+import { Star, User } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface Review {

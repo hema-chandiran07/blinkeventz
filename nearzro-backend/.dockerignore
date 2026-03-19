@@ -1,10 +1,15 @@
 node_modules
 .git
 .gitignore
-.env
-.env.*
+# Don't ignore .env - it's needed at runtime!
+# .env
+# .env.*
 dist
 .next
 Dockerfile
 docker-compose.yml
 npm-debug.log
+# Ignore local env files but NOT the actual .env
+.env.local
+.env.development
+.env.test

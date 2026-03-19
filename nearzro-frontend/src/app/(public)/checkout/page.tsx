@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useSyncExternalStore } from "react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -40,19 +41,9 @@ const SERVICE_FEE = 199;
 
 type CheckoutStep = "details" | "confirm" | "payment";
 
-interface BookingData {
-  type: 'venue' | 'vendor';
-  id: string;
-  name: string;
-  price: number;
-  package?: string;
-  time?: string;
-  service?: string;
-}
-
 export default function CheckoutPage() {
   const router = useRouter();
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const { items: cartContextItems, clearCart, removeItem } = useCart();
   const [currentStep, setCurrentStep] = useState<CheckoutStep>("details");
   const [isProcessing, setIsProcessing] = useState(false);
@@ -275,6 +266,31 @@ export default function CheckoutPage() {
         handler: async (response: any) => {
           // Payment successful
           try {
+            // Create booking for venue items
+            const venueItem = bookingDataFromStorage || cartItems.find(item => 
+              'type' in item && item.type === 'venue'
+            );
+            if (venueItem) {
+              const venueId = ('metadata' in venueItem && venueItem.metadata?.venueId) || 
+                (bookingDataFromStorage?.id ? parseInt(bookingDataFromStorage.id) : null);
+              const dateStr = ('metadata' in venueItem && venueItem.metadata?.selectedDate) || eventDetails.eventDate;
+              const timeSlot = ('metadata' in venueItem && venueItem.metadata?.timeSlot) || 'evening';
+              
+              if (venueId && dateStr) {
+                try {
+                  await api.post('/booking/create', {
+                    venueId,
+                    date: dateStr,
+                    timeSlot: timeSlot === 'morning' ? 'morning' : timeSlot === 'full_day' ? 'full_day' : timeSlot === 'night' ? 'night' : 'evening',
+                  });
+                  toast.success("Booking created successfully!");
+                } catch (bookingError) {
+                  console.error("Booking creation error:", bookingError);
+                  toast.warning("Payment successful but booking creation failed. Please contact support.");
+                }
+              }
+            }
+
             await api.post("/payments/confirm", {
               orderId: response.razorpay_order_id,
               paymentId: response.razorpay_payment_id,
@@ -337,10 +353,35 @@ export default function CheckoutPage() {
   const simulatePayment = async () => {
     // Simulate payment processing with 80% success rate
     await new Promise(resolve => setTimeout(resolve, 2500));
-    
+
     const isSuccess = Math.random() > 0.2;
-    
+
     if (isSuccess) {
+      // Create booking for venue items
+      const venueItem = bookingDataFromStorage || cartItems.find(item => 
+        'type' in item && item.type === 'venue'
+      );
+      if (venueItem) {
+        const venueId = ('metadata' in venueItem && venueItem.metadata?.venueId) || 
+          (bookingDataFromStorage?.id ? parseInt(bookingDataFromStorage.id) : null);
+        const dateStr = ('metadata' in venueItem && venueItem.metadata?.selectedDate) || eventDetails.eventDate;
+        const timeSlot = ('metadata' in venueItem && venueItem.metadata?.timeSlot) || 'evening';
+        
+        if (venueId && dateStr) {
+          try {
+            await api.post('/booking/create', {
+              venueId,
+              date: dateStr,
+              timeSlot: timeSlot === 'morning' ? 'morning' : timeSlot === 'full_day' ? 'full_day' : timeSlot === 'night' ? 'night' : 'evening',
+            });
+            toast.success("Booking created successfully!");
+          } catch (bookingError) {
+            console.error("Booking creation error:", bookingError);
+            toast.warning("Payment successful but booking creation failed. Please contact support.");
+          }
+        }
+      }
+
       setPaymentSuccess(true);
       toast.success("Payment Accepted! Your booking has been confirmed.");
       clearCart();
@@ -786,11 +827,11 @@ export default function CheckoutPage() {
                   <div className="space-y-3">
                     {cartItems.map((item) => (
                       <div key={item.id} className="flex gap-3 items-start p-2 rounded-lg hover:bg-silver-50 transition-colors">
-                        <div className="h-16 w-16 rounded-lg bg-gradient-to-br from-silver-200 to-silver-400 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                          {(item as any).image ? (
-                            <img src={(item as any).image} alt={item.name} className="h-full w-full object-cover" />
+                        <div className="h-16 w-16 rounded-lg bg-gradient-to-br from-silver-200 to-silver-400 flex items-center justify-center flex-shrink-0 overflow-hidden relative">
+                          {('image' in item && item.image) ? (
+                            <Image src={item.image as string} alt={item.name} fill className="object-cover" />
                           ) : (
-                            (item as any).type === 'venue' || (item as any).itemType === 'VENUE' ? (
+                            ('type' in item && item.type === 'venue') || ('itemType' in item && item.itemType === 'VENUE') ? (
                               <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                               </svg>
@@ -893,11 +934,11 @@ export default function CheckoutPage() {
                 <CardContent className="space-y-4">
                   {cartItems.map((item) => (
                     <div key={item.id} className="flex gap-4 items-center p-4 rounded-lg border border-silver-200 hover:border-silver-300 hover:bg-silver-50 transition-all">
-                      <div className="h-20 w-20 rounded-lg bg-gradient-to-br from-silver-200 to-silver-400 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                        {(item as any).image ? (
-                          <img src={(item as any).image} alt={item.name} className="h-full w-full object-cover" />
+                      <div className="h-20 w-20 rounded-lg bg-gradient-to-br from-silver-200 to-silver-400 flex items-center justify-center flex-shrink-0 overflow-hidden relative">
+                        {('image' in item && item.image) ? (
+                          <Image src={item.image as string} alt={item.name} fill className="object-cover" />
                         ) : (
-                          (item as any).type === 'venue' || (item as any).itemType === 'VENUE' ? (
+                          ('type' in item && item.type === 'venue') || ('itemType' in item && item.itemType === 'VENUE') ? (
                             <svg className="h-10 w-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                             </svg>

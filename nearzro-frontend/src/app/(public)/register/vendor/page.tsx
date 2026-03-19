@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState } from "react";
 import { useAuth } from "@/context/auth-context";
-import { Eye, EyeOff, Mail, Lock, User, Store, Phone, MapPin, CheckCircle2, ArrowLeft, AlertCircle, Chrome } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, User, Store, Phone, MapPin, CheckCircle2, AlertCircle, Chrome } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import api from "@/lib/api";

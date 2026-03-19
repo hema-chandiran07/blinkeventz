@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import cookieParser from 'cookie-parser';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
@@ -74,6 +75,9 @@ async function bootstrap() {
       },
     }),
   );
+
+  // ✅ Global exception filter for structured 401 responses
+  app.useGlobalFilters(new HttpExceptionFilter());
 
   // ✅ Swagger configuration
   const swaggerConfig = new DocumentBuilder()

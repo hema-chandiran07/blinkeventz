@@ -12,7 +12,6 @@ import {
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { venuesApi } from "@/lib/api-endpoints";
 
 interface VenueDetail {
   id: number;

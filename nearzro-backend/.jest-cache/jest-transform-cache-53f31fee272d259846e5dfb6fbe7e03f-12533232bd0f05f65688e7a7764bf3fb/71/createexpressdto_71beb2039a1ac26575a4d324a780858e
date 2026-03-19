@@ -1,0 +1,33 @@
+80bd67b89a54435b0acd807d58978108
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var _a;
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.CreateExpressDto = void 0;
+const class_validator_1 = require("class-validator");
+const client_1 = require("@prisma/client");
+const swagger_1 = require("@nestjs/swagger");
+class CreateExpressDto {
+    EventId;
+    planType;
+}
+exports.CreateExpressDto = CreateExpressDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: 10 }),
+    (0, class_validator_1.IsInt)(),
+    __metadata("design:type", Number)
+], CreateExpressDto.prototype, "EventId", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ enum: client_1.ExpressPlanType, example: client_1.ExpressPlanType.FIXED }),
+    (0, class_validator_1.IsEnum)(client_1.ExpressPlanType),
+    __metadata("design:type", typeof (_a = typeof client_1.ExpressPlanType !== "undefined" && client_1.ExpressPlanType) === "function" ? _a : Object)
+], CreateExpressDto.prototype, "planType", void 0);
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiQzpcXFVzZXJzXFxhYjMxMVxcSW50ZXJzaGlwXFxibGlua2V2ZW50elxcbmVhcnpyby1iYWNrZW5kXFxzcmNcXGV4cHJlc3NcXGR0b1xcY3JlYXRlLWV4cHJlc3MuZHRvLnRzIiwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7QUFBQSxxREFBZ0Q7QUFDaEQsMkNBQWlEO0FBQ2pELDZDQUFtRTtBQUNuRSxNQUFhLGdCQUFnQjtJQUczQixPQUFPLENBQVM7SUFHaEIsUUFBUSxDQUFrQjtDQUMzQjtBQVBELDRDQU9DO0FBSkM7SUFGQyxJQUFBLHFCQUFXLEVBQUMsRUFBRSxPQUFPLEVBQUUsRUFBRSxFQUFFLENBQUM7SUFDNUIsSUFBQSx1QkFBSyxHQUFFOztpREFDUTtBQUdoQjtJQUZDLElBQUEscUJBQVcsRUFBQyxFQUFFLElBQUksRUFBRSx3QkFBZSxFQUFFLE9BQU8sRUFBRSx3QkFBZSxDQUFDLEtBQUssRUFBRSxDQUFDO0lBQ3RFLElBQUEsd0JBQU0sRUFBQyx3QkFBZSxDQUFDO2tEQUNkLHdCQUFlLG9CQUFmLHdCQUFlO2tEQUFDIiwibmFtZXMiOltdLCJzb3VyY2VzIjpbIkM6XFxVc2Vyc1xcYWIzMTFcXEludGVyc2hpcFxcYmxpbmtldmVudHpcXG5lYXJ6cm8tYmFja2VuZFxcc3JjXFxleHByZXNzXFxkdG9cXGNyZWF0ZS1leHByZXNzLmR0by50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyBJc0VudW0sIElzSW50IH0gZnJvbSAnY2xhc3MtdmFsaWRhdG9yJztcclxuaW1wb3J0IHsgRXhwcmVzc1BsYW5UeXBlIH0gZnJvbSAnQHByaXNtYS9jbGllbnQnO1xyXG5pbXBvcnQgeyBBcGlQcm9wZXJ0eSwgQXBpUHJvcGVydHlPcHRpb25hbCB9IGZyb20gJ0BuZXN0anMvc3dhZ2dlcic7XHJcbmV4cG9ydCBjbGFzcyBDcmVhdGVFeHByZXNzRHRvIHtcclxuICBAQXBpUHJvcGVydHkoeyBleGFtcGxlOiAxMCB9KVxyXG4gIEBJc0ludCgpXHJcbiAgRXZlbnRJZDogbnVtYmVyO1xyXG4gIEBBcGlQcm9wZXJ0eSh7IGVudW06IEV4cHJlc3NQbGFuVHlwZSwgZXhhbXBsZTogRXhwcmVzc1BsYW5UeXBlLkZJWEVEIH0pXHJcbiAgQElzRW51bShFeHByZXNzUGxhblR5cGUpXHJcbiAgcGxhblR5cGU6IEV4cHJlc3NQbGFuVHlwZTtcclxufVxyXG4iXSwidmVyc2lvbiI6M30=

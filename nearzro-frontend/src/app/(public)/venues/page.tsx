@@ -5,9 +5,10 @@ import { VenueCard } from "@/components/venues/venue-card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { FilterModal, type FilterState } from "@/components/ui/filter-modal";
-import { Search, Building, Hotel, Star, SlidersHorizontal, X, Loader2, AlertCircle, MapPin } from "lucide-react";
+import { Search, Building, Hotel, Star, SlidersHorizontal, X, Loader2, AlertCircle } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import api from "@/lib/api";
+import { extractArray } from "@/lib/api-response";
 import { toast } from "sonner";
 import type { Venue } from "@/types";
 import { motion } from "framer-motion";
@@ -65,11 +66,13 @@ function VenuesContent() {
       try {
         setLoading(true);
         const response = await api.get('/venues');
+        // Use utility to safely extract array from paginated response
+        const activeVenues = extractArray<Venue>(response);
         // Filter only active venues (Prisma: status = ACTIVE)
-        const activeVenues = (response.data || []).filter((v: Venue) =>
+        const filteredVenues = activeVenues.filter((v: Venue) =>
           v.status === 'ACTIVE'
         );
-        setVenues(activeVenues);
+        setVenues(filteredVenues);
       } catch (error: any) {
         console.error("Error fetching venues:", error);
         toast.error(error?.response?.data?.message || "Failed to load venues");
@@ -81,7 +84,6 @@ function VenuesContent() {
     fetchVenues();
   }, []);
 
-  // Apply URL filters on mount
   useEffect(() => {
     if (urlType) {
       setCityFilter(urlType);

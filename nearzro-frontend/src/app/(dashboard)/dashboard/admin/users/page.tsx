@@ -6,11 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  Users, UserCheck, UserX, Clock, Edit, Trash2,
-  Search, Filter, Download, Mail, Phone, Calendar
+  Users, UserCheck, Edit, Search
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
+import { extractArray } from "@/lib/api-response";
 
 interface User {
   id: number;
@@ -38,7 +38,8 @@ export default function AdminUsersPage() {
     try {
       setLoading(true);
       const response = await api.get("/users");
-      setUsers(response.data.data || response.data || []);
+      const usersData = extractArray<User>(response);
+      setUsers(usersData);
     } catch (error: any) {
       console.error("Failed to load users:", error);
       toast.error("Failed to load users");

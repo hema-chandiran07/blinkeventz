@@ -261,7 +261,44 @@ export class KycService {
 
   // Venue Owner KYC
   async createVenueOwnerKyc(userId: number, dto: any, file: Express.Multer.File) {
-    return this.createKyc(userId, dto, file);
+    // Create KYC record first
+    const kycResult = await this.createKyc(userId, dto, file);
+
+    // If bank details are provided, create bank account
+    if (dto.accountHolder && dto.bankAccountNumber && dto.ifscCode && dto.bankName) {
+      try {
+        // Check if bank account already exists for this user
+        const existingAccount = await this.prisma.bankAccount.findFirst({
+          where: { userId },
+        });
+
+        if (!existingAccount) {
+          const { randomUUID } = await import('crypto');
+          const accountNumberHash = hash(dto.bankAccountNumber);
+          const encryptedAccountNumber = encrypt(dto.bankAccountNumber);
+
+          await this.prisma.bankAccount.create({
+            data: {
+              userId,
+              accountHolder: dto.accountHolder,
+              accountNumber: encryptedAccountNumber,
+              accountNumberHash,
+              ifsc: dto.ifscCode,
+              bankName: dto.bankName,
+              branchName: dto.branchName || null,
+              referenceId: randomUUID(),
+            },
+          });
+
+          this.logger.log(`Bank account created for venue owner: userId=${userId}`);
+        }
+      } catch (error) {
+        this.logger.error(`Failed to create bank account: ${error.message}`);
+        // Don't fail the KYC submission if bank account creation fails
+      }
+    }
+
+    return kycResult;
   }
 
   async getVenueOwnerKyc(userId: number) {

@@ -6,10 +6,13 @@ export async function getUserEnabledChannels(
   userId: number,
   type: NotificationType,
 ): Promise<NotificationChannel[]> {
+  // Fetch all preferences and filter enabled ones in code
+  // This allows tests to control the exact return value
   const prefs = await prisma.notificationPreference.findMany({
-    where: { userId, type, enabled: true },
-    select: { channel: true },
+    where: { userId, type },
+    select: { channel: true, enabled: true },
   });
 
-  return prefs.map(p => p.channel);
+  // Filter only enabled channels
+  return prefs.filter(p => p.enabled).map(p => p.channel);
 }

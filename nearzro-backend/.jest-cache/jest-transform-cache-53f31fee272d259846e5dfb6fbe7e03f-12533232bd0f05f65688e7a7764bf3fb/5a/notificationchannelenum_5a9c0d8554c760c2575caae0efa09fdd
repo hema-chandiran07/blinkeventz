@@ -1,0 +1,13 @@
+d3d475f03d4f216d3d62bc32f431ba39
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.NotificationChannel = void 0;
+var NotificationChannel;
+(function (NotificationChannel) {
+    NotificationChannel["IN_APP"] = "IN_APP";
+    NotificationChannel["EMAIL"] = "EMAIL";
+    NotificationChannel["SMS"] = "SMS";
+    NotificationChannel["WHATSAPP"] = "WHATSAPP";
+    NotificationChannel["PUSH"] = "PUSH";
+})(NotificationChannel || (exports.NotificationChannel = NotificationChannel = {}));
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiQzpcXFVzZXJzXFxhYjMxMVxcSW50ZXJzaGlwXFxibGlua2V2ZW50elxcbmVhcnpyby1iYWNrZW5kXFxzcmNcXG5vdGlmaWNhdGlvbnNcXGVudW1zXFxub3RpZmljYXRpb24tY2hhbm5lbC5lbnVtLnRzIiwibWFwcGluZ3MiOiI7OztBQUFBLElBQVksbUJBTVg7QUFORCxXQUFZLG1CQUFtQjtJQUM3Qix3Q0FBaUIsQ0FBQTtJQUNqQixzQ0FBZSxDQUFBO0lBQ2Ysa0NBQVcsQ0FBQTtJQUNYLDRDQUFxQixDQUFBO0lBQ3JCLG9DQUFhLENBQUE7QUFDZixDQUFDLEVBTlcsbUJBQW1CLG1DQUFuQixtQkFBbUIsUUFNOUIiLCJuYW1lcyI6W10sInNvdXJjZXMiOlsiQzpcXFVzZXJzXFxhYjMxMVxcSW50ZXJzaGlwXFxibGlua2V2ZW50elxcbmVhcnpyby1iYWNrZW5kXFxzcmNcXG5vdGlmaWNhdGlvbnNcXGVudW1zXFxub3RpZmljYXRpb24tY2hhbm5lbC5lbnVtLnRzIl0sInNvdXJjZXNDb250ZW50IjpbImV4cG9ydCBlbnVtIE5vdGlmaWNhdGlvbkNoYW5uZWwge1xyXG4gIElOX0FQUCA9ICdJTl9BUFAnLFxyXG4gIEVNQUlMID0gJ0VNQUlMJyxcclxuICBTTVMgPSAnU01TJyxcclxuICBXSEFUU0FQUCA9ICdXSEFUU0FQUCcsXHJcbiAgUFVTSCA9ICdQVVNIJyxcclxufVxyXG4iXSwidmVyc2lvbiI6M30=

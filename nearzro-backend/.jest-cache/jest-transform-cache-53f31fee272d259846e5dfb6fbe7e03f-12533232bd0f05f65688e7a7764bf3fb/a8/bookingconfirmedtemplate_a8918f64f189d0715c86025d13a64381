@@ -1,0 +1,13 @@
+f911273b5116718784aa55793cb486b6
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.bookingConfirmedTemplate = bookingConfirmedTemplate;
+// booking-confirmed.template.ts
+function bookingConfirmedTemplate(data) {
+    return {
+        title: '🎉 Booking Confirmed',
+        message: `Your booking for ${data.eventTitle} on ${data.date} is confirmed.`,
+        deepLink: `app://bookings/${data.bookingId}`,
+    };
+}
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiQzpcXFVzZXJzXFxhYjMxMVxcSW50ZXJzaGlwXFxibGlua2V2ZW50elxcbmVhcnpyby1iYWNrZW5kXFxzcmNcXG5vdGlmaWNhdGlvbnNcXHRlbXBsYXRlc1xcYm9va2luZy1jb25maXJtZWQudGVtcGxhdGUudHMiLCJtYXBwaW5ncyI6Ijs7QUFDQSw0REFNQztBQVBELGdDQUFnQztBQUNoQyxTQUFnQix3QkFBd0IsQ0FBQyxJQUFTO0lBQ2hELE9BQU87UUFDTCxLQUFLLEVBQUUsc0JBQXNCO1FBQzdCLE9BQU8sRUFBRSxvQkFBb0IsSUFBSSxDQUFDLFVBQVUsT0FBTyxJQUFJLENBQUMsSUFBSSxnQkFBZ0I7UUFDNUUsUUFBUSxFQUFFLGtCQUFrQixJQUFJLENBQUMsU0FBUyxFQUFFO0tBQzdDLENBQUM7QUFDSixDQUFDIiwibmFtZXMiOltdLCJzb3VyY2VzIjpbIkM6XFxVc2Vyc1xcYWIzMTFcXEludGVyc2hpcFxcYmxpbmtldmVudHpcXG5lYXJ6cm8tYmFja2VuZFxcc3JjXFxub3RpZmljYXRpb25zXFx0ZW1wbGF0ZXNcXGJvb2tpbmctY29uZmlybWVkLnRlbXBsYXRlLnRzIl0sInNvdXJjZXNDb250ZW50IjpbIi8vIGJvb2tpbmctY29uZmlybWVkLnRlbXBsYXRlLnRzXHJcbmV4cG9ydCBmdW5jdGlvbiBib29raW5nQ29uZmlybWVkVGVtcGxhdGUoZGF0YTogYW55KSB7XHJcbiAgcmV0dXJuIHtcclxuICAgIHRpdGxlOiAn8J+OiSBCb29raW5nIENvbmZpcm1lZCcsXHJcbiAgICBtZXNzYWdlOiBgWW91ciBib29raW5nIGZvciAke2RhdGEuZXZlbnRUaXRsZX0gb24gJHtkYXRhLmRhdGV9IGlzIGNvbmZpcm1lZC5gLFxyXG4gICAgZGVlcExpbms6IGBhcHA6Ly9ib29raW5ncy8ke2RhdGEuYm9va2luZ0lkfWAsXHJcbiAgfTtcclxufVxyXG4iXSwidmVyc2lvbiI6M30=

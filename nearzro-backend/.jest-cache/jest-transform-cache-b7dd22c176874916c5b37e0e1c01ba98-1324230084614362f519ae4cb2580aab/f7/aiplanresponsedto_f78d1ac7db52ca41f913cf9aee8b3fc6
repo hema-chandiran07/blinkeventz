@@ -1,0 +1,111 @@
+acc75f486a1a128b59f48186311a648a
+"use strict";
+
+/* istanbul ignore next */
+function cov_u4eng86t8() {
+  var path = "C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\ai-planner\\dto\\ai-plan-response.dto.ts";
+  var hash = "1541e9cf515892ce92123c4ae6592a5e1b6b5d6a";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\ai-planner\\dto\\ai-plan-response.dto.ts",
+    statementMap: {
+      "0": {
+        start: {
+          line: 2,
+          column: 0
+        },
+        end: {
+          line: 2,
+          column: 62
+        }
+      },
+      "1": {
+        start: {
+          line: 3,
+          column: 0
+        },
+        end: {
+          line: 3,
+          column: 61
+        }
+      },
+      "2": {
+        start: {
+          line: 9,
+          column: 0
+        },
+        end: {
+          line: 9,
+          column: 42
+        }
+      },
+      "3": {
+        start: {
+          line: 14,
+          column: 0
+        },
+        end: {
+          line: 14,
+          column: 46
+        }
+      }
+    },
+    fnMap: {},
+    branchMap: {},
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0
+    },
+    f: {},
+    b: {},
+    inputSourceMap: {
+      file: "C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\ai-planner\\dto\\ai-plan-response.dto.ts",
+      mappings: ";;;AAAA,MAAa,eAAe;IAC1B,QAAQ,CAAS;IACjB,eAAe,CAAS;IACxB,KAAK,CAAS;CACf;AAJD,0CAIC;AAED,MAAa,iBAAiB;IAC5B,WAAW,CAAS;IACpB,SAAS,CAAoB;CAC9B;AAHD,8CAGC",
+      names: [],
+      sources: ["C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\ai-planner\\dto\\ai-plan-response.dto.ts"],
+      sourcesContent: ["export class AIBudgetItemDto {\r\n  category: string;\r\n  allocatedAmount: number;\r\n  notes: string;\r\n}\r\n\r\nexport class AIPlanResponseDto {\r\n  totalBudget: number;\r\n  breakdown: AIBudgetItemDto[];\r\n}\r\n"],
+      version: 3
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "1541e9cf515892ce92123c4ae6592a5e1b6b5d6a"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_u4eng86t8 = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_u4eng86t8();
+cov_u4eng86t8().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_u4eng86t8().s[1]++;
+exports.AIPlanResponseDto = exports.AIBudgetItemDto = void 0;
+class AIBudgetItemDto {
+  category;
+  allocatedAmount;
+  notes;
+}
+/* istanbul ignore next */
+cov_u4eng86t8().s[2]++;
+exports.AIBudgetItemDto = AIBudgetItemDto;
+class AIPlanResponseDto {
+  totalBudget;
+  breakdown;
+}
+/* istanbul ignore next */
+cov_u4eng86t8().s[3]++;
+exports.AIPlanResponseDto = AIPlanResponseDto;
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJBSUJ1ZGdldEl0ZW1EdG8iLCJjYXRlZ29yeSIsImFsbG9jYXRlZEFtb3VudCIsIm5vdGVzIiwiY292X3U0ZW5nODZ0OCIsInMiLCJleHBvcnRzIiwiQUlQbGFuUmVzcG9uc2VEdG8iLCJ0b3RhbEJ1ZGdldCIsImJyZWFrZG93biJdLCJzb3VyY2VzIjpbIkM6XFxVc2Vyc1xcSGVtYWNoYW5kaXJhblxcSW50ZXJuc2hpcFxcTmVhcnpyb1xcbmVhcnpyby1iYWNrZW5kXFxzcmNcXGFpLXBsYW5uZXJcXGR0b1xcYWktcGxhbi1yZXNwb25zZS5kdG8udHMiXSwic291cmNlc0NvbnRlbnQiOlsiZXhwb3J0IGNsYXNzIEFJQnVkZ2V0SXRlbUR0byB7XHJcbiAgY2F0ZWdvcnk6IHN0cmluZztcclxuICBhbGxvY2F0ZWRBbW91bnQ6IG51bWJlcjtcclxuICBub3Rlczogc3RyaW5nO1xyXG59XHJcblxyXG5leHBvcnQgY2xhc3MgQUlQbGFuUmVzcG9uc2VEdG8ge1xyXG4gIHRvdGFsQnVkZ2V0OiBudW1iZXI7XHJcbiAgYnJlYWtkb3duOiBBSUJ1ZGdldEl0ZW1EdG9bXTtcclxufVxyXG4iXSwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7QUFBQSxNQUFhQSxlQUFlO0VBQzFCQyxRQUFRO0VBQ1JDLGVBQWU7RUFDZkMsS0FBSzs7QUFDTjtBQUFBQyxhQUFBLEdBQUFDLENBQUE7QUFKREMsT0FBQSxDQUFBTixlQUFBLEdBQUFBLGVBQUE7QUFNQSxNQUFhTyxpQkFBaUI7RUFDNUJDLFdBQVc7RUFDWEMsU0FBUzs7QUFDVjtBQUFBTCxhQUFBLEdBQUFDLENBQUE7QUFIREMsT0FBQSxDQUFBQyxpQkFBQSxHQUFBQSxpQkFBQSIsImlnbm9yZUxpc3QiOltdfQ==

@@ -1,0 +1,23 @@
+429d7ccbfb7a0e8b3afbe3bac15cb189
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.BookingModule = void 0;
+const common_1 = require("@nestjs/common");
+const booking_controller_1 = require("./booking.controller");
+const booking_service_1 = require("./booking.service");
+let BookingModule = class BookingModule {
+};
+exports.BookingModule = BookingModule;
+exports.BookingModule = BookingModule = __decorate([
+    (0, common_1.Module)({
+        controllers: [booking_controller_1.BookingController],
+        providers: [booking_service_1.BookingService]
+    })
+], BookingModule);
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiQzpcXFVzZXJzXFxIZW1hY2hhbmRpcmFuXFxJbnRlcm5zaGlwXFxOZWFyenJvXFxuZWFyenJvLWJhY2tlbmRcXHNyY1xcdmVudWVzXFxib29raW5nXFxib29raW5nLm1vZHVsZS50cyIsIm1hcHBpbmdzIjoiOzs7Ozs7Ozs7QUFBQSwyQ0FBd0M7QUFDeEMsNkRBQXlEO0FBQ3pELHVEQUFtRDtBQU01QyxJQUFNLGFBQWEsR0FBbkIsTUFBTSxhQUFhO0NBQUcsQ0FBQTtBQUFoQixzQ0FBYTt3QkFBYixhQUFhO0lBSnpCLElBQUEsZUFBTSxFQUFDO1FBQ04sV0FBVyxFQUFFLENBQUMsc0NBQWlCLENBQUM7UUFDaEMsU0FBUyxFQUFFLENBQUMsZ0NBQWMsQ0FBQztLQUM1QixDQUFDO0dBQ1csYUFBYSxDQUFHIiwibmFtZXMiOltdLCJzb3VyY2VzIjpbIkM6XFxVc2Vyc1xcSGVtYWNoYW5kaXJhblxcSW50ZXJuc2hpcFxcTmVhcnpyb1xcbmVhcnpyby1iYWNrZW5kXFxzcmNcXHZlbnVlc1xcYm9va2luZ1xcYm9va2luZy5tb2R1bGUudHMiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHsgTW9kdWxlIH0gZnJvbSAnQG5lc3Rqcy9jb21tb24nO1xyXG5pbXBvcnQgeyBCb29raW5nQ29udHJvbGxlciB9IGZyb20gJy4vYm9va2luZy5jb250cm9sbGVyJztcclxuaW1wb3J0IHsgQm9va2luZ1NlcnZpY2UgfSBmcm9tICcuL2Jvb2tpbmcuc2VydmljZSc7XHJcblxyXG5ATW9kdWxlKHtcclxuICBjb250cm9sbGVyczogW0Jvb2tpbmdDb250cm9sbGVyXSxcclxuICBwcm92aWRlcnM6IFtCb29raW5nU2VydmljZV1cclxufSlcclxuZXhwb3J0IGNsYXNzIEJvb2tpbmdNb2R1bGUge31cclxuIl0sInZlcnNpb24iOjN9

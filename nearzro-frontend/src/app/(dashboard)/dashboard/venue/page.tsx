@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
   Building, Calendar, DollarSign, Plus, Search,
-  CheckCircle2, Clock, Star, MapPin, Settings
+  CheckCircle2, Clock, Star, MapPin
 } from "lucide-react";
 import api from "@/lib/api";
 import { motion } from "framer-motion";
@@ -80,14 +80,17 @@ export default function VenueOwnerDashboardPage() {
         setVenues([]);
       }
 
-      const activeVenues = venues.filter(v => v.status === "ACTIVE").length;
-
-      setStats({
-        totalVenues: activeVenues,
-        activeBookings: 0,
-        totalEarnings: 0,
-        pendingRequests: 0,
-      });
+      try {
+        const statsResponse = await api.get('/venues/venue-owner/stats');
+        setStats(statsResponse.data || {
+          totalVenues: 0,
+          activeBookings: 0,
+          totalEarnings: 0,
+          pendingRequests: 0,
+        });
+      } catch (error) {
+        console.warn("Could not fetch stats");
+      }
     } catch {
       // Set default stats on error
       setStats({
@@ -214,7 +217,7 @@ export default function VenueOwnerDashboardPage() {
       </motion.div>
 
       {/* Venues List */}
-      <motion.div variants={itemVariants}>
+      <motion.div variants={itemVariants} id="venues">
         <Card className="border-silver-800 bg-gradient-to-br from-silver-900/50 to-silver-950/50">
           <CardHeader>
             <div className="flex items-center justify-between">

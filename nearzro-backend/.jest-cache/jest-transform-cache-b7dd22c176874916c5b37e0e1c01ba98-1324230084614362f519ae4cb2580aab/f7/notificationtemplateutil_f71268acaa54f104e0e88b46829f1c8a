@@ -1,0 +1,200 @@
+8569ab3e6985373b9057872a9cc3707a
+"use strict";
+
+/* istanbul ignore next */
+function cov_2i080rwbqi() {
+  var path = "C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\notifications\\utils\\notification-template.util.ts";
+  var hash = "fc523ccd14ca10673765f23ce0e7fa8316dbcdf4";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\notifications\\utils\\notification-template.util.ts",
+    statementMap: {
+      "0": {
+        start: {
+          line: 2,
+          column: 0
+        },
+        end: {
+          line: 2,
+          column: 62
+        }
+      },
+      "1": {
+        start: {
+          line: 3,
+          column: 0
+        },
+        end: {
+          line: 3,
+          column: 42
+        }
+      },
+      "2": {
+        start: {
+          line: 4,
+          column: 20
+        },
+        end: {
+          line: 4,
+          column: 43
+        }
+      },
+      "3": {
+        start: {
+          line: 6,
+          column: 4
+        },
+        end: {
+          line: 9,
+          column: 6
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "resolveTemplate",
+        decl: {
+          start: {
+            line: 5,
+            column: 9
+          },
+          end: {
+            line: 5,
+            column: 24
+          }
+        },
+        loc: {
+          start: {
+            line: 5,
+            column: 42
+          },
+          end: {
+            line: 10,
+            column: 1
+          }
+        },
+        line: 5
+      }
+    },
+    branchMap: {
+      "0": {
+        loc: {
+          start: {
+            line: 5,
+            column: 31
+          },
+          end: {
+            line: 5,
+            column: 40
+          }
+        },
+        type: "default-arg",
+        locations: [{
+          start: {
+            line: 5,
+            column: 38
+          },
+          end: {
+            line: 5,
+            column: 40
+          }
+        }],
+        line: 5
+      },
+      "1": {
+        loc: {
+          start: {
+            line: 6,
+            column: 11
+          },
+          end: {
+            line: 9,
+            column: 5
+          }
+        },
+        type: "binary-expr",
+        locations: [{
+          start: {
+            line: 6,
+            column: 11
+          },
+          end: {
+            line: 6,
+            column: 58
+          }
+        }, {
+          start: {
+            line: 6,
+            column: 62
+          },
+          end: {
+            line: 9,
+            column: 5
+          }
+        }],
+        line: 6
+      }
+    },
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0
+    },
+    f: {
+      "0": 0
+    },
+    b: {
+      "0": [0],
+      "1": [0, 0]
+    },
+    inputSourceMap: {
+      file: "C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\notifications\\utils\\notification-template.util.ts",
+      mappings: ";;AAGA,0CAKC;AAPD,4CAAqD;AAErD,SAAgB,eAAe,CAAC,IAAsB,EAAE,OAAY,EAAE;IACpE,OAAO,iCAAqB,CAAC,IAAI,CAAC,EAAE,CAAC,IAAI,CAAC,IAAI;QAC5C,KAAK,EAAE,cAAc;QACrB,OAAO,EAAE,6BAA6B;KACvC,CAAC;AACJ,CAAC",
+      names: [],
+      sources: ["C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\notifications\\utils\\notification-template.util.ts"],
+      sourcesContent: ["import { NotificationType } from '@prisma/client';\r\nimport { notificationTemplates } from '../templates';\r\n\r\nexport function resolveTemplate(type: NotificationType, data: any = {}) {\r\n  return notificationTemplates[type]?.(data) ?? {\r\n    title: 'Notification',\r\n    message: 'You have a new notification',\r\n  };\r\n}\r\n"],
+      version: 3
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "fc523ccd14ca10673765f23ce0e7fa8316dbcdf4"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_2i080rwbqi = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_2i080rwbqi();
+cov_2i080rwbqi().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_2i080rwbqi().s[1]++;
+exports.resolveTemplate = resolveTemplate;
+const templates_1 =
+/* istanbul ignore next */
+(cov_2i080rwbqi().s[2]++, require("../templates"));
+function resolveTemplate(type, data =
+/* istanbul ignore next */
+(cov_2i080rwbqi().b[0][0]++, {})) {
+  /* istanbul ignore next */
+  cov_2i080rwbqi().f[0]++;
+  cov_2i080rwbqi().s[3]++;
+  return /* istanbul ignore next */(cov_2i080rwbqi().b[1][0]++, templates_1.notificationTemplates[type]?.(data)) ??
+  /* istanbul ignore next */
+  (cov_2i080rwbqi().b[1][1]++, {
+    title: 'Notification',
+    message: 'You have a new notification'
+  });
+}
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJleHBvcnRzIiwicmVzb2x2ZVRlbXBsYXRlIiwidGVtcGxhdGVzXzEiLCJjb3ZfMmkwODByd2JxaSIsInMiLCJyZXF1aXJlIiwidHlwZSIsImRhdGEiLCJiIiwiZiIsIm5vdGlmaWNhdGlvblRlbXBsYXRlcyIsInRpdGxlIiwibWVzc2FnZSJdLCJzb3VyY2VzIjpbIkM6XFxVc2Vyc1xcSGVtYWNoYW5kaXJhblxcSW50ZXJuc2hpcFxcTmVhcnpyb1xcbmVhcnpyby1iYWNrZW5kXFxzcmNcXG5vdGlmaWNhdGlvbnNcXHV0aWxzXFxub3RpZmljYXRpb24tdGVtcGxhdGUudXRpbC50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyBOb3RpZmljYXRpb25UeXBlIH0gZnJvbSAnQHByaXNtYS9jbGllbnQnO1xyXG5pbXBvcnQgeyBub3RpZmljYXRpb25UZW1wbGF0ZXMgfSBmcm9tICcuLi90ZW1wbGF0ZXMnO1xyXG5cclxuZXhwb3J0IGZ1bmN0aW9uIHJlc29sdmVUZW1wbGF0ZSh0eXBlOiBOb3RpZmljYXRpb25UeXBlLCBkYXRhOiBhbnkgPSB7fSkge1xyXG4gIHJldHVybiBub3RpZmljYXRpb25UZW1wbGF0ZXNbdHlwZV0/LihkYXRhKSA/PyB7XHJcbiAgICB0aXRsZTogJ05vdGlmaWNhdGlvbicsXHJcbiAgICBtZXNzYWdlOiAnWW91IGhhdmUgYSBuZXcgbm90aWZpY2F0aW9uJyxcclxuICB9O1xyXG59XHJcbiJdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OztBQUdBQSxPQUFBLENBQUFDLGVBQUEsR0FBQUEsZUFBQTtBQUZBLE1BQUFDLFdBQUE7QUFBQTtBQUFBLENBQUFDLGNBQUEsR0FBQUMsQ0FBQSxPQUFBQyxPQUFBO0FBRUEsU0FBZ0JKLGVBQWVBLENBQUNLLElBQXNCLEVBQUVDLElBQUE7QUFBQTtBQUFBLENBQUFKLGNBQUEsR0FBQUssQ0FBQSxVQUFZLEVBQUU7RUFBQTtFQUFBTCxjQUFBLEdBQUFNLENBQUE7RUFBQU4sY0FBQSxHQUFBQyxDQUFBO0VBQ3BFLE9BQU8sMkJBQUFELGNBQUEsR0FBQUssQ0FBQSxVQUFBTixXQUFBLENBQUFRLHFCQUFxQixDQUFDSixJQUFJLENBQUMsR0FBR0MsSUFBSSxDQUFDO0VBQUE7RUFBQSxDQUFBSixjQUFBLEdBQUFLLENBQUEsVUFBSTtJQUM1Q0csS0FBSyxFQUFFLGNBQWM7SUFDckJDLE9BQU8sRUFBRTtHQUNWO0FBQ0giLCJpZ25vcmVMaXN0IjpbXX0=

@@ -8,6 +8,7 @@ import { FilterModal, type FilterState } from "@/components/ui/filter-modal";
 import { Search, Utensils, Camera, Sparkles, Music, Scissors, Cake, Star, SlidersHorizontal, X, Loader2, AlertCircle } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import api from "@/lib/api";
+import { extractArray } from "@/lib/api-response";
 import { toast } from "sonner";
 import type { Vendor } from "@/types";
 import { motion } from "framer-motion";
@@ -65,8 +66,10 @@ function VendorsContent() {
       try {
         setLoading(true);
         const vendorsResponse = await api.get('/vendors');
+        // Use utility to safely extract array from paginated response
+        const allVendors = extractArray<Vendor>(vendorsResponse);
         // Filter only verified vendors (Prisma: verificationStatus)
-        const verifiedVendors = (vendorsResponse.data || []).filter((v: Vendor) =>
+        const verifiedVendors = allVendors.filter((v: Vendor) =>
           v.verificationStatus === 'VERIFIED'
         );
         setVendors(verifiedVendors);

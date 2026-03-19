@@ -1,0 +1,22 @@
+a4de7bef4477382a8af53944046525ce
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.PushProvider = void 0;
+const common_1 = require("@nestjs/common");
+let PushProvider = class PushProvider {
+    async send(userId, payload) {
+        // Firebase FCM implementation here
+        console.log('Push sent to user', userId, payload);
+    }
+};
+exports.PushProvider = PushProvider;
+exports.PushProvider = PushProvider = __decorate([
+    (0, common_1.Injectable)()
+], PushProvider);
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiQzpcXFVzZXJzXFxIZW1hY2hhbmRpcmFuXFxJbnRlcm5zaGlwXFxOZWFyenJvXFxuZWFyenJvLWJhY2tlbmRcXHNyY1xcbm90aWZpY2F0aW9uc1xccHJvdmlkZXJzXFxwdXNoLnByb3ZpZGVyLnRzIiwibWFwcGluZ3MiOiI7Ozs7Ozs7OztBQUFBLDJDQUE0QztBQUlyQyxJQUFNLFlBQVksR0FBbEIsTUFBTSxZQUFZO0lBQ3ZCLEtBQUssQ0FBQyxJQUFJLENBQUMsTUFBYyxFQUFFLE9BQVk7UUFDckMsbUNBQW1DO1FBQ25DLE9BQU8sQ0FBQyxHQUFHLENBQUMsbUJBQW1CLEVBQUUsTUFBTSxFQUFFLE9BQU8sQ0FBQyxDQUFDO0lBQ3BELENBQUM7Q0FDRixDQUFBO0FBTFksb0NBQVk7dUJBQVosWUFBWTtJQUR4QixJQUFBLG1CQUFVLEdBQUU7R0FDQSxZQUFZLENBS3hCIiwibmFtZXMiOltdLCJzb3VyY2VzIjpbIkM6XFxVc2Vyc1xcSGVtYWNoYW5kaXJhblxcSW50ZXJuc2hpcFxcTmVhcnpyb1xcbmVhcnpyby1iYWNrZW5kXFxzcmNcXG5vdGlmaWNhdGlvbnNcXHByb3ZpZGVyc1xccHVzaC5wcm92aWRlci50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyBJbmplY3RhYmxlIH0gZnJvbSAnQG5lc3Rqcy9jb21tb24nO1xyXG5pbXBvcnQgeyBOb3RpZmljYXRpb24gfSBmcm9tICdAcHJpc21hL2NsaWVudCc7XHJcblxyXG5ASW5qZWN0YWJsZSgpXHJcbmV4cG9ydCBjbGFzcyBQdXNoUHJvdmlkZXIge1xyXG4gIGFzeW5jIHNlbmQodXNlcklkOiBudW1iZXIsIHBheWxvYWQ6IGFueSkge1xyXG4gICAgLy8gRmlyZWJhc2UgRkNNIGltcGxlbWVudGF0aW9uIGhlcmVcclxuICAgIGNvbnNvbGUubG9nKCdQdXNoIHNlbnQgdG8gdXNlcicsIHVzZXJJZCwgcGF5bG9hZCk7XHJcbiAgfVxyXG59XHJcblxyXG4iXSwidmVyc2lvbiI6M30=

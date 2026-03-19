@@ -6,13 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   ArrowLeft, Edit, Trash2, Mail, Phone, Calendar, DollarSign,
-  CheckCircle2, XCircle, Download, Share2, MessageSquare, Shield,
+  CheckCircle2, XCircle, Download, MessageSquare, Shield,
   TrendingUp, Activity
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { usersApi } from "@/lib/api-endpoints";
 
 interface UserDetail {
   id: number;

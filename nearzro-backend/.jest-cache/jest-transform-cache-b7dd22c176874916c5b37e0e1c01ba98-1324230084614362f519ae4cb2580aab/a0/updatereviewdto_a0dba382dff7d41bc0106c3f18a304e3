@@ -1,0 +1,119 @@
+d4124e4f85a25424d6c490afcf39aab4
+"use strict";
+
+/* istanbul ignore next */
+function cov_ejq88z05o() {
+  var path = "C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\reviews\\dto\\update-review.dto.ts";
+  var hash = "704a45853978836e287ad22d885b8ee2f6a7147e";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\reviews\\dto\\update-review.dto.ts",
+    statementMap: {
+      "0": {
+        start: {
+          line: 2,
+          column: 0
+        },
+        end: {
+          line: 2,
+          column: 62
+        }
+      },
+      "1": {
+        start: {
+          line: 3,
+          column: 0
+        },
+        end: {
+          line: 3,
+          column: 33
+        }
+      },
+      "2": {
+        start: {
+          line: 4,
+          column: 18
+        },
+        end: {
+          line: 4,
+          column: 44
+        }
+      },
+      "3": {
+        start: {
+          line: 5,
+          column: 28
+        },
+        end: {
+          line: 5,
+          column: 58
+        }
+      },
+      "4": {
+        start: {
+          line: 8,
+          column: 0
+        },
+        end: {
+          line: 8,
+          column: 42
+        }
+      }
+    },
+    fnMap: {},
+    branchMap: {},
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0
+    },
+    f: {},
+    b: {},
+    inputSourceMap: {
+      file: "C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\reviews\\dto\\update-review.dto.ts",
+      mappings: ";;;AAAA,6CAA8C;AAC9C,2DAAsD;AAEtD,MAAa,eAAgB,SAAQ,IAAA,qBAAW,EAAC,mCAAe,CAAC;CAAG;AAApE,0CAAoE",
+      names: [],
+      sources: ["C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\reviews\\dto\\update-review.dto.ts"],
+      sourcesContent: ["import { PartialType } from '@nestjs/swagger';\r\nimport { CreateReviewDto } from './create-review.dto';\r\n\r\nexport class UpdateReviewDto extends PartialType(CreateReviewDto) {}\r\n"],
+      version: 3
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "704a45853978836e287ad22d885b8ee2f6a7147e"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_ejq88z05o = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_ejq88z05o();
+cov_ejq88z05o().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_ejq88z05o().s[1]++;
+exports.UpdateReviewDto = void 0;
+const swagger_1 =
+/* istanbul ignore next */
+(cov_ejq88z05o().s[2]++, require("@nestjs/swagger"));
+const create_review_dto_1 =
+/* istanbul ignore next */
+(cov_ejq88z05o().s[3]++, require("./create-review.dto"));
+class UpdateReviewDto extends
+/* istanbul ignore next */
+((0, swagger_1.PartialType)(create_review_dto_1.CreateReviewDto)) {}
+/* istanbul ignore next */
+cov_ejq88z05o().s[4]++;
+exports.UpdateReviewDto = UpdateReviewDto;
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJzd2FnZ2VyXzEiLCJjb3ZfZWpxODh6MDVvIiwicyIsInJlcXVpcmUiLCJjcmVhdGVfcmV2aWV3X2R0b18xIiwiVXBkYXRlUmV2aWV3RHRvIiwiUGFydGlhbFR5cGUiLCJDcmVhdGVSZXZpZXdEdG8iLCJleHBvcnRzIl0sInNvdXJjZXMiOlsiQzpcXFVzZXJzXFxIZW1hY2hhbmRpcmFuXFxJbnRlcm5zaGlwXFxOZWFyenJvXFxuZWFyenJvLWJhY2tlbmRcXHNyY1xccmV2aWV3c1xcZHRvXFx1cGRhdGUtcmV2aWV3LmR0by50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyBQYXJ0aWFsVHlwZSB9IGZyb20gJ0BuZXN0anMvc3dhZ2dlcic7XHJcbmltcG9ydCB7IENyZWF0ZVJldmlld0R0byB9IGZyb20gJy4vY3JlYXRlLXJldmlldy5kdG8nO1xyXG5cclxuZXhwb3J0IGNsYXNzIFVwZGF0ZVJldmlld0R0byBleHRlbmRzIFBhcnRpYWxUeXBlKENyZWF0ZVJldmlld0R0bykge31cclxuIl0sIm1hcHBpbmdzIjoiOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7QUFBQSxNQUFBQSxTQUFBO0FBQUE7QUFBQSxDQUFBQyxhQUFBLEdBQUFDLENBQUEsT0FBQUMsT0FBQTtBQUNBLE1BQUFDLG1CQUFBO0FBQUE7QUFBQSxDQUFBSCxhQUFBLEdBQUFDLENBQUEsT0FBQUMsT0FBQTtBQUVBLE1BQWFFLGVBQWdCO0FBQUE7QUFBQSxDQUFRLElBQUFMLFNBQUEsQ0FBQU0sV0FBVyxFQUFDRixtQkFBQSxDQUFBRyxlQUFlLENBQUM7QUFBRztBQUFBTixhQUFBLEdBQUFDLENBQUE7QUFBcEVNLE9BQUEsQ0FBQUgsZUFBQSxHQUFBQSxlQUFBIiwiaWdub3JlTGlzdCI6W119

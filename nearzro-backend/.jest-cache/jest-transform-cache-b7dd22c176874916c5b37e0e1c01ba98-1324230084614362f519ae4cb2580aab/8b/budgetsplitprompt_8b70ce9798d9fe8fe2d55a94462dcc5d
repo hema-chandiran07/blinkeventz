@@ -1,0 +1,145 @@
+581ba188e279e6233c33670065837cee
+"use strict";
+
+/* istanbul ignore next */
+function cov_12pyzk9gkw() {
+  var path = "C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\ai-planner\\prompts\\budget-split.prompt.ts";
+  var hash = "e8b54c9921110330f390fad0f4541ba3cfe92c83";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\ai-planner\\prompts\\budget-split.prompt.ts",
+    statementMap: {
+      "0": {
+        start: {
+          line: 2,
+          column: 0
+        },
+        end: {
+          line: 2,
+          column: 62
+        }
+      },
+      "1": {
+        start: {
+          line: 3,
+          column: 0
+        },
+        end: {
+          line: 3,
+          column: 46
+        }
+      },
+      "2": {
+        start: {
+          line: 5,
+          column: 4
+        },
+        end: {
+          line: 32,
+          column: 2
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "budgetSplitPrompt",
+        decl: {
+          start: {
+            line: 4,
+            column: 9
+          },
+          end: {
+            line: 4,
+            column: 26
+          }
+        },
+        loc: {
+          start: {
+            line: 4,
+            column: 34
+          },
+          end: {
+            line: 33,
+            column: 1
+          }
+        },
+        line: 4
+      }
+    },
+    branchMap: {},
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0
+    },
+    f: {
+      "0": 0
+    },
+    b: {},
+    inputSourceMap: {
+      file: "C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\ai-planner\\prompts\\budget-split.prompt.ts",
+      mappings: ";;AAAA,8CAmCC;AAnCD,SAAgB,iBAAiB,CAAC,KAMjC;IACC,OAAO;;;;;;;;;;EAUP,IAAI,CAAC,SAAS,CAAC,KAAK,CAAC;;;;;;;;;;;;;;;;;CAiBtB,CAAC;AACF,CAAC",
+      names: [],
+      sources: ["C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\ai-planner\\prompts\\budget-split.prompt.ts"],
+      sourcesContent: ["export function budgetSplitPrompt(input: {\r\n  budget: number;\r\n  eventType: string;\r\n  city: string;\r\n  area: string;\r\n  guestCount: number;\r\n}) {\r\n  return `\r\nCreate a budget allocation plan for an event.\r\n\r\nRules:\r\n- Budget must be fully distributed\r\n- Use realistic Indian pricing\r\n- Respond ONLY in valid JSON\r\n- No markdown\r\n\r\nInput:\r\n${JSON.stringify(input)}\r\n\r\nOutput format:\r\n{\r\n  \"summary\": {\r\n    \"eventType\": \"\",\r\n    \"city\": \"\",\r\n    \"guestCount\": 0,\r\n    \"totalBudget\": 0\r\n  },\r\n  \"allocations\": [\r\n    { \"category\": \"Venue\", \"amount\": 0, \"notes\": \"\" },\r\n    { \"category\": \"Catering\", \"amount\": 0, \"notes\": \"\" },\r\n    { \"category\": \"Decor\", \"amount\": 0, \"notes\": \"\" },\r\n    { \"category\": \"Entertainment\", \"amount\": 0, \"notes\": \"\" }\r\n  ]\r\n}\r\n`;\r\n}\r\n"],
+      version: 3
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "e8b54c9921110330f390fad0f4541ba3cfe92c83"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_12pyzk9gkw = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_12pyzk9gkw();
+cov_12pyzk9gkw().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_12pyzk9gkw().s[1]++;
+exports.budgetSplitPrompt = budgetSplitPrompt;
+function budgetSplitPrompt(input) {
+  /* istanbul ignore next */
+  cov_12pyzk9gkw().f[0]++;
+  cov_12pyzk9gkw().s[2]++;
+  return `
+Create a budget allocation plan for an event.
+
+Rules:
+- Budget must be fully distributed
+- Use realistic Indian pricing
+- Respond ONLY in valid JSON
+- No markdown
+
+Input:
+${JSON.stringify(input)}
+
+Output format:
+{
+  "summary": {
+    "eventType": "",
+    "city": "",
+    "guestCount": 0,
+    "totalBudget": 0
+  },
+  "allocations": [
+    { "category": "Venue", "amount": 0, "notes": "" },
+    { "category": "Catering", "amount": 0, "notes": "" },
+    { "category": "Decor", "amount": 0, "notes": "" },
+    { "category": "Entertainment", "amount": 0, "notes": "" }
+  ]
+}
+`;
+}
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJleHBvcnRzIiwiYnVkZ2V0U3BsaXRQcm9tcHQiLCJpbnB1dCIsImNvdl8xMnB5ems5Z2t3IiwiZiIsInMiLCJKU09OIiwic3RyaW5naWZ5Il0sInNvdXJjZXMiOlsiQzpcXFVzZXJzXFxIZW1hY2hhbmRpcmFuXFxJbnRlcm5zaGlwXFxOZWFyenJvXFxuZWFyenJvLWJhY2tlbmRcXHNyY1xcYWktcGxhbm5lclxccHJvbXB0c1xcYnVkZ2V0LXNwbGl0LnByb21wdC50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJleHBvcnQgZnVuY3Rpb24gYnVkZ2V0U3BsaXRQcm9tcHQoaW5wdXQ6IHtcclxuICBidWRnZXQ6IG51bWJlcjtcclxuICBldmVudFR5cGU6IHN0cmluZztcclxuICBjaXR5OiBzdHJpbmc7XHJcbiAgYXJlYTogc3RyaW5nO1xyXG4gIGd1ZXN0Q291bnQ6IG51bWJlcjtcclxufSkge1xyXG4gIHJldHVybiBgXHJcbkNyZWF0ZSBhIGJ1ZGdldCBhbGxvY2F0aW9uIHBsYW4gZm9yIGFuIGV2ZW50LlxyXG5cclxuUnVsZXM6XHJcbi0gQnVkZ2V0IG11c3QgYmUgZnVsbHkgZGlzdHJpYnV0ZWRcclxuLSBVc2UgcmVhbGlzdGljIEluZGlhbiBwcmljaW5nXHJcbi0gUmVzcG9uZCBPTkxZIGluIHZhbGlkIEpTT05cclxuLSBObyBtYXJrZG93blxyXG5cclxuSW5wdXQ6XHJcbiR7SlNPTi5zdHJpbmdpZnkoaW5wdXQpfVxyXG5cclxuT3V0cHV0IGZvcm1hdDpcclxue1xyXG4gIFwic3VtbWFyeVwiOiB7XHJcbiAgICBcImV2ZW50VHlwZVwiOiBcIlwiLFxyXG4gICAgXCJjaXR5XCI6IFwiXCIsXHJcbiAgICBcImd1ZXN0Q291bnRcIjogMCxcclxuICAgIFwidG90YWxCdWRnZXRcIjogMFxyXG4gIH0sXHJcbiAgXCJhbGxvY2F0aW9uc1wiOiBbXHJcbiAgICB7IFwiY2F0ZWdvcnlcIjogXCJWZW51ZVwiLCBcImFtb3VudFwiOiAwLCBcIm5vdGVzXCI6IFwiXCIgfSxcclxuICAgIHsgXCJjYXRlZ29yeVwiOiBcIkNhdGVyaW5nXCIsIFwiYW1vdW50XCI6IDAsIFwibm90ZXNcIjogXCJcIiB9LFxyXG4gICAgeyBcImNhdGVnb3J5XCI6IFwiRGVjb3JcIiwgXCJhbW91bnRcIjogMCwgXCJub3Rlc1wiOiBcIlwiIH0sXHJcbiAgICB7IFwiY2F0ZWdvcnlcIjogXCJFbnRlcnRhaW5tZW50XCIsIFwiYW1vdW50XCI6IDAsIFwibm90ZXNcIjogXCJcIiB9XHJcbiAgXVxyXG59XHJcbmA7XHJcbn1cclxuIl0sIm1hcHBpbmdzIjoiOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7O0FBQUFBLE9BQUEsQ0FBQUMsaUJBQUEsR0FBQUEsaUJBQUE7QUFBQSxTQUFnQkEsaUJBQWlCQSxDQUFDQyxLQU1qQztFQUFBO0VBQUFDLGNBQUEsR0FBQUMsQ0FBQTtFQUFBRCxjQUFBLEdBQUFFLENBQUE7RUFDQyxPQUFPOzs7Ozs7Ozs7O0VBVVBDLElBQUksQ0FBQ0MsU0FBUyxDQUFDTCxLQUFLLENBQUM7Ozs7Ozs7Ozs7Ozs7Ozs7O0NBaUJ0QjtBQUNEIiwiaWdub3JlTGlzdCI6W119

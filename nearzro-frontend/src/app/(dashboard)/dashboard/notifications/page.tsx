@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
+import { extractArray } from "@/lib/api-response";
 
 interface Notification {
   id: number;
@@ -34,7 +35,8 @@ export default function NotificationsPage() {
   const loadNotifications = async () => {
     try {
       const response = await api.get("/notifications");
-      setNotifications(response.data || []);
+      const notificationsData = extractArray<Notification>(response);
+      setNotifications(notificationsData);
     } catch (error: any) {
       console.error("Failed to load notifications:", error);
       toast.error("Failed to load notifications");

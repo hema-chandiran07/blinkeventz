@@ -1,0 +1,61 @@
+bcde6350aef211970218278b8443eead
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var ExpressCron_1;
+var _a;
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ExpressCron = void 0;
+const common_1 = require("@nestjs/common");
+const schedule_1 = require("@nestjs/schedule");
+const prisma_service_1 = require("../prisma/prisma.service");
+const client_1 = require("@prisma/client");
+let ExpressCron = ExpressCron_1 = class ExpressCron {
+    prisma;
+    logger = new common_1.Logger(ExpressCron_1.name);
+    constructor(prisma) {
+        this.prisma = prisma;
+    }
+    /**
+     * Runs every 5 minutes
+     * Auto expires express requests past SLA
+     */
+    async expireExpressRequests() {
+        const now = new Date();
+        const result = await this.prisma.expressRequest.updateMany({
+            where: {
+                status: {
+                    in: [client_1.ExpressStatus.PENDING, client_1.ExpressStatus.IN_PROGRESS],
+                },
+                expiresAt: {
+                    lt: now,
+                },
+            },
+            data: {
+                status: client_1.ExpressStatus.EXPIRED,
+            },
+        });
+        if (result.count > 0) {
+            this.logger.log(`Expired ${result.count} express requests`);
+        }
+    }
+};
+exports.ExpressCron = ExpressCron;
+__decorate([
+    (0, schedule_1.Cron)('*/5 * * * *'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], ExpressCron.prototype, "expireExpressRequests", null);
+exports.ExpressCron = ExpressCron = ExpressCron_1 = __decorate([
+    (0, common_1.Injectable)(),
+    __metadata("design:paramtypes", [typeof (_a = typeof prisma_service_1.PrismaService !== "undefined" && prisma_service_1.PrismaService) === "function" ? _a : Object])
+], ExpressCron);
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiQzpcXFVzZXJzXFxIZW1hY2hhbmRpcmFuXFxJbnRlcm5zaGlwXFxOZWFyenJvXFxuZWFyenJvLWJhY2tlbmRcXHNyY1xcZXhwcmVzc1xcZXhwcmVzcy5jcm9uLnRzIiwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7O0FBQUEsMkNBQW9EO0FBQ3BELCtDQUF3QztBQUN4Qyw2REFBeUQ7QUFDekQsMkNBQStDO0FBR3hDLElBQU0sV0FBVyxtQkFBakIsTUFBTSxXQUFXO0lBR087SUFGWixNQUFNLEdBQUcsSUFBSSxlQUFNLENBQUMsYUFBVyxDQUFDLElBQUksQ0FBQyxDQUFDO0lBRXZELFlBQTZCLE1BQXFCO1FBQXJCLFdBQU0sR0FBTixNQUFNLENBQWU7SUFBRyxDQUFDO0lBRXREOzs7T0FHRztJQUVHLEFBQU4sS0FBSyxDQUFDLHFCQUFxQjtRQUN6QixNQUFNLEdBQUcsR0FBRyxJQUFJLElBQUksRUFBRSxDQUFDO1FBRXZCLE1BQU0sTUFBTSxHQUFHLE1BQU0sSUFBSSxDQUFDLE1BQU0sQ0FBQyxjQUFjLENBQUMsVUFBVSxDQUFDO1lBQ3pELEtBQUssRUFBRTtnQkFDTCxNQUFNLEVBQUU7b0JBQ04sRUFBRSxFQUFFLENBQUMsc0JBQWEsQ0FBQyxPQUFPLEVBQUUsc0JBQWEsQ0FBQyxXQUFXLENBQUM7aUJBQ3ZEO2dCQUNELFNBQVMsRUFBRTtvQkFDVCxFQUFFLEVBQUUsR0FBRztpQkFDUjthQUNGO1lBQ0QsSUFBSSxFQUFFO2dCQUNKLE1BQU0sRUFBRSxzQkFBYSxDQUFDLE9BQU87YUFDOUI7U0FDRixDQUFDLENBQUM7UUFFSCxJQUFJLE1BQU0sQ0FBQyxLQUFLLEdBQUcsQ0FBQyxFQUFFLENBQUM7WUFDckIsSUFBSSxDQUFDLE1BQU0sQ0FBQyxHQUFHLENBQ2IsV0FBVyxNQUFNLENBQUMsS0FBSyxtQkFBbUIsQ0FDM0MsQ0FBQztRQUNKLENBQUM7SUFDSCxDQUFDO0NBQ0YsQ0FBQTtBQWpDWSxrQ0FBVztBQVVoQjtJQURMLElBQUEsZUFBSSxFQUFDLGFBQWEsQ0FBQzs7Ozt3REF1Qm5CO3NCQWhDVSxXQUFXO0lBRHZCLElBQUEsbUJBQVUsR0FBRTt5REFJMEIsOEJBQWEsb0JBQWIsOEJBQWE7R0FIdkMsV0FBVyxDQWlDdkIiLCJuYW1lcyI6W10sInNvdXJjZXMiOlsiQzpcXFVzZXJzXFxIZW1hY2hhbmRpcmFuXFxJbnRlcm5zaGlwXFxOZWFyenJvXFxuZWFyenJvLWJhY2tlbmRcXHNyY1xcZXhwcmVzc1xcZXhwcmVzcy5jcm9uLnRzIl0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IEluamVjdGFibGUsIExvZ2dlciB9IGZyb20gJ0BuZXN0anMvY29tbW9uJztcclxuaW1wb3J0IHsgQ3JvbiB9IGZyb20gJ0BuZXN0anMvc2NoZWR1bGUnO1xyXG5pbXBvcnQgeyBQcmlzbWFTZXJ2aWNlIH0gZnJvbSAnLi4vcHJpc21hL3ByaXNtYS5zZXJ2aWNlJztcclxuaW1wb3J0IHsgRXhwcmVzc1N0YXR1cyB9IGZyb20gJ0BwcmlzbWEvY2xpZW50JztcclxuXHJcbkBJbmplY3RhYmxlKClcclxuZXhwb3J0IGNsYXNzIEV4cHJlc3NDcm9uIHtcclxuICBwcml2YXRlIHJlYWRvbmx5IGxvZ2dlciA9IG5ldyBMb2dnZXIoRXhwcmVzc0Nyb24ubmFtZSk7XHJcblxyXG4gIGNvbnN0cnVjdG9yKHByaXZhdGUgcmVhZG9ubHkgcHJpc21hOiBQcmlzbWFTZXJ2aWNlKSB7fVxyXG5cclxuICAvKipcclxuICAgKiBSdW5zIGV2ZXJ5IDUgbWludXRlc1xyXG4gICAqIEF1dG8gZXhwaXJlcyBleHByZXNzIHJlcXVlc3RzIHBhc3QgU0xBXHJcbiAgICovXHJcbiAgQENyb24oJyovNSAqICogKiAqJylcclxuICBhc3luYyBleHBpcmVFeHByZXNzUmVxdWVzdHMoKSB7XHJcbiAgICBjb25zdCBub3cgPSBuZXcgRGF0ZSgpO1xyXG5cclxuICAgIGNvbnN0IHJlc3VsdCA9IGF3YWl0IHRoaXMucHJpc21hLmV4cHJlc3NSZXF1ZXN0LnVwZGF0ZU1hbnkoe1xyXG4gICAgICB3aGVyZToge1xyXG4gICAgICAgIHN0YXR1czoge1xyXG4gICAgICAgICAgaW46IFtFeHByZXNzU3RhdHVzLlBFTkRJTkcsIEV4cHJlc3NTdGF0dXMuSU5fUFJPR1JFU1NdLFxyXG4gICAgICAgIH0sXHJcbiAgICAgICAgZXhwaXJlc0F0OiB7XHJcbiAgICAgICAgICBsdDogbm93LFxyXG4gICAgICAgIH0sXHJcbiAgICAgIH0sXHJcbiAgICAgIGRhdGE6IHtcclxuICAgICAgICBzdGF0dXM6IEV4cHJlc3NTdGF0dXMuRVhQSVJFRCxcclxuICAgICAgfSxcclxuICAgIH0pO1xyXG5cclxuICAgIGlmIChyZXN1bHQuY291bnQgPiAwKSB7XHJcbiAgICAgIHRoaXMubG9nZ2VyLmxvZyhcclxuICAgICAgICBgRXhwaXJlZCAke3Jlc3VsdC5jb3VudH0gZXhwcmVzcyByZXF1ZXN0c2AsXHJcbiAgICAgICk7XHJcbiAgICB9XHJcbiAgfVxyXG59XHJcbiJdLCJ2ZXJzaW9uIjozfQ==

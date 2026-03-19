@@ -1,0 +1,100 @@
+e8857b893ed3f1a02ecf7a262b99d120
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var _a;
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.AnalyticsController = void 0;
+const common_1 = require("@nestjs/common");
+const swagger_1 = require("@nestjs/swagger");
+const analytics_service_1 = require("./analytics.service");
+const jwt_auth_guard_1 = require("../auth/jwt-auth.guard");
+const roles_guard_1 = require("../common/guards/roles.guard");
+const roles_decorator_1 = require("../common/decorators/roles.decorator");
+const client_1 = require("@prisma/client");
+let AnalyticsController = class AnalyticsController {
+    service;
+    constructor(service) {
+        this.service = service;
+    }
+    getOverview() {
+        return this.service.getOverview();
+    }
+    getGMV() {
+        return this.service.getGMV();
+    }
+    getBookings() {
+        return this.service.getBookings();
+    }
+    getRevenue() {
+        return this.service.getRevenue();
+    }
+    getUsers() {
+        return this.service.getUsers();
+    }
+    getTopVenues() {
+        return this.service.getTopVenues();
+    }
+    getTopVendors() {
+        return this.service.getTopVendors();
+    }
+};
+exports.AnalyticsController = AnalyticsController;
+__decorate([
+    (0, common_1.Get)('overview'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], AnalyticsController.prototype, "getOverview", null);
+__decorate([
+    (0, common_1.Get)('gmv'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], AnalyticsController.prototype, "getGMV", null);
+__decorate([
+    (0, common_1.Get)('bookings'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], AnalyticsController.prototype, "getBookings", null);
+__decorate([
+    (0, common_1.Get)('revenue'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], AnalyticsController.prototype, "getRevenue", null);
+__decorate([
+    (0, common_1.Get)('users'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], AnalyticsController.prototype, "getUsers", null);
+__decorate([
+    (0, common_1.Get)('top-venues'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], AnalyticsController.prototype, "getTopVenues", null);
+__decorate([
+    (0, common_1.Get)('top-vendors'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], AnalyticsController.prototype, "getTopVendors", null);
+exports.AnalyticsController = AnalyticsController = __decorate([
+    (0, swagger_1.ApiTags)('Analytics'),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
+    (0, roles_decorator_1.Roles)(client_1.Role.ADMIN),
+    (0, common_1.Controller)('analytics'),
+    __metadata("design:paramtypes", [typeof (_a = typeof analytics_service_1.AnalyticsService !== "undefined" && analytics_service_1.AnalyticsService) === "function" ? _a : Object])
+], AnalyticsController);
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiQzpcXFVzZXJzXFxIZW1hY2hhbmRpcmFuXFxJbnRlcm5zaGlwXFxOZWFyenJvXFxuZWFyenJvLWJhY2tlbmRcXHNyY1xcYW5hbHl0aWNzXFxhbmFseXRpY3MuY29udHJvbGxlci50cyIsIm1hcHBpbmdzIjoiOzs7Ozs7Ozs7Ozs7O0FBQUEsMkNBQTREO0FBQzVELDZDQUF5RDtBQUN6RCwyREFBdUQ7QUFDdkQsMkRBQXNEO0FBQ3RELDhEQUEwRDtBQUMxRCwwRUFBNkQ7QUFDN0QsMkNBQXNDO0FBTy9CLElBQU0sbUJBQW1CLEdBQXpCLE1BQU0sbUJBQW1CO0lBQ0Q7SUFBN0IsWUFBNkIsT0FBeUI7UUFBekIsWUFBTyxHQUFQLE9BQU8sQ0FBa0I7SUFBRyxDQUFDO0lBRzFELFdBQVc7UUFDVCxPQUFPLElBQUksQ0FBQyxPQUFPLENBQUMsV0FBVyxFQUFFLENBQUM7SUFDcEMsQ0FBQztJQUdELE1BQU07UUFDSixPQUFPLElBQUksQ0FBQyxPQUFPLENBQUMsTUFBTSxFQUFFLENBQUM7SUFDL0IsQ0FBQztJQUdELFdBQVc7UUFDVCxPQUFPLElBQUksQ0FBQyxPQUFPLENBQUMsV0FBVyxFQUFFLENBQUM7SUFDcEMsQ0FBQztJQUdELFVBQVU7UUFDUixPQUFPLElBQUksQ0FBQyxPQUFPLENBQUMsVUFBVSxFQUFFLENBQUM7SUFDbkMsQ0FBQztJQUdELFFBQVE7UUFDTixPQUFPLElBQUksQ0FBQyxPQUFPLENBQUMsUUFBUSxFQUFFLENBQUM7SUFDakMsQ0FBQztJQUdELFlBQVk7UUFDVixPQUFPLElBQUksQ0FBQyxPQUFPLENBQUMsWUFBWSxFQUFFLENBQUM7SUFDckMsQ0FBQztJQUdELGFBQWE7UUFDWCxPQUFPLElBQUksQ0FBQyxPQUFPLENBQUMsYUFBYSxFQUFFLENBQUM7SUFDdEMsQ0FBQztDQUNGLENBQUE7QUFyQ1ksa0RBQW1CO0FBSTlCO0lBREMsSUFBQSxZQUFHLEVBQUMsVUFBVSxDQUFDOzs7O3NEQUdmO0FBR0Q7SUFEQyxJQUFBLFlBQUcsRUFBQyxLQUFLLENBQUM7Ozs7aURBR1Y7QUFHRDtJQURDLElBQUEsWUFBRyxFQUFDLFVBQVUsQ0FBQzs7OztzREFHZjtBQUdEO0lBREMsSUFBQSxZQUFHLEVBQUMsU0FBUyxDQUFDOzs7O3FEQUdkO0FBR0Q7SUFEQyxJQUFBLFlBQUcsRUFBQyxPQUFPLENBQUM7Ozs7bURBR1o7QUFHRDtJQURDLElBQUEsWUFBRyxFQUFDLFlBQVksQ0FBQzs7Ozt1REFHakI7QUFHRDtJQURDLElBQUEsWUFBRyxFQUFDLGFBQWEsQ0FBQzs7Ozt3REFHbEI7OEJBcENVLG1CQUFtQjtJQUwvQixJQUFBLGlCQUFPLEVBQUMsV0FBVyxDQUFDO0lBQ3BCLElBQUEsdUJBQWEsR0FBRTtJQUNmLElBQUEsa0JBQVMsRUFBQyw2QkFBWSxFQUFFLHdCQUFVLENBQUM7SUFDbkMsSUFBQSx1QkFBSyxFQUFDLGFBQUksQ0FBQyxLQUFLLENBQUM7SUFDakIsSUFBQSxtQkFBVSxFQUFDLFdBQVcsQ0FBQzt5REFFZ0Isb0NBQWdCLG9CQUFoQixvQ0FBZ0I7R0FEM0MsbUJBQW1CLENBcUMvQiIsIm5hbWVzIjpbXSwic291cmNlcyI6WyJDOlxcVXNlcnNcXEhlbWFjaGFuZGlyYW5cXEludGVybnNoaXBcXE5lYXJ6cm9cXG5lYXJ6cm8tYmFja2VuZFxcc3JjXFxhbmFseXRpY3NcXGFuYWx5dGljcy5jb250cm9sbGVyLnRzIl0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IENvbnRyb2xsZXIsIEdldCwgVXNlR3VhcmRzIH0gZnJvbSAnQG5lc3Rqcy9jb21tb24nO1xyXG5pbXBvcnQgeyBBcGlUYWdzLCBBcGlCZWFyZXJBdXRoIH0gZnJvbSAnQG5lc3Rqcy9zd2FnZ2VyJztcclxuaW1wb3J0IHsgQW5hbHl0aWNzU2VydmljZSB9IGZyb20gJy4vYW5hbHl0aWNzLnNlcnZpY2UnO1xyXG5pbXBvcnQgeyBKd3RBdXRoR3VhcmQgfSBmcm9tICcuLi9hdXRoL2p3dC1hdXRoLmd1YXJkJztcclxuaW1wb3J0IHsgUm9sZXNHdWFyZCB9IGZyb20gJy4uL2NvbW1vbi9ndWFyZHMvcm9sZXMuZ3VhcmQnO1xyXG5pbXBvcnQgeyBSb2xlcyB9IGZyb20gJy4uL2NvbW1vbi9kZWNvcmF0b3JzL3JvbGVzLmRlY29yYXRvcic7XHJcbmltcG9ydCB7IFJvbGUgfSBmcm9tICdAcHJpc21hL2NsaWVudCc7XHJcblxyXG5AQXBpVGFncygnQW5hbHl0aWNzJylcclxuQEFwaUJlYXJlckF1dGgoKVxyXG5AVXNlR3VhcmRzKEp3dEF1dGhHdWFyZCwgUm9sZXNHdWFyZClcclxuQFJvbGVzKFJvbGUuQURNSU4pXHJcbkBDb250cm9sbGVyKCdhbmFseXRpY3MnKVxyXG5leHBvcnQgY2xhc3MgQW5hbHl0aWNzQ29udHJvbGxlciB7XHJcbiAgY29uc3RydWN0b3IocHJpdmF0ZSByZWFkb25seSBzZXJ2aWNlOiBBbmFseXRpY3NTZXJ2aWNlKSB7fVxyXG5cclxuICBAR2V0KCdvdmVydmlldycpXHJcbiAgZ2V0T3ZlcnZpZXcoKSB7XHJcbiAgICByZXR1cm4gdGhpcy5zZXJ2aWNlLmdldE92ZXJ2aWV3KCk7XHJcbiAgfVxyXG5cclxuICBAR2V0KCdnbXYnKVxyXG4gIGdldEdNVigpIHtcclxuICAgIHJldHVybiB0aGlzLnNlcnZpY2UuZ2V0R01WKCk7XHJcbiAgfVxyXG5cclxuICBAR2V0KCdib29raW5ncycpXHJcbiAgZ2V0Qm9va2luZ3MoKSB7XHJcbiAgICByZXR1cm4gdGhpcy5zZXJ2aWNlLmdldEJvb2tpbmdzKCk7XHJcbiAgfVxyXG5cclxuICBAR2V0KCdyZXZlbnVlJylcclxuICBnZXRSZXZlbnVlKCkge1xyXG4gICAgcmV0dXJuIHRoaXMuc2VydmljZS5nZXRSZXZlbnVlKCk7XHJcbiAgfVxyXG5cclxuICBAR2V0KCd1c2VycycpXHJcbiAgZ2V0VXNlcnMoKSB7XHJcbiAgICByZXR1cm4gdGhpcy5zZXJ2aWNlLmdldFVzZXJzKCk7XHJcbiAgfVxyXG5cclxuICBAR2V0KCd0b3AtdmVudWVzJylcclxuICBnZXRUb3BWZW51ZXMoKSB7XHJcbiAgICByZXR1cm4gdGhpcy5zZXJ2aWNlLmdldFRvcFZlbnVlcygpO1xyXG4gIH1cclxuXHJcbiAgQEdldCgndG9wLXZlbmRvcnMnKVxyXG4gIGdldFRvcFZlbmRvcnMoKSB7XHJcbiAgICByZXR1cm4gdGhpcy5zZXJ2aWNlLmdldFRvcFZlbmRvcnMoKTtcclxuICB9XHJcbn1cclxuIl0sInZlcnNpb24iOjN9

@@ -1,0 +1,103 @@
+31bab90f45983990ebf4d56b9fb50ae9
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var _a, _b, _c;
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.CartController = void 0;
+const common_1 = require("@nestjs/common");
+const swagger_1 = require("@nestjs/swagger");
+const cart_service_1 = require("./cart.service");
+const add_cart_item_dto_1 = require("./dto/add-cart-item.dto");
+const update_cart_item_dto_1 = require("./dto/update-cart-item.dto");
+const jwt_auth_guard_1 = require("../auth/jwt-auth.guard");
+const public_decorator_1 = require("../common/decorators/public.decorator");
+let CartController = class CartController {
+    cartService;
+    constructor(cartService) {
+        this.cartService = cartService;
+    }
+    async getCart(req) {
+        const userId = req.user?.id || null; // Allow guest carts
+        return this.cartService.getCart(userId);
+    }
+    async addItem(req, dto) {
+        const userId = req.user?.id || null;
+        return this.cartService.addItem(userId, dto);
+    }
+    async updateItem(req, id, dto) {
+        const userId = req.user?.id || null;
+        return this.cartService.updateItem(userId, +id, dto);
+    }
+    async removeItem(req, id) {
+        const userId = req.user?.id || null;
+        return this.cartService.removeItem(userId, +id);
+    }
+    async clearCart(req) {
+        const userId = req.user?.id || null;
+        return this.cartService.clearCart(userId);
+    }
+};
+exports.CartController = CartController;
+__decorate([
+    (0, public_decorator_1.Public)(),
+    (0, common_1.Get)(),
+    __param(0, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], CartController.prototype, "getCart", null);
+__decorate([
+    (0, public_decorator_1.Public)(),
+    (0, common_1.Post)('items'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, typeof (_b = typeof add_cart_item_dto_1.AddCartItemDto !== "undefined" && add_cart_item_dto_1.AddCartItemDto) === "function" ? _b : Object]),
+    __metadata("design:returntype", Promise)
+], CartController.prototype, "addItem", null);
+__decorate([
+    (0, public_decorator_1.Public)(),
+    (0, common_1.Patch)('items/:id'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, typeof (_c = typeof update_cart_item_dto_1.UpdateCartItemDto !== "undefined" && update_cart_item_dto_1.UpdateCartItemDto) === "function" ? _c : Object]),
+    __metadata("design:returntype", Promise)
+], CartController.prototype, "updateItem", null);
+__decorate([
+    (0, public_decorator_1.Public)(),
+    (0, common_1.Delete)('items/:id'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", Promise)
+], CartController.prototype, "removeItem", null);
+__decorate([
+    (0, public_decorator_1.Public)(),
+    (0, common_1.Delete)('clear'),
+    __param(0, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], CartController.prototype, "clearCart", null);
+exports.CartController = CartController = __decorate([
+    (0, swagger_1.ApiTags)('Cart'),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.Controller)('cart'),
+    __metadata("design:paramtypes", [typeof (_a = typeof cart_service_1.CartService !== "undefined" && cart_service_1.CartService) === "function" ? _a : Object])
+], CartController);
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiQzpcXFVzZXJzXFxhYjMxMVxcSW50ZXJzaGlwXFxibGlua2V2ZW50elxcbmVhcnpyby1iYWNrZW5kXFxzcmNcXGNhcnRcXGNhcnQuY29udHJvbGxlci50cyIsIm1hcHBpbmdzIjoiOzs7Ozs7Ozs7Ozs7Ozs7O0FBQUEsMkNBVXdCO0FBQ3hCLDZDQUF5RDtBQUN6RCxpREFBNkM7QUFDN0MsK0RBQXlEO0FBQ3pELHFFQUErRDtBQUMvRCwyREFBc0Q7QUFDdEQsNEVBQStEO0FBTXhELElBQU0sY0FBYyxHQUFwQixNQUFNLGNBQWM7SUFDSTtJQUE3QixZQUE2QixXQUF3QjtRQUF4QixnQkFBVyxHQUFYLFdBQVcsQ0FBYTtJQUFHLENBQUM7SUFJbkQsQUFBTixLQUFLLENBQUMsT0FBTyxDQUFRLEdBQVE7UUFDM0IsTUFBTSxNQUFNLEdBQUcsR0FBRyxDQUFDLElBQUksRUFBRSxFQUFFLElBQUksSUFBSSxDQUFDLENBQUMsb0JBQW9CO1FBQ3pELE9BQU8sSUFBSSxDQUFDLFdBQVcsQ0FBQyxPQUFPLENBQUMsTUFBTSxDQUFDLENBQUM7SUFDMUMsQ0FBQztJQUlLLEFBQU4sS0FBSyxDQUFDLE9BQU8sQ0FBUSxHQUFRLEVBQVUsR0FBbUI7UUFDeEQsTUFBTSxNQUFNLEdBQUcsR0FBRyxDQUFDLElBQUksRUFBRSxFQUFFLElBQUksSUFBSSxDQUFDO1FBQ3BDLE9BQU8sSUFBSSxDQUFDLFdBQVcsQ0FBQyxPQUFPLENBQUMsTUFBTSxFQUFFLEdBQUcsQ0FBQyxDQUFDO0lBQy9DLENBQUM7SUFJSyxBQUFOLEtBQUssQ0FBQyxVQUFVLENBQ1AsR0FBUSxFQUNGLEVBQVUsRUFDZixHQUFzQjtRQUU5QixNQUFNLE1BQU0sR0FBRyxHQUFHLENBQUMsSUFBSSxFQUFFLEVBQUUsSUFBSSxJQUFJLENBQUM7UUFDcEMsT0FBTyxJQUFJLENBQUMsV0FBVyxDQUFDLFVBQVUsQ0FBQyxNQUFNLEVBQUUsQ0FBQyxFQUFFLEVBQUUsR0FBRyxDQUFDLENBQUM7SUFDdkQsQ0FBQztJQUlLLEFBQU4sS0FBSyxDQUFDLFVBQVUsQ0FBUSxHQUFRLEVBQWUsRUFBVTtRQUN2RCxNQUFNLE1BQU0sR0FBRyxHQUFHLENBQUMsSUFBSSxFQUFFLEVBQUUsSUFBSSxJQUFJLENBQUM7UUFDcEMsT0FBTyxJQUFJLENBQUMsV0FBVyxDQUFDLFVBQVUsQ0FBQyxNQUFNLEVBQUUsQ0FBQyxFQUFFLENBQUMsQ0FBQztJQUNsRCxDQUFDO0lBSUssQUFBTixLQUFLLENBQUMsU0FBUyxDQUFRLEdBQVE7UUFDN0IsTUFBTSxNQUFNLEdBQUcsR0FBRyxDQUFDLElBQUksRUFBRSxFQUFFLElBQUksSUFBSSxDQUFDO1FBQ3BDLE9BQU8sSUFBSSxDQUFDLFdBQVcsQ0FBQyxTQUFTLENBQUMsTUFBTSxDQUFDLENBQUM7SUFDNUMsQ0FBQztDQUNGLENBQUE7QUF6Q1ksd0NBQWM7QUFLbkI7SUFGTCxJQUFBLHlCQUFNLEdBQUU7SUFDUixJQUFBLFlBQUcsR0FBRTtJQUNTLFdBQUEsSUFBQSxZQUFHLEdBQUUsQ0FBQTs7Ozs2Q0FHbkI7QUFJSztJQUZMLElBQUEseUJBQU0sR0FBRTtJQUNSLElBQUEsYUFBSSxFQUFDLE9BQU8sQ0FBQztJQUNDLFdBQUEsSUFBQSxZQUFHLEdBQUUsQ0FBQTtJQUFZLFdBQUEsSUFBQSxhQUFJLEdBQUUsQ0FBQTs7aUVBQU0sa0NBQWMsb0JBQWQsa0NBQWM7OzZDQUd6RDtBQUlLO0lBRkwsSUFBQSx5QkFBTSxHQUFFO0lBQ1IsSUFBQSxjQUFLLEVBQUMsV0FBVyxDQUFDO0lBRWhCLFdBQUEsSUFBQSxZQUFHLEdBQUUsQ0FBQTtJQUNMLFdBQUEsSUFBQSxjQUFLLEVBQUMsSUFBSSxDQUFDLENBQUE7SUFDWCxXQUFBLElBQUEsYUFBSSxHQUFFLENBQUE7O3lFQUFNLHdDQUFpQixvQkFBakIsd0NBQWlCOztnREFJL0I7QUFJSztJQUZMLElBQUEseUJBQU0sR0FBRTtJQUNSLElBQUEsZUFBTSxFQUFDLFdBQVcsQ0FBQztJQUNGLFdBQUEsSUFBQSxZQUFHLEdBQUUsQ0FBQTtJQUFZLFdBQUEsSUFBQSxjQUFLLEVBQUMsSUFBSSxDQUFDLENBQUE7Ozs7Z0RBRzdDO0FBSUs7SUFGTCxJQUFBLHlCQUFNLEdBQUU7SUFDUixJQUFBLGVBQU0sRUFBQyxPQUFPLENBQUM7SUFDQyxXQUFBLElBQUEsWUFBRyxHQUFFLENBQUE7Ozs7K0NBR3JCO3lCQXhDVSxjQUFjO0lBSjFCLElBQUEsaUJBQU8sRUFBQyxNQUFNLENBQUM7SUFDZixJQUFBLHVCQUFhLEdBQUU7SUFDZixJQUFBLGtCQUFTLEVBQUMsNkJBQVksQ0FBQztJQUN2QixJQUFBLG1CQUFVLEVBQUMsTUFBTSxDQUFDO3lEQUV5QiwwQkFBVyxvQkFBWCwwQkFBVztHQUQxQyxjQUFjLENBeUMxQiIsIm5hbWVzIjpbXSwic291cmNlcyI6WyJDOlxcVXNlcnNcXGFiMzExXFxJbnRlcnNoaXBcXGJsaW5rZXZlbnR6XFxuZWFyenJvLWJhY2tlbmRcXHNyY1xcY2FydFxcY2FydC5jb250cm9sbGVyLnRzIl0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7XHJcbiAgQ29udHJvbGxlcixcclxuICBHZXQsXHJcbiAgUG9zdCxcclxuICBQYXRjaCxcclxuICBEZWxldGUsXHJcbiAgQm9keSxcclxuICBQYXJhbSxcclxuICBVc2VHdWFyZHMsXHJcbiAgUmVxLFxyXG59IGZyb20gJ0BuZXN0anMvY29tbW9uJztcclxuaW1wb3J0IHsgQXBpVGFncywgQXBpQmVhcmVyQXV0aCB9IGZyb20gJ0BuZXN0anMvc3dhZ2dlcic7XHJcbmltcG9ydCB7IENhcnRTZXJ2aWNlIH0gZnJvbSAnLi9jYXJ0LnNlcnZpY2UnO1xyXG5pbXBvcnQgeyBBZGRDYXJ0SXRlbUR0byB9IGZyb20gJy4vZHRvL2FkZC1jYXJ0LWl0ZW0uZHRvJztcclxuaW1wb3J0IHsgVXBkYXRlQ2FydEl0ZW1EdG8gfSBmcm9tICcuL2R0by91cGRhdGUtY2FydC1pdGVtLmR0byc7XHJcbmltcG9ydCB7IEp3dEF1dGhHdWFyZCB9IGZyb20gJy4uL2F1dGgvand0LWF1dGguZ3VhcmQnO1xyXG5pbXBvcnQgeyBQdWJsaWMgfSBmcm9tICcuLi9jb21tb24vZGVjb3JhdG9ycy9wdWJsaWMuZGVjb3JhdG9yJztcclxuXHJcbkBBcGlUYWdzKCdDYXJ0JylcclxuQEFwaUJlYXJlckF1dGgoKVxyXG5AVXNlR3VhcmRzKEp3dEF1dGhHdWFyZClcclxuQENvbnRyb2xsZXIoJ2NhcnQnKVxyXG5leHBvcnQgY2xhc3MgQ2FydENvbnRyb2xsZXIge1xyXG4gIGNvbnN0cnVjdG9yKHByaXZhdGUgcmVhZG9ubHkgY2FydFNlcnZpY2U6IENhcnRTZXJ2aWNlKSB7fVxyXG5cclxuICBAUHVibGljKClcclxuICBAR2V0KClcclxuICBhc3luYyBnZXRDYXJ0KEBSZXEoKSByZXE6IGFueSkge1xyXG4gICAgY29uc3QgdXNlcklkID0gcmVxLnVzZXI/LmlkIHx8IG51bGw7IC8vIEFsbG93IGd1ZXN0IGNhcnRzXHJcbiAgICByZXR1cm4gdGhpcy5jYXJ0U2VydmljZS5nZXRDYXJ0KHVzZXJJZCk7XHJcbiAgfVxyXG5cclxuICBAUHVibGljKClcclxuICBAUG9zdCgnaXRlbXMnKVxyXG4gIGFzeW5jIGFkZEl0ZW0oQFJlcSgpIHJlcTogYW55LCBAQm9keSgpIGR0bzogQWRkQ2FydEl0ZW1EdG8pIHtcclxuICAgIGNvbnN0IHVzZXJJZCA9IHJlcS51c2VyPy5pZCB8fCBudWxsO1xyXG4gICAgcmV0dXJuIHRoaXMuY2FydFNlcnZpY2UuYWRkSXRlbSh1c2VySWQsIGR0byk7XHJcbiAgfVxyXG5cclxuICBAUHVibGljKClcclxuICBAUGF0Y2goJ2l0ZW1zLzppZCcpXHJcbiAgYXN5bmMgdXBkYXRlSXRlbShcclxuICAgIEBSZXEoKSByZXE6IGFueSxcclxuICAgIEBQYXJhbSgnaWQnKSBpZDogc3RyaW5nLFxyXG4gICAgQEJvZHkoKSBkdG86IFVwZGF0ZUNhcnRJdGVtRHRvLFxyXG4gICkge1xyXG4gICAgY29uc3QgdXNlcklkID0gcmVxLnVzZXI/LmlkIHx8IG51bGw7XHJcbiAgICByZXR1cm4gdGhpcy5jYXJ0U2VydmljZS51cGRhdGVJdGVtKHVzZXJJZCwgK2lkLCBkdG8pO1xyXG4gIH1cclxuXHJcbiAgQFB1YmxpYygpXHJcbiAgQERlbGV0ZSgnaXRlbXMvOmlkJylcclxuICBhc3luYyByZW1vdmVJdGVtKEBSZXEoKSByZXE6IGFueSwgQFBhcmFtKCdpZCcpIGlkOiBzdHJpbmcpIHtcclxuICAgIGNvbnN0IHVzZXJJZCA9IHJlcS51c2VyPy5pZCB8fCBudWxsO1xyXG4gICAgcmV0dXJuIHRoaXMuY2FydFNlcnZpY2UucmVtb3ZlSXRlbSh1c2VySWQsICtpZCk7XHJcbiAgfVxyXG5cclxuICBAUHVibGljKClcclxuICBARGVsZXRlKCdjbGVhcicpXHJcbiAgYXN5bmMgY2xlYXJDYXJ0KEBSZXEoKSByZXE6IGFueSkge1xyXG4gICAgY29uc3QgdXNlcklkID0gcmVxLnVzZXI/LmlkIHx8IG51bGw7XHJcbiAgICByZXR1cm4gdGhpcy5jYXJ0U2VydmljZS5jbGVhckNhcnQodXNlcklkKTtcclxuICB9XHJcbn1cclxuIl0sInZlcnNpb24iOjN9

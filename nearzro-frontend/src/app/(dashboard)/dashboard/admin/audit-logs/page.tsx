@@ -6,12 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
-  Activity, Shield, User, Calendar, Download, Search,
-  Filter, Eye, AlertTriangle, CheckCircle2, XCircle
+  Activity, Shield, User, Calendar, Download, Search, Eye, CheckCircle2, XCircle
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { auditApi } from "@/lib/api-endpoints";
 
 const AUDIT_LOGS = [
   { id: 1, action: "USER_LOGIN", user: "admin@NearZro.com", role: "ADMIN", ip: "192.168.1.100", timestamp: "2024-03-15 14:30:25", status: "SUCCESS" },

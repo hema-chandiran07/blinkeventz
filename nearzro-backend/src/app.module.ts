@@ -8,6 +8,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { BullModule } from '@nestjs/bull';
+import Joi from 'joi';
 // Feature Modules (UNCHANGED)
 import { PrismaModule } from './prisma/prisma.module';
 import { VendorsModule } from './vendors/vendors.module';
@@ -31,27 +32,62 @@ import { PromotionsModule } from './promotions/promotions.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { ApprovalsModule } from './approvals/approvals.module';
+import { AIChatModule } from './ai-chatbot/ai-chat.module';
 
 @Module({
   imports: [
     // =====================================================
-    // 1️⃣ ENV CONFIG (GLOBAL)
+    // 1️⃣ ENV CONFIG (GLOBAL) - With Validation
     // =====================================================
     ConfigModule.forRoot({
       isGlobal: true,
+      validationSchema: Joi.object({
+        // Database - Required
+        DATABASE_URL: Joi.string().required(),
+        
+        // Redis - Required
+        REDIS_HOST: Joi.string().default('redis'),
+        REDIS_PORT: Joi.number().default(6379),
+        
+        // OpenAI - Optional (will disable AI features if missing)
+        OPENAI_API_KEY: Joi.string().optional(),
+        OPENAI_MODEL: Joi.string().default('gpt-4o-mini'),
+        
+        // JWT - Required
+        JWT_SECRET: Joi.string().required(),
+        
+        // App Settings
+        APP_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
+        
+        // Feature Flags
+        USE_REDIS: Joi.boolean().default(true),
+
+        // Email - Gmail SMTP (Optional)
+        GMAIL_USER: Joi.string().optional(),
+        GMAIL_APP_PASSWORD: Joi.string().optional(),
+        EMAIL_FROM: Joi.string().optional(),
+      }),
+      validationOptions: {
+        allowUnknown: true,
+        abortEarly: false,
+      },
     }),
 
     // =====================================================
     // 2️⃣ RATE LIMITING (SECURITY)
     // =====================================================
-   ThrottlerModule.forRoot({
-  throttlers: [
-    {
-      ttl: 60,
-      limit: 30,
-    },
-  ],
-}),
+    ThrottlerModule.forRoot([
+      {
+        name: 'short',
+        ttl: 60000,
+        limit: 100,
+      },
+      {
+        name: 'medium',
+        ttl: 60000,
+        limit: 30,
+      },
+    ]),
 
 
     // =====================================================
@@ -113,16 +149,13 @@ import { ApprovalsModule } from './approvals/approvals.module';
         };
       },
     }),
-      // 🐂 BULLMQ (GLOBAL REDIS CONNECTION) - Optional
+      // 🐂 BULLMQ (GLOBAL REDIS CONNECTION)
     BullModule.forRoot({
       redis: {
         host: process.env.REDIS_HOST || '127.0.0.1',
         port: Number(process.env.REDIS_PORT) || 6379,
       },
-      // Disable Bull if Redis is not available
-      defaultJobOptions: {
-        attempts: 1,
-      },
+      // Queue-level config controls retries - not global
     }),
     
 
@@ -140,6 +173,7 @@ import { ApprovalsModule } from './approvals/approvals.module';
     VenuesModule,
     AvailabilityModule,
     AIPlannerModule,
+    AIChatModule,
     BookingModule,
     VendorsModule,
     CartModule,
