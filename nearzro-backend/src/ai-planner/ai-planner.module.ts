@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bull';
 import { AIPlannerController } from './ai-planner.controller';
 import { AIPlannerService } from './ai-planner.service';
-import { OpenAIProvider } from './providers/openai.provider';
+import { OpenAIModule } from './openai.module';
 import { PrismaModule } from '../prisma/prisma.module';
 
 // Import new services
@@ -20,6 +20,7 @@ import { QUEUE_CONFIG } from './constants/ai-planner.constants';
 @Module({
   imports: [
     PrismaModule,
+    OpenAIModule,
     // Register BullMQ queue for AI Planner
     BullModule.registerQueue(
       {
@@ -30,7 +31,7 @@ import { QUEUE_CONFIG } from './constants/ai-planner.constants';
   controllers: [AIPlannerController],
   providers: [
     AIPlannerService,
-    OpenAIProvider,
+    // OpenAIProvider is now provided by OpenAIModule
     // Register new services for dependency injection
     PlanGenerationService,
     VendorMatchingService,
@@ -42,6 +43,7 @@ import { QUEUE_CONFIG } from './constants/ai-planner.constants';
   ],
   exports: [
     AIPlannerService,
+    OpenAIModule, // Re-export OpenAIModule for downstream modules
     PlanGenerationService,
     VendorMatchingService,
     CartConversionService,

@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/auth-context";
@@ -48,9 +49,11 @@ const SIDEBAR_ITEMS: Record<string, SidebarItem[]> = {
   ],
   VENUE_OWNER: [
     { name: 'Dashboard', href: '/dashboard/venue', icon: LayoutDashboard },
-    { name: 'My Venue', href: '/dashboard/venue/details', icon: Building2 },
+    { name: 'My Venues', href: '/dashboard/venue#venues', icon: Building2 },
     { name: 'Bookings', href: '/dashboard/venue/bookings', icon: Calendar },
     { name: 'Calendar', href: '/dashboard/venue/calendar', icon: Calendar },
+    { name: 'Analytics', href: '/dashboard/venue/analytics', icon: BarChart3 },
+    { name: 'Payouts', href: '/dashboard/venue/payouts', icon: DollarSign },
     { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
     { name: 'KYC & Bank', href: '/dashboard/venue/kyc', icon: CheckSquare },
   ],
@@ -157,10 +160,11 @@ export function DashboardSidebar() {
               whileHover={{ scale: 1.1, rotate: 5 }}
               transition={{ type: "spring", stiffness: 400, damping: 10 }}
             >
-              <img
+              <Image
                 src="/logo.jpeg"
                 alt="NearZro Logo"
-                className="h-full w-full object-cover"
+                fill
+                className="object-cover"
               />
             </motion.div>
             <span className="text-xl font-bold bg-gradient-to-r from-black to-neutral-700 bg-clip-text text-transparent group-hover:from-neutral-800 group-hover:to-black transition-all">

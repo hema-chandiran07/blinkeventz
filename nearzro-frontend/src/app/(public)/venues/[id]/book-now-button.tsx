@@ -15,14 +15,14 @@ interface BookNowButtonProps {
   selectedSlot?: TimeSlotType | null;
 }
 
-export function BookNowButton({ 
-  venueId, 
-  venueName, 
-  price, 
+export function BookNowButton({
+  venueId,
+  venueName,
+  price,
   basePrice,
   selectedTime,
   selectedDate,
-  selectedSlot 
+  selectedSlot
 }: BookNowButtonProps) {
   const router = useRouter();
 

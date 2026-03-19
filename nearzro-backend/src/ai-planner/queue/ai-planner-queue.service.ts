@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OpenAIProvider } from '../providers/openai.provider';
 import { cleanAndParseJSON } from '../utils/json-cleaner';
@@ -16,12 +16,14 @@ import {
 
 export interface GeneratePlanJobData {
   userId: number;
+  conversationId?: string;  // Optional for backward compatibility
   budget: number;
   eventType: string;
   city: string;
   area: string;
   guestCount: number;
   eventId?: number;
+  requestId?: string;  // For request tracing
 }
 
 export interface GeneratePlanJobResult {
@@ -67,14 +69,60 @@ export class AIPlannerQueueService {
   /**
    * Process AI plan generation job
    * This method is called by the Bull processor
+   * Includes:
+   * - Atomic linking (conversation <-> plan)
+   * - Idempotency check
+   * - Race condition prevention
+   * - Proper failure handling
+   * - Regeneration support
    */
   async processGeneratePlanJob(data: GeneratePlanJobData): Promise<GeneratePlanJobResult> {
-    const { userId, budget, eventType, city, area, guestCount, eventId } = data;
+    const { userId, conversationId, budget, eventType, city, area, guestCount, eventId, requestId } = data;
     
-    this.logger.log(`Processing AI plan job for user ${userId}`);
+    const traceId = requestId ? requestId.substring(0, 8) : 'no-trace';
+    this.logger.log(`[${traceId}] Processing AI plan job for user ${userId}${conversationId ? `, conversation: ${conversationId}` : ''}`);
+
+    // PART 6: Race condition prevention - only proceed if status is READY
+    if (conversationId) {
+      const updated = await this.prisma.aIConversation.updateMany({
+        where: {
+          id: conversationId,
+          userId,
+          status: 'READY',
+        },
+        data: {
+          status: 'GENERATING',
+        },
+      });
+
+      if (updated.count === 0) {
+        this.logger.warn(`[${traceId}] Race condition prevented or invalid state for conversation ${conversationId}`);
+        return {
+          planId: 0,
+          status: 'failed',
+          error: 'Invalid conversation state or generation already in progress',
+        };
+      }
+    }
 
     try {
-      // Step 1: If eventId is provided, this is a regeneration - fetch existing plan data
+      // PART 2: Idempotency - Check if already generated
+      if (conversationId) {
+        const existingConv = await this.prisma.aIConversation.findUnique({
+          where: { id: conversationId },
+        });
+
+        if (existingConv?.planId) {
+          this.logger.log(`[${traceId}] Plan already exists for conversation ${conversationId}`);
+          return {
+            planId: existingConv.planId,
+            status: 'success',
+          };
+        }
+      }
+
+      // PART 8: Handle regeneration BEFORE validation
+      // If eventId is provided and budget is 0, this is a regeneration request
       let sanitized;
       let actualBudget = budget;
       let actualEventType = eventType;
@@ -82,19 +130,31 @@ export class AIPlannerQueueService {
       let actualArea = area;
       let actualGuestCount = guestCount;
 
-      if (eventId && eventId > 0 && budget === 0) {
-        // This is a regeneration - fetch existing plan
+      // Check if this is a regeneration request (eventId provided + budget is 0)
+      const isRegeneration = eventId && eventId > 0 && budget === 0;
+      
+      if (isRegeneration) {
+        // Fetch existing plan FIRST for regeneration
         const existingPlan = await this.prisma.aIPlan.findFirst({
           where: { id: eventId, userId },
         });
         
-        if (existingPlan) {
-          actualBudget = existingPlan.budget;
-          actualEventType = 'Regenerated';
-          actualCity = existingPlan.city;
-          actualArea = existingPlan.area;
-          actualGuestCount = existingPlan.guestCount;
+        if (!existingPlan) {
+          // If plan not found, throw Invalid budget error
+          throw new BadRequestException('Invalid budget');
         }
+        
+        // Populate missing fields from existing plan
+        actualBudget = existingPlan.budget;
+        actualEventType = 'Regenerated';
+        actualCity = existingPlan.city;
+        actualArea = existingPlan.area || '';
+        actualGuestCount = existingPlan.guestCount;
+      }
+
+      // Validate input AFTER handling regeneration (so fields are populated for regeneration case)
+      if (!actualBudget || !actualCity || !actualEventType || !actualGuestCount) {
+        throw new Error('Missing required fields: budget, city, eventType, guestCount');
       }
 
       // Step 2: Sanitize all inputs

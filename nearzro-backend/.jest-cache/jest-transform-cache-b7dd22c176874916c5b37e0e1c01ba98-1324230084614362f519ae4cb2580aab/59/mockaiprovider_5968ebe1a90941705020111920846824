@@ -1,0 +1,116 @@
+72125ceb4f17ea928aa6e2a323113fa0
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var MockAIProvider_1;
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.MockAIProvider = void 0;
+const common_1 = require("@nestjs/common");
+const circuit_breaker_1 = require("../utils/circuit-breaker");
+/**
+ * Mock AI Provider
+ *
+ * Fallback provider used when OpenAI API key is not configured.
+ * Provides mock responses for development/testing without requiring API key.
+ *
+ * This ensures the application can start even without OpenAI API key,
+ * which is useful for:
+ * - Local development without API key
+ * - Production environments where AI features are optional
+ * - CI/CD pipelines without API keys
+ *
+ * WARNING: This should only be used as a fallback. Real AI responses
+ * will not be generated in this mode.
+ */
+let MockAIProvider = MockAIProvider_1 = class MockAIProvider {
+    logger = new common_1.Logger(MockAIProvider_1.name);
+    /**
+     * Check if the provider is available
+     * Always returns true since this is a local mock
+     */
+    isAvailable() {
+        return true;
+    }
+    /**
+     * Get provider name
+     */
+    getProviderName() {
+        return 'MockAI';
+    }
+    /**
+     * Get estimated cost per 1K tokens
+     * Returns 0 since no API calls are made
+     */
+    getCostPer1KTokens() {
+        return 0;
+    }
+    /**
+     * Get circuit breaker state
+     * Always returns CLOSED since no actual calls are made
+     */
+    getCircuitBreakerState() {
+        return circuit_breaker_1.CircuitBreakerState.CLOSED;
+    }
+    /**
+     * Get circuit breaker stats
+     */
+    getCircuitBreakerStats() {
+        return {
+            state: 'CLOSED',
+            failureCount: 0,
+            successCount: 0,
+            isAvailable: true,
+        };
+    }
+    /**
+     * Check if circuit breaker is open
+     * Always returns false for mock provider
+     */
+    isCircuitOpen() {
+        return false;
+    }
+    /**
+     * Execute AI generation with circuit breaker protection
+     * Returns a mock response
+     */
+    async generateWithCircuitBreaker(prompt) {
+        return this.generate(prompt);
+    }
+    /**
+     * Generate mock AI response
+     * Returns a predefined response indicating AI is not available
+     */
+    async generate(prompt) {
+        this.logger.warn('MockAI provider is active - OpenAI API key not configured. ' +
+            'AI features are disabled. Please configure OPENAI_API_KEY for real AI responses.');
+        // Return a mock response that indicates AI is unavailable
+        return JSON.stringify({
+            error: 'AI_SERVICE_UNAVAILABLE',
+            message: 'OpenAI API key not configured. Please set OPENAI_API_KEY environment variable.',
+            mock: true,
+            // Provide some basic fallback data for testing
+            fallback: {
+                suggestions: [
+                    'Please configure OPENAI_API_KEY to enable AI features',
+                    'You can get an API key from https://platform.openai.com/api-keys'
+                ]
+            }
+        });
+    }
+    /**
+     * Estimate cost for token usage
+     * Returns 0 since no actual API calls are made
+     */
+    estimateCost(inputTokens, outputTokens) {
+        return 0;
+    }
+};
+exports.MockAIProvider = MockAIProvider;
+exports.MockAIProvider = MockAIProvider = MockAIProvider_1 = __decorate([
+    (0, common_1.Injectable)()
+], MockAIProvider);
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiQzpcXFVzZXJzXFxIZW1hY2hhbmRpcmFuXFxJbnRlcm5zaGlwXFxOZWFyenJvXFxuZWFyenJvLWJhY2tlbmRcXHNyY1xcYWktcGxhbm5lclxcYWktcHJvdmlkZXJzXFxtb2NrLWFpLnByb3ZpZGVyLnRzIiwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7QUFBQSwyQ0FBb0Q7QUFFcEQsOERBQStEO0FBRS9EOzs7Ozs7Ozs7Ozs7OztHQWNHO0FBRUksSUFBTSxjQUFjLHNCQUFwQixNQUFNLGNBQWM7SUFDUixNQUFNLEdBQUcsSUFBSSxlQUFNLENBQUMsZ0JBQWMsQ0FBQyxJQUFJLENBQUMsQ0FBQztJQUUxRDs7O09BR0c7SUFDSCxXQUFXO1FBQ1QsT0FBTyxJQUFJLENBQUM7SUFDZCxDQUFDO0lBRUQ7O09BRUc7SUFDSCxlQUFlO1FBQ2IsT0FBTyxRQUFRLENBQUM7SUFDbEIsQ0FBQztJQUVEOzs7T0FHRztJQUNILGtCQUFrQjtRQUNoQixPQUFPLENBQUMsQ0FBQztJQUNYLENBQUM7SUFFRDs7O09BR0c7SUFDSCxzQkFBc0I7UUFDcEIsT0FBTyxxQ0FBbUIsQ0FBQyxNQUFNLENBQUM7SUFDcEMsQ0FBQztJQUVEOztPQUVHO0lBQ0gsc0JBQXNCO1FBTXBCLE9BQU87WUFDTCxLQUFLLEVBQUUsUUFBUTtZQUNmLFlBQVksRUFBRSxDQUFDO1lBQ2YsWUFBWSxFQUFFLENBQUM7WUFDZixXQUFXLEVBQUUsSUFBSTtTQUNsQixDQUFDO0lBQ0osQ0FBQztJQUVEOzs7T0FHRztJQUNILGFBQWE7UUFDWCxPQUFPLEtBQUssQ0FBQztJQUNmLENBQUM7SUFFRDs7O09BR0c7SUFDSCxLQUFLLENBQUMsMEJBQTBCLENBQUMsTUFBYztRQUM3QyxPQUFPLElBQUksQ0FBQyxRQUFRLENBQUMsTUFBTSxDQUFDLENBQUM7SUFDL0IsQ0FBQztJQUVEOzs7T0FHRztJQUNILEtBQUssQ0FBQyxRQUFRLENBQUMsTUFBYztRQUMzQixJQUFJLENBQUMsTUFBTSxDQUFDLElBQUksQ0FDZCw2REFBNkQ7WUFDN0Qsa0ZBQWtGLENBQ25GLENBQUM7UUFFRiwwREFBMEQ7UUFDMUQsT0FBTyxJQUFJLENBQUMsU0FBUyxDQUFDO1lBQ3BCLEtBQUssRUFBRSx3QkFBd0I7WUFDL0IsT0FBTyxFQUFFLGdGQUFnRjtZQUN6RixJQUFJLEVBQUUsSUFBSTtZQUNWLCtDQUErQztZQUMvQyxRQUFRLEVBQUU7Z0JBQ1IsV0FBVyxFQUFFO29CQUNYLHVEQUF1RDtvQkFDdkQsa0VBQWtFO2lCQUNuRTthQUNGO1NBQ0YsQ0FBQyxDQUFDO0lBQ0wsQ0FBQztJQUVEOzs7T0FHRztJQUNILFlBQVksQ0FBQyxXQUFtQixFQUFFLFlBQW9CO1FBQ3BELE9BQU8sQ0FBQyxDQUFDO0lBQ1gsQ0FBQztDQUNGLENBQUE7QUFuR1ksd0NBQWM7eUJBQWQsY0FBYztJQUQxQixJQUFBLG1CQUFVLEdBQUU7R0FDQSxjQUFjLENBbUcxQiIsIm5hbWVzIjpbXSwic291cmNlcyI6WyJDOlxcVXNlcnNcXEhlbWFjaGFuZGlyYW5cXEludGVybnNoaXBcXE5lYXJ6cm9cXG5lYXJ6cm8tYmFja2VuZFxcc3JjXFxhaS1wbGFubmVyXFxhaS1wcm92aWRlcnNcXG1vY2stYWkucHJvdmlkZXIudHMiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHsgTG9nZ2VyLCBJbmplY3RhYmxlIH0gZnJvbSAnQG5lc3Rqcy9jb21tb24nO1xyXG5pbXBvcnQgeyBBSVByb3ZpZGVyLCBBSUNpcmN1aXRCcmVha2VyUHJvdmlkZXIgfSBmcm9tICcuL2FpLXByb3ZpZGVyLmludGVyZmFjZSc7XHJcbmltcG9ydCB7IENpcmN1aXRCcmVha2VyU3RhdGUgfSBmcm9tICcuLi91dGlscy9jaXJjdWl0LWJyZWFrZXInO1xyXG5cclxuLyoqXHJcbiAqIE1vY2sgQUkgUHJvdmlkZXJcclxuICogXHJcbiAqIEZhbGxiYWNrIHByb3ZpZGVyIHVzZWQgd2hlbiBPcGVuQUkgQVBJIGtleSBpcyBub3QgY29uZmlndXJlZC5cclxuICogUHJvdmlkZXMgbW9jayByZXNwb25zZXMgZm9yIGRldmVsb3BtZW50L3Rlc3Rpbmcgd2l0aG91dCByZXF1aXJpbmcgQVBJIGtleS5cclxuICogXHJcbiAqIFRoaXMgZW5zdXJlcyB0aGUgYXBwbGljYXRpb24gY2FuIHN0YXJ0IGV2ZW4gd2l0aG91dCBPcGVuQUkgQVBJIGtleSxcclxuICogd2hpY2ggaXMgdXNlZnVsIGZvcjpcclxuICogLSBMb2NhbCBkZXZlbG9wbWVudCB3aXRob3V0IEFQSSBrZXlcclxuICogLSBQcm9kdWN0aW9uIGVudmlyb25tZW50cyB3aGVyZSBBSSBmZWF0dXJlcyBhcmUgb3B0aW9uYWxcclxuICogLSBDSS9DRCBwaXBlbGluZXMgd2l0aG91dCBBUEkga2V5c1xyXG4gKiBcclxuICogV0FSTklORzogVGhpcyBzaG91bGQgb25seSBiZSB1c2VkIGFzIGEgZmFsbGJhY2suIFJlYWwgQUkgcmVzcG9uc2VzXHJcbiAqIHdpbGwgbm90IGJlIGdlbmVyYXRlZCBpbiB0aGlzIG1vZGUuXHJcbiAqL1xyXG5ASW5qZWN0YWJsZSgpXHJcbmV4cG9ydCBjbGFzcyBNb2NrQUlQcm92aWRlciBpbXBsZW1lbnRzIEFJQ2lyY3VpdEJyZWFrZXJQcm92aWRlciB7XHJcbiAgcHJpdmF0ZSByZWFkb25seSBsb2dnZXIgPSBuZXcgTG9nZ2VyKE1vY2tBSVByb3ZpZGVyLm5hbWUpO1xyXG5cclxuICAvKipcclxuICAgKiBDaGVjayBpZiB0aGUgcHJvdmlkZXIgaXMgYXZhaWxhYmxlXHJcbiAgICogQWx3YXlzIHJldHVybnMgdHJ1ZSBzaW5jZSB0aGlzIGlzIGEgbG9jYWwgbW9ja1xyXG4gICAqL1xyXG4gIGlzQXZhaWxhYmxlKCk6IGJvb2xlYW4ge1xyXG4gICAgcmV0dXJuIHRydWU7XHJcbiAgfVxyXG5cclxuICAvKipcclxuICAgKiBHZXQgcHJvdmlkZXIgbmFtZVxyXG4gICAqL1xyXG4gIGdldFByb3ZpZGVyTmFtZSgpOiBzdHJpbmcge1xyXG4gICAgcmV0dXJuICdNb2NrQUknO1xyXG4gIH1cclxuXHJcbiAgLyoqXHJcbiAgICogR2V0IGVzdGltYXRlZCBjb3N0IHBlciAxSyB0b2tlbnNcclxuICAgKiBSZXR1cm5zIDAgc2luY2Ugbm8gQVBJIGNhbGxzIGFyZSBtYWRlXHJcbiAgICovXHJcbiAgZ2V0Q29zdFBlcjFLVG9rZW5zKCk6IG51bWJlciB7XHJcbiAgICByZXR1cm4gMDtcclxuICB9XHJcblxyXG4gIC8qKlxyXG4gICAqIEdldCBjaXJjdWl0IGJyZWFrZXIgc3RhdGVcclxuICAgKiBBbHdheXMgcmV0dXJucyBDTE9TRUQgc2luY2Ugbm8gYWN0dWFsIGNhbGxzIGFyZSBtYWRlXHJcbiAgICovXHJcbiAgZ2V0Q2lyY3VpdEJyZWFrZXJTdGF0ZSgpOiBDaXJjdWl0QnJlYWtlclN0YXRlIHtcclxuICAgIHJldHVybiBDaXJjdWl0QnJlYWtlclN0YXRlLkNMT1NFRDtcclxuICB9XHJcblxyXG4gIC8qKlxyXG4gICAqIEdldCBjaXJjdWl0IGJyZWFrZXIgc3RhdHNcclxuICAgKi9cclxuICBnZXRDaXJjdWl0QnJlYWtlclN0YXRzKCk6IHtcclxuICAgIHN0YXRlOiBzdHJpbmc7XHJcbiAgICBmYWlsdXJlQ291bnQ6IG51bWJlcjtcclxuICAgIHN1Y2Nlc3NDb3VudDogbnVtYmVyO1xyXG4gICAgaXNBdmFpbGFibGU6IGJvb2xlYW47XHJcbiAgfSB7XHJcbiAgICByZXR1cm4ge1xyXG4gICAgICBzdGF0ZTogJ0NMT1NFRCcsXHJcbiAgICAgIGZhaWx1cmVDb3VudDogMCxcclxuICAgICAgc3VjY2Vzc0NvdW50OiAwLFxyXG4gICAgICBpc0F2YWlsYWJsZTogdHJ1ZSxcclxuICAgIH07XHJcbiAgfVxyXG5cclxuICAvKipcclxuICAgKiBDaGVjayBpZiBjaXJjdWl0IGJyZWFrZXIgaXMgb3BlblxyXG4gICAqIEFsd2F5cyByZXR1cm5zIGZhbHNlIGZvciBtb2NrIHByb3ZpZGVyXHJcbiAgICovXHJcbiAgaXNDaXJjdWl0T3BlbigpOiBib29sZWFuIHtcclxuICAgIHJldHVybiBmYWxzZTtcclxuICB9XHJcblxyXG4gIC8qKlxyXG4gICAqIEV4ZWN1dGUgQUkgZ2VuZXJhdGlvbiB3aXRoIGNpcmN1aXQgYnJlYWtlciBwcm90ZWN0aW9uXHJcbiAgICogUmV0dXJucyBhIG1vY2sgcmVzcG9uc2VcclxuICAgKi9cclxuICBhc3luYyBnZW5lcmF0ZVdpdGhDaXJjdWl0QnJlYWtlcihwcm9tcHQ6IHN0cmluZyk6IFByb21pc2U8c3RyaW5nPiB7XHJcbiAgICByZXR1cm4gdGhpcy5nZW5lcmF0ZShwcm9tcHQpO1xyXG4gIH1cclxuXHJcbiAgLyoqXHJcbiAgICogR2VuZXJhdGUgbW9jayBBSSByZXNwb25zZVxyXG4gICAqIFJldHVybnMgYSBwcmVkZWZpbmVkIHJlc3BvbnNlIGluZGljYXRpbmcgQUkgaXMgbm90IGF2YWlsYWJsZVxyXG4gICAqL1xyXG4gIGFzeW5jIGdlbmVyYXRlKHByb21wdDogc3RyaW5nKTogUHJvbWlzZTxzdHJpbmc+IHtcclxuICAgIHRoaXMubG9nZ2VyLndhcm4oXHJcbiAgICAgICdNb2NrQUkgcHJvdmlkZXIgaXMgYWN0aXZlIC0gT3BlbkFJIEFQSSBrZXkgbm90IGNvbmZpZ3VyZWQuICcgK1xyXG4gICAgICAnQUkgZmVhdHVyZXMgYXJlIGRpc2FibGVkLiBQbGVhc2UgY29uZmlndXJlIE9QRU5BSV9BUElfS0VZIGZvciByZWFsIEFJIHJlc3BvbnNlcy4nXHJcbiAgICApO1xyXG5cclxuICAgIC8vIFJldHVybiBhIG1vY2sgcmVzcG9uc2UgdGhhdCBpbmRpY2F0ZXMgQUkgaXMgdW5hdmFpbGFibGVcclxuICAgIHJldHVybiBKU09OLnN0cmluZ2lmeSh7XHJcbiAgICAgIGVycm9yOiAnQUlfU0VSVklDRV9VTkFWQUlMQUJMRScsXHJcbiAgICAgIG1lc3NhZ2U6ICdPcGVuQUkgQVBJIGtleSBub3QgY29uZmlndXJlZC4gUGxlYXNlIHNldCBPUEVOQUlfQVBJX0tFWSBlbnZpcm9ubWVudCB2YXJpYWJsZS4nLFxyXG4gICAgICBtb2NrOiB0cnVlLFxyXG4gICAgICAvLyBQcm92aWRlIHNvbWUgYmFzaWMgZmFsbGJhY2sgZGF0YSBmb3IgdGVzdGluZ1xyXG4gICAgICBmYWxsYmFjazoge1xyXG4gICAgICAgIHN1Z2dlc3Rpb25zOiBbXHJcbiAgICAgICAgICAnUGxlYXNlIGNvbmZpZ3VyZSBPUEVOQUlfQVBJX0tFWSB0byBlbmFibGUgQUkgZmVhdHVyZXMnLFxyXG4gICAgICAgICAgJ1lvdSBjYW4gZ2V0IGFuIEFQSSBrZXkgZnJvbSBodHRwczovL3BsYXRmb3JtLm9wZW5haS5jb20vYXBpLWtleXMnXHJcbiAgICAgICAgXVxyXG4gICAgICB9XHJcbiAgICB9KTtcclxuICB9XHJcblxyXG4gIC8qKlxyXG4gICAqIEVzdGltYXRlIGNvc3QgZm9yIHRva2VuIHVzYWdlXHJcbiAgICogUmV0dXJucyAwIHNpbmNlIG5vIGFjdHVhbCBBUEkgY2FsbHMgYXJlIG1hZGVcclxuICAgKi9cclxuICBlc3RpbWF0ZUNvc3QoaW5wdXRUb2tlbnM6IG51bWJlciwgb3V0cHV0VG9rZW5zOiBudW1iZXIpOiBudW1iZXIge1xyXG4gICAgcmV0dXJuIDA7XHJcbiAgfVxyXG59XHJcbiJdLCJ2ZXJzaW9uIjozfQ==

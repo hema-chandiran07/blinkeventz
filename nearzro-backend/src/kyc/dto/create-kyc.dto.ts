@@ -13,6 +13,11 @@ export class CreateKycDto {
   @IsString()
   docNumber: string;
 
+  @ApiProperty({ description: 'Account holder full name', required: false })
+  @IsOptional()
+  @IsString()
+  accountHolder?: string;
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()

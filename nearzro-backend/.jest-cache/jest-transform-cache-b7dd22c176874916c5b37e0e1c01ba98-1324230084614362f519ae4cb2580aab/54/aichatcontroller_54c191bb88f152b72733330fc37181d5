@@ -1,0 +1,229 @@
+b590daafd044d56ffbd961ecf754cf38
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.AIChatController = void 0;
+const common_1 = require("@nestjs/common");
+const throttler_1 = require("@nestjs/throttler");
+const swagger_1 = require("@nestjs/swagger");
+const uuid_1 = require("uuid");
+const ai_chat_service_1 = require("./ai-chat.service");
+const conversation_service_1 = require("./conversation.service");
+const jwt_auth_guard_1 = require("../auth/jwt-auth.guard");
+const roles_guard_1 = require("../common/guards/roles.guard");
+const public_decorator_1 = require("../common/decorators/public.decorator");
+const client_1 = require("@prisma/client");
+const roles_decorator_1 = require("../common/decorators/roles.decorator");
+const chat_message_dto_1 = require("./dto/chat-message.dto");
+/**
+ * AI Chat Controller
+ *
+ * Provides conversational AI interface for event planning.
+ * Public endpoints for demo, authenticated endpoints for actual usage.
+ */
+let AIChatController = class AIChatController {
+    chatService;
+    conversationService;
+    constructor(chatService, conversationService) {
+        this.chatService = chatService;
+        this.conversationService = conversationService;
+    }
+    /**
+     * Public demo endpoint
+     *
+     * GET /ai-chat/public/demo
+     *
+     * Returns sample chatbot payload for unauthenticated users to preview.
+     */
+    async getDemo() {
+        return this.chatService.getDemoResponse();
+    }
+    /**
+     * Send a message to the AI chatbot (authenticated)
+     *
+     * POST /ai-chat/message
+     *
+     * Creates or continues a conversation.
+     * Requires authentication and CUSTOMER or ADMIN role.
+     * Rate limited: 5 messages per minute per user
+     */
+    async sendMessage(req, dto) {
+        const userId = req.user.userId;
+        const requestId = (0, uuid_1.v4)();
+        if (!dto.message || dto.message.trim().length === 0) {
+            throw new common_1.BadRequestException('Message cannot be empty');
+        }
+        const result = await this.chatService.handleMessage(userId, dto.message, dto.conversationId, requestId);
+        return {
+            conversationId: result.conversationId,
+            reply: result.reply,
+            status: result.status,
+            planId: result.planId,
+            state: result.state,
+            requiresAuth: result.requiresAuth,
+        };
+    }
+    /**
+     * Send a message to the AI chatbot (guest/public)
+     *
+     * POST /ai-chat/public/message
+     *
+     * Guest users can try the chatbot without logging in.
+     * Returns tempState that can be used after login.
+     * Rate limited: 3 messages per minute (stricter than authenticated)
+     */
+    async sendGuestMessage(dto) {
+        if (!dto.message || dto.message.trim().length === 0) {
+            throw new common_1.BadRequestException('Message cannot be empty');
+        }
+        // Handle as guest - don't persist, just extract state
+        const result = await this.chatService.handleGuestMessage(dto.message, dto.tempState);
+        return {
+            conversationId: result.conversationId,
+            reply: result.reply,
+            status: result.status,
+            planId: result.planId,
+            state: result.state,
+            requiresAuth: result.requiresAuth,
+        };
+    }
+    /**
+     * Get conversation status
+     *
+     * GET /ai-chat/conversations/:conversationId
+     *
+     * Returns current status of a conversation.
+     * Requires authentication.
+     */
+    async getConversation(req, conversationId) {
+        const userId = req.user.userId;
+        return this.chatService.getConversationStatus(conversationId, userId);
+    }
+    /**
+     * List user's conversations
+     *
+     * GET /ai-chat/conversations
+     *
+     * Returns list of all conversations for the user.
+     * Requires authentication.
+     */
+    async listConversations(req) {
+        const userId = req.user.userId;
+        return this.conversationService.getUserConversations(userId);
+    }
+    /**
+     * Start a new conversation
+     *
+     * POST /ai-chat/conversations
+     *
+     * Creates a new conversation and returns its ID.
+     * Requires authentication.
+     */
+    async startConversation(req) {
+        const userId = req.user.userId;
+        const conversation = await this.conversationService.createConversation(userId);
+        return {
+            conversationId: conversation.id,
+            message: "Hello! I'm your AI event planning assistant. What type of event would you like to plan?",
+        };
+    }
+};
+exports.AIChatController = AIChatController;
+__decorate([
+    (0, public_decorator_1.Public)(),
+    (0, common_1.Get)('public/demo'),
+    (0, swagger_1.ApiOperation)({ summary: 'Demo endpoint - returns sample chatbot response' }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", typeof (_c = typeof Promise !== "undefined" && Promise) === "function" ? _c : Object)
+], AIChatController.prototype, "getDemo", null);
+__decorate([
+    (0, throttler_1.Throttle)({
+        default: {
+            limit: 5, // 5 messages per minute per user
+            ttl: 60000,
+        },
+    }),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard, throttler_1.ThrottlerGuard),
+    (0, roles_decorator_1.Roles)(client_1.Role.CUSTOMER, client_1.Role.ADMIN),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, common_1.Post)('message'),
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
+    (0, swagger_1.ApiOperation)({ summary: 'Send message to AI chatbot (requires auth)' }),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, typeof (_d = typeof chat_message_dto_1.SendMessageDto !== "undefined" && chat_message_dto_1.SendMessageDto) === "function" ? _d : Object]),
+    __metadata("design:returntype", typeof (_e = typeof Promise !== "undefined" && Promise) === "function" ? _e : Object)
+], AIChatController.prototype, "sendMessage", null);
+__decorate([
+    (0, public_decorator_1.Public)(),
+    (0, common_1.UseGuards)(throttler_1.ThrottlerGuard),
+    (0, throttler_1.Throttle)({
+        default: {
+            limit: 3, // 3 messages per minute for guests (stricter than authenticated)
+            ttl: 60000,
+        },
+    }),
+    (0, common_1.Post)('public/message'),
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
+    (0, swagger_1.ApiOperation)({ summary: 'Send message as guest (no auth required)' }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [typeof (_f = typeof chat_message_dto_1.SendMessageDto !== "undefined" && chat_message_dto_1.SendMessageDto) === "function" ? _f : Object]),
+    __metadata("design:returntype", typeof (_g = typeof Promise !== "undefined" && Promise) === "function" ? _g : Object)
+], AIChatController.prototype, "sendGuestMessage", null);
+__decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
+    (0, roles_decorator_1.Roles)(client_1.Role.CUSTOMER, client_1.Role.ADMIN),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, common_1.Get)('conversations/:conversationId'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get conversation status (requires auth)' }),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('conversationId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", typeof (_h = typeof Promise !== "undefined" && Promise) === "function" ? _h : Object)
+], AIChatController.prototype, "getConversation", null);
+__decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
+    (0, roles_decorator_1.Roles)(client_1.Role.CUSTOMER, client_1.Role.ADMIN),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, common_1.Get)('conversations'),
+    (0, swagger_1.ApiOperation)({ summary: 'List user conversations (requires auth)' }),
+    __param(0, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", typeof (_j = typeof Promise !== "undefined" && Promise) === "function" ? _j : Object)
+], AIChatController.prototype, "listConversations", null);
+__decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
+    (0, roles_decorator_1.Roles)(client_1.Role.CUSTOMER, client_1.Role.ADMIN),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, common_1.Post)('conversations'),
+    (0, common_1.HttpCode)(common_1.HttpStatus.CREATED),
+    (0, swagger_1.ApiOperation)({ summary: 'Start a new conversation (requires auth)' }),
+    __param(0, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", typeof (_k = typeof Promise !== "undefined" && Promise) === "function" ? _k : Object)
+], AIChatController.prototype, "startConversation", null);
+exports.AIChatController = AIChatController = __decorate([
+    (0, swagger_1.ApiTags)('AI Chat'),
+    (0, common_1.UseGuards)(throttler_1.ThrottlerGuard),
+    (0, common_1.Controller)('ai-chat'),
+    __metadata("design:paramtypes", [typeof (_a = typeof ai_chat_service_1.AIChatService !== "undefined" && ai_chat_service_1.AIChatService) === "function" ? _a : Object, typeof (_b = typeof conversation_service_1.ConversationService !== "undefined" && conversation_service_1.ConversationService) === "function" ? _b : Object])
+], AIChatController);
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiQzpcXFVzZXJzXFxIZW1hY2hhbmRpcmFuXFxJbnRlcm5zaGlwXFxOZWFyenJvXFxuZWFyenJvLWJhY2tlbmRcXHNyY1xcYWktY2hhdGJvdFxcYWktY2hhdC5jb250cm9sbGVyLnRzIiwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7Ozs7QUFBQSwyQ0FXd0I7QUFDeEIsaURBQTZEO0FBQzdELDZDQUF1RTtBQUN2RSwrQkFBb0M7QUFDcEMsdURBQWtEO0FBQ2xELGlFQUE2RDtBQUM3RCwyREFBc0Q7QUFDdEQsOERBQTBEO0FBQzFELDRFQUErRDtBQUMvRCwyQ0FBc0M7QUFDdEMsMEVBQTZEO0FBQzdELDZEQUtnQztBQUdoQzs7Ozs7R0FLRztBQUlJLElBQU0sZ0JBQWdCLEdBQXRCLE1BQU0sZ0JBQWdCO0lBRVI7SUFDQTtJQUZuQixZQUNtQixXQUEwQixFQUMxQixtQkFBd0M7UUFEeEMsZ0JBQVcsR0FBWCxXQUFXLENBQWU7UUFDMUIsd0JBQW1CLEdBQW5CLG1CQUFtQixDQUFxQjtJQUN4RCxDQUFDO0lBRUo7Ozs7OztPQU1HO0lBSUcsQUFBTixLQUFLLENBQUMsT0FBTztRQUNYLE9BQU8sSUFBSSxDQUFDLFdBQVcsQ0FBQyxlQUFlLEVBQUUsQ0FBQztJQUM1QyxDQUFDO0lBRUQ7Ozs7Ozs7O09BUUc7SUFhRyxBQUFOLEtBQUssQ0FBQyxXQUFXLENBQ1IsR0FBUSxFQUNQLEdBQW1CO1FBRTNCLE1BQU0sTUFBTSxHQUFHLEdBQUcsQ0FBQyxJQUFJLENBQUMsTUFBTSxDQUFDO1FBQy9CLE1BQU0sU0FBUyxHQUFHLElBQUEsU0FBTSxHQUFFLENBQUM7UUFFM0IsSUFBSSxDQUFDLEdBQUcsQ0FBQyxPQUFPLElBQUksR0FBRyxDQUFDLE9BQU8sQ0FBQyxJQUFJLEVBQUUsQ0FBQyxNQUFNLEtBQUssQ0FBQyxFQUFFLENBQUM7WUFDcEQsTUFBTSxJQUFJLDRCQUFtQixDQUFDLHlCQUF5QixDQUFDLENBQUM7UUFDM0QsQ0FBQztRQUVELE1BQU0sTUFBTSxHQUFHLE1BQU0sSUFBSSxDQUFDLFdBQVcs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TTVCIiwibmFtZXMiOltdLCJzb3VyY2VzIjpbIkM6XFxVc2Vyc1xcSGVtYWNoYW5kaXJhblxcSW50ZXJuc2hpcFxcTmVhcnpyb1xcbmVhcnpyby1iYWNrZW5kXFxzcmNcXGFpLWNoYXRib3RcXGFpLWNoYXQuY29udHJvbGxlci50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQge1xyXG4gIENvbnRyb2xsZXIsXHJcbiAgUG9zdCxcclxuICBHZXQsXHJcbiAgQm9keSxcclxuICBQYXJhbSxcclxuICBVc2VHdWFyZHMsXHJcbiAgUmVxLFxyXG4gIEh0dHBDb2RlLFxyXG4gIEh0dHBTdGF0dXMsXHJcbiAgQmFkUmVxdWVzdEV4Y2VwdGlvbixcclxufSBmcm9tICdAbmVzdGpzL2NvbW1vbic7XHJcbmltcG9ydCB7IFRocm90dGxlLCBUaHJvdHRsZXJHdWFyZCB9IGZyb20gJ0BuZXN0anMvdGhyb3R0bGVyJztcclxuaW1wb3J0IHsgQXBpQmVhcmVyQXV0aCwgQXBpVGFncywgQXBpT3BlcmF0aW9uIH0gZnJvbSAnQG5lc3Rqcy9zd2FnZ2VyJztcclxuaW1wb3J0IHsgdjQgYXMgdXVpZHY0IH0gZnJvbSAndXVpZCc7XHJcbmltcG9ydCB7IEFJQ2hhdFNlcnZpY2UgfSBmcm9tICcuL2FpLWNoYXQuc2VydmljZSc7XHJcbmltcG9ydCB7IENvbnZlcnNhdGlvblNlcnZpY2UgfSBmcm9tICcuL2NvbnZlcnNhdGlvbi5zZXJ2aWNlJztcclxuaW1wb3J0IHsgSnd0QXV0aEd1YXJkIH0gZnJvbSAnLi4vYXV0aC9qd3QtYXV0aC5ndWFyZCc7XHJcbmltcG9ydCB7IFJvbGVzR3VhcmQgfSBmcm9tICcuLi9jb21tb24vZ3VhcmRzL3JvbGVzLmd1YXJkJztcclxuaW1wb3J0IHsgUHVibGljIH0gZnJvbSAnLi4vY29tbW9uL2RlY29yYXRvcnMvcHVibGljLmRlY29yYXRvcic7XHJcbmltcG9ydCB7IFJvbGUgfSBmcm9tICdAcHJpc21hL2NsaWVudCc7XHJcbmltcG9ydCB7IFJvbGVzIH0gZnJvbSAnLi4vY29tbW9uL2RlY29yYXRvcnMvcm9sZXMuZGVjb3JhdG9yJztcclxuaW1wb3J0IHtcclxuICBTZW5kTWVzc2FnZUR0byxcclxuICBDaGF0TWVzc2FnZVJlc3BvbnNlRHRvLFxyXG4gIEdldENvbnZlcnNhdGlvbkR0byxcclxuICBEZW1vQ2hhdFJlc3BvbnNlRHRvLFxyXG59IGZyb20gJy4vZHRvL2NoYXQtbWVzc2FnZS5kdG8nO1xyXG5pbXBvcnQgeyB0b0Zyb250ZW5kU3RhdHVzIH0gZnJvbSAnLi90eXBlcy9jb252ZXJzYXRpb24tc3RhdGUudHlwZSc7XHJcblxyXG4vKipcclxuICogQUkgQ2hhdCBDb250cm9sbGVyXHJcbiAqIFxyXG4gKiBQcm92aWRlcyBjb252ZXJzYXRpb25hbCBBSSBpbnRlcmZhY2UgZm9yIGV2ZW50IHBsYW5uaW5nLlxyXG4gKiBQdWJsaWMgZW5kcG9pbnRzIGZvciBkZW1vLCBhdXRoZW50aWNhdGVkIGVuZHBvaW50cyBmb3IgYWN0dWFsIHVzYWdlLlxyXG4gKi9cclxuQEFwaVRhZ3MoJ0FJIENoYXQnKVxyXG5AVXNlR3VhcmRzKFRocm90dGxlckd1YXJkKVxyXG5AQ29udHJvbGxlcignYWktY2hhdCcpXHJcbmV4cG9ydCBjbGFzcyBBSUNoYXRDb250cm9sbGVyIHtcclxuICBjb25zdHJ1Y3RvcihcclxuICAgIHByaXZhdGUgcmVhZG9ubHkgY2hhdFNlcnZpY2U6IEFJQ2hhdFNlcnZpY2UsXHJcbiAgICBwcml2YXRlIHJlYWRvbmx5IGNvbnZlcnNhdGlvblNlcnZpY2U6IENvbnZlcnNhdGlvblNlcnZpY2UsXHJcbiAgKSB7fVxyXG5cclxuICAvKipcclxuICAgKiBQdWJsaWMgZGVtbyBlbmRwb2ludFxyXG4gICAqIFxyXG4gICAqIEdFVCAvYWktY2hhdC9wdWJsaWMvZGVtb1xyXG4gICAqIFxyXG4gICAqIFJldHVybnMgc2FtcGxlIGNoYXRib3QgcGF5bG9hZCBmb3IgdW5hdXRoZW50aWNhdGVkIHVzZXJzIHRvIHByZXZpZXcuXHJcbiAgICovXHJcbiAgQFB1YmxpYygpXHJcbiAgQEdldCgncHVibGljL2RlbW8nKVxyXG4gIEBBcGlPcGVyYXRpb24oeyBzdW1tYXJ5OiAnRGVtbyBlbmRwb2ludCAtIHJldHVybnMgc2FtcGxlIGNoYXRib3QgcmVzcG9uc2UnIH0pXHJcbiAgYXN5bmMgZ2V0RGVtbygpOiBQcm9taXNlPERlbW9DaGF0UmVzcG9uc2VEdG8+IHtcclxuICAgIHJldHVybiB0aGlzLmNoYXRTZXJ2aWNlLmdldERlbW9SZXNwb25zZSgpO1xyXG4gIH1cclxuXHJcbiAgLyoqXHJcbiAgICogU2VuZCBhIG1lc3NhZ2UgdG8gdGhlIEFJIGNoYXRib3QgKGF1dGhlbnRpY2F0ZWQpXHJcbiAgICogXHJcbiAgICogUE9TVCAvYWktY2hhdC9tZXNzYWdlXHJcbiAgICogXHJcbiAgICogQ3JlYXRlcyBvciBjb250aW51ZXMgYSBjb252ZXJzYXRpb24uXHJcbiAgICogUmVxdWlyZXMgYXV0aGVudGljYXRpb24gYW5kIENVU1RPTUVSIG9yIEFETUlOIHJvbGUuXHJcbiAgICogUmF0ZSBsaW1pdGVkOiA1IG1lc3NhZ2VzIHBlciBtaW51dGUgcGVyIHVzZXJcclxuICAgKi9cclxuICBAVGhyb3R0bGUoe1xyXG4gICAgZGVmYXVsdDoge1xyXG4gICAgICBsaW1pdDogNSwgIC8vIDUgbWVzc2FnZXMgcGVyIG1pbnV0ZSBwZXIgdXNlclxyXG4gICAgICB0dGw6IDYwMDAwLFxyXG4gICAgfSxcclxuICB9KVxyXG4gIEBVc2VHdWFyZHMoSnd0QXV0aEd1YXJkLCBSb2xlc0d1YXJkLCBUaHJvdHRsZXJHdWFyZClcclxuICBAUm9sZXMoUm9sZS5DVVNUT01FUiwgUm9sZS5BRE1JTilcclxuICBAQXBpQmVhcmVyQXV0aCgpXHJcbiAgQFBvc3QoJ21lc3NhZ2UnKVxyXG4gIEBIdHRwQ29kZShIdHRwU3RhdHVzLk9LKVxyXG4gIEBBcGlPcGVyYXRpb24oeyBzdW1tYXJ5OiAnU2VuZCBtZXNzYWdlIHRvIEFJIGNoYXRib3QgKHJlcXVpcmVzIGF1dGgpJyB9KVxyXG4gIGFzeW5jIHNlbmRNZXNzYWdlKFxyXG4gICAgQFJlcSgpIHJlcTogYW55LFxyXG4gICAgQEJvZHkoKSBkdG86IFNlbmRNZXNzYWdlRHRvLFxyXG4gICk6IFByb21pc2U8Q2hhdE1lc3NhZ2VSZXNwb25zZUR0bz4ge1xyXG4gICAgY29uc3QgdXNlcklkID0gcmVxLnVzZXIudXNlcklkO1xyXG4gICAgY29uc3QgcmVxdWVzdElkID0gdXVpZHY0KCk7XHJcblxyXG4gICAgaWYgKCFkdG8ubWVzc2FnZSB8fCBkdG8ubWVzc2FnZS50cmltKCkubGVuZ3RoID09PSAwKSB7XHJcbiAgICAgIHRocm93IG5ldyBCYWRSZXF1ZXN0RXhjZXB0aW9uKCdNZXNzYWdlIGNhbm5vdCBiZSBlbXB0eScpO1xyXG4gICAgfVxyXG5cclxuICAgIGNvbnN0IHJlc3VsdCA9IGF3YWl0IHRoaXMuY2hhdFNlcnZpY2UuaGFuZGxlTWVzc2FnZShcclxuICAgICAgdXNlcklkLFxyXG4gICAgICBkdG8ubWVzc2FnZSxcclxuICAgICAgZHRvLmNvbnZlcnNhdGlvbklkLFxyXG4gICAgICByZXF1ZXN0SWQsXHJcbiAgICApO1xyXG5cclxuICAgIHJldHVybiB7XHJcbiAgICAgIGNvbnZlcnNhdGlvbklkOiByZXN1bHQuY29udmVyc2F0aW9uSWQsXHJcbiAgICAgIHJlcGx5OiByZXN1bHQucmVwbHksXHJcbiAgICAgIHN0YXR1czogcmVzdWx0LnN0YXR1cyxcclxuICAgICAgcGxhbklkOiByZXN1bHQucGxhbklkLFxyXG4gICAgICBzdGF0ZTogcmVzdWx0LnN0YXRlLFxyXG4gICAgICByZXF1aXJlc0F1dGg6IHJlc3VsdC5yZXF1aXJlc0F1dGgsXHJcbiAgICB9O1xyXG4gIH1cclxuXHJcbiAgLyoqXHJcbiAgICogU2VuZCBhIG1lc3NhZ2UgdG8gdGhlIEFJIGNoYXRib3QgKGd1ZXN0L3B1YmxpYylcclxuICAgKiBcclxuICAgKiBQT1NUIC9haS1jaGF0L3B1YmxpYy9tZXNzYWdlXHJcbiAgICogXHJcbiAgICogR3Vlc3QgdXNlcnMgY2FuIHRyeSB0aGUgY2hhdGJvdCB3aXRob3V0IGxvZ2dpbmcgaW4uXHJcbiAgICogUmV0dXJucyB0ZW1wU3RhdGUgdGhhdCBjYW4gYmUgdXNlZCBhZnRlciBsb2dpbi5cclxuICAgKiBSYXRlIGxpbWl0ZWQ6IDMgbWVzc2FnZXMgcGVyIG1pbnV0ZSAoc3RyaWN0ZXIgdGhhbiBhdXRoZW50aWNhdGVkKVxyXG4gICAqL1xyXG4gIEBQdWJsaWMoKVxyXG4gIEBVc2VHdWFyZHMoVGhyb3R0bGVyR3VhcmQpXHJcbiAgQFRocm90dGxlKHtcclxuICAgIGRlZmF1bHQ6IHtcclxuICAgICAgbGltaXQ6IDMsICAvLyAzIG1lc3NhZ2VzIHBlciBtaW51dGUgZm9yIGd1ZXN0cyAoc3RyaWN0ZXIgdGhhbiBhdXRoZW50aWNhdGVkKVxyXG4gICAgICB0dGw6IDYwMDAwLFxyXG4gICAgfSxcclxuICB9KVxyXG4gIEBQb3N0KCdwdWJsaWMvbWVzc2FnZScpXHJcbiAgQEh0dHBDb2RlKEh0dHBTdGF0dXMuT0spXHJcbiAgQEFwaU9wZXJhdGlvbih7IHN1bW1hcnk6ICdTZW5kIG1lc3NhZ2UgYXMgZ3Vlc3QgKG5vIGF1dGggcmVxdWlyZWQpJyB9KVxyXG4gIGFzeW5jIHNlbmRHdWVzdE1lc3NhZ2UoXHJcbiAgICBAQm9keSgpIGR0bzogU2VuZE1lc3NhZ2VEdG8sXHJcbiAgKTogUHJvbWlzZTxDaGF0TWVzc2FnZVJlc3BvbnNlRHRvPiB7XHJcbiAgICBpZiAoIWR0by5tZXNzYWdlIHx8IGR0by5tZXNzYWdlLnRyaW0oKS5sZW5ndGggPT09IDApIHtcclxuICAgICAgdGhyb3cgbmV3IEJhZFJlcXVlc3RFeGNlcHRpb24oJ01lc3NhZ2UgY2Fubm90IGJlIGVtcHR5Jyk7XHJcbiAgICB9XHJcblxyXG4gICAgLy8gSGFuZGxlIGFzIGd1ZXN0IC0gZG9uJ3QgcGVyc2lzdCwganVzdCBleHRyYWN0IHN0YXRlXHJcbiAgICBjb25zdCByZXN1bHQgPSBhd2FpdCB0aGlzLmNoYXRTZXJ2aWNlLmhhbmRsZUd1ZXN0TWVzc2FnZShcclxuICAgICAgZHRvLm1lc3NhZ2UsXHJcbiAgICAgIGR0by50ZW1wU3RhdGUsXHJcbiAgICApO1xyXG5cclxuICAgIHJldHVybiB7XHJcbiAgICAgIGNvbnZlcnNhdGlvbklkOiByZXN1bHQuY29udmVyc2F0aW9uSWQsXHJcbiAgICAgIHJlcGx5OiByZXN1bHQucmVwbHksXHJcbiAgICAgIHN0YXR1czogcmVzdWx0LnN0YXR1cyxcclxuICAgICAgcGxhbklkOiByZXN1bHQucGxhbklkLFxyXG4gICAgICBzdGF0ZTogcmVzdWx0LnN0YXRlLFxyXG4gICAgICByZXF1aXJlc0F1dGg6IHJlc3VsdC5yZXF1aXJlc0F1dGgsXHJcbiAgICB9O1xyXG4gIH1cclxuXHJcbiAgLyoqXHJcbiAgICogR2V0IGNvbnZlcnNhdGlvbiBzdGF0dXNcclxuICAgKiBcclxuICAgKiBHRVQgL2FpLWNoYXQvY29udmVyc2F0aW9ucy86Y29udmVyc2F0aW9uSWRcclxuICAgKiBcclxuICAgKiBSZXR1cm5zIGN1cnJlbnQgc3RhdHVzIG9mIGEgY29udmVyc2F0aW9uLlxyXG4gICAqIFJlcXVpcmVzIGF1dGhlbnRpY2F0aW9uLlxyXG4gICAqL1xyXG4gIEBVc2VHdWFyZHMoSnd0QXV0aEd1YXJkLCBSb2xlc0d1YXJkKVxyXG4gIEBSb2xlcyhSb2xlLkNVU1RPTUVSLCBSb2xlLkFETUlOKVxyXG4gIEBBcGlCZWFyZXJBdXRoKClcclxuICBAR2V0KCdjb252ZXJzYXRpb25zLzpjb252ZXJzYXRpb25JZCcpXHJcbiAgQEFwaU9wZXJhdGlvbih7IHN1bW1hcnk6ICdHZXQgY29udmVyc2F0aW9uIHN0YXR1cyAocmVxdWlyZXMgYXV0aCknIH0pXHJcbiAgYXN5bmMgZ2V0Q29udmVyc2F0aW9uKFxyXG4gICAgQFJlcSgpIHJlcTogYW55LFxyXG4gICAgQFBhcmFtKCdjb252ZXJzYXRpb25JZCcpIGNvbnZlcnNhdGlvbklkOiBzdHJpbmcsXHJcbiAgKTogUHJvbWlzZTx7XHJcbiAgICBpZDogc3RyaW5nO1xyXG4gICAgc3RhdHVzOiBzdHJpbmc7XHJcbiAgICBwbGFuSWQ/OiBudW1iZXI7XHJcbiAgICBzdGF0ZT86IHtcclxuICAgICAgYnVkZ2V0PzogbnVtYmVyO1xyXG4gICAgICBndWVzdENvdW50PzogbnVtYmVyO1xyXG4gICAgICBjaXR5Pzogc3RyaW5nO1xyXG4gICAgICBhcmVhPzogc3RyaW5nO1xyXG4gICAgICBldmVudFR5cGU/OiBzdHJpbmc7XHJcbiAgICB9O1xyXG4gIH0+IHtcclxuICAgIGNvbnN0IHVzZXJJZCA9IHJlcS51c2VyLnVzZXJJZDtcclxuXHJcbiAgICByZXR1cm4gdGhpcy5jaGF0U2VydmljZS5nZXRDb252ZXJzYXRpb25TdGF0dXMoY29udmVyc2F0aW9uSWQsIHVzZXJJZCk7XHJcbiAgfVxyXG5cclxuICAvKipcclxuICAgKiBMaXN0IHVzZXIncyBjb252ZXJzYXRpb25zXHJcbiAgICogXHJcbiAgICogR0VUIC9haS1jaGF0L2NvbnZlcnNhdGlvbnNcclxuICAgKiBcclxuICAgKiBSZXR1cm5zIGxpc3Qgb2YgYWxsIGNvbnZlcnNhdGlvbnMgZm9yIHRoZSB1c2VyLlxyXG4gICAqIFJlcXVpcmVzIGF1dGhlbnRpY2F0aW9uLlxyXG4gICAqL1xyXG4gIEBVc2VHdWFyZHMoSnd0QXV0aEd1YXJkLCBSb2xlc0d1YXJkKVxyXG4gIEBSb2xlcyhSb2xlLkNVU1RPTUVSLCBSb2xlLkFETUlOKVxyXG4gIEBBcGlCZWFyZXJBdXRoKClcclxuICBAR2V0KCdjb252ZXJzYXRpb25zJylcclxuICBAQXBpT3BlcmF0aW9uKHsgc3VtbWFyeTogJ0xpc3QgdXNlciBjb252ZXJzYXRpb25zIChyZXF1aXJlcyBhdXRoKScgfSlcclxuICBhc3luYyBsaXN0Q29udmVyc2F0aW9ucyhcclxuICAgIEBSZXEoKSByZXE6IGFueSxcclxuICApOiBQcm9taXNlPEFycmF5PHtcclxuICAgIGlkOiBzdHJpbmc7XHJcbiAgICBzdGF0dXM6IHN0cmluZztcclxuICAgIHBsYW5JZD86IG51bWJlcjtcclxuICAgIGNyZWF0ZWRBdDogRGF0ZTtcclxuICB9Pj4ge1xyXG4gICAgY29uc3QgdXNlcklkID0gcmVxLnVzZXIudXNlcklkO1xyXG5cclxuICAgIHJldHVybiB0aGlzLmNvbnZlcnNhdGlvblNlcnZpY2UuZ2V0VXNlckNvbnZlcnNhdGlvbnModXNlcklkKTtcclxuICB9XHJcblxyXG4gIC8qKlxyXG4gICAqIFN0YXJ0IGEgbmV3IGNvbnZlcnNhdGlvblxyXG4gICAqIFxyXG4gICAqIFBPU1QgL2FpLWNoYXQvY29udmVyc2F0aW9uc1xyXG4gICAqIFxyXG4gICAqIENyZWF0ZXMgYSBuZXcgY29udmVyc2F0aW9uIGFuZCByZXR1cm5zIGl0cyBJRC5cclxuICAgKiBSZXF1aXJlcyBhdXRoZW50aWNhdGlvbi5cclxuICAgKi9cclxuICBAVXNlR3VhcmRzKEp3dEF1dGhHdWFyZCwgUm9sZXNHdWFyZClcclxuICBAUm9sZXMoUm9sZS5DVVNUT01FUiwgUm9sZS5BRE1JTilcclxuICBAQXBpQmVhcmVyQXV0aCgpXHJcbiAgQFBvc3QoJ2NvbnZlcnNhdGlvbnMnKVxyXG4gIEBIdHRwQ29kZShIdHRwU3RhdHVzLkNSRUFURUQpXHJcbiAgQEFwaU9wZXJhdGlvbih7IHN1bW1hcnk6ICdTdGFydCBhIG5ldyBjb252ZXJzYXRpb24gKHJlcXVpcmVzIGF1dGgpJyB9KVxyXG4gIGFzeW5jIHN0YXJ0Q29udmVyc2F0aW9uKFxyXG4gICAgQFJlcSgpIHJlcTogYW55LFxyXG4gICk6IFByb21pc2U8e1xyXG4gICAgY29udmVyc2F0aW9uSWQ6IHN0cmluZztcclxuICAgIG1lc3NhZ2U6IHN0cmluZztcclxuICB9PiB7XHJcbiAgICBjb25zdCB1c2VySWQgPSByZXEudXNlci51c2VySWQ7XHJcblxyXG4gICAgY29uc3QgY29udmVyc2F0aW9uID0gYXdhaXQgdGhpcy5jb252ZXJzYXRpb25TZXJ2aWNlLmNyZWF0ZUNvbnZlcnNhdGlvbih1c2VySWQpO1xyXG5cclxuICAgIHJldHVybiB7XHJcbiAgICAgIGNvbnZlcnNhdGlvbklkOiBjb252ZXJzYXRpb24uaWQsXHJcbiAgICAgIG1lc3NhZ2U6IFwiSGVsbG8hIEknbSB5b3VyIEFJIGV2ZW50IHBsYW5uaW5nIGFzc2lzdGFudC4gV2hhdCB0eXBlIG9mIGV2ZW50IHdvdWxkIHlvdSBsaWtlIHRvIHBsYW4/XCIsXHJcbiAgICB9O1xyXG4gIH1cclxufVxyXG4iXSwidmVyc2lvbiI6M30=

@@ -1,0 +1,46 @@
+ad7da5abaacce292e36b6e6ed92faf8d
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.envValidationSchema = void 0;
+const Joi = __importStar(require("joi"));
+exports.envValidationSchema = Joi.object({
+    NODE_ENV: Joi.string().valid('development', 'staging', 'production', 'test').required(),
+    PORT: Joi.number().default(3000),
+    DATABASE_URL: Joi.string().required(),
+    JWT_SECRET: Joi.string().required(),
+    ENCRYPTION_KEY: Joi.string().length(32).required(),
+});
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiQzpcXFVzZXJzXFxIZW1hY2hhbmRpcmFuXFxJbnRlcm5zaGlwXFxOZWFyenJvXFxuZWFyenJvLWJhY2tlbmRcXHNyY1xcY29uZmlnXFxlbnYudmFsaWRhdGlvbi50cyIsIm1hcHBpbmdzIjoiOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7QUFBQSx5Q0FBMkI7QUFDZCxRQUFBLG1CQUFtQixHQUFHLEdBQUcsQ0FBQyxNQUFNLENBQUM7SUFDNUMsUUFBUSxFQUFFLEdBQUcsQ0FBQyxNQUFNLEVBQUUsQ0FBQyxLQUFLLENBQUMsYUFBYSxFQUFFLFNBQVMsRUFBRSxZQUFZLEVBQUUsTUFBTSxDQUFDLENBQUMsUUFBUSxFQUFFO0lBQ3ZGLElBQUksRUFBRSxHQUFHLENBQUMsTUFBTSxFQUFFLENBQUMsT0FBTyxDQUFDLElBQUksQ0FBQztJQUVoQyxZQUFZLEVBQUUsR0FBRyxDQUFDLE1BQU0sRUFBRSxDQUFDLFFBQVEsRUFBRTtJQUVyQyxVQUFVLEVBQUUsR0FBRyxDQUFDLE1BQU0sRUFBRSxDQUFDLFFBQVEsRUFBRTtJQUNuQyxjQUFjLEVBQUUsR0FBRyxDQUFDLE1BQU0sRUFBRSxDQUFDLE1BQU0sQ0FBQyxFQUFFLENBQUMsQ0FBQyxRQUFRLEVBQUU7Q0FDbkQsQ0FBQyxDQUFDIiwibmFtZXMiOltdLCJzb3VyY2VzIjpbIkM6XFxVc2Vyc1xcSGVtYWNoYW5kaXJhblxcSW50ZXJuc2hpcFxcTmVhcnpyb1xcbmVhcnpyby1iYWNrZW5kXFxzcmNcXGNvbmZpZ1xcZW52LnZhbGlkYXRpb24udHMiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0ICogYXMgSm9pIGZyb20gJ2pvaSc7XHJcbmV4cG9ydCBjb25zdCBlbnZWYWxpZGF0aW9uU2NoZW1hID0gSm9pLm9iamVjdCh7XHJcbiAgTk9ERV9FTlY6IEpvaS5zdHJpbmcoKS52YWxpZCgnZGV2ZWxvcG1lbnQnLCAnc3RhZ2luZycsICdwcm9kdWN0aW9uJywgJ3Rlc3QnKS5yZXF1aXJlZCgpLFxyXG4gIFBPUlQ6IEpvaS5udW1iZXIoKS5kZWZhdWx0KDMwMDApLFxyXG5cclxuICBEQVRBQkFTRV9VUkw6IEpvaS5zdHJpbmcoKS5yZXF1aXJlZCgpLFxyXG5cclxuICBKV1RfU0VDUkVUOiBKb2kuc3RyaW5nKCkucmVxdWlyZWQoKSxcclxuICBFTkNSWVBUSU9OX0tFWTogSm9pLnN0cmluZygpLmxlbmd0aCgzMikucmVxdWlyZWQoKSxcclxufSk7XHJcbiJdLCJ2ZXJzaW9uIjozfQ==

@@ -58,6 +58,34 @@ export class AIPlannerService {
   }
 
   /**
+   * Get AI plan by ID without authorization (public preview)
+   * Uses shareId and checks isPublic flag for security
+   */
+  async getPlanPublic(shareId: string) {
+    const plan = await this.prisma.aIPlan.findUnique({
+      where: {
+        shareId,
+      },
+    });
+
+    // Security: Only return plan if isPublic is true
+    if (!plan || !plan.isPublic) {
+      return null;
+    }
+
+    return {
+      id: plan.id,
+      budget: plan.budget,
+      city: plan.city,
+      area: plan.area,
+      guestCount: plan.guestCount,
+      planJson: plan.planJson,
+      status: plan.status,
+      createdAt: plan.createdAt,
+    };
+  }
+
+  /**
    * Match vendors from AI plan
    * This is a synchronous operation for vendor matching
    */

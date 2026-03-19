@@ -1,0 +1,60 @@
+139b93a21c6503b9cad6b4aae6a78c34
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var _a, _b, _c;
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.BookingController = void 0;
+const common_1 = require("@nestjs/common");
+const booking_service_1 = require("./booking.service");
+const jwt_auth_guard_1 = require("../../auth/jwt-auth.guard");
+const swagger_1 = require("@nestjs/swagger");
+let BookingController = class BookingController {
+    bookingService;
+    constructor(bookingService) {
+        this.bookingService = bookingService;
+    }
+    book(req, availabilitySlotId) {
+        return this.bookingService.book(req.user.sub, availabilitySlotId);
+    }
+    // Create booking with venue, date, and time slot (for frontend checkout)
+    async createBooking(req, body) {
+        return this.bookingService.createBookingWithSlot(req.user.sub, body.venueId, new Date(body.date), body.timeSlot);
+    }
+};
+exports.BookingController = BookingController;
+__decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.Post)(),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)('availabilitySlotId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Number]),
+    __metadata("design:returntype", void 0)
+], BookingController.prototype, "book", null);
+__decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.Post)('create'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], BookingController.prototype, "createBooking", null);
+exports.BookingController = BookingController = __decorate([
+    (0, swagger_1.ApiTags)('Booking'),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, common_1.Controller)('booking'),
+    __metadata("design:paramtypes", [typeof (_a = typeof booking_service_1.BookingService !== "undefined" && booking_service_1.BookingService) === "function" ? _a : Object])
+], BookingController);
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiQzpcXFVzZXJzXFxhYjMxMVxcSW50ZXJzaGlwXFxibGlua2V2ZW50elxcbmVhcnpyby1iYWNrZW5kXFxzcmNcXHZlbnVlc1xcYm9va2luZ1xcYm9va2luZy5jb250cm9sbGVyLnRzIiwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7Ozs7QUFBQSwyQ0FBd0U7QUFFeEUsdURBQW1EO0FBQ25ELDhEQUF5RDtBQUN6RCw2Q0FBcUQ7QUFJOUMsSUFBTSxpQkFBaUIsR0FBdkIsTUFBTSxpQkFBaUI7SUFDUjtJQUFwQixZQUFvQixjQUE4QjtRQUE5QixtQkFBYyxHQUFkLGNBQWMsQ0FBZ0I7SUFBRyxDQUFDO0lBSXRELElBQUksQ0FDSyxHQUF3QyxFQUNuQixrQkFBMEI7UUFFdEQsT0FBTyxJQUFJLENBQUMsY0FBYyxDQUFDLElBQUksQ0FBQyxHQUFHLENBQUMsSUFBSSxDQUFDLEdBQUcsRUFBRSxrQkFBa0IsQ0FBQyxDQUFDO0lBQ3BFLENBQUM7SUFFRCx5RUFBeUU7SUFHbkUsQUFBTixLQUFLLENBQUMsYUFBYSxDQUNWLEdBQXdDLEVBQ3ZDLElBSVA7UUFFRCxPQUFPLElBQUksQ0FBQyxjQUFjLENBQUMscUJBQXFCLENBQzlDLEdBQUcsQ0FBQyxJQUFJLENBQUMsR0FBRyxFQUNaLElBQUksQ0FBQyxPQUFPLEVBQ1osSUFBSSxJQUFJLENBQUMsSUFBSSxDQUFDLElBQUksQ0FBQyxFQUNuQixJQUFJLENBQUMsUUFBUSxDQUNkLENBQUM7SUFDSixDQUFDO0NBQ0YsQ0FBQTtBQTlCWSw4Q0FBaUI7QUFLNUI7SUFGQyxJQUFBLGtCQUFTLEVBQUMsNkJBQVksQ0FBQztJQUN2QixJQUFBLGFBQUksR0FBRTtJQUVKLFdBQUEsSUFBQSxZQUFHLEdBQUUsQ0FBQTtJQUNMLFdBQUEsSUFBQSxhQUFJLEVBQUMsb0JBQW9CLENBQUMsQ0FBQTs7Ozs2Q0FHNUI7QUFLSztJQUZMLElBQUEsa0JBQVMsRUFBQyw2QkFBWSxDQUFDO0lBQ3ZCLElBQUEsYUFBSSxFQUFDLFFBQVEsQ0FBQztJQUVaLFdBQUEsSUFBQSxZQUFHLEdBQUUsQ0FBQTtJQUNMLFdBQUEsSUFBQSxhQUFJLEdBQUUsQ0FBQTs7OztzREFZUjs0QkE3QlUsaUJBQWlCO0lBSDdCLElBQUEsaUJBQU8sRUFBQyxTQUFTLENBQUM7SUFDbEIsSUFBQSx1QkFBYSxHQUFFO0lBQ2YsSUFBQSxtQkFBVSxFQUFDLFNBQVMsQ0FBQzt5REFFZ0IsZ0NBQWMsb0JBQWQsZ0NBQWM7R0FEdkMsaUJBQWlCLENBOEI3QiIsIm5hbWVzIjpbXSwic291cmNlcyI6WyJDOlxcVXNlcnNcXGFiMzExXFxJbnRlcnNoaXBcXGJsaW5rZXZlbnR6XFxuZWFyenJvLWJhY2tlbmRcXHNyY1xcdmVudWVzXFxib29raW5nXFxib29raW5nLmNvbnRyb2xsZXIudHMiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHsgQ29udHJvbGxlciwgUG9zdCwgVXNlR3VhcmRzLCBCb2R5LCBSZXEgfSBmcm9tICdAbmVzdGpzL2NvbW1vbic7XHJcbmltcG9ydCB7IFJlcXVlc3QgfSBmcm9tICdleHByZXNzJztcclxuaW1wb3J0IHsgQm9va2luZ1NlcnZpY2UgfSBmcm9tICcuL2Jvb2tpbmcuc2VydmljZSc7XHJcbmltcG9ydCB7IEp3dEF1dGhHdWFyZCB9IGZyb20gJy4uLy4uL2F1dGgvand0LWF1dGguZ3VhcmQnO1xyXG5pbXBvcnR7QXBpQmVhcmVyQXV0aCxBcGlUYWdzfSBmcm9tICdAbmVzdGpzL3N3YWdnZXInO1xyXG5AQXBpVGFncygnQm9va2luZycpXHJcbkBBcGlCZWFyZXJBdXRoKClcclxuQENvbnRyb2xsZXIoJ2Jvb2tpbmcnKVxyXG5leHBvcnQgY2xhc3MgQm9va2luZ0NvbnRyb2xsZXIge1xyXG4gIGNvbnN0cnVjdG9yKHByaXZhdGUgYm9va2luZ1NlcnZpY2U6IEJvb2tpbmdTZXJ2aWNlKSB7fVxyXG5cclxuICBAVXNlR3VhcmRzKEp3dEF1dGhHdWFyZClcclxuICBAUG9zdCgpXHJcbiAgYm9vayhcclxuICAgIEBSZXEoKSByZXE6IFJlcXVlc3QgJiB7IHVzZXI6IHsgc3ViOiBudW1iZXIgfSB9LFxyXG4gICAgQEJvZHkoJ2F2YWlsYWJpbGl0eVNsb3RJZCcpIGF2YWlsYWJpbGl0eVNsb3RJZDogbnVtYmVyLFxyXG4gICkge1xyXG4gICAgcmV0dXJuIHRoaXMuYm9va2luZ1NlcnZpY2UuYm9vayhyZXEudXNlci5zdWIsIGF2YWlsYWJpbGl0eVNsb3RJZCk7XHJcbiAgfVxyXG5cclxuICAvLyBDcmVhdGUgYm9va2luZyB3aXRoIHZlbnVlLCBkYXRlLCBhbmQgdGltZSBzbG90IChmb3IgZnJvbnRlbmQgY2hlY2tvdXQpXHJcbiAgQFVzZUd1YXJkcyhKd3RBdXRoR3VhcmQpXHJcbiAgQFBvc3QoJ2NyZWF0ZScpXHJcbiAgYXN5bmMgY3JlYXRlQm9va2luZyhcclxuICAgIEBSZXEoKSByZXE6IFJlcXVlc3QgJiB7IHVzZXI6IHsgc3ViOiBudW1iZXIgfSB9LFxyXG4gICAgQEJvZHkoKSBib2R5OiB7XHJcbiAgICAgIHZlbnVlSWQ6IG51bWJlcjtcclxuICAgICAgZGF0ZTogc3RyaW5nO1xyXG4gICAgICB0aW1lU2xvdDogc3RyaW5nO1xyXG4gICAgfSxcclxuICApIHtcclxuICAgIHJldHVybiB0aGlzLmJvb2tpbmdTZXJ2aWNlLmNyZWF0ZUJvb2tpbmdXaXRoU2xvdChcclxuICAgICAgcmVxLnVzZXIuc3ViLFxyXG4gICAgICBib2R5LnZlbnVlSWQsXHJcbiAgICAgIG5ldyBEYXRlKGJvZHkuZGF0ZSksXHJcbiAgICAgIGJvZHkudGltZVNsb3QsXHJcbiAgICApO1xyXG4gIH1cclxufVxyXG4iXSwidmVyc2lvbiI6M30=

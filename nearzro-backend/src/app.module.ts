@@ -32,6 +32,7 @@ import { PromotionsModule } from './promotions/promotions.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { ApprovalsModule } from './approvals/approvals.module';
+import { AIChatModule } from './ai-chatbot/ai-chat.module';
 
 @Module({
   imports: [
@@ -77,14 +78,14 @@ import { ApprovalsModule } from './approvals/approvals.module';
     // =====================================================
     ThrottlerModule.forRoot([
       {
+        name: 'short',
         ttl: 60000,
         limit: 100,
-        name: 'short',
       },
       {
+        name: 'medium',
         ttl: 60000,
         limit: 30,
-        name: 'medium',
       },
     ]),
 
@@ -172,6 +173,7 @@ import { ApprovalsModule } from './approvals/approvals.module';
     VenuesModule,
     AvailabilityModule,
     AIPlannerModule,
+    AIChatModule,
     BookingModule,
     VendorsModule,
     CartModule,

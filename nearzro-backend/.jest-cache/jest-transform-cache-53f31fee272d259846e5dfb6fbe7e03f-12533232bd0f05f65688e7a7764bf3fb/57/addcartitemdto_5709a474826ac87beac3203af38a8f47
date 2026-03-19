@@ -1,0 +1,82 @@
+e16cb466b27f549594cff17073be1f44
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.AddCartItemDto = void 0;
+const class_validator_1 = require("class-validator");
+const swagger_1 = require("@nestjs/swagger");
+class AddCartItemDto {
+    itemType;
+    venueId;
+    vendorServiceId;
+    addonId;
+    date;
+    timeSlot;
+    quantity = 1;
+    unitPrice;
+    meta;
+}
+exports.AddCartItemDto = AddCartItemDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({ enum: ['VENUE', 'VENDOR_SERVICE', 'ADDON'] }),
+    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], AddCartItemDto.prototype, "itemType", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsInt)(),
+    __metadata("design:type", Number)
+], AddCartItemDto.prototype, "venueId", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsInt)(),
+    __metadata("design:type", Number)
+], AddCartItemDto.prototype, "vendorServiceId", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsInt)(),
+    __metadata("design:type", Number)
+], AddCartItemDto.prototype, "addonId", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsDateString)(),
+    __metadata("design:type", String)
+], AddCartItemDto.prototype, "date", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ enum: ['MORNING', 'EVENING', 'FULL_DAY'], required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], AddCartItemDto.prototype, "timeSlot", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false, default: 1 }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(1),
+    __metadata("design:type", Number)
+], AddCartItemDto.prototype, "quantity", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsInt)(),
+    __metadata("design:type", Number)
+], AddCartItemDto.prototype, "unitPrice", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Object)
+], AddCartItemDto.prototype, "meta", void 0);
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiQzpcXFVzZXJzXFxhYjMxMVxcSW50ZXJzaGlwXFxibGlua2V2ZW50elxcbmVhcnpyby1iYWNrZW5kXFxzcmNcXGNhcnRcXGR0b1xcYWRkLWNhcnQtaXRlbS5kdG8udHMiLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7O0FBQUEscURBQTZGO0FBQzdGLDZDQUE4QztBQUU5QyxNQUFhLGNBQWM7SUFJekIsUUFBUSxDQUFTO0lBS2pCLE9BQU8sQ0FBVTtJQUtqQixlQUFlLENBQVU7SUFLekIsT0FBTyxDQUFVO0lBS2pCLElBQUksQ0FBVTtJQUtkLFFBQVEsQ0FBVTtJQU1sQixRQUFRLEdBQVksQ0FBQyxDQUFDO0lBS3RCLFNBQVMsQ0FBVTtJQUluQixJQUFJLENBS0Y7Q0FDSDtBQWxERCx3Q0FrREM7QUE5Q0M7SUFIQyxJQUFBLHFCQUFXLEVBQUMsRUFBRSxJQUFJLEVBQUUsQ0FBQyxPQUFPLEVBQUUsZ0JBQWdCLEVBQUUsT0FBTyxDQUFDLEVBQUUsQ0FBQztJQUMzRCxJQUFBLDRCQUFVLEdBQUU7SUFDWixJQUFBLDBCQUFRLEdBQUU7O2dEQUNNO0FBS2pCO0lBSEMsSUFBQSxxQkFBVyxFQUFDLEVBQUUsUUFBUSxFQUFFLEtBQUssRUFBRSxDQUFDO0lBQ2hDLElBQUEsNEJBQVUsR0FBRTtJQUNaLElBQUEsdUJBQUssR0FBRTs7K0NBQ1M7QUFLakI7SUFIQyxJQUFBLHFCQUFXLEVBQUMsRUFBRSxRQUFRLEVBQUUsS0FBSyxFQUFFLENBQUM7SUFDaEMsSUFBQSw0QkFBVSxHQUFFO0lBQ1osSUFBQSx1QkFBSyxHQUFFOzt1REFDaUI7QUFLekI7SUFIQyxJQUFBLHFCQUFXLEVBQUMsRUFBRSxRQUFRLEVBQUUsS0FBSyxFQUFFLENBQUM7SUFDaEMsSUFBQSw0QkFBVSxHQUFFO0lBQ1osSUFBQSx1QkFBSyxHQUFFOzsrQ0FDUztBQUtqQjtJQUhDLElBQUEscUJBQVcsRUFBQyxFQUFFLFFBQVEsRUFBRSxLQUFLLEVBQUUsQ0FBQztJQUNoQyxJQUFBLDRCQUFVLEdBQUU7SUFDWixJQUFBLDhCQUFZLEdBQUU7OzRDQUNEO0FBS2Q7SUFIQyxJQUFBLHFCQUFXLEVBQUMsRUFBRSxJQUFJLEVBQUUsQ0FBQyxTQUFTLEVBQUUsU0FBUyxFQUFFLFVBQVUsQ0FBQyxFQUFFLFFBQVEsRUFBRSxLQUFLLEVBQUUsQ0FBQztJQUMxRSxJQUFBLDRCQUFVLEdBQUU7SUFDWixJQUFBLDBCQUFRLEdBQUU7O2dEQUNPO0FBTWxCO0lBSkMsSUFBQSxxQkFBVyxFQUFDLEVBQUUsUUFBUSxFQUFFLEtBQUssRUFBRSxPQUFPLEVBQUUsQ0FBQyxFQUFFLENBQUM7SUFDNUMsSUFBQSw0QkFBVSxHQUFFO0lBQ1osSUFBQSx1QkFBSyxHQUFFO0lBQ1AsSUFBQSxxQkFBRyxFQUFDLENBQUMsQ0FBQzs7Z0RBQ2U7QUFLdEI7SUFIQyxJQUFBLHFCQUFXLEVBQUMsRUFBRSxRQUFRLEVBQUUsS0FBSyxFQUFFLENBQUM7SUFDaEMsSUFBQSw0QkFBVSxHQUFFO0lBQ1osSUFBQSx1QkFBSyxHQUFFOztpREFDVztBQUluQjtJQUZDLElBQUEscUJBQVcsRUFBQyxFQUFFLFFBQVEsRUFBRSxLQUFLLEVBQUUsQ0FBQztJQUNoQyxJQUFBLDRCQUFVLEdBQUU7OzRDQU1YIiwibmFtZXMiOltdLCJzb3VyY2VzIjpbIkM6XFxVc2Vyc1xcYWIzMTFcXEludGVyc2hpcFxcYmxpbmtldmVudHpcXG5lYXJ6cm8tYmFja2VuZFxcc3JjXFxjYXJ0XFxkdG9cXGFkZC1jYXJ0LWl0ZW0uZHRvLnRzIl0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IElzTm90RW1wdHksIElzU3RyaW5nLCBJc09wdGlvbmFsLCBJc0ludCwgTWluLCBJc0RhdGVTdHJpbmcgfSBmcm9tICdjbGFzcy12YWxpZGF0b3InO1xyXG5pbXBvcnQgeyBBcGlQcm9wZXJ0eSB9IGZyb20gJ0BuZXN0anMvc3dhZ2dlcic7XHJcblxyXG5leHBvcnQgY2xhc3MgQWRkQ2FydEl0ZW1EdG8ge1xyXG4gIEBBcGlQcm9wZXJ0eSh7IGVudW06IFsnVkVOVUUnLCAnVkVORE9SX1NFUlZJQ0UnLCAnQURET04nXSB9KVxyXG4gIEBJc05vdEVtcHR5KClcclxuICBASXNTdHJpbmcoKVxyXG4gIGl0ZW1UeXBlOiBzdHJpbmc7XHJcblxyXG4gIEBBcGlQcm9wZXJ0eSh7IHJlcXVpcmVkOiBmYWxzZSB9KVxyXG4gIEBJc09wdGlvbmFsKClcclxuICBASXNJbnQoKVxyXG4gIHZlbnVlSWQ/OiBudW1iZXI7XHJcblxyXG4gIEBBcGlQcm9wZXJ0eSh7IHJlcXVpcmVkOiBmYWxzZSB9KVxyXG4gIEBJc09wdGlvbmFsKClcclxuICBASXNJbnQoKVxyXG4gIHZlbmRvclNlcnZpY2VJZD86IG51bWJlcjtcclxuXHJcbiAgQEFwaVByb3BlcnR5KHsgcmVxdWlyZWQ6IGZhbHNlIH0pXHJcbiAgQElzT3B0aW9uYWwoKVxyXG4gIEBJc0ludCgpXHJcbiAgYWRkb25JZD86IG51bWJlcjtcclxuXHJcbiAgQEFwaVByb3BlcnR5KHsgcmVxdWlyZWQ6IGZhbHNlIH0pXHJcbiAgQElzT3B0aW9uYWwoKVxyXG4gIEBJc0RhdGVTdHJpbmcoKVxyXG4gIGRhdGU/OiBzdHJpbmc7XHJcblxyXG4gIEBBcGlQcm9wZXJ0eSh7IGVudW06IFsnTU9STklORycsICdFVkVOSU5HJywgJ0ZVTExfREFZJ10sIHJlcXVpcmVkOiBmYWxzZSB9KVxyXG4gIEBJc09wdGlvbmFsKClcclxuICBASXNTdHJpbmcoKVxyXG4gIHRpbWVTbG90Pzogc3RyaW5nO1xyXG5cclxuICBAQXBpUHJvcGVydHkoeyByZXF1aXJlZDogZmFsc2UsIGRlZmF1bHQ6IDEgfSlcclxuICBASXNPcHRpb25hbCgpXHJcbiAgQElzSW50KClcclxuICBATWluKDEpXHJcbiAgcXVhbnRpdHk/OiBudW1iZXIgPSAxO1xyXG5cclxuICBAQXBpUHJvcGVydHkoeyByZXF1aXJlZDogZmFsc2UgfSlcclxuICBASXNPcHRpb25hbCgpXHJcbiAgQElzSW50KClcclxuICB1bml0UHJpY2U/OiBudW1iZXI7XHJcblxyXG4gIEBBcGlQcm9wZXJ0eSh7IHJlcXVpcmVkOiBmYWxzZSB9KVxyXG4gIEBJc09wdGlvbmFsKClcclxuICBtZXRhPzoge1xyXG4gICAgZ3Vlc3RDb3VudD86IG51bWJlcjtcclxuICAgIGFyZWE/OiBzdHJpbmc7XHJcbiAgICBjaXR5Pzogc3RyaW5nO1xyXG4gICAgc2VydmljZVR5cGU/OiBzdHJpbmc7XHJcbiAgfTtcclxufVxyXG4iXSwidmVyc2lvbiI6M30=

@@ -1,0 +1,74 @@
+8fe62bb98bb767c7ef0767dae9eb7afa
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var _a, _b;
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.EventOwnerGuard = void 0;
+const common_1 = require("@nestjs/common");
+const core_1 = require("@nestjs/core");
+const prisma_service_1 = require("../../prisma/prisma.service");
+const client_1 = require("@prisma/client");
+/**
+ * Event Owner Guard
+ *
+ * Validates that the current user owns the event being accessed.
+ * This guard should be used for PATCH/DELETE operations on events.
+ *
+ * Usage:
+ * @UseGuards(JwtAuthGuard, EventOwnerGuard)
+ * @Patch(':id')
+ * updateEvent(@Param('id') id: number) { ... }
+ */
+let EventOwnerGuard = class EventOwnerGuard {
+    reflector;
+    prisma;
+    constructor(reflector, prisma) {
+        this.reflector = reflector;
+        this.prisma = prisma;
+    }
+    async canActivate(context) {
+        const request = context.switchToHttp().getRequest();
+        const user = request.user;
+        // If no user is authenticated, deny access
+        if (!user) {
+            throw new common_1.ForbiddenException('Authentication required');
+        }
+        // Get event ID from params
+        const eventId = parseInt(request.params.id, 10);
+        // Validate event ID is a valid number
+        if (isNaN(eventId) || eventId <= 0) {
+            throw new common_1.NotFoundException('Invalid event ID');
+        }
+        // Check if user is admin - admins can access any event
+        if (user.role === client_1.Role.ADMIN) {
+            return true;
+        }
+        // Find the event and check ownership
+        const event = await this.prisma.event.findUnique({
+            where: { id: eventId },
+            select: { customerId: true },
+        });
+        if (!event) {
+            throw new common_1.NotFoundException(`Event with ID ${eventId} not found`);
+        }
+        // Check if the current user owns the event
+        if (event.customerId !== user.userId) {
+            throw new common_1.ForbiddenException('You do not have permission to modify this event. Only the event owner can perform this action.');
+        }
+        return true;
+    }
+};
+exports.EventOwnerGuard = EventOwnerGuard;
+exports.EventOwnerGuard = EventOwnerGuard = __decorate([
+    (0, common_1.Injectable)(),
+    __metadata("design:paramtypes", [typeof (_a = typeof core_1.Reflector !== "undefined" && core_1.Reflector) === "function" ? _a : Object, typeof (_b = typeof prisma_service_1.PrismaService !== "undefined" && prisma_service_1.PrismaService) === "function" ? _b : Object])
+], EventOwnerGuard);
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiQzpcXFVzZXJzXFxhYjMxMVxcSW50ZXJzaGlwXFxibGlua2V2ZW50elxcbmVhcnpyby1iYWNrZW5kXFxzcmNcXGV2ZW50c1xcZ3VhcmRzXFxldmVudC1vd25lci5ndWFyZC50cyIsIm1hcHBpbmdzIjoiOzs7Ozs7Ozs7Ozs7O0FBQUEsMkNBTXdCO0FBQ3hCLHVDQUF5QztBQUN6QyxnRUFBNEQ7QUFDNUQsMkNBQXNDO0FBRXRDOzs7Ozs7Ozs7O0dBVUc7QUFFSSxJQUFNLGVBQWUsR0FBckIsTUFBTSxlQUFlO0lBRWhCO0lBQ0E7SUFGVixZQUNVLFNBQW9CLEVBQ3BCLE1BQXFCO1FBRHJCLGNBQVMsR0FBVCxTQUFTLENBQVc7UUFDcEIsV0FBTSxHQUFOLE1BQU0sQ0FBZTtJQUM1QixDQUFDO0lBRUosS0FBSyxDQUFDLFdBQVcsQ0FBQyxPQUF5QjtRQUN6QyxNQUFNLE9BQU8sR0FBRyxPQUFPLENBQUMsWUFBWSxFQUFFLENBQUMsVUFBVSxFQUFFLENBQUM7UUFDcEQsTUFBTSxJQUFJLEdBQUcsT0FBTyxDQUFDLElBQUksQ0FBQztRQUUxQiwyQ0FBMkM7UUFDM0MsSUFBSSxDQUFDLElBQUksRUFBRSxDQUFDO1lBQ1YsTUFBTSxJQUFJLDJCQUFrQixDQUFDLHlCQUF5QixDQUFDLENBQUM7UUFDMUQsQ0FBQztRQUVELDJCQUEyQjtRQUMzQixNQUFNLE9BQU8sR0FBRyxRQUFRLENBQUMsT0FBTyxDQUFDLE1BQU0sQ0FBQyxFQUFFLEVBQUUsRUFBRSxDQUFDLENBQUM7UUFFaEQsc0NBQXNDO1FBQ3RDLElBQUksS0FBSyxDQUFDLE9BQU8sQ0FBQyxJQUFJLE9BQU8sSUFBSSxDQUFDLEVBQUUsQ0FBQztZQUNuQyxNQUFNLElBQUksMEJBQWlCLENBQUMsa0JBQWtCLENBQUMsQ0FBQztRQUNsRCxDQUFDO1FBRUQsdURBQXVEO1FBQ3ZELElBQUksSUFBSSxDQUFDLElBQUksS0FBSyxhQUFJLENBQUMsS0FBSyxFQUFFLENBQUM7WUFDN0IsT0FBTyxJQUFJLENBQUM7UUFDZCxDQUFDO1FBRUQscUNBQXFDO1FBQ3JDLE1BQU0sS0FBSyxHQUFHLE1BQU0sSUFBSSxDQUFDLE1BQU0sQ0FBQyxLQUFLLENBQUMsVUFBVSxDQUFDO1lBQy9DLEtBQUssRUFBRSxFQUFFLEVBQUUsRUFBRSxPQUFPLEVBQUU7WUFDdEIsTUFBTSxFQUFFLEVBQUUsVUFBVSxFQUFFLElBQUksRUFBRTtTQUM3QixDQUFDLENBQUM7UUFFSCxJQUFJLENBQUMsS0FBSyxFQUFFLENBQUM7WUFDWCxNQUFNLElBQUksMEJBQWlCLENBQUMsaUJBQWlCLE9BQU8sWUFBWSxDQUFDLENBQUM7UUFDcEUsQ0FBQztRQUVELDJDQUEyQztRQUMzQyxJQUFJLEtBQUssQ0FBQyxVQUFVLEtBQUssSUFBSSxDQUFDLE1BQU0sRUFBRSxDQUFDO1lBQ3JDLE1BQU0sSUFBSSwyQkFBa0IsQ0FDMUIsZ0dBQWdHLENBQ2pHLENBQUM7UUFDSixDQUFDO1FBRUQsT0FBTyxJQUFJLENBQUM7SUFDZCxDQUFDO0NBQ0YsQ0FBQTtBQS9DWSwwQ0FBZTswQkFBZixlQUFlO0lBRDNCLElBQUEsbUJBQVUsR0FBRTt5REFHVSxnQkFBUyxvQkFBVCxnQkFBUyxvREFDWiw4QkFBYSxvQkFBYiw4QkFBYTtHQUhwQixlQUFlLENBK0MzQiIsIm5hbWVzIjpbXSwic291cmNlcyI6WyJDOlxcVXNlcnNcXGFiMzExXFxJbnRlcnNoaXBcXGJsaW5rZXZlbnR6XFxuZWFyenJvLWJhY2tlbmRcXHNyY1xcZXZlbnRzXFxndWFyZHNcXGV2ZW50LW93bmVyLmd1YXJkLnRzIl0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7XHJcbiAgSW5qZWN0YWJsZSxcclxuICBDYW5BY3RpdmF0ZSxcclxuICBFeGVjdXRpb25Db250ZXh0LFxyXG4gIE5vdEZvdW5kRXhjZXB0aW9uLFxyXG4gIEZvcmJpZGRlbkV4Y2VwdGlvbixcclxufSBmcm9tICdAbmVzdGpzL2NvbW1vbic7XHJcbmltcG9ydCB7IFJlZmxlY3RvciB9IGZyb20gJ0BuZXN0anMvY29yZSc7XHJcbmltcG9ydCB7IFByaXNtYVNlcnZpY2UgfSBmcm9tICcuLi8uLi9wcmlzbWEvcHJpc21hLnNlcnZpY2UnO1xyXG5pbXBvcnQgeyBSb2xlIH0gZnJvbSAnQHByaXNtYS9jbGllbnQnO1xyXG5cclxuLyoqXHJcbiAqIEV2ZW50IE93bmVyIEd1YXJkXHJcbiAqIFxyXG4gKiBWYWxpZGF0ZXMgdGhhdCB0aGUgY3VycmVudCB1c2VyIG93bnMgdGhlIGV2ZW50IGJlaW5nIGFjY2Vzc2VkLlxyXG4gKiBUaGlzIGd1YXJkIHNob3VsZCBiZSB1c2VkIGZvciBQQVRDSC9ERUxFVEUgb3BlcmF0aW9ucyBvbiBldmVudHMuXHJcbiAqIFxyXG4gKiBVc2FnZTpcclxuICogQFVzZUd1YXJkcyhKd3RBdXRoR3VhcmQsIEV2ZW50T3duZXJHdWFyZClcclxuICogQFBhdGNoKCc6aWQnKVxyXG4gKiB1cGRhdGVFdmVudChAUGFyYW0oJ2lkJykgaWQ6IG51bWJlcikgeyAuLi4gfVxyXG4gKi9cclxuQEluamVjdGFibGUoKVxyXG5leHBvcnQgY2xhc3MgRXZlbnRPd25lckd1YXJkIGltcGxlbWVudHMgQ2FuQWN0aXZhdGUge1xyXG4gIGNvbnN0cnVjdG9yKFxyXG4gICAgcHJpdmF0ZSByZWZsZWN0b3I6IFJlZmxlY3RvcixcclxuICAgIHByaXZhdGUgcHJpc21hOiBQcmlzbWFTZXJ2aWNlLFxyXG4gICkge31cclxuXHJcbiAgYXN5bmMgY2FuQWN0aXZhdGUoY29udGV4dDogRXhlY3V0aW9uQ29udGV4dCk6IFByb21pc2U8Ym9vbGVhbj4ge1xyXG4gICAgY29uc3QgcmVxdWVzdCA9IGNvbnRleHQuc3dpdGNoVG9IdHRwKCkuZ2V0UmVxdWVzdCgpO1xyXG4gICAgY29uc3QgdXNlciA9IHJlcXVlc3QudXNlcjtcclxuXHJcbiAgICAvLyBJZiBubyB1c2VyIGlzIGF1dGhlbnRpY2F0ZWQsIGRlbnkgYWNjZXNzXHJcbiAgICBpZiAoIXVzZXIpIHtcclxuICAgICAgdGhyb3cgbmV3IEZvcmJpZGRlbkV4Y2VwdGlvbignQXV0aGVudGljYXRpb24gcmVxdWlyZWQnKTtcclxuICAgIH1cclxuXHJcbiAgICAvLyBHZXQgZXZlbnQgSUQgZnJvbSBwYXJhbXNcclxuICAgIGNvbnN0IGV2ZW50SWQgPSBwYXJzZUludChyZXF1ZXN0LnBhcmFtcy5pZCwgMTApO1xyXG5cclxuICAgIC8vIFZhbGlkYXRlIGV2ZW50IElEIGlzIGEgdmFsaWQgbnVtYmVyXHJcbiAgICBpZiAoaXNOYU4oZXZlbnRJZCkgfHwgZXZlbnRJZCA8PSAwKSB7XHJcbiAgICAgIHRocm93IG5ldyBOb3RGb3VuZEV4Y2VwdGlvbignSW52YWxpZCBldmVudCBJRCcpO1xyXG4gICAgfVxyXG5cclxuICAgIC8vIENoZWNrIGlmIHVzZXIgaXMgYWRtaW4gLSBhZG1pbnMgY2FuIGFjY2VzcyBhbnkgZXZlbnRcclxuICAgIGlmICh1c2VyLnJvbGUgPT09IFJvbGUuQURNSU4pIHtcclxuICAgICAgcmV0dXJuIHRydWU7XHJcbiAgICB9XHJcblxyXG4gICAgLy8gRmluZCB0aGUgZXZlbnQgYW5kIGNoZWNrIG93bmVyc2hpcFxyXG4gICAgY29uc3QgZXZlbnQgPSBhd2FpdCB0aGlzLnByaXNtYS5ldmVudC5maW5kVW5pcXVlKHtcclxuICAgICAgd2hlcmU6IHsgaWQ6IGV2ZW50SWQgfSxcclxuICAgICAgc2VsZWN0OiB7IGN1c3RvbWVySWQ6IHRydWUgfSxcclxuICAgIH0pO1xyXG5cclxuICAgIGlmICghZXZlbnQpIHtcclxuICAgICAgdGhyb3cgbmV3IE5vdEZvdW5kRXhjZXB0aW9uKGBFdmVudCB3aXRoIElEICR7ZXZlbnRJZH0gbm90IGZvdW5kYCk7XHJcbiAgICB9XHJcblxyXG4gICAgLy8gQ2hlY2sgaWYgdGhlIGN1cnJlbnQgdXNlciBvd25zIHRoZSBldmVudFxyXG4gICAgaWYgKGV2ZW50LmN1c3RvbWVySWQgIT09IHVzZXIudXNlcklkKSB7XHJcbiAgICAgIHRocm93IG5ldyBGb3JiaWRkZW5FeGNlcHRpb24oXHJcbiAgICAgICAgJ1lvdSBkbyBub3QgaGF2ZSBwZXJtaXNzaW9uIHRvIG1vZGlmeSB0aGlzIGV2ZW50LiBPbmx5IHRoZSBldmVudCBvd25lciBjYW4gcGVyZm9ybSB0aGlzIGFjdGlvbi4nXHJcbiAgICAgICk7XHJcbiAgICB9XHJcblxyXG4gICAgcmV0dXJuIHRydWU7XHJcbiAgfVxyXG59XHJcbiJdLCJ2ZXJzaW9uIjozfQ==
