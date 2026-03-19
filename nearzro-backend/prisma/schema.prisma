@@ -36,6 +36,7 @@ model User {
   
   // Relations
   AIPlan                  AIPlan[]
+  AIConversation         AIConversation[]
   bankAccounts            BankAccount[]
   bookings                Booking[]
   Cart                    Cart[]
@@ -260,13 +261,34 @@ model AIPlan {
   guestCount Int
   planJson   Json
   status     AIPlanStatus @default(GENERATED)
+  shareId    String       @unique @default(uuid())  // For public sharing
+  isPublic   Boolean      @default(false)             // Enable/disable sharing
   createdAt  DateTime     @default(now())
   updatedAt  DateTime     @updatedAt
   Event      Event?       @relation(fields: [EventId], references: [id])
   user       User         @relation(fields: [userId], references: [id])
+  conversations  AIConversation[] 
 
   @@index([userId])
   @@index([EventId])
+}
+
+/// AI Chatbot Conversation
+model AIConversation {
+  id              String               @id @default(uuid())
+  userId          Int
+  state           Json
+  status          AIConversationStatus @default(COLLECTING)
+  planId          Int?
+  generationKey   String?              @unique  // For idempotency
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan            AIPlan?             @relation(fields: [planId], references: [id])
+
+  @@index([userId])
+  @@index([status])
 }
 
 model Payment {
@@ -788,6 +810,17 @@ enum AIPlanStatus {
   ACCEPTED
   REJECTED
   EXPIRED
+}
+
+/// AI Chatbot Conversation Status
+enum AIConversationStatus {
+  COLLECTING
+  READY
+  GENERATING
+  GENERATED
+  MODIFYING
+  ACCEPTED
+  FAILED
 }
 
 enum EventStatus {

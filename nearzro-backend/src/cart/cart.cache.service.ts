@@ -26,9 +26,26 @@ export class CartCacheService implements OnModuleInit, OnModuleDestroy {
 
   async onModuleInit() {
     try {
+      // Support both REDIS_URL (full connection string) and REDIS_HOST + REDIS_PORT
       const redisUrl = this.configService.get<string>('REDIS_URL');
+      const redisHost = this.configService.get<string>('REDIS_HOST');
+      const redisPort = this.configService.get<string>('REDIS_PORT');
+      
+      let connectionString: string | undefined;
+      
       if (redisUrl) {
-        this.redis = new Redis(redisUrl, {
+        // Use full REDIS_URL if provided
+        connectionString = redisUrl;
+        this.logger.log(`Using REDIS_URL: ${redisUrl.replace(/:\/\/:.*@/, '://***@')}`);
+      } else if (redisHost) {
+        // Construct from REDIS_HOST and REDIS_PORT
+        const port = redisPort || '6379';
+        connectionString = `redis://${redisHost}:${port}`;
+        this.logger.log(`Using REDIS_HOST:REDIS_PORT -> ${connectionString}`);
+      }
+      
+      if (connectionString) {
+        this.redis = new Redis(connectionString, {
           lazyConnect: true,
           maxRetriesPerRequest: 1,
           connectTimeout: 2000,
@@ -38,7 +55,7 @@ export class CartCacheService implements OnModuleInit, OnModuleDestroy {
         this.isRedisAvailable = true;
         this.logger.log('Redis connection established for cart cache');
       } else {
-        this.logger.warn('REDIS_URL not configured - cart caching disabled');
+        this.logger.warn('REDIS_URL or REDIS_HOST not configured - cart caching disabled');
       }
     } catch (error) {
       this.logger.warn(`Redis connection failed - cart caching disabled: ${error}`);

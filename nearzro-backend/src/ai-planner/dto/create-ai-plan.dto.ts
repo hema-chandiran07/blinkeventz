@@ -93,4 +93,13 @@ export class CreateAIPlanDto {
   @IsInt({ message: 'Event ID must be an integer' })
   @Transform(({ value }) => value ? parseInt(value, 10) : undefined)
   eventId?: number;
+
+  @ApiProperty({
+    example: 'abc-123-def',
+    description: 'Conversation ID to link with plan (required for atomic linking)',
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: 'Conversation ID must be a string' })
+  conversationId?: string;
 }

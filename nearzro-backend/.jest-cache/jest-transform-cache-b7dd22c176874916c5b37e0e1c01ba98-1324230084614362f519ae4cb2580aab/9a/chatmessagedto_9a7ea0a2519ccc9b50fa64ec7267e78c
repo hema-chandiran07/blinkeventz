@@ -1,0 +1,174 @@
+c8403897c26c17b1674baee3e858a1b2
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.GetConversationDto = exports.DemoChatResponseDto = exports.ChatMessageResponseDto = exports.SendMessageDto = void 0;
+const swagger_1 = require("@nestjs/swagger");
+const class_validator_1 = require("class-validator");
+/**
+ * Send a message to the AI chatbot
+ */
+class SendMessageDto {
+    message;
+    conversationId;
+    tempState;
+}
+exports.SendMessageDto = SendMessageDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        example: 'I want to plan a wedding for 300 guests in Mumbai with budget of 5 lakh',
+        description: 'User message content',
+    }),
+    (0, class_validator_1.IsString)({ message: 'Message must be a string' }),
+    (0, class_validator_1.MinLength)(1, { message: 'Message cannot be empty' }),
+    (0, class_validator_1.MaxLength)(2000, { message: 'Message too long' }),
+    __metadata("design:type", String)
+], SendMessageDto.prototype, "message", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        example: '550e8400-e29b-41d4-a716-446655440000',
+        description: 'Conversation ID (create new if not provided)',
+        required: false,
+    }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsUUID)('4', { message: 'Invalid conversation ID' }),
+    __metadata("design:type", String)
+], SendMessageDto.prototype, "conversationId", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        description: 'Temporary state from guest session (for resume after login)',
+        required: false,
+        example: {
+            budget: 500000,
+            guestCount: 300,
+            city: 'Mumbai',
+            eventType: 'Wedding',
+        },
+    }),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Object)
+], SendMessageDto.prototype, "tempState", void 0);
+/**
+ * Response from AI chatbot
+ */
+class ChatMessageResponseDto {
+    conversationId;
+    reply;
+    status;
+    planId;
+    state;
+    requiresAuth;
+}
+exports.ChatMessageResponseDto = ChatMessageResponseDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        example: '550e8400-e29b-41d4-a716-446655440000',
+        description: 'Conversation ID',
+    }),
+    __metadata("design:type", String)
+], ChatMessageResponseDto.prototype, "conversationId", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        example: 'Great! I have all the information needed. Let me generate your event plan now.',
+        description: 'AI response message',
+    }),
+    __metadata("design:type", String)
+], ChatMessageResponseDto.prototype, "reply", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        enum: ['COLLECTING', 'READY', 'GENERATING', 'GENERATED', 'MODIFYING', 'ACCEPTED', 'FAILED'],
+        example: 'COLLECTING',
+        description: 'Current conversation status',
+    }),
+    __metadata("design:type", String)
+], ChatMessageResponseDto.prototype, "status", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        example: 1,
+        description: 'Plan ID when status is GENERATED or ACCEPTED',
+    }),
+    __metadata("design:type", Number)
+], ChatMessageResponseDto.prototype, "planId", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        description: 'Extracted state from conversation',
+    }),
+    __metadata("design:type", Object)
+], ChatMessageResponseDto.prototype, "state", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        example: true,
+        description: 'Indicates if authentication is required',
+    }),
+    __metadata("design:type", Boolean)
+], ChatMessageResponseDto.prototype, "requiresAuth", void 0);
+/**
+ * Demo response for public preview
+ */
+class DemoChatResponseDto {
+    conversationId;
+    reply;
+    status;
+    isDemo;
+    state;
+}
+exports.DemoChatResponseDto = DemoChatResponseDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        example: 'demo-conversation-id',
+        description: 'Demo conversation ID',
+    }),
+    __metadata("design:type", String)
+], DemoChatResponseDto.prototype, "conversationId", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        example: 'Welcome to the AI Event Planner demo! This is a sample response showing what the chatbot can do.',
+        description: 'Demo AI response message',
+    }),
+    __metadata("design:type", String)
+], DemoChatResponseDto.prototype, "reply", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        enum: ['COLLECTING', 'READY', 'GENERATING', 'GENERATED', 'MODIFYING', 'ACCEPTED', 'FAILED'],
+        example: 'COLLECTING',
+        description: 'Demo conversation status',
+    }),
+    __metadata("design:type", String)
+], DemoChatResponseDto.prototype, "status", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        example: false,
+        description: 'Indicates this is a demo response',
+    }),
+    __metadata("design:type", Boolean)
+], DemoChatResponseDto.prototype, "isDemo", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        description: 'Sample state from demo',
+    }),
+    __metadata("design:type", Object)
+], DemoChatResponseDto.prototype, "state", void 0);
+/**
+ * Get conversation history
+ */
+class GetConversationDto {
+    conversationId;
+}
+exports.GetConversationDto = GetConversationDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        example: '550e8400-e29b-41d4-a716-446655440000',
+        description: 'Conversation ID',
+    }),
+    (0, class_validator_1.IsUUID)('4', { message: 'Invalid conversation ID' }),
+    __metadata("design:type", String)
+], GetConversationDto.prototype, "conversationId", void 0);
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiQzpcXFVzZXJzXFxIZW1hY2hhbmRpcmFuXFxJbnRlcm5zaGlwXFxOZWFyenJvXFxuZWFyenJvLWJhY2tlbmRcXHNyY1xcYWktY2hhdGJvdFxcZHRvXFxjaGF0LW1lc3NhZ2UuZHRvLnRzIiwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7OztBQUFBLDZDQUFtRTtBQUNuRSxxREFBcUY7QUFFckY7O0dBRUc7QUFDSCxNQUFhLGNBQWM7SUFRekIsT0FBTyxDQUFTO0lBU2hCLGNBQWMsQ0FBVTtJQWF4QixTQUFTLENBTVA7Q0FDSDtBQXJDRCx3Q0FxQ0M7QUE3QkM7SUFQQyxJQUFBLHFCQUFXLEVBQUM7UUFDWCxPQUFPLEVBQUUseUVBQXlFO1FBQ2xGLFdBQVcsRUFBRSxzQkFBc0I7S0FDcEMsQ0FBQztJQUNELElBQUEsMEJBQVEsRUFBQyxFQUFFLE9BQU8sRUFBRSwwQkFBMEIsRUFBRSxDQUFDO0lBQ2pELElBQUEsMkJBQVMsRUFBQyxDQUFDLEVBQUUsRUFBRSxPQUFPLEVBQUUseUJBQXlCLEVBQUUsQ0FBQztJQUNwRCxJQUFBLDJCQUFTLEVBQUMsSUFBSSxFQUFFLEVBQUUsT0FBTyxFQUFFLGtCQUFrQixFQUFFLENBQUM7OytDQUNqQztBQVNoQjtJQVBDLElBQUEsNkJBQW1CLEVBQUM7UUFDbkIsT0FBTyxFQUFFLHNDQUFzQztRQUMvQyxXQUFXLEVBQUUsOENBQThDO1FBQzNELFFBQVEsRUFBRSxLQUFLO0tBQ2hCLENBQUM7SUFDRCxJQUFBLDRCQUFVLEdBQUU7SUFDWixJQUFBLHdCQUFNLEVBQUMsR0FBRyxFQUFFLEVBQUUsT0FBTyxFQUFFLHlCQUF5QixFQUFFLENBQUM7O3NEQUM1QjtBQWF4QjtJQVhDLElBQUEsNkJBQW1CLEVBQUM7UUFDbkIsV0FBVyxFQUFFLDZEQUE2RDtRQUMxRSxRQUFRLEVBQUUsS0FBSztRQUNmLE9BQU8sRUFBRTtZQUNQLE1BQU0sRUFBRSxNQUFNO1lBQ2QsVUFBVSxFQUFFLEdBQUc7WUFDZixJQUFJLEVBQUUsUUFBUTtZQUNkLFNBQVMsRUFBRSxTQUFTO1NBQ3JCO0tBQ0YsQ0FBQztJQUNELElBQUEsNEJBQVUsR0FBRTs7aURBT1g7QUFHSjs7R0FFRztBQUNILE1BQWEsc0JBQXNCO0lBS2pDLGNBQWMsQ0FBUztJQU12QixLQUFLLENBQVM7SUFPZCxNQUFNLENBQVM7SUFNZixNQUFNLENBQVU7SUFLaEIsS0FBSyxDQU1IO0lBTUYsWUFBWSxDQUFXO0NBQ3hCO0FBMUNELHdEQTBDQztBQXJDQztJQUpDLElBQUEscUJBQVcsRUFBQztRQUNYLE9BQU8sRUFBRSxzQ0FBc0M7UUFDL0MsV0FBVyxFQUFFLGlCQUFpQjtLQUMvQixDQUFDOzs4REFDcUI7QUFNdkI7SUFKQyxJQUFBLHFCQUFXLEVBQUM7UUFDWCxPQUFPLEVBQUUsZ0ZBQWdGO1FBQ3pGLFdBQVcsRUFBRSxxQkFBcUI7S0FDbkMsQ0FBQzs7cURBQ1k7QUFPZDtJQUxDLElBQUEscUJBQVcsRUFBQztRQUNYLElBQUksRUFBRSxDQUFDLFlBQVksRUFBRSxPQUFPLEVBQUUsWUFBWSxFQUFFLFdBQVcsRUFBRSxXQUFXLEVBQUUsVUFBVSxFQUFFLFFBQVEsQ0FBQztRQUMzRixPQUFPLEVBQUUsWUFBWTtRQUNyQixXQUFXLEVBQUUsNkJBQTZCO0tBQzNDLENBQUM7O3NEQUNhO0FBTWY7SUFKQyxJQUFBLDZCQUFtQixFQUFDO1FBQ25CLE9BQU8sRUFBRSxDQUFDO1FBQ1YsV0FBVyxFQUFFLDhDQUE4QztLQUM1RCxDQUFDOztzREFDYztBQUtoQjtJQUhDLElBQUEsNkJBQW1CLEVBQUM7UUFDbkIsV0FBVyxFQUFFLG1DQUFtQztLQUNqRCxDQUFDOztxREFPQTtBQU1GO0lBSkMsSUFBQSw2QkFBbUIsRUFBQztRQUNuQixPQUFPLEVBQUUsSUFBSTtRQUNiLFdBQVcsRUFBRSx5Q0FBeUM7S0FDdkQsQ0FBQzs7NERBQ3FCO0FBR3pCOztHQUVHO0FBQ0gsTUFBYSxtQkFBbUI7SUFLOUIsY0FBYyxDQUFTO0lBTXZCLEtBQUssQ0FBUztJQU9kLE1BQU0sQ0FBUztJQU1mLE1BQU0sQ0FBVTtJQUtoQixLQUFLLENBS0g7Q0FDSDtBQW5DRCxrREFtQ0M7QUE5QkM7SUFKQyxJQUFBLHFCQUFXLEVBQUM7UUFDWCxPQUFPLEVBQUUsc0JBQXNCO1FBQy9CLFdBQVcsRUFBRSxzQkFBc0I7S0FDcEMsQ0FBQzs7MkRBQ3FCO0FBTXZCO0lBSkMsSUFBQSxxQkFBVyxFQUFDO1FBQ1gsT0FBTyxFQUFFLGtHQUFrRztRQUMzRyxXQUFXLEVBQUUsMEJBQTBCO0tBQ3hDLENBQUM7O2tEQUNZO0FBT2Q7SUFMQyxJQUFBLHFCQUFXLEVBQUM7UUFDWCxJQUFJLEVBQUUsQ0FBQyxZQUFZLEVBQUUsT0FBTyxFQUFFLFlBQVksRUFBRSxXQUFXLEVBQUUsV0FBVyxFQUFFLFVBQVUsRUFBRSxRQUFRLENBQUM7UUFDM0YsT0FBTyxFQUFFLFlBQVk7UUFDckIsV0FBVyxFQUFFLDBCQUEwQjtLQUN4QyxDQUFDOzttREFDYTtBQU1mO0lBSkMsSUFBQSxxQkFBVyxFQUFDO1FBQ1gsT0FBTyxFQUFFLEtBQUs7UUFDZCxXQUFXLEVBQUUsbUNBQW1DO0tBQ2pELENBQUM7O21EQUNjO0FBS2hCO0lBSEMsSUFBQSw2QkFBbUIsRUFBQztRQUNuQixXQUFXLEVBQUUsd0JBQXdCO0tBQ3RDLENBQUM7O2tEQU1BO0FBR0o7O0dBRUc7QUFDSCxNQUFhLGtCQUFrQjtJQU03QixjQUFjLENBQVM7Q0FDeEI7QUFQRCxnREFPQztBQURDO0lBTEMsSUFBQSxxQkFBVyxFQUFDO1FBQ1gsT0FBTyxFQUFFLHNDQUFzQztRQUMvQyxXQUFXLEVBQUUsaUJBQWlCO0tBQy9CLENBQUM7SUFDRCxJQUFBLHdCQUFNLEVBQUMsR0FBRyxFQUFFLEVBQUUsT0FBTyxFQUFFLHlCQUF5QixFQUFFLENBQUM7OzBEQUM3QiIsIm5hbWVzIjpbXSwic291cmNlcyI6WyJDOlxcVXNlcnNcXEhlbWFjaGFuZGlyYW5cXEludGVybnNoaXBcXE5lYXJ6cm9cXG5lYXJ6cm8tYmFja2VuZFxcc3JjXFxhaS1jaGF0Ym90XFxkdG9cXGNoYXQtbWVzc2FnZS5kdG8udHMiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHsgQXBpUHJvcGVydHksIEFwaVByb3BlcnR5T3B0aW9uYWwgfSBmcm9tICdAbmVzdGpzL3N3YWdnZXInO1xyXG5pbXBvcnQgeyBJc1N0cmluZywgSXNPcHRpb25hbCwgSXNVVUlELCBNYXhMZW5ndGgsIE1pbkxlbmd0aCB9IGZyb20gJ2NsYXNzLXZhbGlkYXRvcic7XHJcblxyXG4vKipcclxuICogU2VuZCBhIG1lc3NhZ2UgdG8gdGhlIEFJIGNoYXRib3RcclxuICovXHJcbmV4cG9ydCBjbGFzcyBTZW5kTWVzc2FnZUR0byB7XHJcbiAgQEFwaVByb3BlcnR5KHtcclxuICAgIGV4YW1wbGU6ICdJIHdhbnQgdG8gcGxhbiBhIHdlZGRpbmcgZm9yIDMwMCBndWVzdHMgaW4gTXVtYmFpIHdpdGggYnVkZ2V0IG9mIDUgbGFraCcsXHJcbiAgICBkZXNjcmlwdGlvbjogJ1VzZXIgbWVzc2FnZSBjb250ZW50JyxcclxuICB9KVxyXG4gIEBJc1N0cmluZyh7IG1lc3NhZ2U6ICdNZXNzYWdlIG11c3QgYmUgYSBzdHJpbmcnIH0pXHJcbiAgQE1pbkxlbmd0aCgxLCB7IG1lc3NhZ2U6ICdNZXNzYWdlIGNhbm5vdCBiZSBlbXB0eScgfSlcclxuICBATWF4TGVuZ3RoKDIwMDAsIHsgbWVzc2FnZTogJ01lc3NhZ2UgdG9vIGxvbmcnIH0pXHJcbiAgbWVzc2FnZTogc3RyaW5nO1xyXG5cclxuICBAQXBpUHJvcGVydHlPcHRpb25hbCh7XHJcbiAgICBleGFtcGxlOiAnNTUwZTg0MDAtZTI5Yi00MWQ0LWE3MTYtNDQ2NjU1NDQwMDAwJyxcclxuICAgIGRlc2NyaXB0aW9uOiAnQ29udmVyc2F0aW9uIElEIChjcmVhdGUgbmV3IGlmIG5vdCBwcm92aWRlZCknLFxyXG4gICAgcmVxdWlyZWQ6IGZhbHNlLFxyXG4gIH0pXHJcbiAgQElzT3B0aW9uYWwoKVxyXG4gIEBJc1VVSUQoJzQnLCB7IG1lc3NhZ2U6ICdJbnZhbGlkIGNvbnZlcnNhdGlvbiBJRCcgfSlcclxuICBjb252ZXJzYXRpb25JZD86IHN0cmluZztcclxuXHJcbiAgQEFwaVByb3BlcnR5T3B0aW9uYWwoe1xyXG4gICAgZGVzY3JpcHRpb246ICdUZW1wb3Jhcnkgc3RhdGUgZnJvbSBndWVzdCBzZXNzaW9uIChmb3IgcmVzdW1lIGFmdGVyIGxvZ2luKScsXHJcbiAgICByZXF1aXJlZDogZmFsc2UsXHJcbiAgICBleGFtcGxlOiB7XHJcbiAgICAgIGJ1ZGdldDogNTAwMDAwLFxyXG4gICAgICBndWVzdENvdW50OiAzMDAsXHJcbiAgICAgIGNpdHk6ICdNdW1iYWknLFxyXG4gICAgICBldmVudFR5cGU6ICdXZWRkaW5nJyxcclxuICAgIH0sXHJcbiAgfSlcclxuICBASXNPcHRpb25hbCgpXHJcbiAgdGVtcFN0YXRlPzoge1xyXG4gICAgYnVkZ2V0PzogbnVtYmVyO1xyXG4gICAgZ3Vlc3RDb3VudD86IG51bWJlcjtcclxuICAgIGNpdHk/OiBzdHJpbmc7XHJcbiAgICBhcmVhPzogc3RyaW5nO1xyXG4gICAgZXZlbnRUeXBlPzogc3RyaW5nO1xyXG4gIH07XHJcbn1cclxuXHJcbi8qKlxyXG4gKiBSZXNwb25zZSBmcm9tIEFJIGNoYXRib3RcclxuICovXHJcbmV4cG9ydCBjbGFzcyBDaGF0TWVzc2FnZVJlc3BvbnNlRHRvIHtcclxuICBAQXBpUHJvcGVydHkoe1xyXG4gICAgZXhhbXBsZTogJzU1MGU4NDAwLWUyOWItNDFkNC1hNzE2LTQ0NjY1NTQ0MDAwMCcsXHJcbiAgICBkZXNjcmlwdGlvbjogJ0NvbnZlcnNhdGlvbiBJRCcsXHJcbiAgfSlcclxuICBjb252ZXJzYXRpb25JZDogc3RyaW5nO1xyXG5cclxuICBAQXBpUHJvcGVydHkoe1xyXG4gICAgZXhhbXBsZTogJ0dyZWF0ISBJIGhhdmUgYWxsIHRoZSBpbmZvcm1hdGlvbiBuZWVkZWQuIExldCBtZSBnZW5lcmF0ZSB5b3VyIGV2ZW50IHBsYW4gbm93LicsXHJcbiAgICBkZXNjcmlwdGlvbjogJ0FJIHJlc3BvbnNlIG1lc3NhZ2UnLFxyXG4gIH0pXHJcbiAgcmVwbHk6IHN0cmluZztcclxuXHJcbiAgQEFwaVByb3BlcnR5KHtcclxuICAgIGVudW06IFsnQ09MTEVDVElORycsICdSRUFEWScsICdHRU5FUkFUSU5HJywgJ0dFTkVSQVRFRCcsICdNT0RJRllJTkcnLCAnQUNDRVBURUQnLCAnRkFJTEVEJ10sXHJcbiAgICBleGFtcGxlOiAnQ09MTEVDVElORycsXHJcbiAgICBkZXNjcmlwdGlvbjogJ0N1cnJlbnQgY29udmVyc2F0aW9uIHN0YXR1cycsXHJcbiAgfSlcclxuICBzdGF0dXM6IHN0cmluZztcclxuXHJcbiAgQEFwaVByb3BlcnR5T3B0aW9uYWwoe1xyXG4gICAgZXhhbXBsZTogMSxcclxuICAgIGRlc2NyaXB0aW9uOiAnUGxhbiBJRCB3aGVuIHN0YXR1cyBpcyBHRU5FUkFURUQgb3IgQUNDRVBURUQnLFxyXG4gIH0pXHJcbiAgcGxhbklkPzogbnVtYmVyO1xyXG5cclxuICBAQXBpUHJvcGVydHlPcHRpb25hbCh7XHJcbiAgICBkZXNjcmlwdGlvbjogJ0V4dHJhY3RlZCBzdGF0ZSBmcm9tIGNvbnZlcnNhdGlvbicsXHJcbiAgfSlcclxuICBzdGF0ZT86IHtcclxuICAgIGJ1ZGdldD86IG51bWJlcjtcclxuICAgIGd1ZXN0Q291bnQ/OiBudW1iZXI7XHJcbiAgICBjaXR5Pzogc3RyaW5nO1xyXG4gICAgYXJlYT86IHN0cmluZztcclxuICAgIGV2ZW50VHlwZT86IHN0cmluZztcclxuICB9O1xyXG5cclxuICBAQXBpUHJvcGVydHlPcHRpb25hbCh7XHJcbiAgICBleGFtcGxlOiB0cnVlLFxyXG4gICAgZGVzY3JpcHRpb246ICdJbmRpY2F0ZXMgaWYgYXV0aGVudGljYXRpb24gaXMgcmVxdWlyZWQnLFxyXG4gIH0pXHJcbiAgcmVxdWlyZXNBdXRoPzogYm9vbGVhbjtcclxufVxyXG5cclxuLyoqXHJcbiAqIERlbW8gcmVzcG9uc2UgZm9yIHB1YmxpYyBwcmV2aWV3XHJcbiAqL1xyXG5leHBvcnQgY2xhc3MgRGVtb0NoYXRSZXNwb25zZUR0byB7XHJcbiAgQEFwaVByb3BlcnR5KHtcclxuICAgIGV4YW1wbGU6ICdkZW1vLWNvbnZlcnNhdGlvbi1pZCcsXHJcbiAgICBkZXNjcmlwdGlvbjogJ0RlbW8gY29udmVyc2F0aW9uIElEJyxcclxuICB9KVxyXG4gIGNvbnZlcnNhdGlvbklkOiBzdHJpbmc7XHJcblxyXG4gIEBBcGlQcm9wZXJ0eSh7XHJcbiAgICBleGFtcGxlOiAnV2VsY29tZSB0byB0aGUgQUkgRXZlbnQgUGxhbm5lciBkZW1vISBUaGlzIGlzIGEgc2FtcGxlIHJlc3BvbnNlIHNob3dpbmcgd2hhdCB0aGUgY2hhdGJvdCBjYW4gZG8uJyxcclxuICAgIGRlc2NyaXB0aW9uOiAnRGVtbyBBSSByZXNwb25zZSBtZXNzYWdlJyxcclxuICB9KVxyXG4gIHJlcGx5OiBzdHJpbmc7XHJcblxyXG4gIEBBcGlQcm9wZXJ0eSh7XHJcbiAgICBlbnVtOiBbJ0NPTExFQ1RJTkcnLCAnUkVBRFknLCAnR0VORVJBVElORycsICdHRU5FUkFURUQnLCAnTU9ESUZZSU5HJywgJ0FDQ0VQVEVEJywgJ0ZBSUxFRCddLFxyXG4gICAgZXhhbXBsZTogJ0NPTExFQ1RJTkcnLFxyXG4gICAgZGVzY3JpcHRpb246ICdEZW1vIGNvbnZlcnNhdGlvbiBzdGF0dXMnLFxyXG4gIH0pXHJcbiAgc3RhdHVzOiBzdHJpbmc7XHJcblxyXG4gIEBBcGlQcm9wZXJ0eSh7XHJcbiAgICBleGFtcGxlOiBmYWxzZSxcclxuICAgIGRlc2NyaXB0aW9uOiAnSW5kaWNhdGVzIHRoaXMgaXMgYSBkZW1vIHJlc3BvbnNlJyxcclxuICB9KVxyXG4gIGlzRGVtbzogYm9vbGVhbjtcclxuXHJcbiAgQEFwaVByb3BlcnR5T3B0aW9uYWwoe1xyXG4gICAgZGVzY3JpcHRpb246ICdTYW1wbGUgc3RhdGUgZnJvbSBkZW1vJyxcclxuICB9KVxyXG4gIHN0YXRlPzoge1xyXG4gICAgYnVkZ2V0PzogbnVtYmVyO1xyXG4gICAgZ3Vlc3RDb3VudD86IG51bWJlcjtcclxuICAgIGNpdHk/OiBzdHJpbmc7XHJcbiAgICBldmVudFR5cGU/OiBzdHJpbmc7XHJcbiAgfTtcclxufVxyXG5cclxuLyoqXHJcbiAqIEdldCBjb252ZXJzYXRpb24gaGlzdG9yeVxyXG4gKi9cclxuZXhwb3J0IGNsYXNzIEdldENvbnZlcnNhdGlvbkR0byB7XHJcbiAgQEFwaVByb3BlcnR5KHtcclxuICAgIGV4YW1wbGU6ICc1NTBlODQwMC1lMjliLTQxZDQtYTcxNi00NDY2NTU0NDAwMDAnLFxyXG4gICAgZGVzY3JpcHRpb246ICdDb252ZXJzYXRpb24gSUQnLFxyXG4gIH0pXHJcbiAgQElzVVVJRCgnNCcsIHsgbWVzc2FnZTogJ0ludmFsaWQgY29udmVyc2F0aW9uIElEJyB9KVxyXG4gIGNvbnZlcnNhdGlvbklkOiBzdHJpbmc7XHJcbn1cclxuIl0sInZlcnNpb24iOjN9

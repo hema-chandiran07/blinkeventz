@@ -154,3 +154,14 @@ global.generateTestEmail = (): string => {
 global.generateTestPhone = (): string => {
   return `+1234567${Math.floor(Math.random() * 10000)}`;
 };
+
+// ============================================
+// ESM MODULE MOCKS (uuid, etc.)
+// ============================================
+
+// Mock uuid to avoid ESM issues with newer versions
+jest.mock('uuid', () => ({
+  v4: jest.fn(() => 'test-uuid-1234-5678-9012'),
+  validate: jest.fn(() => true),
+  version: 4,
+}));
