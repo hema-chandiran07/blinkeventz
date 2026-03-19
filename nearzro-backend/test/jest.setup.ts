@@ -50,8 +50,11 @@ const originalDebug = Logger.prototype.debug;
 const originalVerbose = Logger.prototype.verbose;
 
 Logger.prototype.error = function (message: string, ...args: unknown[]) {
+  // Handle both string and object messages (structured logging)
+  const messageStr = typeof message === 'object' ? JSON.stringify(message) : message;
+  
   // Suppress certain error messages during tests
-  if (message.includes('ENOENT') || message.includes('ECONNREFUSED')) {
+  if (messageStr.includes('ENOENT') || messageStr.includes('ECONNREFUSED')) {
     return;
   }
   originalError.call(this, message, ...args);
