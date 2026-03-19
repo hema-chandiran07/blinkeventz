@@ -292,24 +292,80 @@ model AIConversation {
 }
 
 model Payment {
-  id                Int             @id @default(autoincrement())
-  userId            Int
-  cartId            Int
-  provider          PaymentProvider
-  providerOrderId   String          @unique
-  providerPaymentId String?
-  signature         String?
-  amount            Int
-  currency          String          @default("INR")
-  status            PaymentStatus
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
-  eventId           Int?
-  cart              Cart            @relation(fields: [cartId], references: [id])
-  Event             Event?          @relation(fields: [eventId], references: [id])
-  user              User            @relation(fields: [userId], references: [id])
-
+  id                     Int              @id @default(autoincrement())
+  userId                 Int
+  cartId                 Int              @default(0)  // Default to 0 for simplified checkout (no cart)
+  provider               PaymentProvider
+  providerOrderId        String           @unique  // Razorpay order ID
+  providerPaymentId     String?          // Razorpay payment ID
+  providerWebhookEventId String?          @unique  // Razorpay webhook event ID - for deduplication
+  signature              String?          // Payment signature (for verification)
+  amount                 Int              // Amount in paise
+  currency               String           @default("INR")
+  status                 PaymentStatus
+  
+  // Idempotency
+  idempotencyKey         String?          @unique  // Client-provided idempotency key
+  
+  // Metadata
+  metadata               Json?            // Additional payment metadata
+  notes                  String?          // Internal notes
+  
+  // Timestamps
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
+  expiresAt              DateTime?        // Payment expiry time
+  completedAt            DateTime?        // When payment was completed
+  
+  // Relations
+  eventId                Int?
+  cart                   Cart?             @relation(fields: [cartId], references: [id])
+  event                  Event?            @relation(fields: [eventId], references: [id])
+  user                   User              @relation(fields: [userId], references: [id])
+  
+  // Audit trail
+  paymentEvents          PaymentEvent[]
+  
+  @@index([userId])
   @@index([cartId])
+  @@index([status])
+  @@index([providerOrderId])
+  @@index([createdAt])
+  @@index([expiresAt])
+}
+
+// Payment Event Audit Trail - tracks all state changes
+model PaymentEvent {
+  id              Int            @id @default(autoincrement())
+  paymentId       Int
+  eventType       String         // e.g., 'payment.created', 'payment.captured', 'payment.failed'
+  status          PaymentStatus // Status after this event
+  providerEventId String?        // Razorpay event ID
+  
+  // Event data
+  requestId       String?        // Internal request ID for tracing
+  ipAddress       String?        // Client IP
+  userAgent       String?        // Client user agent
+  
+  // Raw data
+  payload         Json?          // Raw webhook payload
+  response        Json?          // Response sent
+  
+  // Error handling
+  errorMessage    String?
+  retryCount      Int            @default(0)
+  
+  // Timestamps
+  createdAt       DateTime       @default(now())
+  processedAt     DateTime?
+  
+  // Relation
+  payment         Payment        @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  
+  @@index([paymentId])
+  @@index([eventType])
+  @@index([providerEventId])
+  @@index([createdAt])
 }
 
 model Payout {
@@ -727,11 +783,14 @@ enum ItemType {
 }
 
 enum PaymentStatus {
-  PENDING
-  AUTHORIZED
-  SUCCESS
-  FAILED
-  REFUNDED
+  PENDING       // Payment initiated, awaiting user action
+  CREATED       // Order created with provider
+  AUTHORIZED    // Payment authorized (pre-auth)
+  CAPTURED      // Payment successfully captured - FINAL SUCCESS STATE
+  FAILED        // Payment failed
+  REFUNDED      // Payment was refunded
+  CANCELLED     // Payment was cancelled
+  EXPIRED       // Payment expired (timeout)
 }
 
 enum PaymentProvider {
