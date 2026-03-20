@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -89,10 +90,11 @@ export default function LoginPage() {
             transition={{ duration: 0.8, delay: 0.4 }}
           >
             <div className="relative h-32 w-32 overflow-hidden rounded-2xl shadow-2xl shadow-silver-500/50 border-2 border-silver-300 mb-6">
-              <img
+              <Image
                 src="/logo.jpeg"
                 alt="NearZro Logo"
-                className="h-full w-full object-cover brightness-110 contrast-110"
+                fill
+                className="object-cover brightness-110 contrast-110"
               />
             </div>
             
