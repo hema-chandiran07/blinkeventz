@@ -242,10 +242,23 @@ describe('SettingsService', () => {
     it('should update feature flags using upsert', async () => {
       const flags = { NEW_DASHBOARD: true, AI_PLANNING: false };
 
+      // Mock upsert for the update operations
       mockPrismaService.settings.upsert.mockResolvedValue({});
+      
+      // Mock findMany for the getFeatureFlags call at the end of updateFeatureFlags
+      mockPrismaService.settings.findMany.mockResolvedValue([
+        { key: 'FEATURE_NEW_DASHBOARD', value: true, description: 'New dashboard' },
+        { key: 'FEATURE_AI_PLANNING', value: false, description: 'AI planning' },
+      ]);
 
-      await service.updateFeatureFlags(flags);
+      const result = await service.updateFeatureFlags(flags);
+      
+      // Verify upsert was called for each flag
       expect(prismaService.settings.upsert).toHaveBeenCalledTimes(2);
+      
+      // Verify the result contains the updated flags
+      expect(result).toHaveLength(2);
+      expect(result[0].key).toBe('FEATURE_NEW_DASHBOARD');
     });
   });
 
