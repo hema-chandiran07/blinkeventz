@@ -1,43 +1,31 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  ArrowLeft, Edit, Trash2, Mail, Phone, Calendar, DollarSign,
+  ArrowLeft, Edit, Trash2, Mail, Calendar,
   CheckCircle2, XCircle, Download, MessageSquare, Shield,
-  TrendingUp, Activity
+  Loader2
 } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { useRouter, useParams } from "next/navigation";
 import { toast } from "sonner";
+import api from "@/lib/api";
 
 interface UserDetail {
   id: number;
   name: string;
   email: string;
-  phone: string;
+  phone?: string;
   role: string;
-  status: string;
-  totalEvents: number;
-  totalSpent: number;
-  lastLogin: string;
+  isActive: boolean;
+  isEmailVerified: boolean;
   createdAt: string;
+  events?: any[];
+  vendor?: any;
+  venues?: any[];
 }
-
-const MOCK_USER: UserDetail = {
-  id: 1,
-  name: "Rajesh Kumar",
-  email: "rajesh@email.com",
-  phone: "+91 9876543210",
-  role: "CUSTOMER",
-  status: "ACTIVE",
-  totalEvents: 5,
-  totalSpent: 2500000,
-  lastLogin: "2024-03-15",
-  createdAt: "2024-01-15",
-};
 
 const ROLE_COLORS: Record<string, string> = {
   CUSTOMER: "bg-blue-500 text-white",
@@ -47,9 +35,31 @@ const ROLE_COLORS: Record<string, string> = {
   ADMIN: "bg-black text-white",
 };
 
-export default function UserDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default function UserDetailPage() {
   const router = useRouter();
-  const [user] = useState<UserDetail>(MOCK_USER);
+  const params = useParams();
+  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<UserDetail | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+
+  useEffect(() => {
+    loadUser();
+  }, [params.id]);
+
+  const loadUser = async () => {
+    try {
+      setLoading(true);
+      // Try to get user details - adjust endpoint as needed
+      const response = await api.get(`/users`);
+      const found = response.data.find((u: any) => u.id === parseInt(params.id as string));
+      setUser(found || null);
+    } catch (error: any) {
+      console.error("Failed to load user:", error);
+      toast.error("Failed to load user details");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const formatCurrency = (amount: number) => {
     if (amount >= 10000000) return `₹${(amount / 10000000).toFixed(2)}Cr`;
@@ -58,233 +68,260 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
   };
 
   const handleToggleStatus = async () => {
-    const newStatus = user.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
+    if (!user) return;
+    
+    const newStatus = !user.isActive;
     try {
-      console.log(`Updating user ${user.id} status to ${newStatus}`);
-      toast.success(`User ${newStatus.toLowerCase()} successfully`);
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-      window.location.reload();
+      setActionLoading(true);
+      // Update user status - adjust endpoint as needed
+      await api.patch(`/users/${user.id}`, { isActive: newStatus });
+      toast.success(`User ${newStatus ? 'activated' : 'deactivated'} successfully`);
+      loadUser();
     } catch (error: any) {
       console.error("Status update error:", error);
-      toast.error("Failed to update status");
+      toast.error(error?.response?.data?.message || "Failed to update status");
+    } finally {
+      setActionLoading(false);
     }
   };
 
   const handleDelete = async () => {
-    if (confirm("Are you sure you want to delete this user?")) {
-      try {
-        console.log(`Deleting user ${user.id}`);
-        toast.success("User deleted successfully");
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 500));
-        router.push("/dashboard/admin/users");
-      } catch (error: any) {
-        console.error("Delete error:", error);
-        toast.error("Failed to delete user");
-      }
-    }
-  };
-
-  const handleExport = async () => {
+    if (!confirm("Are you sure you want to delete this user?")) return;
+    
     try {
-      console.log(`Exporting user ${user.id}`);
-      toast.success("User details exported");
+      setActionLoading(true);
+      await api.delete(`/users/${user?.id}`);
+      toast.success("User deleted successfully");
+      router.push("/dashboard/admin/users");
     } catch (error: any) {
-      console.error("Export error:", error);
-      toast.error("Failed to export user");
+      console.error("Delete error:", error);
+      toast.error(error?.response?.data?.message || "Failed to delete user");
+    } finally {
+      setActionLoading(false);
     }
   };
 
   const handleSendMessage = () => {
-    console.log(`Sending message to user ${user.email}`);
-    toast.success("Message sent to user");
+    toast.info("Message feature coming soon");
   };
 
-  const handleViewEvents = () => {
-    console.log(`Viewing events for user ${user.id}`);
-    router.push(`/dashboard/admin/events?userId=${user.id}`);
-  };
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-black" />
+          <p className="text-neutral-600">Loading user details...</p>
+        </div>
+      </div>
+    );
+  }
 
-  const handleViewPayments = () => {
-    console.log(`Viewing payments for user ${user.id}`);
-    router.push(`/dashboard/admin/transactions?userId=${user.id}`);
-  };
-
-  const handleViewAnalytics = () => {
-    console.log(`Viewing analytics for user ${user.id}`);
-    router.push(`/dashboard/admin/reports/users?id=${user.id}`);
-  };
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <XCircle className="h-16 w-16 mx-auto mb-4 text-red-600" />
+          <h3 className="text-lg font-bold text-black mb-2">User Not Found</h3>
+          <Button onClick={() => router.push("/dashboard/admin/users")}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Users
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
+      {/* Header with Back Button */}
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => router.back()} className="hover:bg-neutral-100">
+          <Button variant="ghost" size="sm" onClick={() => router.back()}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
             <h1 className="text-3xl font-bold text-black">{user.name}</h1>
-            <p className="text-neutral-600">User ID: #{user.id}</p>
+            <p className="text-neutral-600">{user.email}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" className="border-black hover:bg-neutral-100">
-            <Download className="h-4 w-4 mr-2" /> Export
+        <div className="flex gap-2">
+          <Button variant="outline" className="border-black" onClick={handleSendMessage}>
+            <MessageSquare className="h-4 w-4 mr-2" />
+            Message
           </Button>
-          <Button variant="outline" className="border-black hover:bg-neutral-100">
-            <Edit className="h-4 w-4 mr-2" /> Edit
+          <Button variant="outline" className="border-black">
+            <Download className="h-4 w-4 mr-2" />
+            Export
           </Button>
-          <Button variant="outline" className="border-red-300 text-red-600 hover:bg-red-50" onClick={handleDelete}>
-            <Trash2 className="h-4 w-4 mr-2" /> Delete
-          </Button>
-        </div>
-      </motion.div>
-
-      {/* Status & Actions */}
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Badge className={`${ROLE_COLORS[user.role]} px-4 py-2 text-sm font-semibold`}>
-            <Shield className="h-3 w-3 mr-1" />
-            {user.role.replace("_", " ")}
-          </Badge>
-          <Badge className={`${user.status === "ACTIVE" ? "bg-emerald-500" : "bg-neutral-500"} text-white px-4 py-2 text-sm font-semibold`}>
-            {user.status}
-          </Badge>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button onClick={handleToggleStatus} variant="outline" className="border-black hover:bg-neutral-100">
-            {user.status === "ACTIVE" ? (
-              <>
-                <XCircle className="h-4 w-4 mr-2" /> Deactivate
-              </>
-            ) : (
-              <>
-                <CheckCircle2 className="h-4 w-4 mr-2" /> Activate
-              </>
-            )}
-          </Button>
-        </div>
-      </motion.div>
-
-      {/* Content Grid */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Main Details */}
-        <div className="lg:col-span-2 space-y-6">
-          <Card className="border-2 border-black hover:shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-black">Personal Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium text-neutral-600">Email Address</p>
-                  <div className="flex items-center gap-2">
-                    <Mail className="h-4 w-4 text-neutral-400" />
-                    <p className="text-lg font-bold text-black">{user.email}</p>
-                  </div>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-neutral-600">Phone Number</p>
-                  <div className="flex items-center gap-2">
-                    <Phone className="h-4 w-4 text-neutral-400" />
-                    <p className="text-lg font-bold text-black">{user.phone}</p>
-                  </div>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-neutral-600">Last Login</p>
-                  <p className="text-lg font-bold text-black">{new Date(user.lastLogin).toLocaleDateString("en-IN")}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-neutral-600">Registered On</p>
-                  <p className="text-lg font-bold text-black">{new Date(user.createdAt).toLocaleDateString("en-IN")}</p>
-                </div>
-              </div>
-              <div className="flex gap-2 pt-4">
-                <Button variant="outline" className="border-black hover:bg-neutral-100">
-                  <MessageSquare className="h-4 w-4 mr-2" /> Send Message
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 border-black hover:shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-black flex items-center gap-2">
-                <Activity className="h-5 w-5" /> Activity History
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="flex items-start gap-3 p-3 rounded-lg border border-neutral-200">
-                  <div className="h-2 w-2 rounded-full bg-emerald-600 mt-2" />
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-black">Created Event: Priya & Karthik Wedding</p>
-                    <p className="text-xs text-neutral-600">2024-02-10</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3 p-3 rounded-lg border border-neutral-200">
-                  <div className="h-2 w-2 rounded-full bg-blue-600 mt-2" />
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-black">Completed Payment: ₹1,50,000</p>
-                    <p className="text-xs text-neutral-600">2024-02-15</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3 p-3 rounded-lg border border-neutral-200">
-                  <div className="h-2 w-2 rounded-full bg-neutral-400 mt-2" />
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-black">Account Created</p>
-                    <p className="text-xs text-neutral-600">2024-01-15</p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Sidebar */}
-        <div className="space-y-6">
-          <Card className="border-2 border-black hover:shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-black">Statistics</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center justify-between p-3 rounded-lg bg-neutral-50">
-                <span className="text-sm text-neutral-600">Total Events</span>
-                <span className="text-xl font-bold text-black">{user.totalEvents}</span>
-              </div>
-              <div className="flex items-center justify-between p-3 rounded-lg bg-neutral-50">
-                <span className="text-sm text-neutral-600">Total Spent</span>
-                <span className="text-xl font-bold text-black">{formatCurrency(user.totalSpent)}</span>
-              </div>
-              <div className="flex items-center justify-between p-3 rounded-lg bg-neutral-50">
-                <span className="text-sm text-neutral-600">Account Status</span>
-                <Badge className={user.status === "ACTIVE" ? "bg-emerald-500 text-white" : "bg-neutral-500 text-white"}>
-                  {user.status}
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 border-black hover:shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-black">Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Button variant="outline" className="w-full border-black hover:bg-neutral-100 justify-start">
-                <Calendar className="h-4 w-4 mr-2" /> View Events
-              </Button>
-              <Button variant="outline" className="w-full border-black hover:bg-neutral-100 justify-start">
-                <DollarSign className="h-4 w-4 mr-2" /> View Payments
-              </Button>
-              <Button variant="outline" className="w-full border-black hover:bg-neutral-100 justify-start">
-                <TrendingUp className="h-4 w-4 mr-2" /> View Analytics
-              </Button>
-            </CardContent>
-          </Card>
         </div>
       </div>
+
+      {/* User Info Cards */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card className="border-2 border-black">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-neutral-600">Role</p>
+                <p className="text-2xl font-bold text-black mt-1">{user.role.replace('_', ' ')}</p>
+              </div>
+              <div className="p-3 rounded-full bg-black">
+                <Shield className="h-6 w-6 text-white" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-2 border-emerald-600">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-neutral-600">Status</p>
+                <p className="text-2xl font-bold text-emerald-600 mt-1">
+                  {user.isActive ? 'Active' : 'Inactive'}
+                </p>
+              </div>
+              <div className="p-3 rounded-full bg-emerald-600">
+                <CheckCircle2 className="h-6 w-6 text-white" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-2 border-blue-600">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-neutral-600">Email Verified</p>
+                <p className="text-2xl font-bold text-blue-600 mt-1">
+                  {user.isEmailVerified ? 'Yes' : 'No'}
+                </p>
+              </div>
+              <div className="p-3 rounded-full bg-blue-600">
+                <Mail className="h-6 w-6 text-white" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-2 border-amber-600">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-neutral-600">Joined</p>
+                <p className="text-2xl font-bold text-amber-600 mt-1">
+                  {new Date(user.createdAt).toLocaleDateString()}
+                </p>
+              </div>
+              <div className="p-3 rounded-full bg-amber-600">
+                <Calendar className="h-6 w-6 text-white" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Detailed Information */}
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* Personal Information */}
+        <Card className="border-2 border-black">
+          <CardHeader>
+            <CardTitle className="text-black">Personal Information</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <p className="text-xs text-neutral-600">Full Name</p>
+              <p className="font-medium text-black">{user.name}</p>
+            </div>
+            <div>
+              <p className="text-xs text-neutral-600">Email Address</p>
+              <p className="font-medium text-black">{user.email}</p>
+            </div>
+            {user.phone && (
+              <div>
+                <p className="text-xs text-neutral-600">Phone Number</p>
+                <p className="font-medium text-black">{user.phone}</p>
+              </div>
+            )}
+            <div>
+              <p className="text-xs text-neutral-600">Account Created</p>
+              <p className="font-medium text-black">
+                {new Date(user.createdAt).toLocaleString()}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Account Status */}
+        <Card className="border-2 border-black">
+          <CardHeader>
+            <CardTitle className="text-black">Account Status</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-neutral-600">Account Active</span>
+              <Badge className={user.isActive ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}>
+                {user.isActive ? 'Active' : 'Inactive'}
+              </Badge>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-neutral-600">Email Verified</span>
+              <Badge className={user.isEmailVerified ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}>
+                {user.isEmailVerified ? 'Verified' : 'Not Verified'}
+              </Badge>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-neutral-600">Role</span>
+              <Badge className={ROLE_COLORS[user.role] || "bg-neutral-100 text-neutral-700"}>
+                {user.role.replace('_', ' ')}
+              </Badge>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Actions */}
+      <Card className="border-2 border-black">
+        <CardHeader>
+          <CardTitle className="text-black">Admin Actions</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-3">
+            <Button
+              variant={user.isActive ? "destructive" : "default"}
+              onClick={handleToggleStatus}
+              disabled={actionLoading}
+              className={user.isActive ? "bg-red-600 hover:bg-red-700" : "bg-black"}
+            >
+              {user.isActive ? (
+                <XCircle className="h-4 w-4 mr-2" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4 mr-2" />
+              )}
+              {user.isActive ? 'Deactivate User' : 'Activate User'}
+            </Button>
+            
+            <Button
+              variant="outline"
+              className="border-red-300 text-red-600 hover:bg-red-50"
+              onClick={handleDelete}
+              disabled={actionLoading}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete User
+            </Button>
+
+            <Button
+              variant="outline"
+              className="border-black"
+              onClick={() => router.push(`/dashboard/admin/users/${user.id}/edit`)}
+            >
+              <Edit className="h-4 w-4 mr-2" />
+              Edit User
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

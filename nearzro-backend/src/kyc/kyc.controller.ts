@@ -12,6 +12,9 @@ import {
   UploadedFile,
   UnauthorizedException,
   BadRequestException,
+  Res,
+  StreamableFile,
+  Query,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
 import { KycService } from './kyc.service';
@@ -26,6 +29,7 @@ import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { Audit, AUDIT_META_KEY } from '../audit/decorators/audit.decorator';
 import { AuditSeverity, AuditSource } from '@prisma/client';
+import * as fs from 'fs';
 
 @ApiTags('KYC')
 @ApiBearerAuth()
@@ -195,5 +199,14 @@ export class KycController {
   @Get('admin/:id')
   async getKycById(@Param('id') id: string) {
     return this.kycService.getKycById(+id);
+  }
+
+  // Admin - Get Pending KYC submissions
+  @Roles(Role.ADMIN)
+  @Get('pending')
+  async getPendingKyc(@Query('page') page: string = '1', @Query('limit') limit: string = '20') {
+    const pageNum = parseInt(page, 10) || 1;
+    const limitNum = parseInt(limit, 10) || 20;
+    return this.kycService.getPendingKyc(pageNum, limitNum);
   }
 }

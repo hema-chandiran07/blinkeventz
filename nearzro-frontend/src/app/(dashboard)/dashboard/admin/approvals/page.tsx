@@ -2,40 +2,41 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  CheckCircle2, XCircle, Clock, Building, Store, Eye, AlertCircle,
-  RefreshCw, Filter, Mail, Phone, MapPin, Calendar, User, Users
+  CheckCircle2, XCircle, Eye, Download, FileText, Store, Building,
+  Clock, Activity
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
 
-interface Approval {
+interface ApprovalItem {
   id: number;
-  type: "VENUE" | "VENDOR";
+  type: 'VENDOR' | 'VENUE' | 'KYC';
   title: string;
-  owner: string;
-  contact: string;
-  phone: string;
-  location: string;
-  area: string;
-  city: string;
-  capacity?: number;
-  serviceType?: string;
-  price: number;
+  subtitle: string;
+  user: {
+    name: string;
+    email: string;
+    role: string;
+  };
   status: string;
-  submittedDate: string;
-  description: string;
+  submittedAt: string;
+  documentUrl?: string;
+  docType?: string;
+  docNumber?: string;
 }
 
-export default function AdminApprovalsPage() {
+export default function UnifiedApprovalsPage() {
   const router = useRouter();
-  const [approvals, setApprovals] = useState<Approval[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filterType, setFilterType] = useState("all");
-  const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState<'ALL' | 'VENDOR' | 'VENUE' | 'KYC'>('ALL');
+  const [approvals, setApprovals] = useState<ApprovalItem[]>([]);
+  const [selectedApproval, setSelectedApproval] = useState<ApprovalItem | null>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [showRejectModal, setShowRejectModal] = useState(false);
 
   useEffect(() => {
     loadApprovals();
@@ -44,47 +45,48 @@ export default function AdminApprovalsPage() {
   const loadApprovals = async () => {
     try {
       setLoading(true);
-      // Fetch pending venues and vendors from backend
-      const [venuesRes, vendorsRes] = await Promise.all([
-        api.get('/venues?status=PENDING_APPROVAL'),
-        api.get('/vendors?verificationStatus=PENDING'),
+      const [vendors, venues, kyc] = await Promise.all([
+        api.get("/vendors?verificationStatus=PENDING"),
+        api.get("/venues?status=PENDING_APPROVAL"),
+        api.get("/kyc/admin/submissions"),
       ]);
 
-      const venueApprovals: Approval[] = (venuesRes.data.data || venuesRes.data || []).map((v: any) => ({
-        id: v.id,
-        type: "VENUE" as const,
-        title: v.name,
-        owner: v.owner?.name || "Unknown",
-        contact: v.owner?.email || "",
-        phone: v.owner?.phone || "",
-        location: `${v.area}, ${v.city}`,
-        area: v.area,
-        city: v.city,
-        capacity: v.capacityMax,
-        price: v.basePriceEvening || v.basePriceMorning || 0,
-        status: v.status,
-        submittedDate: v.createdAt,
-        description: v.description || "",
-      }));
+      const items: ApprovalItem[] = [
+        ...(vendors.data || []).map((v: any) => ({
+          id: v.id,
+          type: 'VENDOR' as const,
+          title: v.businessName,
+          subtitle: `${v.city}, ${v.area}`,
+          user: { name: v.user?.name, email: v.user?.email, role: 'VENDOR' },
+          status: v.verificationStatus,
+          submittedAt: v.createdAt,
+          documentUrl: v.images?.[0],
+        })),
+        ...(venues.data || []).map((v: any) => ({
+          id: v.id,
+          type: 'VENUE' as const,
+          title: v.name,
+          subtitle: `${v.city}, ${v.area} | ${v.type}`,
+          user: { name: v.owner?.name, email: v.owner?.email, role: 'VENUE_OWNER' },
+          status: v.status,
+          submittedAt: v.createdAt,
+          documentUrl: v.images?.[0],
+        })),
+        ...(kyc.data || []).map((k: any) => ({
+          id: k.id,
+          type: 'KYC' as const,
+          title: `${k.docType} - ${k.user?.name}`,
+          subtitle: k.docNumber,
+          user: { name: k.user?.name, email: k.user?.email, role: k.user?.role },
+          status: k.status,
+          submittedAt: k.createdAt,
+          documentUrl: k.docFileUrl,
+          docType: k.docType,
+          docNumber: k.docNumber,
+        })),
+      ];
 
-      const vendorApprovals: Approval[] = (vendorsRes.data.data || vendorsRes.data || []).map((v: any) => ({
-        id: v.id,
-        type: "VENDOR" as const,
-        title: v.businessName,
-        owner: v.user?.name || "Unknown",
-        contact: v.user?.email || "",
-        phone: v.user?.phone || "",
-        location: `${v.area}, ${v.city}`,
-        area: v.area,
-        city: v.city,
-        serviceType: v.services?.[0]?.serviceType || "OTHER",
-        price: v.services?.[0]?.baseRate || 0,
-        status: v.verificationStatus,
-        submittedDate: v.createdAt,
-        description: v.description || "",
-      }));
-
-      setApprovals([...venueApprovals, ...vendorApprovals]);
+      setApprovals(items);
     } catch (error: any) {
       console.error("Failed to load approvals:", error);
       toast.error("Failed to load approvals");
@@ -93,308 +95,401 @@ export default function AdminApprovalsPage() {
     }
   };
 
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await loadApprovals();
-    setRefreshing(false);
-    toast.success("Approvals refreshed");
-  };
-
-  const handleApprove = async (id: number, type: string) => {
-    try {
-      const endpoint = type === "VENUE" ? `/venues/${id}/approve` : `/vendors/${id}/approve`;
-      await api.post(endpoint);
-      setApprovals(prev => prev.filter(item => item.id !== id));
-      toast.success(`${type} approved successfully!`);
-    } catch (error: any) {
-      console.error("Approve error:", error);
-      toast.error("Failed to approve");
-    }
-  };
-
-  const handleReject = async (id: number, type: string, reason?: string) => {
-    try {
-      const endpoint = type === "VENUE" ? `/venues/${id}/reject` : `/vendors/${id}/reject`;
-      await api.post(endpoint, { reason });
-      setApprovals(prev => prev.filter(item => item.id !== id));
-      toast.success(`${type} rejected`);
-    } catch (error: any) {
-      console.error("Reject error:", error);
-      toast.error("Failed to reject");
-    }
-  };
-
-  const filteredApprovals = approvals.filter(item => {
-    if (filterType === "all") return true;
-    return item.type === filterType;
-  });
+  const filteredApprovals = activeTab === 'ALL' 
+    ? approvals 
+    : approvals.filter(a => a.type === activeTab);
 
   const stats = {
     total: approvals.length,
-    venues: approvals.filter(a => a.type === "VENUE").length,
-    vendors: approvals.filter(a => a.type === "VENDOR").length,
+    vendors: approvals.filter(a => a.type === 'VENDOR').length,
+    venues: approvals.filter(a => a.type === 'VENUE').length,
+    kyc: approvals.filter(a => a.type === 'KYC').length,
   };
 
-  const formatCurrency = (amount: number) => {
-    if (amount >= 100000) return `₹${(amount / 100000).toFixed(2)}L`;
-    return `₹${(amount / 1000).toFixed(2)}K`;
+  const handleApprove = async (approval: ApprovalItem) => {
+    try {
+      const endpoint = approval.type === 'VENDOR' 
+        ? `/vendors/${approval.id}/approve`
+        : approval.type === 'VENUE'
+        ? `/venues/${approval.id}/approve`
+        : `/kyc/admin/${approval.id}/status`;
+
+      await api.post(endpoint, approval.type === 'KYC' ? { status: 'VERIFIED' } : {});
+      toast.success(`${approval.type} approved successfully!`);
+      loadApprovals();
+      setSelectedApproval(null);
+    } catch (error: any) {
+      console.error("Approval error:", error);
+      toast.error(error?.response?.data?.message || "Failed to approve");
+    }
   };
 
-  const TYPE_ICONS: Record<string, any> = {
-    VENUE: Building,
-    VENDOR: Store,
+  const handleReject = async (approval: ApprovalItem) => {
+    if (!rejectionReason.trim()) {
+      toast.error("Please enter rejection reason");
+      return;
+    }
+
+    try {
+      const endpoint = approval.type === 'VENDOR' 
+        ? `/vendors/${approval.id}/reject`
+        : approval.type === 'VENUE'
+        ? `/venues/${approval.id}/reject`
+        : `/kyc/admin/${approval.id}/status`;
+
+      await api.post(endpoint, { 
+        ...(approval.type === 'KYC' ? { status: 'REJECTED' } : {}),
+        reason: rejectionReason 
+      });
+      toast.success(`${approval.type} rejected`);
+      loadApprovals();
+      setSelectedApproval(null);
+      setShowRejectModal(false);
+      setRejectionReason("");
+    } catch (error: any) {
+      console.error("Rejection error:", error);
+      toast.error(error?.response?.data?.message || "Failed to reject");
+    }
   };
 
-  return (
-    <div className="space-y-6 bg-neutral-50 min-h-screen">
-      {/* Professional Header */}
-      <div className="bg-white border-b border-neutral-200 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-neutral-900">Approvals Queue</h1>
-            <p className="text-sm text-neutral-600 mt-1">Review and approve pending submissions</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button variant="outline" className="border-neutral-300">
-              <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
-          </div>
+  const handleExport = () => {
+    const csvRows = [
+      ['ID', 'Type', 'Title', 'User', 'Email', 'Status', 'Submitted At'],
+      ...approvals.map(a => [
+        a.id,
+        a.type,
+        a.title,
+        a.user.name,
+        a.user.email,
+        a.status,
+        new Date(a.submittedAt).toISOString(),
+      ]),
+    ];
+    const csv = csvRows.map(r => r.join(',')).join('\n');
+    const blob = new Blob([`ID,Type,Title,User,Email,Status,Submitted\n${csv}`], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `approvals-${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    toast.success("Approvals exported successfully!");
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <div className="h-12 w-12 rounded-full border-4 border-neutral-200 border-t-black animate-spin mx-auto mb-4" />
+          <p className="text-black">Loading approvals...</p>
         </div>
       </div>
+    );
+  }
 
-      {/* Alert Banner */}
-      <Card className="border border-amber-200 bg-amber-50 mx-6">
-        <CardContent className="py-4">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
-            <div>
-              <p className="font-semibold text-amber-900">Pending Approvals</p>
-              <p className="text-sm text-amber-800 mt-1">
-                You have <span className="font-bold">{stats.total}</span> items waiting for approval. Please review carefully before approving.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-black">Approvals Dashboard</h1>
+          <p className="text-neutral-600">Manage vendor, venue, and KYC approvals</p>
+        </div>
+        <Button onClick={handleExport} variant="outline" className="border-black">
+          <Download className="h-4 w-4 mr-2" />
+          Export CSV
+        </Button>
+      </div>
 
-      {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-3 px-6">
-        <Card className="border border-neutral-200">
+      {/* Stats */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card className="border-2 border-amber-600">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-neutral-600">Total Pending</p>
-                <p className="text-3xl font-bold text-neutral-900 mt-1">{stats.total}</p>
+                <p className="text-3xl font-bold text-amber-600">{stats.total}</p>
               </div>
-              <div className="p-3 rounded-lg bg-neutral-900">
+              <div className="p-3 rounded-full bg-amber-600">
                 <Clock className="h-6 w-6 text-white" />
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card className="border border-neutral-200">
+        <Card className="border-2 border-blue-600">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-600">Venues Pending</p>
-                <p className="text-3xl font-bold text-orange-600 mt-1">{stats.venues}</p>
+                <p className="text-sm font-medium text-neutral-600">Vendors</p>
+                <p className="text-3xl font-bold text-blue-600">{stats.vendors}</p>
               </div>
-              <div className="p-3 rounded-lg bg-orange-600">
-                <Building className="h-6 w-6 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border border-neutral-200">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-neutral-600">Vendors Pending</p>
-                <p className="text-3xl font-bold text-purple-600 mt-1">{stats.vendors}</p>
-              </div>
-              <div className="p-3 rounded-lg bg-purple-600">
+              <div className="p-3 rounded-full bg-blue-600">
                 <Store className="h-6 w-6 text-white" />
               </div>
             </div>
           </CardContent>
         </Card>
+        <Card className="border-2 border-purple-600">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-neutral-600">Venues</p>
+                <p className="text-3xl font-bold text-purple-600">{stats.venues}</p>
+              </div>
+              <div className="p-3 rounded-full bg-purple-600">
+                <Building className="h-6 w-6 text-white" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-2 border-green-600">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-neutral-600">KYC Documents</p>
+                <p className="text-3xl font-bold text-green-600">{stats.kyc}</p>
+              </div>
+              <div className="p-3 rounded-full bg-green-600">
+                <FileText className="h-6 w-6 text-white" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Filters */}
-      <Card className="border border-neutral-200 mx-6">
+      {/* Tabs */}
+      <Card className="border-2 border-black">
         <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-neutral-600" />
-              <span className="font-medium text-neutral-900">Filter by Type:</span>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant={filterType === "all" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setFilterType("all")}
-                className={filterType === "all" ? "bg-neutral-900 hover:bg-neutral-800" : "border-neutral-300"}
-              >
-                All ({stats.total})
-              </Button>
-              <Button
-                variant={filterType === "VENUE" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setFilterType("VENUE")}
-                className={filterType === "VENUE" ? "bg-neutral-900 hover:bg-neutral-800" : "border-neutral-300"}
-              >
-                Venues ({stats.venues})
-              </Button>
-              <Button
-                variant={filterType === "VENDOR" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setFilterType("VENDOR")}
-                className={filterType === "VENDOR" ? "bg-neutral-900 hover:bg-neutral-800" : "border-neutral-300"}
-              >
-                Vendors ({stats.vendors})
-              </Button>
-            </div>
+          <div className="flex gap-2">
+            <Button
+              variant={activeTab === 'ALL' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setActiveTab('ALL')}
+              className={activeTab === 'ALL' ? 'bg-black' : 'border-black'}
+            >
+              All ({stats.total})
+            </Button>
+            <Button
+              variant={activeTab === 'VENDOR' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setActiveTab('VENDOR')}
+              className={activeTab === 'VENDOR' ? 'bg-black' : 'border-black'}
+            >
+              <Store className="h-4 w-4 mr-2" />
+              Vendors ({stats.vendors})
+            </Button>
+            <Button
+              variant={activeTab === 'VENUE' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setActiveTab('VENUE')}
+              className={activeTab === 'VENUE' ? 'bg-black' : 'border-black'}
+            >
+              <Building className="h-4 w-4 mr-2" />
+              Venues ({stats.venues})
+            </Button>
+            <Button
+              variant={activeTab === 'KYC' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setActiveTab('KYC')}
+              className={activeTab === 'KYC' ? 'bg-black' : 'border-black'}
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              KYC ({stats.kyc})
+            </Button>
           </div>
         </CardContent>
       </Card>
 
       {/* Approvals List */}
-      <div className="space-y-4 mx-6">
-        {filteredApprovals.length === 0 ? (
-          <Card className="border border-neutral-200">
-            <CardContent className="py-12 text-center">
-              <CheckCircle2 className="h-16 w-16 mx-auto mb-4 text-emerald-600" />
-              <h3 className="text-xl font-bold text-neutral-900 mb-2">All Caught Up!</h3>
-              <p className="text-neutral-600">No pending approvals at the moment</p>
-            </CardContent>
-          </Card>
-        ) : (
-          filteredApprovals.map((item) => {
-            const IconComponent = TYPE_ICONS[item.type];
-            return (
-              <Card key={item.id} className="border border-neutral-200 hover:shadow-lg transition-shadow">
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="h-14 w-14 rounded-full bg-neutral-900 flex items-center justify-center">
-                          <IconComponent className="h-7 w-7 text-white" />
-                        </div>
-                        <div>
-                          <h3 className="text-xl font-bold text-neutral-900">{item.title}</h3>
-                          <div className="flex items-center gap-2 mt-1">
-                            <Badge className={
-                              item.type === "VENUE" 
-                                ? "bg-orange-50 text-orange-700 border-orange-200"
-                                : "bg-purple-50 text-purple-700 border-purple-200"
-                            }>
-                              {item.type}
-                            </Badge>
-                            <Badge className="bg-amber-50 text-amber-700 border-amber-200">
-                              <Clock className="h-3 w-3 mr-1" />
-                              {item.status.replace("_", " ")}
-                            </Badge>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="grid md:grid-cols-2 gap-4 mb-4">
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2 text-sm text-neutral-700">
-                            <User className="h-4 w-4 text-neutral-400" />
-                            <span className="font-medium">Owner:</span>
-                            <span>{item.owner}</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-neutral-700">
-                            <Mail className="h-4 w-4 text-neutral-400" />
-                            <span className="font-medium">Email:</span>
-                            <span>{item.contact}</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-neutral-700">
-                            <Phone className="h-4 w-4 text-neutral-400" />
-                            <span className="font-medium">Phone:</span>
-                            <span>{item.phone}</span>
-                          </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2 text-sm text-neutral-700">
-                            <MapPin className="h-4 w-4 text-neutral-400" />
-                            <span className="font-medium">Location:</span>
-                            <span>{item.location}</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-neutral-700">
-                            <Calendar className="h-4 w-4 text-neutral-400" />
-                            <span className="font-medium">Submitted:</span>
-                            <span>{new Date(item.submittedDate).toLocaleDateString("en-IN", { year: 'numeric', month: 'short', day: 'numeric' })}</span>
-                          </div>
-                          {item.type === "VENUE" && (
-                            <div className="flex items-center gap-2 text-sm text-neutral-700">
-                              <Users className="h-4 w-4 text-neutral-400" />
-                              <span className="font-medium">Capacity:</span>
-                              <span>{item.capacity} guests</span>
-                            </div>
-                          )}
-                          {item.type === "VENDOR" && (
-                            <div className="flex items-center gap-2 text-sm text-neutral-700">
-                              <Store className="h-4 w-4 text-neutral-400" />
-                              <span className="font-medium">Service:</span>
-                              <span>{item.serviceType}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="p-4 bg-neutral-50 rounded-lg border border-neutral-200 mb-4">
-                        <p className="text-sm font-medium text-neutral-900 mb-1">Description:</p>
-                        <p className="text-sm text-neutral-700">{item.description}</p>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-neutral-900">Base Price:</span>
-                          <span className="text-lg font-bold text-neutral-900">{formatCurrency(item.price)}</span>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => router.push(`/dashboard/admin/${item.type === 'VENUE' ? 'venues' : 'vendors'}/${item.id}`)}
-                          className="border border-neutral-300"
-                        >
-                          <Eye className="h-4 w-4 mr-2" />
-                          View Full Details
-                        </Button>
-                      </div>
+      <Card className="border-2 border-black">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Activity className="h-5 w-5" />
+            Pending Approvals
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {filteredApprovals.length === 0 ? (
+            <div className="text-center py-12">
+              <CheckCircle2 className="h-16 w-16 mx-auto mb-4 text-green-600" />
+              <h3 className="text-lg font-bold text-black mb-2">All Caught Up!</h3>
+              <p className="text-neutral-600">No pending approvals in this category</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredApprovals.map((approval) => (
+                <div
+                  key={approval.id}
+                  className="flex items-center justify-between p-4 rounded-lg border border-neutral-200 hover:border-black transition-colors"
+                >
+                  <div className="flex items-center gap-4 flex-1">
+                    <div className="h-12 w-12 rounded-full bg-neutral-100 flex items-center justify-center">
+                      {approval.type === 'VENDOR' && <Store className="h-6 w-6" />}
+                      {approval.type === 'VENUE' && <Building className="h-6 w-6" />}
+                      {approval.type === 'KYC' && <FileText className="h-6 w-6" />}
                     </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex flex-col gap-2">
-                      <Button
-                        size="lg"
-                        onClick={() => handleApprove(item.id, item.type)}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                      >
-                        <CheckCircle2 className="h-5 w-5 mr-2" />
-                        Approve
-                      </Button>
-                      <Button
-                        size="lg"
-                        variant="outline"
-                        onClick={() => handleReject(item.id, item.type)}
-                        className="border-red-300 text-red-600 hover:bg-red-50"
-                      >
-                        <XCircle className="h-5 w-5 mr-2" />
-                        Reject
-                      </Button>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-bold text-black">{approval.title}</h3>
+                        <Badge className="bg-neutral-100 text-black border-neutral-300">
+                          {approval.type}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-neutral-600">{approval.subtitle}</p>
+                      <p className="text-xs text-neutral-500 mt-1">
+                        {approval.user.name} • {new Date(approval.submittedAt).toLocaleDateString()}
+                      </p>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            );
-          })
-        )}
-      </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectedApproval(approval)}
+                      className="border-black"
+                    >
+                      <Eye className="h-4 w-4 mr-2" />
+                      Review
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Review Modal */}
+      {selectedApproval && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <span className="text-black">Review {selectedApproval.type}</span>
+                <Button variant="ghost" size="sm" onClick={() => setSelectedApproval(null)}>
+                  <XCircle className="h-5 w-5" />
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Details */}
+              <div>
+                <h3 className="font-bold text-black mb-3">Details</h3>
+                <div className="grid grid-cols-2 gap-4 p-4 bg-neutral-50 rounded-lg">
+                  <div>
+                    <p className="text-xs text-neutral-600">Name</p>
+                    <p className="font-medium text-black">{selectedApproval.title}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-neutral-600">User</p>
+                    <p className="font-medium text-black">{selectedApproval.user.name}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-neutral-600">Email</p>
+                    <p className="font-medium text-black">{selectedApproval.user.email}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-neutral-600">Submitted</p>
+                    <p className="font-medium text-black">
+                      {new Date(selectedApproval.submittedAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Document Preview for KYC */}
+              {selectedApproval.type === 'KYC' && selectedApproval.documentUrl && (
+                <div>
+                  <h3 className="font-bold text-black mb-3">KYC Document</h3>
+                  <div className="border-2 border-neutral-200 rounded-lg p-4">
+                    <p className="text-sm text-neutral-600 mb-2">
+                      Type: {selectedApproval.docType} | Number: {selectedApproval.docNumber}
+                    </p>
+                    {selectedApproval.documentUrl.match(/\.(jpg|jpeg|png|gif)$/i) ? (
+                      <img
+                        src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}${selectedApproval.documentUrl}`}
+                        alt="KYC Document"
+                        className="max-w-full h-auto max-h-64 mx-auto rounded"
+                      />
+                    ) : (
+                      <div className="text-center p-8">
+                        <FileText className="h-12 w-12 text-neutral-400 mx-auto mb-3" />
+                        <Button
+                          variant="outline"
+                          onClick={() => window.open(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}${selectedApproval.documentUrl}`, '_blank')}
+                        >
+                          <Download className="h-4 w-4 mr-2" />
+                          Open Document
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex gap-3 pt-4 border-t">
+                <Button
+                  className="flex-1 bg-green-600 hover:bg-green-700"
+                  onClick={() => handleApprove(selectedApproval)}
+                >
+                  <CheckCircle2 className="h-5 w-5 mr-2" />
+                  Approve
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1 border-red-300 text-red-600 hover:bg-red-50"
+                  onClick={() => setShowRejectModal(true)}
+                >
+                  <XCircle className="h-5 w-5 mr-2" />
+                  Reject
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Reject Modal */}
+      {showRejectModal && selectedApproval && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="max-w-md w-full">
+            <CardHeader>
+              <CardTitle className="text-black">Reject {selectedApproval.type}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-black">Rejection Reason *</label>
+                <textarea
+                  rows={4}
+                  placeholder="Please specify why this is being rejected..."
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  className="flex min-h-[100px] w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm"
+                />
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    setShowRejectModal(false);
+                    setRejectionReason("");
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  className="flex-1"
+                  onClick={() => handleReject(selectedApproval)}
+                >
+                  Reject
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

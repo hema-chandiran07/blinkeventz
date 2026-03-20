@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
 import { useAuth } from "@/context/auth-context";
-import { Eye, EyeOff, Mail, Lock, Loader2, Shield, AlertCircle, CheckCircle } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, Loader2, Shield, AlertCircle } from "lucide-react";
 
 import { toast } from "sonner";
 
@@ -151,21 +151,6 @@ export default function AdminLoginPage() {
                   <p className="font-semibold mb-1">Security Notice</p>
                   <p className="text-amber-700">
                     All admin activities are monitored and logged. Unauthorized access attempts will be recorded and may result in legal action.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-4 p-4 bg-green-50 rounded-xl border border-green-200">
-              <div className="flex items-start gap-3">
-                <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
-                <div className="text-sm text-green-800">
-                  <p className="font-semibold mb-1">Default Admin Credentials</p>
-                  <p className="text-green-700">
-                    Email: <code className="bg-green-100 px-2 py-0.5 rounded">admin@NearZro.com</code>
-                  </p>
-                  <p className="text-green-700">
-                    Password: <code className="bg-green-100 px-2 py-0.5 rounded">admin123</code>
                   </p>
                 </div>
               </div>

@@ -216,7 +216,7 @@ export class VendorsService {
   /**
    * Reject a vendor (ADMIN only)
    */
-  async rejectVendor(id: number) {
+  async rejectVendor(id: number, reason?: string) {
     try {
       const vendor = await this.prisma.vendor.findUnique({
         where: { id },

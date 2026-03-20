@@ -1,477 +1,406 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
-  ArrowLeft, Eye, Edit, Trash2, MapPin, Users, DollarSign,
-  CheckCircle2, XCircle, Calendar, TrendingUp, Download, Share2,
-  MessageSquare, Star, Building2
+  ArrowLeft, Edit, MapPin, CheckCircle2, XCircle, Calendar, Download, Share2, Building2, Star, Users,
+  Loader2
 } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { useRouter, useParams } from "next/navigation";
 import { toast } from "sonner";
+import api from "@/lib/api";
 
 interface VenueDetail {
   id: number;
+  ownerId: number;
   name: string;
-  owner: string;
-  email: string;
-  phone: string;
   type: string;
+  description?: string;
   address: string;
-  area: string;
   city: string;
+  area: string;
   pincode: string;
   capacityMin: number;
   capacityMax: number;
-  basePriceMorning: number;
-  basePriceEvening: number;
-  basePriceFullDay: number;
-  amenities: string[];
+  basePriceMorning?: number;
+  basePriceEvening?: number;
+  basePriceFullDay?: number;
+  amenities?: string;
   status: string;
-  bookings: number;
-  revenue: number;
-  rating: number;
+  images?: string[];
+  owner?: {
+    name: string;
+    email: string;
+    phone?: string;
+  };
   createdAt: string;
+  updatedAt: string;
 }
-
-const MOCK_VENUE: VenueDetail = {
-  id: 1,
-  name: "Grand Ballroom ITC",
-  owner: "ITC Hotels",
-  email: "hotels@itchotels.in",
-  phone: "+91 44 2231 1111",
-  type: "BANQUET",
-  address: "123 GST Road",
-  area: "Guindy",
-  city: "Chennai",
-  pincode: "600032",
-  capacityMin: 500,
-  capacityMax: 800,
-  basePriceMorning: 100000,
-  basePriceEvening: 150000,
-  basePriceFullDay: 200000,
-  amenities: ["Parking", "AC", "Catering", "Decoration", "Sound System"],
-  status: "ACTIVE",
-  bookings: 45,
-  revenue: 6750000,
-  rating: 4.8,
-  createdAt: "2024-01-15",
-};
 
 const STATUS_COLORS: Record<string, string> = {
   ACTIVE: "bg-emerald-500 text-white",
   PENDING_APPROVAL: "bg-amber-500 text-white",
   INACTIVE: "bg-neutral-500 text-white",
   SUSPENDED: "bg-red-500 text-white",
+  REJECTED: "bg-red-500 text-white",
 };
 
-export default function VenueDetailPage({ params }: { params: Promise<{ id: string }> }) {
+const TYPE_LABELS: Record<string, string> = {
+  HALL: "Hall",
+  MANDAPAM: "Mandapam",
+  LAWN: "Lawn",
+  RESORT: "Resort",
+  BANQUET: "Banquet",
+  BANQUET_HALL: "Banquet Hall",
+  MARRIAGE_HALL: "Marriage Hall",
+  BEACH_VENUE: "Beach Venue",
+  HOTEL: "Hotel",
+  COMMUNITY_HALL: "Community Hall",
+  OTHER: "Other",
+};
+
+export default function VenueDetailPage() {
   const router = useRouter();
-  const [venue] = useState<VenueDetail>(MOCK_VENUE);
+  const params = useParams();
+  const [loading, setLoading] = useState(true);
+  const [venue, setVenue] = useState<VenueDetail | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
 
-  const formatCurrency = (amount: number) => {
-    if (amount >= 10000000) return `₹${(amount / 10000000).toFixed(2)}Cr`;
-    if (amount >= 100000) return `₹${(amount / 100000).toFixed(2)}L`;
-    return `₹${(amount / 1000).toFixed(2)}K`;
-  };
+  useEffect(() => {
+    loadVenue();
+  }, [params.id]);
 
-  const handleUpdateStatus = async (newStatus: string) => {
+  const loadVenue = async () => {
     try {
-      console.log(`Updating venue ${venue.id} status to ${newStatus}`);
-      toast.success(`Venue status updated to ${newStatus}`);
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-      window.location.reload();
+      setLoading(true);
+      const response = await api.get("/venues");
+      const found = response.data.find((v: any) => v.id === parseInt(params.id as string));
+      setVenue(found || null);
     } catch (error: any) {
-      console.error("Status update error:", error);
-      toast.error("Failed to update status");
+      console.error("Failed to load venue:", error);
+      toast.error("Failed to load venue details");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleDelete = async () => {
-    if (confirm("Are you sure you want to delete this venue?")) {
-      try {
-        console.log(`Deleting venue ${venue.id}`);
-        toast.success("Venue deleted successfully");
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 500));
-        router.push("/dashboard/admin/venues");
-      } catch (error: any) {
-        console.error("Delete error:", error);
-        toast.error("Failed to delete venue");
-      }
-    }
-  };
-
-  const handleExport = async () => {
+  const handleApprove = async () => {
     try {
-      console.log(`Exporting venue ${venue.id}`);
-      toast.success("Venue details exported");
+      setActionLoading(true);
+      await api.post(`/venues/${venue?.id}/approve`);
+      toast.success("Venue approved successfully!");
+      loadVenue();
     } catch (error: any) {
-      console.error("Export error:", error);
-      toast.error("Failed to export venue");
+      toast.error(error?.response?.data?.message || "Failed to approve venue");
+    } finally {
+      setActionLoading(false);
     }
   };
 
-  const handleShare = async () => {
+  const handleReject = async () => {
+    const reason = prompt("Please enter rejection reason:");
+    if (!reason) return;
+    
     try {
-      console.log(`Sharing venue ${venue.id}`);
-      const shareUrl = `${window.location.origin}/venues/${venue.id}`;
-      await navigator.clipboard.writeText(shareUrl);
-      toast.success("Venue link copied to clipboard");
+      setActionLoading(true);
+      await api.post(`/venues/${venue?.id}/reject`, { reason });
+      toast.success("Venue rejected");
+      loadVenue();
     } catch (error: any) {
-      console.error("Share error:", error);
-      toast.error("Failed to share venue");
+      toast.error(error?.response?.data?.message || "Failed to reject venue");
+    } finally {
+      setActionLoading(false);
     }
   };
 
-  const handleEdit = () => {
-    console.log(`Editing venue ${venue.id}`);
-    toast.info("Opening edit mode...");
+  const handleToggleStatus = async () => {
+    if (!venue) return;
+    const newStatus = venue.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+    
+    try {
+      setActionLoading(true);
+      await api.patch(`/venues/${venue.id}`, { status: newStatus });
+      toast.success(`Venue ${newStatus === 'ACTIVE' ? 'activated' : 'deactivated'}`);
+      loadVenue();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to update venue status");
+    } finally {
+      setActionLoading(false);
+    }
   };
 
-  const handleSendMessage = () => {
-    console.log(`Sending message to owner ${venue.owner}`);
-    toast.success("Message sent to owner");
-  };
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-black" />
+          <p className="text-neutral-600">Loading venue details...</p>
+        </div>
+      </div>
+    );
+  }
 
-  const handleViewProfile = () => {
-    console.log(`Viewing owner profile`);
-    router.push("/dashboard/admin/users");
-  };
-
-  const handleViewBookings = () => {
-    console.log(`Viewing bookings for venue ${venue.id}`);
-    router.push(`/dashboard/admin/venues/${venue.id}/bookings`);
-  };
-
-  const handleManageCalendar = () => {
-    console.log(`Managing calendar for venue ${venue.id}`);
-    router.push(`/dashboard/admin/venues/${venue.id}/calendar`);
-  };
-
-  const handleViewAnalytics = () => {
-    console.log(`Viewing analytics for venue ${venue.id}`);
-    router.push(`/dashboard/admin/reports/venues?id=${venue.id}`);
-  };
+  if (!venue) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <XCircle className="h-16 w-16 mx-auto mb-4 text-red-600" />
+          <h3 className="text-lg font-bold text-black mb-2">Venue Not Found</h3>
+          <Button onClick={() => router.push("/dashboard/admin/venues")}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Venues
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      {/* Header with Actions */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-between"
-      >
+      {/* Header */}
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => router.back()}
-            className="hover:bg-neutral-100 transition-colors"
-          >
+          <Button variant="ghost" size="sm" onClick={() => router.back()}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
             <h1 className="text-3xl font-bold text-black">{venue.name}</h1>
-            <p className="text-neutral-600">Venue ID: #{venue.id}</p>
+            <p className="text-neutral-600 flex items-center gap-2">
+              <MapPin className="h-4 w-4" />
+              {venue.area}, {venue.city}
+            </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" className="border-black hover:bg-neutral-100 transition-colors">
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
-          <Button variant="outline" className="border-black hover:bg-neutral-100 transition-colors">
+        <div className="flex gap-2">
+          <Button variant="outline" className="border-black">
             <Share2 className="h-4 w-4 mr-2" />
             Share
           </Button>
-          <Button variant="outline" className="border-black hover:bg-neutral-100 transition-colors">
-            <Edit className="h-4 w-4 mr-2" />
-            Edit
-          </Button>
-          <Button
-            variant="outline"
-            className="border-red-300 text-red-600 hover:bg-red-50 transition-colors"
-            onClick={handleDelete}
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Delete
+          <Button variant="outline" className="border-black">
+            <Download className="h-4 w-4 mr-2" />
+            Export
           </Button>
         </div>
-      </motion.div>
+      </div>
 
-      {/* Status & Quick Actions */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="flex items-center justify-between"
-      >
-        <Badge className={`${STATUS_COLORS[venue.status]} px-4 py-2 text-sm font-semibold`}>
-          {venue.status.replace("_", " ")}
-        </Badge>
-        <div className="flex items-center gap-2">
-          {venue.status === "PENDING_APPROVAL" && (
-            <>
-              <Button
-                onClick={() => handleUpdateStatus("ACTIVE")}
-                className="bg-emerald-600 hover:bg-emerald-700 transition-colors"
-              >
-                <CheckCircle2 className="h-4 w-4 mr-2" />
-                Approve Venue
-              </Button>
-              <Button
-                variant="outline"
-                className="border-red-300 text-red-600 hover:bg-red-50 transition-colors"
-                onClick={() => handleUpdateStatus("INACTIVE")}
-              >
+      {/* Stats */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card className="border-2 border-black">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-neutral-600">Status</p>
+                <p className="text-2xl font-bold text-black mt-1">{venue.status.replace('_', ' ')}</p>
+              </div>
+              <div className="p-3 rounded-full bg-black">
+                <Building2 className="h-6 w-6 text-white" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-2 border-blue-600">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-neutral-600">Type</p>
+                <p className="text-2xl font-bold text-blue-600 mt-1">{TYPE_LABELS[venue.type] || venue.type}</p>
+              </div>
+              <div className="p-3 rounded-full bg-blue-600">
+                <Star className="h-6 w-6 text-white" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-2 border-amber-600">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-neutral-600">Capacity</p>
+                <p className="text-2xl font-bold text-amber-600 mt-1">{venue.capacityMin}-{venue.capacityMax}</p>
+              </div>
+              <div className="p-3 rounded-full bg-amber-600">
+                <Users className="h-6 w-6 text-white" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-2 border-emerald-600">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-neutral-600">Listed</p>
+                <p className="text-2xl font-bold text-emerald-600 mt-1">
+                  {new Date(venue.createdAt).toLocaleDateString()}
+                </p>
+              </div>
+              <div className="p-3 rounded-full bg-emerald-600">
+                <Calendar className="h-6 w-6 text-white" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Venue Information */}
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card className="border-2 border-black">
+          <CardHeader>
+            <CardTitle className="text-black">Venue Details</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <p className="text-xs text-neutral-600">Venue Name</p>
+              <p className="font-medium text-black">{venue.name}</p>
+            </div>
+            {venue.description && (
+              <div>
+                <p className="text-xs text-neutral-600">Description</p>
+                <p className="font-medium text-black">{venue.description}</p>
+              </div>
+            )}
+            <div>
+              <p className="text-xs text-neutral-600">Address</p>
+              <p className="font-medium text-black">{venue.address}, {venue.area}, {venue.city} - {venue.pincode}</p>
+            </div>
+            <div>
+              <p className="text-xs text-neutral-600">Capacity</p>
+              <p className="font-medium text-black">{venue.capacityMin} to {venue.capacityMax} guests</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-2 border-black">
+          <CardHeader>
+            <CardTitle className="text-black">Pricing</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {venue.basePriceMorning && (
+              <div>
+                <p className="text-xs text-neutral-600">Morning Slot (6AM-12PM)</p>
+                <p className="font-medium text-black">₹{(venue.basePriceMorning / 1000).toFixed(2)}K</p>
+              </div>
+            )}
+            {venue.basePriceEvening && (
+              <div>
+                <p className="text-xs text-neutral-600">Evening Slot (4PM-10PM)</p>
+                <p className="font-medium text-black">₹{(venue.basePriceEvening / 1000).toFixed(2)}K</p>
+              </div>
+            )}
+            {venue.basePriceFullDay && (
+              <div>
+                <p className="text-xs text-neutral-600">Full Day (24 Hours)</p>
+                <p className="font-medium text-black">₹{(venue.basePriceFullDay / 1000).toFixed(2)}K</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="border-2 border-black md:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-black">Owner Information</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid md:grid-cols-3 gap-4">
+              <div>
+                <p className="text-xs text-neutral-600">Owner Name</p>
+                <p className="font-medium text-black">{venue.owner?.name || 'N/A'}</p>
+              </div>
+              <div>
+                <p className="text-xs text-neutral-600">Email</p>
+                <p className="font-medium text-black">{venue.owner?.email || 'N/A'}</p>
+              </div>
+              {venue.owner?.phone && (
+                <div>
+                  <p className="text-xs text-neutral-600">Phone</p>
+                  <p className="font-medium text-black">{venue.owner.phone}</p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Images */}
+      {venue.images && venue.images.length > 0 && (
+        <Card className="border-2 border-black">
+          <CardHeader>
+            <CardTitle className="text-black">Venue Images</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-4">
+              {venue.images.map((img, idx) => (
+                <div key={idx} className="aspect-video rounded-lg overflow-hidden border-2 border-neutral-200">
+                  <img
+                    src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}${img}`}
+                    alt={`Venue image ${idx + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Admin Actions */}
+      <Card className="border-2 border-black">
+        <CardHeader>
+          <CardTitle className="text-black">Admin Actions</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-3 flex-wrap">
+            {venue.status === 'PENDING_APPROVAL' && (
+              <>
+                <Button
+                  variant="default"
+                  className="bg-green-600 hover:bg-green-700"
+                  onClick={handleApprove}
+                  disabled={actionLoading}
+                >
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  Approve Venue
+                </Button>
+                <Button
+                  variant="outline"
+                  className="border-red-300 text-red-600 hover:bg-red-50"
+                  onClick={handleReject}
+                  disabled={actionLoading}
+                >
+                  <XCircle className="h-4 w-4 mr-2" />
+                  Reject
+                </Button>
+              </>
+            )}
+
+            <Button
+              variant={venue.status === 'ACTIVE' ? 'destructive' : 'default'}
+              onClick={handleToggleStatus}
+              disabled={actionLoading}
+              className={venue.status === 'ACTIVE' ? 'bg-red-600 hover:bg-red-700' : 'bg-black'}
+            >
+              {venue.status === 'ACTIVE' ? (
                 <XCircle className="h-4 w-4 mr-2" />
-                Reject
-              </Button>
-            </>
-          )}
-          {venue.status === "ACTIVE" && (
+              ) : (
+                <CheckCircle2 className="h-4 w-4 mr-2" />
+              )}
+              {venue.status === 'ACTIVE' ? 'Deactivate Venue' : 'Activate Venue'}
+            </Button>
+
             <Button
               variant="outline"
-              className="border-red-300 text-red-600 hover:bg-red-50 transition-colors"
-              onClick={() => handleUpdateStatus("INACTIVE")}
+              className="border-black"
+              onClick={() => router.push(`/dashboard/admin/venues/${venue.id}/edit`)}
             >
-              <XCircle className="h-4 w-4 mr-2" />
-              Deactivate
+              <Edit className="h-4 w-4 mr-2" />
+              Edit Venue
             </Button>
-          )}
-        </div>
-      </motion.div>
-
-      {/* Main Content Grid */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Venue Details */}
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.2 }}
-          className="lg:col-span-2 space-y-6"
-        >
-          <Card className="border-2 border-black hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <CardTitle className="text-black flex items-center gap-2">
-                <Building2 className="h-5 w-5" />
-                Venue Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium text-neutral-600">Venue Type</p>
-                  <p className="text-lg font-bold text-black">{venue.type}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-neutral-600">Capacity</p>
-                  <p className="text-lg font-bold text-black">
-                    {venue.capacityMin} - {venue.capacityMax} guests
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-neutral-600">Address</p>
-                  <div className="flex items-start gap-2">
-                    <MapPin className="h-5 w-5 text-neutral-400 mt-0.5" />
-                    <div>
-                      <p className="text-lg font-bold text-black">{venue.address}</p>
-                      <p className="text-sm text-neutral-600">{venue.area}, {venue.city} - {venue.pincode}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 border-black hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <CardTitle className="text-black flex items-center gap-2">
-                <DollarSign className="h-5 w-5" />
-                Pricing Details
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid md:grid-cols-3 gap-4">
-                <div className="p-4 rounded-lg border-2 border-neutral-200">
-                  <p className="text-sm font-medium text-neutral-600">Morning Slot</p>
-                  <p className="text-2xl font-bold text-black mt-2">{formatCurrency(venue.basePriceMorning)}</p>
-                </div>
-                <div className="p-4 rounded-lg border-2 border-neutral-200">
-                  <p className="text-sm font-medium text-neutral-600">Evening Slot</p>
-                  <p className="text-2xl font-bold text-black mt-2">{formatCurrency(venue.basePriceEvening)}</p>
-                </div>
-                <div className="p-4 rounded-lg border-2 border-neutral-200">
-                  <p className="text-sm font-medium text-neutral-600">Full Day</p>
-                  <p className="text-2xl font-bold text-black mt-2">{formatCurrency(venue.basePriceFullDay)}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 border-black hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <CardTitle className="text-black flex items-center gap-2">
-                <Star className="h-5 w-5" />
-                Amenities & Features
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-2">
-                {venue.amenities.map((amenity, index) => (
-                  <Badge key={index} className="bg-neutral-100 text-black border-neutral-300 px-3 py-1">
-                    {amenity}
-                  </Badge>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 border-black hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <CardTitle className="text-black flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Owner Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium text-neutral-600">Owner Name</p>
-                  <p className="text-lg font-bold text-black">{venue.owner}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-neutral-600">Email Address</p>
-                  <p className="text-lg font-bold text-black">{venue.email}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-neutral-600">Phone Number</p>
-                  <p className="text-lg font-bold text-black">{venue.phone}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-neutral-600">Registered On</p>
-                  <p className="text-lg font-bold text-black">
-                    {new Date(venue.createdAt).toLocaleDateString("en-IN")}
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-2 pt-4">
-                <Button variant="outline" className="border-black hover:bg-neutral-100 transition-colors">
-                  <MessageSquare className="h-4 w-4 mr-2" />
-                  Send Message
-                </Button>
-                <Button variant="outline" className="border-black hover:bg-neutral-100 transition-colors">
-                  <Eye className="h-4 w-4 mr-2" />
-                  View Profile
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Sidebar */}
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.3 }}
-          className="space-y-6"
-        >
-          <Card className="border-2 border-black hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <CardTitle className="text-black">Performance Metrics</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between p-3 rounded-lg bg-neutral-50">
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5 text-neutral-400" />
-                  <span className="text-sm text-neutral-600">Total Bookings</span>
-                </div>
-                <span className="text-xl font-bold text-black">{venue.bookings}</span>
-              </div>
-              <div className="flex items-center justify-between p-3 rounded-lg bg-neutral-50">
-                <div className="flex items-center gap-2">
-                  <DollarSign className="h-5 w-5 text-neutral-400" />
-                  <span className="text-sm text-neutral-600">Total Revenue</span>
-                </div>
-                <span className="text-xl font-bold text-black">{formatCurrency(venue.revenue)}</span>
-              </div>
-              <div className="flex items-center justify-between p-3 rounded-lg bg-neutral-50">
-                <div className="flex items-center gap-2">
-                  <Star className="h-5 w-5 text-amber-500 fill-amber-500" />
-                  <span className="text-sm text-neutral-600">Rating</span>
-                </div>
-                <span className="text-xl font-bold text-black">{venue.rating}/5.0</span>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 border-black hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <CardTitle className="text-black">Recent Activity</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-start gap-3">
-                <div className="h-2 w-2 rounded-full bg-emerald-600 mt-2" />
-                <div>
-                  <p className="text-sm font-semibold text-black">Venue Approved</p>
-                  <p className="text-xs text-neutral-600">2024-01-20</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="h-2 w-2 rounded-full bg-blue-600 mt-2" />
-                <div>
-                  <p className="text-sm font-semibold text-black">New Booking</p>
-                  <p className="text-xs text-neutral-600">2024-03-10</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="h-2 w-2 rounded-full bg-neutral-400 mt-2" />
-                <div>
-                  <p className="text-sm font-semibold text-black">Profile Updated</p>
-                  <p className="text-xs text-neutral-600">2024-03-01</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 border-black hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <CardTitle className="text-black">Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Button
-                variant="outline"
-                className="w-full border-black hover:bg-neutral-100 transition-colors justify-start"
-                onClick={() => router.push(`/dashboard/admin/venues/${venue.id}/bookings`)}
-              >
-                <Calendar className="h-4 w-4 mr-2" />
-                View Bookings
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full border-black hover:bg-neutral-100 transition-colors justify-start"
-                onClick={() => router.push(`/dashboard/admin/venues/${venue.id}/calendar`)}
-              >
-                <Calendar className="h-4 w-4 mr-2" />
-                Manage Calendar
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full border-black hover:bg-neutral-100 transition-colors justify-start"
-                onClick={() => router.push(`/dashboard/admin/venues/${venue.id}/analytics`)}
-              >
-                <TrendingUp className="h-4 w-4 mr-2" />
-                View Analytics
-              </Button>
-            </CardContent>
-          </Card>
-        </motion.div>
-      </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

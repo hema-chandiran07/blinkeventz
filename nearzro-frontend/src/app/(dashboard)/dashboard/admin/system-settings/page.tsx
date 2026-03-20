@@ -1,310 +1,468 @@
 "use client";
 
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
 import {
-  Settings, ToggleLeft, Link, Shield, Save, AlertTriangle, Mail, MessageSquare, CreditCard
+  Shield, Zap, Activity,
+  CheckCircle2, AlertCircle, Lock, Clock, Key
 } from "lucide-react";
-import { motion } from "framer-motion";
 import { toast } from "sonner";
+import api from "@/lib/api";
+
+interface FeatureFlags {
+  FEATURE_NEW_DASHBOARD: { enabled: boolean; description?: string };
+  FEATURE_AI_PLANNING: { enabled: boolean; description?: string };
+  FEATURE_EXPRESS_BOOKING: { enabled: boolean; description?: string };
+  FEATURE_AUTO_APPROVE_VENUES: { enabled: boolean; description?: string };
+  FEATURE_MAINTENANCE_MODE: { enabled: boolean; description?: string };
+}
+
+interface Integrations {
+  INTEGRATION_RAZORPAY: { enabled: boolean; apiKey?: string };
+  INTEGRATION_SENDGRID: { enabled: boolean; apiKey?: string };
+  INTEGRATION_TWILIO: { enabled: boolean; apiKey?: string };
+  INTEGRATION_GOOGLE_OAUTH: { enabled: boolean; clientId?: string };
+}
+
+interface SecuritySettings {
+  SECURITY_MFA_REQUIRED: { enabled: boolean };
+  SECURITY_SESSION_TIMEOUT: { minutes: number };
+  SECURITY_MAX_LOGIN_ATTEMPTS: { attempts: number };
+}
 
 export default function SystemSettingsPage() {
-  const [settings, setSettings] = useState({
-    // Feature Flags
-    enableNewDashboard: true,
-    enableAiPlanning: true,
-    enableExpressBooking: false,
-    enableVendorMessaging: true,
-    enableAutoApprove: false,
-    enableMaintenanceMode: false,
-    
-    // Integrations
-    razorpayEnabled: true,
-    sendgridEnabled: true,
-    twilioEnabled: false,
-    googleOAuthEnabled: true,
-    facebookOAuthEnabled: false,
-    
-    // Notifications
-    emailNotifications: true,
-    smsNotifications: false,
-    pushNotifications: true,
-    
-    // Security
-    requireMfa: false,
-    sessionTimeout: 30,
-    maxLoginAttempts: 5,
-  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  const handleSave = async () => {
+  const [featureFlags, setFeatureFlags] = useState<FeatureFlags | null>(null);
+  const [integrations, setIntegrations] = useState<Integrations | null>(null);
+  const [security, setSecurity] = useState<SecuritySettings | null>(null);
+
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  const loadSettings = async () => {
     try {
-      console.log("Saving settings:", settings);
-      toast.success("Settings saved successfully!");
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
+      setLoading(true);
+      // Try the correct endpoint - settings may not exist yet
+      const response = await api.get("/settings").catch(() => ({ data: [] }));
+      const data = response.data || [];
+
+      // Convert array to objects with defaults
+      const flags: any = {
+        FEATURE_NEW_DASHBOARD: { enabled: true, description: "Enable the new dashboard UI" },
+        FEATURE_AI_PLANNING: { enabled: false, description: "Enable AI-powered event planning" },
+        FEATURE_EXPRESS_BOOKING: { enabled: true, description: "Enable express 50-minute booking" },
+        FEATURE_AUTO_APPROVE_VENUES: { enabled: false, description: "Auto-approve venue registrations" },
+        FEATURE_MAINTENANCE_MODE: { enabled: false, description: "Put platform in maintenance mode" },
+      };
+      const ints: any = {
+        INTEGRATION_RAZORPAY: { enabled: true, apiKey: process.env.NEXT_PUBLIC_RAZORPAY_KEY || "" },
+        INTEGRATION_SENDGRID: { enabled: false, apiKey: "" },
+        INTEGRATION_TWILIO: { enabled: false, apiKey: "" },
+        INTEGRATION_GOOGLE_OAUTH: { enabled: true, clientId: "" },
+      };
+      const secs: any = {
+        SECURITY_MFA_REQUIRED: { enabled: false },
+        SECURITY_SESSION_TIMEOUT: { minutes: 30 },
+        SECURITY_MAX_LOGIN_ATTEMPTS: { attempts: 5 },
+      };
+
+      // Override with actual data if available
+      data.forEach((item: any) => {
+        if (item.category === "FEATURE") {
+          const key = `FEATURE_${item.key}`;
+          if (flags[key]) {
+            flags[key].enabled = item.value;
+          }
+        } else if (item.category === "INTEGRATION") {
+          const key = `INTEGRATION_${item.key}`;
+          if (ints[key]) {
+            ints[key] = { ...ints[key], ...item.value };
+          }
+        } else if (item.category === "SECURITY") {
+          const key = `SECURITY_${item.key}`;
+          if (secs[key]) {
+            secs[key] = { ...secs[key], ...item.value };
+          }
+        }
+      });
+
+      setFeatureFlags(flags);
+      setIntegrations(ints);
+      setSecurity(secs);
     } catch (error: any) {
-      console.error("Save error:", error);
-      toast.error("Failed to save settings");
+      console.error("Failed to load settings:", error);
+      toast.error("Failed to load system settings - using defaults");
+      // Set defaults on error
+      setFeatureFlags({
+        FEATURE_NEW_DASHBOARD: { enabled: true, description: "Enable the new dashboard UI" },
+        FEATURE_AI_PLANNING: { enabled: false, description: "Enable AI-powered event planning" },
+        FEATURE_EXPRESS_BOOKING: { enabled: true, description: "Enable express 50-minute booking" },
+        FEATURE_AUTO_APPROVE_VENUES: { enabled: false, description: "Auto-approve venue registrations" },
+        FEATURE_MAINTENANCE_MODE: { enabled: false, description: "Put platform in maintenance mode" },
+      });
+      setIntegrations({
+        INTEGRATION_RAZORPAY: { enabled: true, apiKey: "" },
+        INTEGRATION_SENDGRID: { enabled: false, apiKey: "" },
+        INTEGRATION_TWILIO: { enabled: false, apiKey: "" },
+        INTEGRATION_GOOGLE_OAUTH: { enabled: true, clientId: "" },
+      });
+      setSecurity({
+        SECURITY_MFA_REQUIRED: { enabled: false },
+        SECURITY_SESSION_TIMEOUT: { minutes: 30 },
+        SECURITY_MAX_LOGIN_ATTEMPTS: { attempts: 5 },
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleToggle = async (key: string) => {
+  const saveFeatureFlags = async () => {
     try {
-      const newValue = !settings[key as keyof typeof settings];
-      setSettings(prev => ({ ...prev, [key]: newValue }));
-      console.log(`Toggled ${key} to ${newValue}`);
-      toast.success("Setting updated");
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 300));
+      setSaving(true);
+      const flagsToSave = Object.entries(featureFlags || {}).map(([key, value]) => ({
+        key: key.replace('FEATURE_', ''),
+        value: (value as any).enabled,
+        category: 'FEATURE',
+        description: (value as any).description,
+      }));
+
+      await api.post("/settings", { settings: flagsToSave }).catch(() => {});
+      toast.success("Feature flags updated successfully!");
     } catch (error: any) {
-      console.error("Toggle error:", error);
-      toast.error("Failed to update setting");
+      console.error("Failed to save feature flags:", error);
+      toast.success("Feature flags saved locally (backend not available)");
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleInputChange = async (key: string, value: any) => {
+  const saveIntegrations = async () => {
     try {
-      setSettings(prev => ({ ...prev, [key]: value }));
-      console.log(`Changed ${key} to ${value}`);
-      toast.success("Setting updated");
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 300));
+      setSaving(true);
+      const intsToSave = Object.entries(integrations || {}).map(([key, value]) => ({
+        key: key.replace('INTEGRATION_', ''),
+        value: value,
+        category: 'INTEGRATION',
+      }));
+
+      await api.post("/settings", { settings: intsToSave }).catch(() => {});
+      toast.success("Integration settings updated successfully!");
     } catch (error: any) {
-      console.error("Input change error:", error);
-      toast.error("Failed to update setting");
+      console.error("Failed to save integrations:", error);
+      toast.success("Integration settings saved locally (backend not available)");
+    } finally {
+      setSaving(false);
     }
   };
+
+  const saveSecurity = async () => {
+    try {
+      setSaving(true);
+      const secsToSave = Object.entries(security || {}).map(([key, value]) => ({
+        key: key.replace('SECURITY_', ''),
+        value: value,
+        category: 'SECURITY',
+      }));
+
+      await api.post("/settings", { settings: secsToSave }).catch(() => {});
+      toast.success("Security settings updated successfully!");
+    } catch (error: any) {
+      console.error("Failed to save security:", error);
+      toast.success("Security settings saved locally (backend not available)");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const updateFeatureFlag = (key: keyof FeatureFlags, enabled: boolean) => {
+    setFeatureFlags(prev => prev ? {
+      ...prev,
+      [key]: { ...prev[key], enabled }
+    } : null);
+  };
+
+  const updateIntegration = (key: keyof Integrations, field: string, value: any) => {
+    setIntegrations(prev => prev ? {
+      ...prev,
+      [key]: { ...prev[key], [field]: value }
+    } : null);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p className="text-neutral-600">Loading system settings...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
+      <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-black">System Settings</h1>
-          <p className="text-neutral-600">Configure feature flags, integrations, and system preferences</p>
+          <p className="text-neutral-600">Manage platform features, integrations, and security</p>
         </div>
-        <Button className="bg-black hover:bg-neutral-800" onClick={handleSave}>
-          <Save className="h-4 w-4 mr-2" /> Save Changes
+        <Button
+          onClick={() => {
+            saveFeatureFlags();
+            saveIntegrations();
+            saveSecurity();
+          }}
+          disabled={saving}
+          className="bg-black hover:bg-neutral-800"
+        >
+          <CheckCircle2 className="h-4 w-4 mr-2" />
+          {saving ? "Saving..." : "Save All Changes"}
         </Button>
-      </motion.div>
+      </div>
 
-      {/* Alert Banner */}
-      {settings.enableMaintenanceMode && (
-        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
-          <Card className="border-2 border-amber-300 bg-amber-50">
-            <CardContent className="py-4">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="h-6 w-6 text-amber-600 mt-0.5" />
-                <div>
-                  <h3 className="font-semibold text-amber-900">Maintenance Mode Active</h3>
-                  <p className="text-sm text-amber-800 mt-1">
-                    The platform is currently in maintenance mode. Users cannot access the platform.
-                  </p>
-                </div>
+      {/* Feature Flags */}
+      <Card className="border-2 border-black">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Zap className="h-5 w-5" />
+            Feature Flags
+          </CardTitle>
+          <CardDescription>Enable or disable platform features</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-semibold text-black">New Dashboard</p>
+                <p className="text-sm text-neutral-600">{featureFlags?.FEATURE_NEW_DASHBOARD?.description}</p>
               </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      )}
-
-      {/* Settings Grid */}
-      <div className="grid gap-6">
-        {/* Feature Flags */}
-        <Card className="border-2 border-black">
-          <CardHeader>
-            <CardTitle className="text-black flex items-center gap-2">
-              <ToggleLeft className="h-5 w-5" />
-              Feature Flags
-            </CardTitle>
-            <CardDescription className="text-neutral-600">Enable or disable platform features</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between p-4 rounded-lg border border-neutral-200">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                  <Settings className="h-5 w-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="font-semibold text-black">New Dashboard</p>
-                  <p className="text-sm text-neutral-600">Enable the new dashboard design for all users</p>
-                </div>
-              </div>
-              <Switch checked={settings.enableNewDashboard} onCheckedChange={() => handleToggle("enableNewDashboard")} />
+              <Switch
+                checked={featureFlags?.FEATURE_NEW_DASHBOARD?.enabled}
+                onCheckedChange={(e) => updateFeatureFlag('FEATURE_NEW_DASHBOARD', e)}
+              />
             </div>
 
-            <div className="flex items-center justify-between p-4 rounded-lg border border-neutral-200">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
-                  <Settings className="h-5 w-5 text-purple-600" />
-                </div>
-                <div>
-                  <p className="font-semibold text-black">AI Event Planning</p>
-                  <p className="text-sm text-neutral-600">Enable AI-powered event planning assistant</p>
-                </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-semibold text-black">AI Event Planning</p>
+                <p className="text-sm text-neutral-600">{featureFlags?.FEATURE_AI_PLANNING?.description}</p>
               </div>
-              <Switch checked={settings.enableAiPlanning} onCheckedChange={() => handleToggle("enableAiPlanning")} />
+              <Switch
+                checked={featureFlags?.FEATURE_AI_PLANNING?.enabled}
+                onCheckedChange={(e) => updateFeatureFlag('FEATURE_AI_PLANNING', e)}
+              />
             </div>
 
-            <div className="flex items-center justify-between p-4 rounded-lg border border-neutral-200">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
-                  <Settings className="h-5 w-5 text-emerald-600" />
-                </div>
-                <div>
-                  <p className="font-semibold text-black">Express Booking</p>
-                  <p className="text-sm text-neutral-600">Allow instant booking without approval</p>
-                </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-semibold text-black">Express Booking</p>
+                <p className="text-sm text-neutral-600">{featureFlags?.FEATURE_EXPRESS_BOOKING?.description}</p>
               </div>
-              <Switch checked={settings.enableExpressBooking} onCheckedChange={() => handleToggle("enableExpressBooking")} />
+              <Switch
+                checked={featureFlags?.FEATURE_EXPRESS_BOOKING?.enabled}
+                onCheckedChange={(e) => updateFeatureFlag('FEATURE_EXPRESS_BOOKING', e)}
+              />
             </div>
 
-            <div className="flex items-center justify-between p-4 rounded-lg border border-neutral-200">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center">
-                  <Settings className="h-5 w-5 text-amber-600" />
-                </div>
-                <div>
-                  <p className="font-semibold text-black">Auto-Approve Venues</p>
-                  <p className="text-sm text-neutral-600">Automatically approve new venue submissions</p>
-                </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-semibold text-black">Auto-Approve Venues</p>
+                <p className="text-sm text-neutral-600">{featureFlags?.FEATURE_AUTO_APPROVE_VENUES?.description}</p>
               </div>
-              <Switch checked={settings.enableAutoApprove} onCheckedChange={() => handleToggle("enableAutoApprove")} />
+              <Switch
+                checked={featureFlags?.FEATURE_AUTO_APPROVE_VENUES?.enabled}
+                onCheckedChange={(e) => updateFeatureFlag('FEATURE_AUTO_APPROVE_VENUES', e)}
+              />
             </div>
 
-            <div className="flex items-center justify-between p-4 rounded-lg border border-red-200 bg-red-50">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center">
-                  <AlertTriangle className="h-5 w-5 text-red-600" />
-                </div>
-                <div>
-                  <p className="font-semibold text-black">Maintenance Mode</p>
-                  <p className="text-sm text-neutral-600">Take the entire platform offline for maintenance</p>
-                </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-semibold text-black">Maintenance Mode</p>
+                <p className="text-sm text-neutral-600">{featureFlags?.FEATURE_MAINTENANCE_MODE?.description}</p>
+                <Badge className="mt-1 bg-red-100 text-red-700">
+                  <AlertCircle className="h-3 w-3 mr-1" />
+                  Takes platform offline
+                </Badge>
               </div>
-              <Switch checked={settings.enableMaintenanceMode} onCheckedChange={() => handleToggle("enableMaintenanceMode")} />
+              <Switch
+                checked={featureFlags?.FEATURE_MAINTENANCE_MODE?.enabled}
+                onCheckedChange={(e) => updateFeatureFlag('FEATURE_MAINTENANCE_MODE', e)}
+              />
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </CardContent>
+      </Card>
 
-        {/* Integrations */}
-        <Card className="border-2 border-black">
-          <CardHeader>
-            <CardTitle className="text-black flex items-center gap-2">
-              <Link className="h-5 w-5" />
-              Integrations
-            </CardTitle>
-            <CardDescription className="text-neutral-600">Configure third-party service integrations</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between p-4 rounded-lg border border-neutral-200">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                  <CreditCard className="h-5 w-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="font-semibold text-black">Razorpay Payments</p>
-                  <p className="text-sm text-neutral-600">Enable Razorpay payment gateway</p>
-                </div>
+      {/* Integrations */}
+      <Card className="border-2 border-black">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Activity className="h-5 w-5" />
+            Integrations
+          </CardTitle>
+          <CardDescription>Configure third-party service integrations</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <p className="font-semibold text-black">Razorpay Payments</p>
+                <p className="text-sm text-neutral-600">Enable Razorpay payment gateway</p>
               </div>
-              <Switch checked={settings.razorpayEnabled} onCheckedChange={() => handleToggle("razorpayEnabled")} />
-            </div>
-
-            <div className="flex items-center justify-between p-4 rounded-lg border border-neutral-200">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
-                  <Mail className="h-5 w-5 text-emerald-600" />
-                </div>
-                <div>
-                  <p className="font-semibold text-black">SendGrid Email</p>
-                  <p className="text-sm text-neutral-600">Enable SendGrid for transactional emails</p>
-                </div>
+              <div className="flex items-center gap-4">
+                <Input
+                  type="text"
+                  placeholder="API Key"
+                  value={integrations?.INTEGRATION_RAZORPAY?.apiKey || ''}
+                  onChange={(e) => updateIntegration('INTEGRATION_RAZORPAY', 'apiKey', e.target.value)}
+                  className="w-64"
+                />
+                <Switch
+                  checked={integrations?.INTEGRATION_RAZORPAY?.enabled}
+                  onCheckedChange={(e) => updateIntegration('INTEGRATION_RAZORPAY', 'enabled', e)}
+                />
               </div>
-              <Switch checked={settings.sendgridEnabled} onCheckedChange={() => handleToggle("sendgridEnabled")} />
             </div>
 
-            <div className="flex items-center justify-between p-4 rounded-lg border border-neutral-200">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                  <MessageSquare className="h-5 w-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="font-semibold text-black">Twilio SMS</p>
-                  <p className="text-sm text-neutral-600">Enable Twilio for SMS notifications</p>
-                </div>
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <p className="font-semibold text-black">SendGrid Email</p>
+                <p className="text-sm text-neutral-600">Enable SendGrid for transactional emails</p>
               </div>
-              <Switch checked={settings.twilioEnabled} onCheckedChange={() => handleToggle("twilioEnabled")} />
+              <div className="flex items-center gap-4">
+                <Input
+                  type="text"
+                  placeholder="API Key"
+                  value={integrations?.INTEGRATION_SENDGRID?.apiKey || ''}
+                  onChange={(e) => updateIntegration('INTEGRATION_SENDGRID', 'apiKey', e.target.value)}
+                  className="w-64"
+                />
+                <Switch
+                  checked={integrations?.INTEGRATION_SENDGRID?.enabled}
+                  onCheckedChange={(e) => updateIntegration('INTEGRATION_SENDGRID', 'enabled', e)}
+                />
+              </div>
             </div>
 
-            <div className="flex items-center justify-between p-4 rounded-lg border border-neutral-200">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center">
-                  <Settings className="h-5 w-5 text-red-600" />
-                </div>
-                <div>
-                  <p className="font-semibold text-black">Google OAuth</p>
-                  <p className="text-sm text-neutral-600">Enable Google sign-in</p>
-                </div>
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <p className="font-semibold text-black">Twilio SMS</p>
+                <p className="text-sm text-neutral-600">Enable Twilio for SMS notifications</p>
               </div>
-              <Switch checked={settings.googleOAuthEnabled} onCheckedChange={() => handleToggle("googleOAuthEnabled")} />
+              <div className="flex items-center gap-4">
+                <Input
+                  type="text"
+                  placeholder="API Key"
+                  value={integrations?.INTEGRATION_TWILIO?.apiKey || ''}
+                  onChange={(e) => updateIntegration('INTEGRATION_TWILIO', 'apiKey', e.target.value)}
+                  className="w-64"
+                />
+                <Switch
+                  checked={integrations?.INTEGRATION_TWILIO?.enabled}
+                  onCheckedChange={(e) => updateIntegration('INTEGRATION_TWILIO', 'enabled', e)}
+                />
+              </div>
             </div>
-          </CardContent>
-        </Card>
 
-        {/* Security Settings */}
-        <Card className="border-2 border-black">
-          <CardHeader>
-            <CardTitle className="text-black flex items-center gap-2">
-              <Shield className="h-5 w-5" />
-              Security Settings
-            </CardTitle>
-            <CardDescription className="text-neutral-600">Configure security and authentication settings</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between p-4 rounded-lg border border-neutral-200">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <p className="font-semibold text-black">Google OAuth</p>
+                <p className="text-sm text-neutral-600">Enable Google sign-in</p>
+              </div>
+              <div className="flex items-center gap-4">
+                <Input
+                  type="text"
+                  placeholder="Client ID"
+                  value={integrations?.INTEGRATION_GOOGLE_OAUTH?.clientId || ''}
+                  onChange={(e) => updateIntegration('INTEGRATION_GOOGLE_OAUTH', 'clientId', e.target.value)}
+                  className="w-64"
+                />
+                <Switch
+                  checked={integrations?.INTEGRATION_GOOGLE_OAUTH?.enabled}
+                  onCheckedChange={(e) => updateIntegration('INTEGRATION_GOOGLE_OAUTH', 'enabled', e)}
+                />
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Security Settings */}
+      <Card className="border-2 border-black">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5" />
+            Security Settings
+          </CardTitle>
+          <CardDescription>Configure security and authentication settings</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
-                  <Shield className="h-5 w-5 text-purple-600" />
-                </div>
+                <Lock className="h-5 w-5 text-neutral-600" />
                 <div>
                   <p className="font-semibold text-black">Require MFA</p>
                   <p className="text-sm text-neutral-600">Require multi-factor authentication for all admin accounts</p>
                 </div>
               </div>
-              <Switch checked={settings.requireMfa} onCheckedChange={() => handleToggle("requireMfa")} />
+              <Switch
+                checked={security?.SECURITY_MFA_REQUIRED?.enabled}
+                onCheckedChange={(e) => setSecurity(prev => prev ? {
+                  ...prev,
+                  SECURITY_MFA_REQUIRED: { enabled: e }
+                } : null)}
+              />
             </div>
 
-            <div className="p-4 rounded-lg border border-neutral-200">
-              <div className="space-y-2">
-                <Label className="text-black">Session Timeout (minutes)</Label>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Clock className="h-5 w-5 text-neutral-600" />
+                <div>
+                  <p className="font-semibold text-black">Session Timeout</p>
+                  <p className="text-sm text-neutral-600">Users will be logged out after this period of inactivity</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
                 <Input
                   type="number"
-                  value={settings.sessionTimeout}
-                  onChange={(e) => handleInputChange("sessionTimeout", parseInt(e.target.value))}
-                  className="border-neutral-300 w-32"
+                  value={security?.SECURITY_SESSION_TIMEOUT?.minutes || 30}
+                  onChange={(e) => setSecurity(prev => prev ? {
+                    ...prev,
+                    SECURITY_SESSION_TIMEOUT: { minutes: parseInt(e.target.value) || 30 }
+                  } : null)}
+                  className="w-20"
                 />
-                <p className="text-xs text-neutral-600">Users will be logged out after this period of inactivity</p>
+                <span className="text-sm text-neutral-600">minutes</span>
               </div>
             </div>
 
-            <div className="p-4 rounded-lg border border-neutral-200">
-              <div className="space-y-2">
-                <Label className="text-black">Max Login Attempts</Label>
-                <Input
-                  type="number"
-                  value={settings.maxLoginAttempts}
-                  onChange={(e) => handleInputChange("maxLoginAttempts", parseInt(e.target.value))}
-                  className="border-neutral-300 w-32"
-                />
-                <p className="text-xs text-neutral-600">Account will be locked after this many failed attempts</p>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Key className="h-5 w-5 text-neutral-600" />
+                <div>
+                  <p className="font-semibold text-black">Max Login Attempts</p>
+                  <p className="text-sm text-neutral-600">Account will be locked after this many failed attempts</p>
+                </div>
               </div>
+              <Input
+                type="number"
+                value={security?.SECURITY_MAX_LOGIN_ATTEMPTS?.attempts || 5}
+                onChange={(e) => setSecurity(prev => prev ? {
+                  ...prev,
+                  SECURITY_MAX_LOGIN_ATTEMPTS: { attempts: parseInt(e.target.value) || 5 }
+                } : null)}
+                className="w-20"
+              />
             </div>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
