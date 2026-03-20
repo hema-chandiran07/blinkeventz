@@ -1,1 +1,0 @@
-{"version":3,"names":[],"sources":["C:\\Users\\Hemachandiran\\Internship\\Nearzro\\nearzro-backend\\src\\ai-planner\\types\\ai-budget.types.ts"],"sourcesContent":["export interface AIBudgetSplit {\r\n  category: string;\r\n  percentage: number;\r\n  reasoning: string;\r\n}\r\n"],"mappings":"","ignoreList":[]}
