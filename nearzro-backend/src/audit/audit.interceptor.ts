@@ -7,7 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { tap } from 'rxjs/operators';
+
 import { AuditService } from './audit.service';
 import { AuditSeverity, AuditSource } from '@prisma/client';
 import { AuditLogEntry } from './types/audit.types';
@@ -23,7 +23,7 @@ export class AuditInterceptor implements NestInterceptor {
     private readonly auditService: AuditService,
   ) {}
 
-  intercept(context: ExecutionContext, next: CallHandler) {
+  async intercept(context: ExecutionContext, next: CallHandler) {
     const auditMeta = this.reflector.get('audit', context.getHandler());
     if (!auditMeta) {
       return next.handle();
@@ -42,48 +42,49 @@ export class AuditInterceptor implements NestInterceptor {
     const traceId = headers['x-trace-id'] || this.generateTraceId();
     const sessionId = req.sessionID || this.generateSessionId();
 
-    return next.handle().pipe(
-      tap((response) => {
-        // Mask sensitive data before logging
-        const maskedResponse = maskSensitiveData(response);
-        const maskedMetadata = maskSensitiveData({
-          ip,
-          userAgent,
-          traceId,
-          sessionId,
-          method: req.method,
-          url: req.url,
-          statusCode: res.statusCode,
-        });
+    // Subscribe to the Observable to get the response synchronously
+    const response = await next.handle().toPromise();
 
-        const event: AuditLogEntry = {
-          action: auditMeta.action,
-          entityType: auditMeta.entityType,
+    // Mask sensitive data before logging
+    const maskedResponse = maskSensitiveData(response);
+    const maskedMetadata = maskSensitiveData({
+      ip,
+      userAgent,
+      traceId,
+      sessionId,
+      method: req.method,
+      url: req.url,
+      statusCode: res.statusCode,
+    });
 
-          actorId: user?.userId,
-          actorEmail: user?.email,
-          actorRole: mapJwtRoleToPrismaRole(user?.role),
+    const event: AuditLogEntry = {
+      action: auditMeta.action,
+      entityType: auditMeta.entityType,
 
-          severity: auditMeta.severity || AuditSeverity.INFO,
-          source: AuditSource.USER,
+      actorId: user?.userId,
+      actorEmail: user?.email,
+      actorRole: mapJwtRoleToPrismaRole(user?.role),
 
-          newValue: maskedResponse,
-          metadata: maskedMetadata,
+      severity: auditMeta.severity || AuditSeverity.INFO,
+      source: AuditSource.USER,
 
-          // Correlation IDs for tracing
-          requestId: traceId,
-          sessionId: sessionId,
-        };
+      newValue: maskedResponse,
+      metadata: maskedMetadata,
 
-        // Fire-and-forget - don't block the response
-        this.auditService.record(event).catch((err) => {
-          this.logger.error(
-            `Audit write failed [traceId=${traceId}]`,
-            err.stack || err.message,
-          );
-        });
-      }),
-    );
+      // Correlation IDs for tracing
+      requestId: traceId,
+      sessionId: sessionId,
+    };
+
+    // Fire-and-forget - don't block the response
+    this.auditService.record(event).catch((err) => {
+      this.logger.error(
+        `Audit write failed [traceId=${traceId}]`,
+        err.stack || err.message,
+      );
+    });
+
+    return response;
   }
 
   private generateTraceId(): string {

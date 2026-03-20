@@ -65,7 +65,8 @@ export class SettingsService {
       },
     });
 
-    return settings.map((s) => ({
+    // Defensive: handle case where findMany returns undefined/null
+    return (settings ?? []).map((s) => ({
       key: s.key,
       value: s.value as boolean,
       description: s.description,

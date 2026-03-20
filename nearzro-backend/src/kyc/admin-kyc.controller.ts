@@ -8,6 +8,7 @@ import {
   Req,
   UseGuards,
   ParseIntPipe,
+  DefaultValuePipe,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -22,6 +23,7 @@ import { KycService } from './kyc.service';
 import { UpdateKycStatusDto } from './dto/update-kyc-status.dto';
 import { KycStatus } from '@prisma/client';
 import { Request } from 'express';
+import { ThrottlerGuard, Throttle } from '@nestjs/throttler';
 
 interface AdminRequest extends Request {
   user: { userId: number; email: string; role: string };
@@ -33,25 +35,29 @@ interface AdminRequest extends Request {
 
 @ApiTags('Admin KYC')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, ThrottlerGuard)
 @Roles('ADMIN')
 @Controller('admin/kyc')
 export class AdminKycController {
   constructor(private readonly kycService: KycService) {}
 
   @Get()
-  @ApiOperation({ summary: 'List all KYC submissions (admin)' })
-  @ApiQuery({
-    name: 'status',
-    required: false,
-    enum: KycStatus,
-  })
-  async listAll(@Query('status') status?: KycStatus) {
-    return this.kycService.getAllKyc(status);
+  @ApiOperation({ summary: 'List all KYC submissions with pagination (admin)' })
+  @ApiQuery({ name: 'status', required: false, enum: KycStatus })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  async listAll(
+    @Query('status') status?: KycStatus,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number = 1,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number = 20,
+  ) {
+    const safeLimit = Math.min(limit, 100);
+    return this.kycService.getAllKyc(status, page, safeLimit);
   }
 
   @Patch(':id/approve')
   @ApiOperation({ summary: 'Approve a KYC submission' })
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
   async approve(
     @Param('id', ParseIntPipe) id: number,
     @Req() req: AdminRequest,
@@ -65,6 +71,7 @@ export class AdminKycController {
 
   @Patch(':id/reject')
   @ApiOperation({ summary: 'Reject a KYC submission' })
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
   async reject(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateKycStatusDto,
@@ -80,6 +87,7 @@ export class AdminKycController {
 
   @Patch(':id/status')
   @ApiOperation({ summary: 'Update KYC status (generic)' })
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
   async updateStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateKycStatusDto,

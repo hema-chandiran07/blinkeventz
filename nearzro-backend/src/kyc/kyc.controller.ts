@@ -3,7 +3,6 @@ import {
   Get,
   Post,
   Patch,
-  Delete,
   Body,
   Param,
   UseGuards,
@@ -12,28 +11,46 @@ import {
   UploadedFile,
   UnauthorizedException,
   BadRequestException,
-  Res,
-  StreamableFile,
   Query,
+  ParseIntPipe,
+  DefaultValuePipe,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiConsumes, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { KycService } from './kyc.service';
 import { CreateKycDto } from './dto/create-kyc.dto';
 import { UpdateKycStatusDto } from './dto/update-kyc-status.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
-import { Role } from '@prisma/client';
+import { Role, KycStatus } from '@prisma/client';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { Audit, AUDIT_META_KEY } from '../audit/decorators/audit.decorator';
 import { AuditSeverity, AuditSource } from '@prisma/client';
-import * as fs from 'fs';
+import { ThrottlerGuard, Throttle } from '@nestjs/throttler';
+
+// File filter function for security
+const imageFileFilter = (req: any, file: any, cb: any) => {
+  const allowedMimes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+  if (allowedMimes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new BadRequestException('Only PDF, JPG, JPEG, and PNG files are allowed'), false);
+  }
+};
+
+// Sanitize filename to prevent path traversal
+const editFileName = (req: any, file: any, cb: any) => {
+  const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+  // Remove any path components from original filename
+  const sanitizedName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
+  cb(null, `kyc-${uniqueSuffix}${extname(sanitizedName)}`);
+};
 
 @ApiTags('KYC')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, ThrottlerGuard)
 @Controller('kyc')
 export class KycController {
   constructor(private readonly kycService: KycService) {}
@@ -47,61 +64,44 @@ export class KycController {
     source: AuditSource.USER,
   })
   @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Submit customer KYC document' })
+  @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 requests per minute
   @UseInterceptors(
     FileInterceptor('document', {
       storage: diskStorage({
         destination: './uploads/kyc',
-        filename: (req, file, cb) => {
-          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-          cb(null, `document-${uniqueSuffix}${extname(file.originalname)}`);
-        },
+        filename: editFileName,
       }),
-      fileFilter: (req, file, cb) => {
-        // Accept PDF, JPG, JPEG, PNG
-        const allowedMimes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
-        if (allowedMimes.includes(file.mimetype)) {
-          cb(null, true);
-        } else {
-          cb(new BadRequestException('Only PDF, JPG, JPEG, and PNG files are allowed'), false);
-        }
+      fileFilter: imageFileFilter,
+      limits: {
+        fileSize: 5 * 1024 * 1024, // 5MB limit
       },
     }),
   )
   async createCustomerKyc(
     @Req() req: any,
-    @Body() dto: any,
+    @Body() dto: CreateKycDto,
     @UploadedFile() file: Express.Multer.File,
   ) {
-    console.log('📄 KYC Request - Full req.user:', req.user);
-    console.log('📄 KYC DTO:', dto);
-    console.log('📄 File:', file);
-
-    // Extract user ID from token manually (bypass guard for multipart)
+    // Extract user ID from token
     const userId = req.user?.id || req.user?.userId;
     
     if (!userId) {
-      console.error('❌ No user ID found in request');
       throw new UnauthorizedException('User not authenticated. Please login again.');
     }
 
     if (!file) {
-      console.error('❌ No file uploaded');
       throw new BadRequestException('Document file is required. Supported formats: PDF, JPEG, PNG');
     }
 
-    // Parse the DTO fields from the multipart form
-    const kycDto: CreateKycDto = {
-      docType: dto.docType,
-      docNumber: dto.docNumber,
-    };
-
-    console.log('✅ Creating KYC for user:', userId);
-    return this.kycService.createCustomerKyc(userId, kycDto, file);
+    return this.kycService.createCustomerKyc(userId, dto, file);
   }
 
   @Get('customer/me')
+  @ApiOperation({ summary: 'Get current customer KYC status' })
   async getCustomerKyc(@Req() req: any) {
-    return this.kycService.getCustomerKyc(req.user.id);
+    const userId = req.user?.id || req.user?.userId;
+    return this.kycService.getCustomerKyc(userId);
   }
 
   // Vendor KYC
@@ -113,15 +113,18 @@ export class KycController {
     source: AuditSource.USER,
   })
   @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Submit vendor KYC document' })
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @UseInterceptors(
     FileInterceptor('document', {
       storage: diskStorage({
         destination: './uploads/kyc',
-        filename: (req, file, cb) => {
-          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-          cb(null, `${file.fieldname}-${uniqueSuffix}${extname(file.originalname)}`);
-        },
+        filename: editFileName,
       }),
+      fileFilter: imageFileFilter,
+      limits: {
+        fileSize: 5 * 1024 * 1024,
+      },
     }),
   )
   async createVendorKyc(
@@ -129,12 +132,20 @@ export class KycController {
     @Body() dto: CreateKycDto,
     @UploadedFile() file: Express.Multer.File,
   ) {
-    return this.kycService.createVendorKyc(req.user.id, dto, file);
+    const userId = req.user?.id || req.user?.userId;
+    
+    if (!file) {
+      throw new BadRequestException('Document file is required');
+    }
+
+    return this.kycService.createVendorKyc(userId, dto, file);
   }
 
   @Get('vendor/me')
+  @ApiOperation({ summary: 'Get current vendor KYC status' })
   async getVendorKyc(@Req() req: any) {
-    return this.kycService.getVendorKyc(req.user.id);
+    const userId = req.user?.id || req.user?.userId;
+    return this.kycService.getVendorKyc(userId);
   }
 
   // Venue Owner KYC
@@ -146,15 +157,18 @@ export class KycController {
     source: AuditSource.USER,
   })
   @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Submit venue owner KYC document with optional bank details' })
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @UseInterceptors(
     FileInterceptor('document', {
       storage: diskStorage({
         destination: './uploads/kyc',
-        filename: (req, file, cb) => {
-          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-          cb(null, `${file.fieldname}-${uniqueSuffix}${extname(file.originalname)}`);
-        },
+        filename: editFileName,
       }),
+      fileFilter: imageFileFilter,
+      limits: {
+        fileSize: 5 * 1024 * 1024,
+      },
     }),
   )
   async createVenueOwnerKyc(
@@ -162,19 +176,37 @@ export class KycController {
     @Body() dto: CreateKycDto,
     @UploadedFile() file: Express.Multer.File,
   ) {
-    return this.kycService.createVenueOwnerKyc(req.user.id, dto, file);
+    const userId = req.user?.id || req.user?.userId;
+    
+    if (!file) {
+      throw new BadRequestException('Document file is required');
+    }
+
+    return this.kycService.createVenueOwnerKyc(userId, dto, file);
   }
 
   @Get('venue-owner/me')
+  @ApiOperation({ summary: 'Get current venue owner KYC status' })
   async getVenueOwnerKyc(@Req() req: any) {
-    return this.kycService.getVenueOwnerKyc(req.user.id);
+    const userId = req.user?.id || req.user?.userId;
+    return this.kycService.getVenueOwnerKyc(userId);
   }
 
-  // Admin - Get all KYC submissions
+  // Admin - Get all KYC submissions with pagination
   @Roles(Role.ADMIN)
   @Get('admin/submissions')
-  async getAllKycSubmissions() {
-    return this.kycService.getAllKycSubmissions();
+  @ApiOperation({ summary: 'Get all KYC submissions (admin with pagination)' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'status', required: false, enum: KycStatus })
+  async getAllKycSubmissions(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query('status') status?: KycStatus,
+  ) {
+    // Limit max to 100
+    const safeLimit = Math.min(limit, 100);
+    return this.kycService.getAllKyc(status, page, safeLimit);
   }
 
   // Admin - Approve/Reject KYC
@@ -186,27 +218,35 @@ export class KycController {
     severity: AuditSeverity.WARNING,
     source: AuditSource.ADMIN,
   })
+  @ApiOperation({ summary: 'Update KYC status (approve/reject)' })
   async updateKycStatus(
-    @Param('id') id: string,
+    @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateKycStatusDto,
     @Req() req: any,
   ) {
-    return this.kycService.updateKycStatus(+id, dto.status, req.user.userId, dto.rejectionReason);
+    const adminId = req.user?.userId || req.user?.id;
+    return this.kycService.updateKycStatus(id, dto.status, adminId, dto.rejectionReason);
   }
 
   // Admin - Get KYC by ID
   @Roles(Role.ADMIN)
   @Get('admin/:id')
-  async getKycById(@Param('id') id: string) {
-    return this.kycService.getKycById(+id);
+  @ApiOperation({ summary: 'Get KYC by ID (admin)' })
+  async getKycById(@Param('id', ParseIntPipe) id: number) {
+    return this.kycService.getKycById(id);
   }
 
   // Admin - Get Pending KYC submissions
   @Roles(Role.ADMIN)
   @Get('pending')
-  async getPendingKyc(@Query('page') page: string = '1', @Query('limit') limit: string = '20') {
-    const pageNum = parseInt(page, 10) || 1;
-    const limitNum = parseInt(limit, 10) || 20;
-    return this.kycService.getPendingKyc(pageNum, limitNum);
+  @ApiOperation({ summary: 'Get pending KYC submissions (admin with pagination)' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  async getPendingKyc(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+  ) {
+    const safeLimit = Math.min(limit, 100);
+    return this.kycService.getPendingKyc(page, safeLimit);
   }
 }
