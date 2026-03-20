@@ -24,16 +24,14 @@ model User {
   // Password reset security
   passwordResetToken      String?                  // Hashed token - never expose
   passwordResetExpiry     DateTime?
-  
-  // Account security
-  failedLoginAttempts    Int                       @default(0)
-  lockedUntil            DateTime?
-  lastLoginAt            DateTime?
-  
+
   // OAuth
   facebookId              String?                  @unique
   isEmailVerified         Boolean                  @default(false)
-  
+
+  // Account lockout security
+  lockedUntil             DateTime?
+
   // Relations
   AIPlan                  AIPlan[]
   bankAccounts            BankAccount[]
@@ -614,6 +612,27 @@ model AuditOutbox {
   processedAt DateTime?
 
   @@index([status])
+}
+
+/// System Settings for Feature Flags, Integrations, and Security
+model Settings {
+  id          Int             @id @default(autoincrement())
+  key         String          @unique
+  value       Json
+  category    SettingsCategory
+  description String?
+  updatedAt   DateTime        @default(now())
+  createdAt   DateTime        @default(now())
+
+  @@index([category])
+  @@index([key])
+}
+
+enum SettingsCategory {
+  FEATURE
+  INTEGRATION
+  SECURITY
+  SYSTEM
 }
 
 enum PayoutStatus {

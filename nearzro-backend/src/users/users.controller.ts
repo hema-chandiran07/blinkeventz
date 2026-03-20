@@ -1,16 +1,23 @@
 import { Roles } from '../common/decorators/roles.decorator';
 import { Role } from '../common/enums/role.enum';
 import { RolesGuard } from '../common/guards/roles.guard';
-import { Controller, Get, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Req, UseGuards, Param, NotFoundException, ParseIntPipe } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags, ApiParam } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 
 @ApiTags('Users')
 @ApiBearerAuth()
-@Controller('user')
+@Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @Get()
+  getAllUsers() {
+    return this.usersService.findAll();
+  }
 
   @UseGuards(JwtAuthGuard)
   @Get('me')
@@ -27,8 +34,13 @@ export class UsersController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
-  @Get()
-  getAllUsers() {
-    return this.usersService.findAll();
+  @Get(':id')
+  @ApiParam({ name: 'id', type: Number, description: 'User ID' })
+  async getUserById(@Param('id', ParseIntPipe) id: string) {
+    const user = await this.usersService.findById(+id);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    return user;
   }
 }

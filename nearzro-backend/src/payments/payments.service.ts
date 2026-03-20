@@ -217,4 +217,113 @@ export class PaymentsService {
       isMock: this.isMock,
     };
   }
+
+  // ✅ Get all payments (Admin)
+  async getAllPayments(page: number = 1, limit: number = 20, status?: string) {
+    const skip = (page - 1) * limit;
+    const where: any = status ? { status } : {};
+
+    const [payments, total] = await Promise.all([
+      this.prisma.payment.findMany({
+        where,
+        skip,
+        take: limit,
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          cart: {
+            select: {
+              id: true,
+              status: true,
+              createdAt: true,
+              items: {
+                select: {
+                  id: true,
+                  itemType: true,
+                  unitPrice: true,
+                  totalPrice: true,
+                },
+              },
+            },
+          },
+          Event: {
+            select: {
+              id: true,
+              title: true,
+              date: true,
+              eventType: true,
+              totalAmount: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.payment.count({ where }),
+    ]);
+
+    return {
+      payments,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  // ✅ Export payments to CSV
+  async exportPaymentsToCsv(page: number = 1, limit: number = 1000, status?: string) {
+    const skip = (page - 1) * limit;
+    const where: any = status ? { status } : {};
+
+    const payments = await this.prisma.payment.findMany({
+      where,
+      skip,
+      take: limit,
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        Event: {
+          select: {
+            id: true,
+            title: true,
+            date: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Create CSV content
+    const csvRows = [
+      ['ID', 'Customer Name', 'Customer Email', 'Event', 'Amount', 'Currency', 'Status', 'Provider', 'Created At'],
+      ...payments.map((p: any) => [
+        p.id,
+        p.user?.name || 'N/A',
+        p.user?.email || 'N/A',
+        p.Event?.title || 'N/A',
+        p.amount,
+        p.currency,
+        p.status,
+        p.provider,
+        new Date(p.createdAt).toISOString(),
+      ]),
+    ];
+
+    // Convert to CSV string
+    const csvContent = csvRows.map(row => row.join(',')).join('\n');
+
+    return csvContent;
+  }
 }

@@ -326,4 +326,50 @@ export class KycService {
       },
     });
   }
+
+  // Get Pending KYC submissions (Admin)
+  async getPendingKyc(page: number = 1, limit: number = 20) {
+    const skip = (page - 1) * limit;
+    const where = { status: KycStatus.PENDING };
+
+    const [kycDocs, total] = await Promise.all([
+      this.prisma.kycDocument.findMany({
+        where,
+        skip,
+        take: limit,
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              phone: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.kycDocument.count({ where }),
+    ]);
+
+    return {
+      kycDocuments: kycDocs.map((kyc) => ({
+        id: kyc.id,
+        userId: kyc.userId,
+        docType: kyc.docType,
+        docFileUrl: kyc.docFileUrl,
+        status: kyc.status,
+        rejectionReason: kyc.rejectionReason,
+        createdAt: kyc.createdAt,
+        verifiedAt: kyc.verifiedAt,
+        user: kyc.user,
+      })),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
 }

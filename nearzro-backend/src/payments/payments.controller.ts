@@ -2,9 +2,11 @@
 import {
   Controller,
   Post,
+  Get,
   Body,
   Req,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import {ApiBearerAuth,ApiTags, ApiOperation, ApiBody } from '@nestjs/swagger';
@@ -20,6 +22,19 @@ import { Public } from '../common/decorators/public.decorator';
 @Controller('payments')
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
+
+  // ✅ Get all payments (Admin only)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @Get()
+  @ApiOperation({ summary: 'Get all payments (Admin only)' })
+  async getAllPayments(
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 20,
+    @Query('status') status?: string,
+  ) {
+    return this.paymentsService.getAllPayments(page, limit, status);
+  }
 
   // ✅ Create payment order for logged-in user (with cart)
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -79,5 +94,18 @@ export class PaymentsController {
       req.user.userId,
       body,
     );
+  }
+
+  // ✅ Export payments to CSV (Admin only)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @Get('export')
+  @ApiOperation({ summary: 'Export payments to CSV' })
+  async exportPayments(
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 1000,
+    @Query('status') status?: string,
+  ) {
+    return this.paymentsService.exportPaymentsToCsv(page, limit, status);
   }
 }

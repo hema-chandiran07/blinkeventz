@@ -1,8 +1,8 @@
-import { Controller, Post, Get, Patch, Body, Param, UseGuards, Req } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Body, Param, UseGuards, Req, ParseIntPipe } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { VendorsService } from './vendors.service';
 import { CreateVendorDto } from './dto/create-vendor.dto';
-import {ApiBearerAuth,ApiTags } from '@nestjs/swagger';
+import {ApiBearerAuth,ApiTags, ApiParam } from '@nestjs/swagger';
 import type { AuthRequest } from '../auth/auth-request.interface';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -22,11 +22,10 @@ export class VendorsController {
     return this.vendorsService.findAll();
   }
 
-  // 👤 PUBLIC → view single vendor
-  @Public()
-  @Get(':id')
-  getVendorById(@Param('id') id: string) {
-    return this.vendorsService.findById(+id);
+  @UseGuards(JwtAuthGuard)
+  @Get('me')
+  getMyVendor(@Req() req: AuthRequest) {
+    return this.vendorsService.getVendorByUserId(req.user.userId);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -39,16 +38,12 @@ export class VendorsController {
     return this.vendorsService.createVendor(req.user.userId,dto);
   }
 
-  @UseGuards(JwtAuthGuard)
-  @Get('me')
-  getMyVendor(@Req() req: AuthRequest) {
-    return this.vendorsService.getVendorByUserId(req.user.userId);
-  }
-
+  // ADMIN routes - must be BEFORE :id route
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
   @Patch(':id/approve')
-  async approveVendor(@Param('id') id: string) {
+  @ApiParam({ name: 'id', type: Number, description: 'Vendor ID' })
+  async approveVendor(@Param('id', ParseIntPipe) id: string) {
     try {
       return this.vendorsService.approveVendor(+id);
     } catch (error: any) {
@@ -60,12 +55,21 @@ export class VendorsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
   @Patch(':id/reject')
-  async rejectVendor(@Param('id') id: string) {
+  @ApiParam({ name: 'id', type: Number, description: 'Vendor ID' })
+  async rejectVendor(@Param('id', ParseIntPipe) id: string, @Body('reason') reason?: string) {
     try {
-      return this.vendorsService.rejectVendor(+id);
+      return this.vendorsService.rejectVendor(+id, reason);
     } catch (error: any) {
       console.error('Error rejecting vendor:', error);
       throw error;
     }
+  }
+
+  // 👤 PUBLIC → view single vendor (must be LAST)
+  @Public()
+  @Get(':id')
+  @ApiParam({ name: 'id', type: Number, description: 'Vendor ID' })
+  getVendorById(@Param('id', ParseIntPipe) id: string) {
+    return this.vendorsService.findById(+id);
   }
 }

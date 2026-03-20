@@ -32,6 +32,7 @@ import { PromotionsModule } from './promotions/promotions.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { ApprovalsModule } from './approvals/approvals.module';
+import { SettingsModule } from './settings/settings.module';
 
 @Module({
   imports: [
@@ -187,7 +188,8 @@ import { ApprovalsModule } from './approvals/approvals.module';
     PromotionsModule,
     ReviewsModule,
     AnalyticsModule,
-    ApprovalsModule
+    ApprovalsModule,
+    SettingsModule
   ],
    // 🔐 GLOBAL SECURITY LAYER
   providers: [

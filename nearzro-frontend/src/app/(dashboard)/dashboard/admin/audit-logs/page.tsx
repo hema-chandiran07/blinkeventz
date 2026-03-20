@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,17 +10,19 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+import api from "@/lib/api";
 
-const AUDIT_LOGS = [
-  { id: 1, action: "USER_LOGIN", user: "admin@NearZro.com", role: "ADMIN", ip: "192.168.1.100", timestamp: "2024-03-15 14:30:25", status: "SUCCESS" },
-  { id: 2, action: "VENUE_APPROVED", user: "admin@NearZro.com", role: "ADMIN", ip: "192.168.1.100", timestamp: "2024-03-15 13:45:10", status: "SUCCESS" },
-  { id: 3, action: "PAYMENT_PROCESSED", user: "system", role: "SYSTEM", ip: "10.0.0.1", timestamp: "2024-03-15 12:20:45", status: "SUCCESS" },
-  { id: 4, action: "USER_LOGIN", user: "rajesh@email.com", role: "CUSTOMER", ip: "192.168.1.150", timestamp: "2024-03-15 11:15:30", status: "FAILED" },
-  { id: 5, action: "VENDOR_VERIFIED", user: "admin@NearZro.com", role: "ADMIN", ip: "192.168.1.100", timestamp: "2024-03-15 10:05:15", status: "SUCCESS" },
-  { id: 6, action: "EVENT_CREATED", user: "rajesh@email.com", role: "CUSTOMER", ip: "192.168.1.150", timestamp: "2024-03-15 09:30:00", status: "SUCCESS" },
-  { id: 7, action: "PASSWORD_RESET", user: "anita@email.com", role: "VENDOR", ip: "192.168.1.175", timestamp: "2024-03-15 08:45:20", status: "SUCCESS" },
-  { id: 8, action: "USER_LOGIN", user: "unknown@email.com", role: "UNKNOWN", ip: "203.0.113.50", timestamp: "2024-03-15 07:20:10", status: "FAILED" },
-];
+interface AuditLog {
+  id: number;
+  action: string;
+  actorEmail?: string;
+  actorRole?: string;
+  source: string;
+  severity: string;
+  entityType: string;
+  description?: string;
+  occurredAt: string;
+}
 
 const ACTION_ICONS: Record<string, any> = {
   USER_LOGIN: User,
@@ -32,37 +34,58 @@ const ACTION_ICONS: Record<string, any> = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  SUCCESS: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  FAILED: "bg-red-50 text-red-700 border-red-200",
+  INFO: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  WARNING: "bg-amber-50 text-amber-700 border-amber-200",
+  HIGH: "bg-red-50 text-red-700 border-red-200",
+  CRITICAL: "bg-red-100 text-red-800 border-red-300",
+  LOW: "bg-blue-50 text-blue-700 border-blue-200",
 };
 
 export default function AuditLogsPage() {
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] = useState("all");
-  const [filterRole, setFilterRole] = useState("all");
+  const [filterSeverity, setFilterSeverity] = useState("all");
 
-  const stats = {
-    totalLogs: 1247,
-    successful: 1189,
-    failed: 58,
-    uniqueUsers: 342,
+  useEffect(() => {
+    loadAuditLogs();
+  }, []);
+
+  const loadAuditLogs = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get("/audit");
+      const logs = response.data || [];
+      setAuditLogs(logs);
+    } catch (error: any) {
+      console.error("Failed to load audit logs:", error);
+      toast.error("Failed to load audit logs");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const filteredLogs = AUDIT_LOGS.filter(log => {
-    const matchesSearch = log.action.toLowerCase().includes(searchTerm.toLowerCase()) || log.user.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = filterStatus === "all" || log.status === filterStatus;
-    const matchesRole = filterRole === "all" || log.role === filterRole;
-    return matchesSearch && matchesStatus && matchesRole;
+  const filteredLogs = auditLogs.filter(log => {
+    const matchesSearch = log.action?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                         log.actorEmail?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         log.entityType?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSeverity = filterSeverity === "all" || log.severity === filterSeverity;
+    return matchesSearch && matchesSeverity;
   });
+
+  const stats = {
+    totalLogs: auditLogs.length,
+    successful: auditLogs.filter(l => l.severity === "INFO" || l.severity === "LOW").length,
+    failed: auditLogs.filter(l => l.severity === "HIGH" || l.severity === "CRITICAL").length,
+    uniqueUsers: new Set(auditLogs.map(l => l.actorEmail)).size,
+  };
 
   const handleExport = async () => {
     try {
-      console.log("Exporting audit logs...");
-      // Generate CSV from mock data
-      const csvContent = AUDIT_LOGS.map(log => 
-        `${log.id},${log.action},${log.user},${log.role},${log.ip},${log.timestamp},${log.status}`
+      const csvContent = auditLogs.map(log =>
+        `${log.id},${log.action || ''},${log.actorEmail || ''},${log.actorRole || ''},${log.severity},${log.entityType},${log.occurredAt}`
       ).join('\n');
-      const blob = new Blob([`ID,Action,User,Role,IP,Timestamp,Status\n${csvContent}`], { type: "text/csv" });
+      const blob = new Blob([`ID,Action,User,Role,Severity,Entity,Timestamp\n${csvContent}`], { type: "text/csv" });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -75,18 +98,25 @@ export default function AuditLogsPage() {
     }
   };
 
-  const handleViewLog = async (id: number) => {
+  const handleViewLog = async (logId: number) => {
     try {
-      console.log(`Viewing audit log ${id}`);
-      toast.success("Log details loaded");
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 300));
-      // TODO: Show log details in modal
+      const log = auditLogs.find(l => l.id === logId);
+      if (log) {
+        toast.info(`Viewing log: ${log.action}`);
+      }
     } catch (error: any) {
-      console.error("View log error:", error);
-      toast.error("Failed to load log details");
+      console.error("Failed to view log:", error);
+      toast.error("Failed to view log details");
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p className="text-neutral-600">Loading audit logs...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -168,18 +198,13 @@ export default function AuditLogsPage() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
               <Input placeholder="Search logs..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10 border-neutral-300" />
             </div>
-            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="flex h-10 rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm">
-              <option value="all">All Status</option>
-              <option value="SUCCESS">Success</option>
-              <option value="FAILED">Failed</option>
-            </select>
-            <select value={filterRole} onChange={(e) => setFilterRole(e.target.value)} className="flex h-10 rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm">
-              <option value="all">All Roles</option>
-              <option value="ADMIN">Admin</option>
-              <option value="CUSTOMER">Customer</option>
-              <option value="VENDOR">Vendor</option>
-              <option value="VENUE_OWNER">Venue Owner</option>
-              <option value="SYSTEM">System</option>
+            <select value={filterSeverity} onChange={(e) => setFilterSeverity(e.target.value)} className="flex h-10 rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm">
+              <option value="all">All Severity</option>
+              <option value="LOW">Low</option>
+              <option value="INFO">Info</option>
+              <option value="WARNING">Warning</option>
+              <option value="HIGH">High</option>
+              <option value="CRITICAL">Critical</option>
             </select>
           </div>
         </CardContent>
@@ -218,14 +243,14 @@ export default function AuditLogsPage() {
                           <span className="text-sm font-medium text-black">{log.action.replace("_", " ")}</span>
                         </div>
                       </td>
-                      <td className="py-3 px-4 text-sm text-black">{log.user}</td>
+                      <td className="py-3 px-4 text-sm text-black">{log.actorEmail || 'N/A'}</td>
                       <td className="py-3 px-4">
-                        <Badge className="bg-neutral-100 text-black border-neutral-300 text-xs">{log.role}</Badge>
+                        <Badge className="bg-neutral-100 text-black border-neutral-300 text-xs">{log.actorRole || log.source}</Badge>
                       </td>
-                      <td className="py-3 px-4 text-sm font-mono text-black">{log.ip}</td>
-                      <td className="py-3 px-4 text-sm text-black">{log.timestamp}</td>
+                      <td className="py-3 px-4 text-sm text-black">{log.entityType}</td>
+                      <td className="py-3 px-4 text-sm text-black">{new Date(log.occurredAt).toLocaleString()}</td>
                       <td className="py-3 px-4">
-                        <Badge className={`${STATUS_COLORS[log.status]} border text-xs`}>{log.status}</Badge>
+                        <Badge className={`${STATUS_COLORS[log.severity]} border text-xs`}>{log.severity}</Badge>
                       </td>
                       <td className="py-3 px-4">
                         <Button variant="ghost" size="sm" className="text-black hover:bg-neutral-100" onClick={() => handleViewLog(log.id)}>

@@ -17,8 +17,7 @@ const BCRYPT_ROUNDS = 12; // Higher security
 const ACCESS_TOKEN_EXPIRY = '15m';
 const REFRESH_TOKEN_EXPIRY_DAYS = 7;
 const PASSWORD_RESET_TOKEN_EXPIRY_HOURS = 1;
-const MAX_LOGIN_ATTEMPTS = 5;
-const LOCKOUT_DURATION_MINUTES = 15;
+// Note: MAX_LOGIN_ATTEMPTS and LOCKOUT_DURATION_MINUTES removed to match original database schema
 
 @Injectable()
 export class AuthService {
@@ -654,9 +653,8 @@ export class AuthService {
       .update(refreshToken)
       .digest('hex');
 
-    // Store refresh token in database - using type assertion for Prisma
-    const prismaAny = this.prisma as any;
-    await prismaAny.refreshToken.create({
+    // Store refresh token in database
+    await this.prisma.refreshToken.create({
       data: {
         userId: user.id,
         token: refreshTokenHash,
@@ -1231,77 +1229,6 @@ export class AuthService {
     return crypto.createHash('sha256').update(token).digest('hex');
   }
 
-  /**
-   * Check and handle account lockout
-   */
-  private async checkAccountLockout(userId: number): Promise<void> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        failedLoginAttempts: true,
-        lockedUntil: true,
-      },
-    });
-
-    if (!user) return;
-
-    const lockedUntil = user.lockedUntil as Date | null;
-    
-    // Check if account is locked
-    if (lockedUntil && lockedUntil > new Date()) {
-      const remainingMinutes = Math.ceil(
-        (lockedUntil.getTime() - Date.now()) / 60000,
-      );
-      throw new UnauthorizedException(
-        `Account is locked. Try again in ${remainingMinutes} minutes`,
-      );
-    }
-  }
-
-  /**
-   * Record failed login attempt
-   */
-  private async recordFailedLogin(userId: number): Promise<void> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        failedLoginAttempts: true,
-        lockedUntil: true,
-      },
-    });
-
-    if (!user) return;
-
-    const failedLoginAttempts = user.failedLoginAttempts as number;
-    const newAttempts = failedLoginAttempts + 1;
-    let lockedUntil: Date | null = null;
-
-    // Lock account after max attempts
-    if (newAttempts >= MAX_LOGIN_ATTEMPTS) {
-      lockedUntil = new Date(
-        Date.now() + LOCKOUT_DURATION_MINUTES * 60 * 1000,
-      );
-    }
-
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        failedLoginAttempts: newAttempts,
-        lockedUntil,
-      },
-    });
-  }
-
-  /**
-   * Reset failed login attempts on successful login
-   */
-  private async resetFailedLogin(userId: number): Promise<void> {
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        failedLoginAttempts: 0,
-        lockedUntil: null,
-      },
-    });
-  }
+  // Note: Account lockout features (failedLoginAttempts, lockedUntil) 
+  // have been removed to match the original database schema
 }

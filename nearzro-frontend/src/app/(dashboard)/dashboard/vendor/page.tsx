@@ -152,7 +152,7 @@ export default function VendorDashboardPage() {
       </motion.div>
 
       {/* Stats Cards */}
-      <motion.div 
+      <motion.div
         className="grid gap-6 md:grid-cols-2 lg:grid-cols-4"
         variants={containerVariants}
         initial="hidden"
@@ -167,14 +167,14 @@ export default function VendorDashboardPage() {
           <motion.div key={index} variants={itemVariants}>
             <Card className="border-silver-800 bg-gradient-to-br from-silver-900/50 to-silver-950/50 hover:shadow-xl hover:shadow-black/30 transition-all duration-300">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-silver-400">
+                <CardTitle className="text-sm font-medium text-white">
                   {stat.title}
                 </CardTitle>
-                <stat.icon className="h-5 w-5 text-silver-300" />
+                <stat.icon className="h-5 w-5 text-white" />
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold text-white">{stat.value}</div>
-                <p className="text-xs text-silver-500 mt-1">{stat.subtext}</p>
+                <p className="text-xs text-silver-300 mt-1">{stat.subtext}</p>
               </CardContent>
             </Card>
           </motion.div>

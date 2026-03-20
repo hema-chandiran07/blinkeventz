@@ -27,6 +27,15 @@ import { Role } from '@prisma/client';
 export class ReviewsController {
   constructor(private readonly service: ReviewsService) {}
 
+  // Get All Reviews (Admin Only)
+  @Roles(Role.ADMIN)
+  @Get()
+  getAllReviews(@Query('status') status?: string, @Query('page') page: string = '1', @Query('limit') limit: string = '20') {
+    const pageNum = parseInt(page, 10) || 1;
+    const limitNum = parseInt(limit, 10) || 20;
+    return this.service.findAllForModeration(status, pageNum, limitNum);
+  }
+
   // Create Review (User)
   @Post()
   create(@Req() req: any, @Body() dto: CreateReviewDto) {
@@ -69,7 +78,7 @@ export class ReviewsController {
     return this.service.vote(+id, req.user.userId, helpful);
   }
 
-  // Get All Reviews for Moderation (Admin)
+  // Get All Reviews for Moderation (Admin) - Legacy endpoint
   @Roles(Role.ADMIN)
   @Get('admin/all')
   getAllForModeration(@Query('status') status?: string) {

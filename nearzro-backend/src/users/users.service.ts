@@ -23,6 +23,22 @@ export class UsersService {
     });
   }
 
+  async findById(id: number) {
+    return this.prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        createdAt: true,
+        isEmailVerified: true,
+        phone: true,
+        isActive: true,
+      },
+    });
+  }
+
   async findAll() {
     return this.prisma.user.findMany({
       select: {
