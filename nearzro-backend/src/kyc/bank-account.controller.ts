@@ -21,6 +21,8 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { BankAccountService } from './bank-account/bank-account.service';
 import { AddBankAccountDto } from './dto/add-bank-account.dto';
 import { Request } from 'express';
+import { Audit, AUDIT_META_KEY } from '../audit/decorators/audit.decorator';
+import { AuditSeverity, AuditSource } from '@prisma/client';
 
 interface AuthenticatedRequest extends Request {
   user: { userId: number; email: string; role?: string };
@@ -38,6 +40,12 @@ export class BankAccountController {
   constructor(private readonly bankAccountService: BankAccountService) {}
 
   @Post()
+  @Audit({
+    action: 'BANK_ACCOUNT_CREATE',
+    entityType: 'BankAccount',
+    severity: AuditSeverity.INFO,
+    source: AuditSource.USER,
+  })
   @ApiOperation({ summary: 'Add a new bank account' })
   async addBankAccount(
     @Req() req: AuthenticatedRequest,
@@ -63,6 +71,12 @@ export class BankAccountController {
   }
 
   @Patch(':id/verify')
+  @Audit({
+    action: 'BANK_ACCOUNT_VERIFY',
+    entityType: 'BankAccount',
+    severity: AuditSeverity.WARNING,
+    source: AuditSource.ADMIN,
+  })
   @ApiOperation({ summary: 'Verify a bank account (admin only)' })
   @UseGuards(RolesGuard)
   @Roles('ADMIN')

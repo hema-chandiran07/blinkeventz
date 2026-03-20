@@ -1,0 +1,40 @@
+6c002eb9875a87b304815195fb1c4a71
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.AuditModule = void 0;
+const common_1 = require("@nestjs/common");
+const core_1 = require("@nestjs/core");
+const audit_service_1 = require("./audit.service");
+const audit_interceptor_1 = require("./audit.interceptor");
+const audit_processor_1 = require("./audit.processor");
+const audit_outbox_service_1 = require("./audit.outbox.service");
+const audit_retention_service_1 = require("./audit.retention.service");
+const audit_controller_1 = require("./audit.controller");
+let AuditModule = class AuditModule {
+};
+exports.AuditModule = AuditModule;
+exports.AuditModule = AuditModule = __decorate([
+    (0, common_1.Module)({
+        controllers: [audit_controller_1.AuditController],
+        providers: [
+            audit_service_1.AuditService,
+            audit_interceptor_1.AuditInterceptor,
+            audit_processor_1.AuditProcessor,
+            audit_outbox_service_1.AuditOutboxService,
+            audit_retention_service_1.AuditRetentionService,
+            // Provide the interceptor globally for use with @UseInterceptors
+            {
+                provide: core_1.APP_INTERCEPTOR,
+                useClass: audit_interceptor_1.AuditInterceptor,
+            },
+        ],
+        exports: [audit_service_1.AuditService, audit_interceptor_1.AuditInterceptor],
+    })
+], AuditModule);
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiQzpcXFVzZXJzXFxIZW1hY2hhbmRpcmFuXFxJbnRlcm5zaGlwXFxOZWFyenJvXFxuZWFyenJvLWJhY2tlbmRcXHNyY1xcYXVkaXRcXGF1ZGl0Lm1vZHVsZS50cyIsIm1hcHBpbmdzIjoiOzs7Ozs7Ozs7QUFBQSwyQ0FBd0M7QUFDeEMsdUNBQStDO0FBQy9DLG1EQUErQztBQUMvQywyREFBdUQ7QUFDdkQsdURBQW1EO0FBQ25ELGlFQUE0RDtBQUM1RCx1RUFBa0U7QUFDbEUseURBQXFEO0FBa0I5QyxJQUFNLFdBQVcsR0FBakIsTUFBTSxXQUFXO0NBQUcsQ0FBQTtBQUFkLGtDQUFXO3NCQUFYLFdBQVc7SUFoQnZCLElBQUEsZUFBTSxFQUFDO1FBQ04sV0FBVyxFQUFFLENBQUMsa0NBQWUsQ0FBQztRQUM5QixTQUFTLEVBQUU7WUFDVCw0QkFBWTtZQUNaLG9DQUFnQjtZQUNoQixnQ0FBYztZQUNkLHlDQUFrQjtZQUNsQiwrQ0FBcUI7WUFDckIsaUVBQWlFO1lBQ2pFO2dCQUNFLE9BQU8sRUFBRSxzQkFBZTtnQkFDeEIsUUFBUSxFQUFFLG9DQUFnQjthQUMzQjtTQUNGO1FBQ0QsT0FBTyxFQUFFLENBQUMsNEJBQVksRUFBRSxvQ0FBZ0IsQ0FBQztLQUMxQyxDQUFDO0dBQ1csV0FBVyxDQUFHIiwibmFtZXMiOltdLCJzb3VyY2VzIjpbIkM6XFxVc2Vyc1xcSGVtYWNoYW5kaXJhblxcSW50ZXJuc2hpcFxcTmVhcnpyb1xcbmVhcnpyby1iYWNrZW5kXFxzcmNcXGF1ZGl0XFxhdWRpdC5tb2R1bGUudHMiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHsgTW9kdWxlIH0gZnJvbSAnQG5lc3Rqcy9jb21tb24nO1xyXG5pbXBvcnQgeyBBUFBfSU5URVJDRVBUT1IgfSBmcm9tICdAbmVzdGpzL2NvcmUnO1xyXG5pbXBvcnQgeyBBdWRpdFNlcnZpY2UgfSBmcm9tICcuL2F1ZGl0LnNlcnZpY2UnO1xyXG5pbXBvcnQgeyBBdWRpdEludGVyY2VwdG9yIH0gZnJvbSAnLi9hdWRpdC5pbnRlcmNlcHRvcic7XHJcbmltcG9ydCB7IEF1ZGl0UHJvY2Vzc29yIH0gZnJvbSAnLi9hdWRpdC5wcm9jZXNzb3InO1xyXG5pbXBvcnQgeyBBdWRpdE91dGJveFNlcnZpY2UgfSBmcm9tICcuL2F1ZGl0Lm91dGJveC5zZXJ2aWNlJztcclxuaW1wb3J0IHsgQXVkaXRSZXRlbnRpb25TZXJ2aWNlIH0gZnJvbSAnLi9hdWRpdC5yZXRlbnRpb24uc2VydmljZSc7XHJcbmltcG9ydCB7IEF1ZGl0Q29udHJvbGxlciB9IGZyb20gJy4vYXVkaXQuY29udHJvbGxlcic7XHJcblxyXG5ATW9kdWxlKHtcclxuICBjb250cm9sbGVyczogW0F1ZGl0Q29udHJvbGxlcl0sXHJcbiAgcHJvdmlkZXJzOiBbXHJcbiAgICBBdWRpdFNlcnZpY2UsXHJcbiAgICBBdWRpdEludGVyY2VwdG9yLFxyXG4gICAgQXVkaXRQcm9jZXNzb3IsXHJcbiAgICBBdWRpdE91dGJveFNlcnZpY2UsXHJcbiAgICBBdWRpdFJldGVudGlvblNlcnZpY2UsXHJcbiAgICAvLyBQcm92aWRlIHRoZSBpbnRlcmNlcHRvciBnbG9iYWxseSBmb3IgdXNlIHdpdGggQFVzZUludGVyY2VwdG9yc1xyXG4gICAge1xyXG4gICAgICBwcm92aWRlOiBBUFBfSU5URVJDRVBUT1IsXHJcbiAgICAgIHVzZUNsYXNzOiBBdWRpdEludGVyY2VwdG9yLFxyXG4gICAgfSxcclxuICBdLFxyXG4gIGV4cG9ydHM6IFtBdWRpdFNlcnZpY2UsIEF1ZGl0SW50ZXJjZXB0b3JdLFxyXG59KVxyXG5leHBvcnQgY2xhc3MgQXVkaXRNb2R1bGUge31cclxuIl0sInZlcnNpb24iOjN9

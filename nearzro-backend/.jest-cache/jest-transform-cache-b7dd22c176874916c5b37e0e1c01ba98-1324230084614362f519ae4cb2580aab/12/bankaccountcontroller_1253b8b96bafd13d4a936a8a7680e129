@@ -1,0 +1,108 @@
+15e963f26a10f788174aeb89105fedbb
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var _a, _b;
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.BankAccountController = void 0;
+const common_1 = require("@nestjs/common");
+const swagger_1 = require("@nestjs/swagger");
+const jwt_auth_guard_1 = require("../auth/jwt-auth.guard");
+const roles_guard_1 = require("../common/guards/roles.guard");
+const roles_decorator_1 = require("../common/decorators/roles.decorator");
+const bank_account_service_1 = require("./bank-account/bank-account.service");
+const add_bank_account_dto_1 = require("./dto/add-bank-account.dto");
+const audit_decorator_1 = require("../audit/decorators/audit.decorator");
+const client_1 = require("@prisma/client");
+// ─────────────────────────────────────────────────────────────
+// Bank Account Controller
+// ─────────────────────────────────────────────────────────────
+let BankAccountController = class BankAccountController {
+    bankAccountService;
+    constructor(bankAccountService) {
+        this.bankAccountService = bankAccountService;
+    }
+    async addBankAccount(req, dto) {
+        return this.bankAccountService.addBankAccount(req.user.userId, dto);
+    }
+    async getMyBankAccounts(req) {
+        return this.bankAccountService.getBankAccounts(req.user.userId);
+    }
+    async getVenueOwnerBankAccount(req) {
+        const accounts = await this.bankAccountService.getBankAccounts(req.user.userId);
+        if (!accounts || accounts.length === 0) {
+            throw new common_1.NotFoundException('No bank account found for venue owner');
+        }
+        return accounts[0];
+    }
+    async verifyBankAccount(id, req) {
+        return this.bankAccountService.verifyBankAccount(id, req.user.userId);
+    }
+};
+exports.BankAccountController = BankAccountController;
+__decorate([
+    (0, common_1.Post)(),
+    (0, audit_decorator_1.Audit)({
+        action: 'BANK_ACCOUNT_CREATE',
+        entityType: 'BankAccount',
+        severity: client_1.AuditSeverity.INFO,
+        source: client_1.AuditSource.USER,
+    }),
+    (0, swagger_1.ApiOperation)({ summary: 'Add a new bank account' }),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, typeof (_b = typeof add_bank_account_dto_1.AddBankAccountDto !== "undefined" && add_bank_account_dto_1.AddBankAccountDto) === "function" ? _b : Object]),
+    __metadata("design:returntype", Promise)
+], BankAccountController.prototype, "addBankAccount", null);
+__decorate([
+    (0, common_1.Get)(),
+    (0, swagger_1.ApiOperation)({ summary: 'Get my bank accounts (masked)' }),
+    __param(0, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], BankAccountController.prototype, "getMyBankAccounts", null);
+__decorate([
+    (0, common_1.Get)('venue-owner'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get venue owner bank account' }),
+    __param(0, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], BankAccountController.prototype, "getVenueOwnerBankAccount", null);
+__decorate([
+    (0, common_1.Patch)(':id/verify'),
+    (0, audit_decorator_1.Audit)({
+        action: 'BANK_ACCOUNT_VERIFY',
+        entityType: 'BankAccount',
+        severity: client_1.AuditSeverity.WARNING,
+        source: client_1.AuditSource.ADMIN,
+    }),
+    (0, swagger_1.ApiOperation)({ summary: 'Verify a bank account (admin only)' }),
+    (0, common_1.UseGuards)(roles_guard_1.RolesGuard),
+    (0, roles_decorator_1.Roles)('ADMIN'),
+    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number, Object]),
+    __metadata("design:returntype", Promise)
+], BankAccountController.prototype, "verifyBankAccount", null);
+exports.BankAccountController = BankAccountController = __decorate([
+    (0, swagger_1.ApiTags)('Bank Accounts'),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.Controller)('bank-accounts'),
+    __metadata("design:paramtypes", [typeof (_a = typeof bank_account_service_1.BankAccountService !== "undefined" && bank_account_service_1.BankAccountService) === "function" ? _a : Object])
+], BankAccountController);
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiQzpcXFVzZXJzXFxIZW1hY2hhbmRpcmFuXFxJbnRlcm5zaGlwXFxOZWFyenJvXFxuZWFyenJvLWJhY2tlbmRcXHNyY1xca3ljXFxiYW5rLWFjY291bnQuY29udHJvbGxlci50cyIsIm1hcHBpbmdzIjoiOzs7Ozs7Ozs7Ozs7Ozs7O0FBQUEsMkNBV3dCO0FBQ3hCLDZDQUl5QjtBQUN6QiwyREFBc0Q7QUFDdEQsOERBQTBEO0FBQzFELDBFQUE2RDtBQUM3RCw4RUFBeUU7QUFDekUscUVBQStEO0FBRS9ELHlFQUE0RTtBQUM1RSwyQ0FBNEQ7QUFNNUQsZ0VBQWdFO0FBQ2hFLDBCQUEwQjtBQUMxQixnRUFBZ0U7QUFNekQsSUFBTSxxQkFBcUIsR0FBM0IsTUFBTSxxQkFBcUI7SUFDSDtJQUE3QixZQUE2QixrQkFBc0M7UUFBdEMsdUJBQWtCLEdBQWxCLGtCQUFrQixDQUFvQjtJQUFHLENBQUM7SUFVakUsQUFBTixLQUFLLENBQUMsY0FBYyxDQUNYLEdBQXlCLEVBQ3hCLEdBQXNCO1FBRTlCLE9BQU8sSUFBSSxDQUFDLGtCQUFrQixDQUFDLGNBQWMsQ0FBQyxHQUFHLENBQUMsSUFBSSxDQUFDLE1BQU0sRUFBRSxHQUFHLENBQUMsQ0FBQztJQUN0RSxDQUFDO0lBSUssQUFBTixLQUFLLENBQUMsaUJBQWlCLENBQVEsR0FBeUI7UUFDdEQsT0FBTyxJQUFJLENBQUMsa0JBQWtCLENBQUMsZUFBZSxDQUFDLEdBQUcsQ0FBQyxJQUFJLENBQUMsTUFBTSxDQUFDLENBQUM7SUFDbEUsQ0FBQztJQUlLLEFBQU4sS0FBSyxDQUFDLHdCQUF3QixDQUFRLEdBQXlCO1FBQzdELE1BQU0sUUFBUSxHQUFHLE1BQU0sSUFBSSxDQUFDLGtCQUFrQixDQUFDLGVBQWUsQ0FBQyxHQUFHLENBQUMsSUFBSSxDQUFDLE1BQU0sQ0FBQyxDQUFDO1FBQ2hGLElBQUksQ0FBQyxRQUFRLElBQUksUUFBUSxDQUFDLE1BQU0sS0FBSyxDQUFDLEVBQUUsQ0FBQztZQUN2QyxNQUFNLElBQUksMEJBQWlCLENBQUMsdUNBQXVDLENBQUMsQ0FBQztRQUN2RSxDQUFDO1FBQ0QsT0FBTyxRQUFRLENBQUMsQ0FBQyxDQUFDLENBQUM7SUFDckIsQ0FBQztJQVlLLEFBQU4sS0FBSyxDQUFDLGlCQUFpQixDQUNNLEVBQVUsRUFDOUIsR0FBeUI7UUFFaEMsT0FBTyxJQUFJLENBQUMsa0JBQWtCLENBQUMsaUJBQWlCLENBQUMsRUFBRSxFQUFFLEdBQUcsQ0FBQyxJQUFJLENBQUMsTUFBTSxDQUFDLENBQUM7SUFDeEUsQ0FBQztDQUNGLENBQUE7QUFsRFksc0RBQXFCO0FBVzFCO0lBUkwsSUFBQSxhQUFJLEdBQUU7SUFDTixJQUFBLHVCQUFLLEVBQUM7UUFDTCxNQUFNLEVBQUUscUJBQXFCO1FBQzdCLFVBQVUsRUFBRSxhQUFhO1FBQ3pCLFFBQVEsRUFBRSxzQkFBYSxDQUFDLElBQUk7UUFDNUIsTUFBTSxFQUFFLG9CQUFXLENBQUMsSUFBSTtLQUN6QixDQUFDO0lBQ0QsSUFBQSxzQkFBWSxFQUFDLEVBQUUsT0FBTyxFQUFFLHdCQUF3QixFQUFFLENBQUM7SUFFakQsV0FBQSxJQUFBLFlBQUcsR0FBRSxDQUFBO0lBQ0wsV0FBQSxJQUFBLGFBQUksR0FBRSxDQUFBOztpRUFBTSx3Q0FBaUIsb0JBQWpCLHdDQUFpQjs7MkRBRy9CO0FBSUs7SUFGTCxJQUFBLFlBQUcsR0FBRTtJQUNMLElBQUEsc0JBQVksRUFBQyxFQUFFLE9BQU8sRUFBRSwrQkFBK0IsRUFBRSxDQUFDO0lBQ2xDLFdBQUEsSUFBQSxZQUFHLEdBQUUsQ0FBQTs7Ozs4REFFN0I7QUFJSztJQUZMLElBQUEsWUFBRyxFQUFDLGFBQWEsQ0FBQztJQUNsQixJQUFBLHNCQUFZLEVBQUMsRUFBRSxPQUFPLEVBQUUsOEJBQThCLEVBQUUsQ0FBQztJQUMxQixXQUFBLElBQUEsWUFBRyxHQUFFLENBQUE7Ozs7cUVBTXBDO0FBWUs7SUFWTCxJQUFBLGNBQUssRUFBQyxZQUFZLENBQUM7SUFDbkIsSUFBQSx1QkFBSyxFQUFDO1FBQ0wsTUFBTSxFQUFFLHFCQUFxQjtRQUM3QixVQUFVLEVBQUUsYUFBYTtRQUN6QixRQUFRLEVBQUUsc0JBQWEsQ0FBQyxPQUFPO1FBQy9CLE1BQU0sRUFBRSxvQkFBVyxDQUFDLEtBQUs7S0FDMUIsQ0FBQztJQUNELElBQUEsc0JBQVksRUFBQyxFQUFFLE9BQU8sRUFBRSxvQ0FBb0MsRUFBRSxDQUFDO0lBQy9ELElBQUEsa0JBQVMsRUFBQyx3QkFBVSxDQUFDO0lBQ3JCLElBQUEsdUJBQUssRUFBQyxPQUFPLENBQUM7SUFFWixXQUFBLElBQUEsY0FBSyxFQUFDLElBQUksRUFBRSxxQkFBWSxDQUFDLENBQUE7SUFDekIsV0FBQSxJQUFBLFlBQUcsR0FBRSxDQUFBOzs7OzhEQUdQO2dDQWpEVSxxQkFBcUI7SUFKakMsSUFBQSxpQkFBTyxFQUFDLGVBQWUsQ0FBQztJQUN4QixJQUFBLHVCQUFhLEdBQUU7SUFDZixJQUFBLGtCQUFTLEVBQUMsNkJBQVksQ0FBQztJQUN2QixJQUFBLG1CQUFVLEVBQUMsZUFBZSxDQUFDO3lEQUV1Qix5Q0FBa0Isb0JBQWxCLHlDQUFrQjtHQUR4RCxxQkFBcUIsQ0FrRGpDIiwibmFtZXMiOltdLCJzb3VyY2VzIjpbIkM6XFxVc2Vyc1xcSGVtYWNoYW5kaXJhblxcSW50ZXJuc2hpcFxcTmVhcnpyb1xcbmVhcnpyby1iYWNrZW5kXFxzcmNcXGt5Y1xcYmFuay1hY2NvdW50LmNvbnRyb2xsZXIudHMiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHtcclxuICBDb250cm9sbGVyLFxyXG4gIEdldCxcclxuICBQb3N0LFxyXG4gIFBhdGNoLFxyXG4gIEJvZHksXHJcbiAgUGFyYW0sXHJcbiAgUmVxLFxyXG4gIFVzZUd1YXJkcyxcclxuICBQYXJzZUludFBpcGUsXHJcbiAgTm90Rm91bmRFeGNlcHRpb24sXHJcbn0gZnJvbSAnQG5lc3Rqcy9jb21tb24nO1xyXG5pbXBvcnQge1xyXG4gIEFwaVRhZ3MsXHJcbiAgQXBpQmVhcmVyQXV0aCxcclxuICBBcGlPcGVyYXRpb24sXHJcbn0gZnJvbSAnQG5lc3Rqcy9zd2FnZ2VyJztcclxuaW1wb3J0IHsgSnd0QXV0aEd1YXJkIH0gZnJvbSAnLi4vYXV0aC9qd3QtYXV0aC5ndWFyZCc7XHJcbmltcG9ydCB7IFJvbGVzR3VhcmQgfSBmcm9tICcuLi9jb21tb24vZ3VhcmRzL3JvbGVzLmd1YXJkJztcclxuaW1wb3J0IHsgUm9sZXMgfSBmcm9tICcuLi9jb21tb24vZGVjb3JhdG9ycy9yb2xlcy5kZWNvcmF0b3InO1xyXG5pbXBvcnQgeyBCYW5rQWNjb3VudFNlcnZpY2UgfSBmcm9tICcuL2JhbmstYWNjb3VudC9iYW5rLWFjY291bnQuc2VydmljZSc7XHJcbmltcG9ydCB7IEFkZEJhbmtBY2NvdW50RHRvIH0gZnJvbSAnLi9kdG8vYWRkLWJhbmstYWNjb3VudC5kdG8nO1xyXG5pbXBvcnQgeyBSZXF1ZXN0IH0gZnJvbSAnZXhwcmVzcyc7XHJcbmltcG9ydCB7IEF1ZGl0LCBBVURJVF9NRVRBX0tFWSB9IGZyb20gJy4uL2F1ZGl0L2RlY29yYXRvcnMvYXVkaXQuZGVjb3JhdG9yJztcclxuaW1wb3J0IHsgQXVkaXRTZXZlcml0eSwgQXVkaXRTb3VyY2UgfSBmcm9tICdAcHJpc21hL2NsaWVudCc7XHJcblxyXG5pbnRlcmZhY2UgQXV0aGVudGljYXRlZFJlcXVlc3QgZXh0ZW5kcyBSZXF1ZXN0IHtcclxuICB1c2VyOiB7IHVzZXJJZDogbnVtYmVyOyBlbWFpbDogc3RyaW5nOyByb2xlPzogc3RyaW5nIH07XHJcbn1cclxuXHJcbi8vIOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgFxyXG4vLyBCYW5rIEFjY291bnQgQ29udHJvbGxlclxyXG4vLyDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIBcclxuXHJcbkBBcGlUYWdzKCdCYW5rIEFjY291bnRzJylcclxuQEFwaUJlYXJlckF1dGgoKVxyXG5AVXNlR3VhcmRzKEp3dEF1dGhHdWFyZClcclxuQENvbnRyb2xsZXIoJ2JhbmstYWNjb3VudHMnKVxyXG5leHBvcnQgY2xhc3MgQmFua0FjY291bnRDb250cm9sbGVyIHtcclxuICBjb25zdHJ1Y3Rvcihwcml2YXRlIHJlYWRvbmx5IGJhbmtBY2NvdW50U2VydmljZTogQmFua0FjY291bnRTZXJ2aWNlKSB7fVxyXG5cclxuICBAUG9zdCgpXHJcbiAgQEF1ZGl0KHtcclxuICAgIGFjdGlvbjogJ0JBTktfQUNDT1VOVF9DUkVBVEUnLFxyXG4gICAgZW50aXR5VHlwZTogJ0JhbmtBY2NvdW50JyxcclxuICAgIHNldmVyaXR5OiBBdWRpdFNldmVyaXR5LklORk8sXHJcbiAgICBzb3VyY2U6IEF1ZGl0U291cmNlLlVTRVIsXHJcbiAgfSlcclxuICBAQXBpT3BlcmF0aW9uKHsgc3VtbWFyeTogJ0FkZCBhIG5ldyBiYW5rIGFjY291bnQnIH0pXHJcbiAgYXN5bmMgYWRkQmFua0FjY291bnQoXHJcbiAgICBAUmVxKCkgcmVxOiBBdXRoZW50aWNhdGVkUmVxdWVzdCxcclxuICAgIEBCb2R5KCkgZHRvOiBBZGRCYW5rQWNjb3VudER0byxcclxuICApIHtcclxuICAgIHJldHVybiB0aGlzLmJhbmtBY2NvdW50U2VydmljZS5hZGRCYW5rQWNjb3VudChyZXEudXNlci51c2VySWQsIGR0byk7XHJcbiAgfVxyXG5cclxuICBAR2V0KClcclxuICBAQXBpT3BlcmF0aW9uKHsgc3VtbWFyeTogJ0dldCBteSBiYW5rIGFjY291bnRzIChtYXNrZWQpJyB9KVxyXG4gIGFzeW5jIGdldE15QmFua0FjY291bnRzKEBSZXEoKSByZXE6IEF1dGhlbnRpY2F0ZWRSZXF1ZXN0KSB7XHJcbiAgICByZXR1cm4gdGhpcy5iYW5rQWNjb3VudFNlcnZpY2UuZ2V0QmFua0FjY291bnRzKHJlcS51c2VyLnVzZXJJZCk7XHJcbiAgfVxyXG5cclxuICBAR2V0KCd2ZW51ZS1vd25lcicpXHJcbiAgQEFwaU9wZXJhdGlvbih7IHN1bW1hcnk6ICdHZXQgdmVudWUgb3duZXIgYmFuayBhY2NvdW50JyB9KVxyXG4gIGFzeW5jIGdldFZlbnVlT3duZXJCYW5rQWNjb3VudChAUmVxKCkgcmVxOiBBdXRoZW50aWNhdGVkUmVxdWVzdCkge1xyXG4gICAgY29uc3QgYWNjb3VudHMgPSBhd2FpdCB0aGlzLmJhbmtBY2NvdW50U2VydmljZS5nZXRCYW5rQWNjb3VudHMocmVxLnVzZXIudXNlcklkKTtcclxuICAgIGlmICghYWNjb3VudHMgfHwgYWNjb3VudHMubGVuZ3RoID09PSAwKSB7XHJcbiAgICAgIHRocm93IG5ldyBOb3RGb3VuZEV4Y2VwdGlvbignTm8gYmFuayBhY2NvdW50IGZvdW5kIGZvciB2ZW51ZSBvd25lcicpO1xyXG4gICAgfVxyXG4gICAgcmV0dXJuIGFjY291bnRzWzBdO1xyXG4gIH1cclxuXHJcbiAgQFBhdGNoKCc6aWQvdmVyaWZ5JylcclxuICBAQXVkaXQoe1xyXG4gICAgYWN0aW9uOiAnQkFOS19BQ0NPVU5UX1ZFUklGWScsXHJcbiAgICBlbnRpdHlUeXBlOiAnQmFua0FjY291bnQnLFxyXG4gICAgc2V2ZXJpdHk6IEF1ZGl0U2V2ZXJpdHkuV0FSTklORyxcclxuICAgIHNvdXJjZTogQXVkaXRTb3VyY2UuQURNSU4sXHJcbiAgfSlcclxuICBAQXBpT3BlcmF0aW9uKHsgc3VtbWFyeTogJ1ZlcmlmeSBhIGJhbmsgYWNjb3VudCAoYWRtaW4gb25seSknIH0pXHJcbiAgQFVzZUd1YXJkcyhSb2xlc0d1YXJkKVxyXG4gIEBSb2xlcygnQURNSU4nKVxyXG4gIGFzeW5jIHZlcmlmeUJhbmtBY2NvdW50KFxyXG4gICAgQFBhcmFtKCdpZCcsIFBhcnNlSW50UGlwZSkgaWQ6IG51bWJlcixcclxuICAgIEBSZXEoKSByZXE6IEF1dGhlbnRpY2F0ZWRSZXF1ZXN0LFxyXG4gICkge1xyXG4gICAgcmV0dXJuIHRoaXMuYmFua0FjY291bnRTZXJ2aWNlLnZlcmlmeUJhbmtBY2NvdW50KGlkLCByZXEudXNlci51c2VySWQpO1xyXG4gIH1cclxufVxyXG4iXSwidmVyc2lvbiI6M30=

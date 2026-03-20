@@ -1,0 +1,57 @@
+6bcdab04e267b31da3d59303a6972b92
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var AuditProcessor_1;
+var _a, _b, _c;
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.AuditProcessor = void 0;
+// src/audit/audit.processor.ts
+const common_1 = require("@nestjs/common");
+const schedule_1 = require("@nestjs/schedule");
+const prisma_service_1 = require("../prisma/prisma.service");
+const audit_outbox_service_1 = require("./audit.outbox.service");
+let AuditProcessor = AuditProcessor_1 = class AuditProcessor {
+    prisma;
+    outboxService;
+    logger = new common_1.Logger(AuditProcessor_1.name);
+    BATCH_SIZE = 100;
+    constructor(prisma, outboxService) {
+        this.prisma = prisma;
+        this.outboxService = outboxService;
+    }
+    async process() {
+        try {
+            await this.outboxService.processBatch(this.BATCH_SIZE);
+        }
+        catch (error) {
+            this.logger.error('Audit processing failed:', error);
+        }
+    }
+    /**
+     * Manual trigger for processing (useful for testing or admin actions)
+     */
+    async processNow(batchSize) {
+        await this.outboxService.processBatch(batchSize || this.BATCH_SIZE);
+    }
+};
+exports.AuditProcessor = AuditProcessor;
+__decorate([
+    (0, schedule_1.Cron)('*/10 * * * * *') // every 10 seconds
+    ,
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", typeof (_c = typeof Promise !== "undefined" && Promise) === "function" ? _c : Object)
+], AuditProcessor.prototype, "process", null);
+exports.AuditProcessor = AuditProcessor = AuditProcessor_1 = __decorate([
+    (0, common_1.Injectable)(),
+    __metadata("design:paramtypes", [typeof (_a = typeof prisma_service_1.PrismaService !== "undefined" && prisma_service_1.PrismaService) === "function" ? _a : Object, typeof (_b = typeof audit_outbox_service_1.AuditOutboxService !== "undefined" && audit_outbox_service_1.AuditOutboxService) === "function" ? _b : Object])
+], AuditProcessor);
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiQzpcXFVzZXJzXFxIZW1hY2hhbmRpcmFuXFxJbnRlcm5zaGlwXFxOZWFyenJvXFxuZWFyenJvLWJhY2tlbmRcXHNyY1xcYXVkaXRcXGF1ZGl0LnByb2Nlc3Nvci50cyIsIm1hcHBpbmdzIjoiOzs7Ozs7Ozs7Ozs7OztBQUFBLCtCQUErQjtBQUMvQiwyQ0FBb0Q7QUFDcEQsK0NBQXdDO0FBQ3hDLDZEQUF5RDtBQUN6RCxpRUFBNEQ7QUFHckQsSUFBTSxjQUFjLHNCQUFwQixNQUFNLGNBQWM7SUFLTjtJQUNBO0lBTEYsTUFBTSxHQUFHLElBQUksZUFBTSxDQUFDLGdCQUFjLENBQUMsSUFBSSxDQUFDLENBQUM7SUFDekMsVUFBVSxHQUFHLEdBQUcsQ0FBQztJQUVsQyxZQUNtQixNQUFxQixFQUNyQixhQUFpQztRQURqQyxXQUFNLEdBQU4sTUFBTSxDQUFlO1FBQ3JCLGtCQUFhLEdBQWIsYUFBYSxDQUFvQjtJQUNqRCxDQUFDO0lBR0UsQUFBTixLQUFLLENBQUMsT0FBTztRQUNYLElBQUksQ0FBQztZQUNILE1BQU0sSUFBSSxDQUFDLGFBQWEsQ0FBQyxZQUFZLENBQUMsSUFBSSxDQUFDLFVBQVUsQ0FBQyxDQUFDO1FBQ3pELENBQUM7UUFBQyxPQUFPLEtBQUssRUFBRSxDQUFDO1lBQ2YsSUFBSSxDQUFDLE1BQU0sQ0FBQyxLQUFLLENBQUMsMEJBQTBCLEVBQUUsS0FBSyxDQUFDLENBQUM7UUFDdkQsQ0FBQztJQUNILENBQUM7SUFFRDs7T0FFRztJQUNILEtBQUssQ0FBQyxVQUFVLENBQUMsU0FBa0I7UUFDakMsTUFBTSxJQUFJLENBQUMsYUFBYSxDQUFDLFlBQVksQ0FBQyxTQUFTLElBQUksSUFBSSxDQUFDLFVBQVUsQ0FBQyxDQUFDO0lBQ3RFLENBQUM7Q0FDRixDQUFBO0FBeEJZLHdDQUFjO0FBVW5CO0lBREwsSUFBQSxlQUFJLEVBQUMsZ0JBQWdCLENBQUMsQ0FBQyxtQkFBbUI7Ozs7d0RBQzFCLE9BQU8sb0JBQVAsT0FBTzs2Q0FNdkI7eUJBaEJVLGNBQWM7SUFEMUIsSUFBQSxtQkFBVSxHQUFFO3lEQU1nQiw4QkFBYSxvQkFBYiw4QkFBYSxvREFDTix5Q0FBa0Isb0JBQWxCLHlDQUFrQjtHQU56QyxjQUFjLENBd0IxQiIsIm5hbWVzIjpbXSwic291cmNlcyI6WyJDOlxcVXNlcnNcXEhlbWFjaGFuZGlyYW5cXEludGVybnNoaXBcXE5lYXJ6cm9cXG5lYXJ6cm8tYmFja2VuZFxcc3JjXFxhdWRpdFxcYXVkaXQucHJvY2Vzc29yLnRzIl0sInNvdXJjZXNDb250ZW50IjpbIi8vIHNyYy9hdWRpdC9hdWRpdC5wcm9jZXNzb3IudHNcclxuaW1wb3J0IHsgSW5qZWN0YWJsZSwgTG9nZ2VyIH0gZnJvbSAnQG5lc3Rqcy9jb21tb24nO1xyXG5pbXBvcnQgeyBDcm9uIH0gZnJvbSAnQG5lc3Rqcy9zY2hlZHVsZSc7XHJcbmltcG9ydCB7IFByaXNtYVNlcnZpY2UgfSBmcm9tICcuLi9wcmlzbWEvcHJpc21hLnNlcnZpY2UnO1xyXG5pbXBvcnQgeyBBdWRpdE91dGJveFNlcnZpY2UgfSBmcm9tICcuL2F1ZGl0Lm91dGJveC5zZXJ2aWNlJztcclxuXHJcbkBJbmplY3RhYmxlKClcclxuZXhwb3J0IGNsYXNzIEF1ZGl0UHJvY2Vzc29yIHtcclxuICBwcml2YXRlIHJlYWRvbmx5IGxvZ2dlciA9IG5ldyBMb2dnZXIoQXVkaXRQcm9jZXNzb3IubmFtZSk7XHJcbiAgcHJpdmF0ZSByZWFkb25seSBCQVRDSF9TSVpFID0gMTAwO1xyXG5cclxuICBjb25zdHJ1Y3RvcihcclxuICAgIHByaXZhdGUgcmVhZG9ubHkgcHJpc21hOiBQcmlzbWFTZXJ2aWNlLFxyXG4gICAgcHJpdmF0ZSByZWFkb25seSBvdXRib3hTZXJ2aWNlOiBBdWRpdE91dGJveFNlcnZpY2UsXHJcbiAgKSB7fVxyXG5cclxuICBAQ3JvbignKi8xMCAqICogKiAqIConKSAvLyBldmVyeSAxMCBzZWNvbmRzXHJcbiAgYXN5bmMgcHJvY2VzcygpOiBQcm9taXNlPHZvaWQ+IHtcclxuICAgIHRyeSB7XHJcbiAgICAgIGF3YWl0IHRoaXMub3V0Ym94U2VydmljZS5wcm9jZXNzQmF0Y2godGhpcy5CQVRDSF9TSVpFKTtcclxuICAgIH0gY2F0Y2ggKGVycm9yKSB7XHJcbiAgICAgIHRoaXMubG9nZ2VyLmVycm9yKCdBdWRpdCBwcm9jZXNzaW5nIGZhaWxlZDonLCBlcnJvcik7XHJcbiAgICB9XHJcbiAgfVxyXG5cclxuICAvKipcclxuICAgKiBNYW51YWwgdHJpZ2dlciBmb3IgcHJvY2Vzc2luZyAodXNlZnVsIGZvciB0ZXN0aW5nIG9yIGFkbWluIGFjdGlvbnMpXHJcbiAgICovXHJcbiAgYXN5bmMgcHJvY2Vzc05vdyhiYXRjaFNpemU/OiBudW1iZXIpOiBQcm9taXNlPHZvaWQ+IHtcclxuICAgIGF3YWl0IHRoaXMub3V0Ym94U2VydmljZS5wcm9jZXNzQmF0Y2goYmF0Y2hTaXplIHx8IHRoaXMuQkFUQ0hfU0laRSk7XHJcbiAgfVxyXG59XHJcbiJdLCJ2ZXJzaW9uIjozfQ==

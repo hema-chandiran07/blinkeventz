@@ -24,6 +24,8 @@ import { Role } from '@prisma/client';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
+import { Audit, AUDIT_META_KEY } from '../audit/decorators/audit.decorator';
+import { AuditSeverity, AuditSource } from '@prisma/client';
 
 @ApiTags('KYC')
 @ApiBearerAuth()
@@ -34,6 +36,12 @@ export class KycController {
 
   // Customer KYC
   @Post('customer')
+  @Audit({
+    action: 'KYC_CUSTOMER_CREATE',
+    entityType: 'KycDocument',
+    severity: AuditSeverity.INFO,
+    source: AuditSource.USER,
+  })
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(
     FileInterceptor('document', {
@@ -94,6 +102,12 @@ export class KycController {
 
   // Vendor KYC
   @Post('vendor')
+  @Audit({
+    action: 'KYC_VENDOR_CREATE',
+    entityType: 'KycDocument',
+    severity: AuditSeverity.INFO,
+    source: AuditSource.USER,
+  })
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(
     FileInterceptor('document', {
@@ -121,6 +135,12 @@ export class KycController {
 
   // Venue Owner KYC
   @Post('venue-owner')
+  @Audit({
+    action: 'KYC_VENUE_OWNER_CREATE',
+    entityType: 'KycDocument',
+    severity: AuditSeverity.INFO,
+    source: AuditSource.USER,
+  })
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(
     FileInterceptor('document', {
@@ -156,6 +176,12 @@ export class KycController {
   // Admin - Approve/Reject KYC
   @Roles(Role.ADMIN)
   @Patch('admin/:id/status')
+  @Audit({
+    action: 'KYC_STATUS_UPDATE',
+    entityType: 'KycDocument',
+    severity: AuditSeverity.WARNING,
+    source: AuditSource.ADMIN,
+  })
   async updateKycStatus(
     @Param('id') id: string,
     @Body() dto: UpdateKycStatusDto,
