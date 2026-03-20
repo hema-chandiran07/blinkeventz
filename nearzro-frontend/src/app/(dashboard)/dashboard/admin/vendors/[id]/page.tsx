@@ -1,319 +1,352 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
-  ArrowLeft, Edit, Trash2, MapPin, CheckCircle2,
-  XCircle, Calendar, Download, Share2, MessageSquare, Star, Store,
-  TrendingUp, Package, Users
+  ArrowLeft, Edit, MapPin, CheckCircle2, XCircle, Calendar, Download, Share2, Store,
+  Package, Loader2
 } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { useRouter, useParams } from "next/navigation";
 import { toast } from "sonner";
+import api from "@/lib/api";
 
 interface VendorDetail {
   id: number;
-  name: string;
-  owner: string;
-  email: string;
-  phone: string;
-  serviceType: string;
-  area: string;
+  userId: number;
+  businessName: string;
+  description?: string;
   city: string;
-  basePrice: number;
-  status: string;
-  bookings: number;
-  revenue: number;
-  rating: number;
-  services: string[];
+  area: string;
+  serviceRadiusKm?: number;
+  verificationStatus: string;
+  images?: string[];
+  user?: {
+    name: string;
+    email: string;
+    phone?: string;
+  };
+  services?: any[];
   createdAt: string;
+  updatedAt: string;
 }
-
-const MOCK_VENDOR: VendorDetail = {
-  id: 1,
-  name: "Elite Photography",
-  owner: "John Smith",
-  email: "john@elitephoto.in",
-  phone: "+91 9876543210",
-  serviceType: "PHOTOGRAPHY",
-  area: "Anna Nagar",
-  city: "Chennai",
-  basePrice: 50000,
-  status: "VERIFIED",
-  bookings: 67,
-  revenue: 3350000,
-  rating: 4.8,
-  services: ["Wedding Photography", "Candid Shots", "Pre-Wedding", "Album Design"],
-  createdAt: "2024-01-10",
-};
 
 const STATUS_COLORS: Record<string, string> = {
   VERIFIED: "bg-emerald-500 text-white",
   PENDING: "bg-amber-500 text-white",
+  REJECTED: "bg-red-500 text-white",
   SUSPENDED: "bg-red-500 text-white",
 };
 
-export default function VendorDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default function VendorDetailPage() {
   const router = useRouter();
-  const [vendor] = useState<VendorDetail>(MOCK_VENDOR);
+  const params = useParams();
+  const [loading, setLoading] = useState(true);
+  const [vendor, setVendor] = useState<VendorDetail | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
 
-  const formatCurrency = (amount: number) => {
-    if (amount >= 10000000) return `₹${(amount / 10000000).toFixed(2)}Cr`;
-    if (amount >= 100000) return `₹${(amount / 100000).toFixed(2)}L`;
-    return `₹${(amount / 1000).toFixed(2)}K`;
-  };
+  useEffect(() => {
+    loadVendor();
+  }, [params.id]);
 
-  const handleUpdateStatus = async (newStatus: string) => {
+  const loadVendor = async () => {
     try {
-      console.log(`Updating vendor ${vendor.id} status to ${newStatus}`);
-      toast.success(`Vendor status updated to ${newStatus}`);
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-      window.location.reload();
+      setLoading(true);
+      const response = await api.get("/vendors");
+      const found = response.data.find((v: any) => v.id === parseInt(params.id as string));
+      setVendor(found || null);
     } catch (error: any) {
-      console.error("Status update error:", error);
-      toast.error("Failed to update status");
+      console.error("Failed to load vendor:", error);
+      toast.error("Failed to load vendor details");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleDelete = async () => {
-    if (confirm("Are you sure you want to delete this vendor?")) {
-      try {
-        console.log(`Deleting vendor ${vendor.id}`);
-        toast.success("Vendor deleted successfully");
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 500));
-        router.push("/dashboard/admin/vendors");
-      } catch (error: any) {
-        console.error("Delete error:", error);
-        toast.error("Failed to delete vendor");
-      }
-    }
-  };
-
-  const handleExport = async () => {
+  const handleApprove = async () => {
     try {
-      console.log(`Exporting vendor ${vendor.id}`);
-      toast.success("Vendor details exported");
+      setActionLoading(true);
+      await api.post(`/vendors/${vendor?.id}/approve`);
+      toast.success("Vendor approved successfully!");
+      loadVendor();
     } catch (error: any) {
-      console.error("Export error:", error);
-      toast.error("Failed to export vendor");
+      toast.error(error?.response?.data?.message || "Failed to approve vendor");
+    } finally {
+      setActionLoading(false);
     }
   };
 
-  const handleShare = async () => {
+  const handleReject = async () => {
+    const reason = prompt("Please enter rejection reason:");
+    if (!reason) return;
+    
     try {
-      console.log(`Sharing vendor ${vendor.id}`);
-      const shareUrl = `${window.location.origin}/vendors/${vendor.id}`;
-      await navigator.clipboard.writeText(shareUrl);
-      toast.success("Vendor link copied to clipboard");
+      setActionLoading(true);
+      await api.post(`/vendors/${vendor?.id}/reject`, { reason });
+      toast.success("Vendor rejected");
+      loadVendor();
     } catch (error: any) {
-      console.error("Share error:", error);
-      toast.error("Failed to share vendor");
+      toast.error(error?.response?.data?.message || "Failed to reject vendor");
+    } finally {
+      setActionLoading(false);
     }
   };
 
-  const handleEdit = () => {
-    console.log(`Editing vendor ${vendor.id}`);
-    toast.info("Opening edit mode...");
+  const handleSuspend = async () => {
+    if (!confirm("Are you sure you want to suspend this vendor?")) return;
+    
+    try {
+      setActionLoading(true);
+      await api.patch(`/vendors/${vendor?.id}`, { verificationStatus: 'SUSPENDED' });
+      toast.success("Vendor suspended");
+      loadVendor();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to suspend vendor");
+    } finally {
+      setActionLoading(false);
+    }
   };
 
-  const handleSendMessage = () => {
-    console.log(`Sending message to owner ${vendor.owner}`);
-    toast.success("Message sent to owner");
-  };
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-black" />
+          <p className="text-neutral-600">Loading vendor details...</p>
+        </div>
+      </div>
+    );
+  }
 
-  const handleViewProfile = () => {
-    console.log(`Viewing owner profile`);
-    router.push("/dashboard/admin/users");
-  };
-
-  const handleViewBookings = () => {
-    console.log(`Viewing bookings for vendor ${vendor.id}`);
-    router.push(`/dashboard/admin/vendors/${vendor.id}/bookings`);
-  };
-
-  const handleViewAnalytics = () => {
-    console.log(`Viewing analytics for vendor ${vendor.id}`);
-    router.push(`/dashboard/admin/reports/vendors?id=${vendor.id}`);
-  };
+  if (!vendor) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <XCircle className="h-16 w-16 mx-auto mb-4 text-red-600" />
+          <h3 className="text-lg font-bold text-black mb-2">Vendor Not Found</h3>
+          <Button onClick={() => router.push("/dashboard/admin/vendors")}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Vendors
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-between"
-      >
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => router.back()} className="hover:bg-neutral-100">
+          <Button variant="ghost" size="sm" onClick={() => router.back()}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold text-black">{vendor.name}</h1>
-            <p className="text-neutral-600">Vendor ID: #{vendor.id}</p>
+            <h1 className="text-3xl font-bold text-black">{vendor.businessName}</h1>
+            <p className="text-neutral-600">{vendor.user?.email}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" className="border-black hover:bg-neutral-100">
-            <Download className="h-4 w-4 mr-2" /> Export
+        <div className="flex gap-2">
+          <Button variant="outline" className="border-black">
+            <Share2 className="h-4 w-4 mr-2" />
+            Share
           </Button>
-          <Button variant="outline" className="border-black hover:bg-neutral-100">
-            <Share2 className="h-4 w-4 mr-2" /> Share
+          <Button variant="outline" className="border-black">
+            <Download className="h-4 w-4 mr-2" />
+            Export
           </Button>
-          <Button variant="outline" className="border-black hover:bg-neutral-100">
-            <Edit className="h-4 w-4 mr-2" /> Edit
-          </Button>
-          <Button variant="outline" className="border-red-300 text-red-600 hover:bg-red-50" onClick={handleDelete}>
-            <Trash2 className="h-4 w-4 mr-2" /> Delete
-          </Button>
-        </div>
-      </motion.div>
-
-      {/* Status & Actions */}
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center justify-between">
-        <Badge className={`${STATUS_COLORS[vendor.status]} px-4 py-2 text-sm font-semibold`}>
-          {vendor.status}
-        </Badge>
-        <div className="flex items-center gap-2">
-          {vendor.status === "PENDING" && (
-            <>
-              <Button onClick={() => handleUpdateStatus("VERIFIED")} className="bg-emerald-600 hover:bg-emerald-700">
-                <CheckCircle2 className="h-4 w-4 mr-2" /> Verify Vendor
-              </Button>
-              <Button variant="outline" className="border-red-300 text-red-600 hover:bg-red-50" onClick={() => handleUpdateStatus("SUSPENDED")}>
-                <XCircle className="h-4 w-4 mr-2" /> Reject
-              </Button>
-            </>
-          )}
-        </div>
-      </motion.div>
-
-      {/* Content Grid */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Main Details */}
-        <div className="lg:col-span-2 space-y-6">
-          <Card className="border-2 border-black hover:shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-black flex items-center gap-2">
-                <Store className="h-5 w-5" /> Business Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium text-neutral-600">Service Type</p>
-                  <p className="text-lg font-bold text-black">{vendor.serviceType}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-neutral-600">Base Price</p>
-                  <p className="text-2xl font-bold text-black">{formatCurrency(vendor.basePrice)}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-neutral-600">Location</p>
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4 text-neutral-400" />
-                    <p className="text-lg font-bold text-black">{vendor.area}, {vendor.city}</p>
-                  </div>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-neutral-600">Registered On</p>
-                  <p className="text-lg font-bold text-black">{new Date(vendor.createdAt).toLocaleDateString("en-IN")}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 border-black hover:shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-black flex items-center gap-2">
-                <Package className="h-5 w-5" /> Services Offered
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-2">
-                {vendor.services.map((service, index) => (
-                  <Badge key={index} className="bg-neutral-100 text-black border-neutral-300 px-3 py-1">
-                    {service}
-                  </Badge>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 border-black hover:shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-black flex items-center gap-2">
-                <Users className="h-5 w-5" /> Owner Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium text-neutral-600">Owner Name</p>
-                  <p className="text-lg font-bold text-black">{vendor.owner}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-neutral-600">Email</p>
-                  <p className="text-lg font-bold text-black">{vendor.email}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-neutral-600">Phone</p>
-                  <p className="text-lg font-bold text-black">{vendor.phone}</p>
-                </div>
-              </div>
-              <div className="flex gap-2 pt-4">
-                <Button variant="outline" className="border-black hover:bg-neutral-100">
-                  <MessageSquare className="h-4 w-4 mr-2" /> Send Message
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Sidebar */}
-        <div className="space-y-6">
-          <Card className="border-2 border-black hover:shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-black">Performance</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center justify-between p-3 rounded-lg bg-neutral-50">
-                <span className="text-sm text-neutral-600">Total Bookings</span>
-                <span className="text-xl font-bold text-black">{vendor.bookings}</span>
-              </div>
-              <div className="flex items-center justify-between p-3 rounded-lg bg-neutral-50">
-                <span className="text-sm text-neutral-600">Total Revenue</span>
-                <span className="text-xl font-bold text-black">{formatCurrency(vendor.revenue)}</span>
-              </div>
-              <div className="flex items-center justify-between p-3 rounded-lg bg-neutral-50">
-                <span className="text-sm text-neutral-600">Rating</span>
-                <div className="flex items-center gap-2">
-                  <Star className="h-5 w-5 text-amber-500 fill-amber-500" />
-                  <span className="text-xl font-bold text-black">{vendor.rating}/5.0</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 border-black hover:shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-black">Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Button variant="outline" className="w-full border-black hover:bg-neutral-100 justify-start">
-                <Calendar className="h-4 w-4 mr-2" /> View Bookings
-              </Button>
-              <Button variant="outline" className="w-full border-black hover:bg-neutral-100 justify-start">
-                <TrendingUp className="h-4 w-4 mr-2" /> View Analytics
-              </Button>
-            </CardContent>
-          </Card>
         </div>
       </div>
+
+      {/* Stats */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card className="border-2 border-black">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-neutral-600">Status</p>
+                <p className="text-2xl font-bold text-black mt-1">{vendor.verificationStatus.replace('_', ' ')}</p>
+              </div>
+              <div className="p-3 rounded-full bg-black">
+                <Store className="h-6 w-6 text-white" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-2 border-blue-600">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-neutral-600">City</p>
+                <p className="text-2xl font-bold text-blue-600 mt-1">{vendor.city}</p>
+              </div>
+              <div className="p-3 rounded-full bg-blue-600">
+                <MapPin className="h-6 w-6 text-white" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-2 border-amber-600">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-neutral-600">Services</p>
+                <p className="text-2xl font-bold text-amber-600 mt-1">{vendor.services?.length || 0}</p>
+              </div>
+              <div className="p-3 rounded-full bg-amber-600">
+                <Package className="h-6 w-6 text-white" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-2 border-emerald-600">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-neutral-600">Joined</p>
+                <p className="text-2xl font-bold text-emerald-600 mt-1">
+                  {new Date(vendor.createdAt).toLocaleDateString()}
+                </p>
+              </div>
+              <div className="p-3 rounded-full bg-emerald-600">
+                <Calendar className="h-6 w-6 text-white" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Business Information */}
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card className="border-2 border-black">
+          <CardHeader>
+            <CardTitle className="text-black">Business Information</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <p className="text-xs text-neutral-600">Business Name</p>
+              <p className="font-medium text-black">{vendor.businessName}</p>
+            </div>
+            {vendor.description && (
+              <div>
+                <p className="text-xs text-neutral-600">Description</p>
+                <p className="font-medium text-black">{vendor.description}</p>
+              </div>
+            )}
+            <div>
+              <p className="text-xs text-neutral-600">Location</p>
+              <p className="font-medium text-black">{vendor.area}, {vendor.city}</p>
+            </div>
+            {vendor.serviceRadiusKm && (
+              <div>
+                <p className="text-xs text-neutral-600">Service Radius</p>
+                <p className="font-medium text-black">{vendor.serviceRadiusKm} km</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="border-2 border-black">
+          <CardHeader>
+            <CardTitle className="text-black">Owner Information</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <p className="text-xs text-neutral-600">Owner Name</p>
+              <p className="font-medium text-black">{vendor.user?.name || 'N/A'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-neutral-600">Email</p>
+              <p className="font-medium text-black">{vendor.user?.email || 'N/A'}</p>
+            </div>
+            {vendor.user?.phone && (
+              <div>
+                <p className="text-xs text-neutral-600">Phone</p>
+                <p className="font-medium text-black">{vendor.user.phone}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Images */}
+      {vendor.images && vendor.images.length > 0 && (
+        <Card className="border-2 border-black">
+          <CardHeader>
+            <CardTitle className="text-black">Business Images</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-4">
+              {vendor.images.map((img, idx) => (
+                <div key={idx} className="aspect-square rounded-lg overflow-hidden border-2 border-neutral-200">
+                  <img
+                    src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}${img}`}
+                    alt={`Business image ${idx + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Admin Actions */}
+      <Card className="border-2 border-black">
+        <CardHeader>
+          <CardTitle className="text-black">Admin Actions</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-3 flex-wrap">
+            {vendor.verificationStatus === 'PENDING' && (
+              <>
+                <Button
+                  variant="default"
+                  className="bg-green-600 hover:bg-green-700"
+                  onClick={handleApprove}
+                  disabled={actionLoading}
+                >
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  Approve Vendor
+                </Button>
+                <Button
+                  variant="outline"
+                  className="border-red-300 text-red-600 hover:bg-red-50"
+                  onClick={handleReject}
+                  disabled={actionLoading}
+                >
+                  <XCircle className="h-4 w-4 mr-2" />
+                  Reject
+                </Button>
+              </>
+            )}
+
+            {vendor.verificationStatus === 'VERIFIED' && (
+              <Button
+                variant="outline"
+                className="border-amber-300 text-amber-600 hover:bg-amber-50"
+                onClick={handleSuspend}
+                disabled={actionLoading}
+              >
+                <XCircle className="h-4 w-4 mr-2" />
+                Suspend Vendor
+              </Button>
+            )}
+
+            <Button
+              variant="outline"
+              className="border-black"
+              onClick={() => router.push(`/dashboard/admin/vendors/${vendor.id}/edit`)}
+            >
+              <Edit className="h-4 w-4 mr-2" />
+              Edit Vendor
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

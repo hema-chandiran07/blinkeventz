@@ -1,4 +1,4 @@
-import { AuditSeverity, AuditSource,Role } from '@prisma/client';
+import { AuditSeverity, AuditSource, Role } from '@prisma/client';
 
 export interface AuditLogEntry {
   entityType: string;
@@ -10,7 +10,7 @@ export interface AuditLogEntry {
 
   actorId?: number;
   actorEmail?: string;
-  actorRole?:  Role | null;
+  actorRole?: Role | null;
 
   description?: string;
 
@@ -20,4 +20,9 @@ export interface AuditLogEntry {
   metadata?: Record<string, unknown>;
 
   retentionUntil?: Date;
+
+  // Correlation IDs for tracing
+  requestId?: string;
+  sessionId?: string;
+  traceId?: string;
 }

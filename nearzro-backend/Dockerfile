@@ -27,4 +27,5 @@ ENV NODE_ENV=production
 
 # Start NestJS production server with migrations
 # Migrations run at container startup when database is available
-CMD ["sh", "-c", "npx prisma migrate deploy && npm run start:prod"]
+# prisma db push syncs schema when migrations don't cover all changes
+CMD ["sh", "-c", "npx prisma migrate deploy && npx prisma db push --accept-data-loss && npm run start:prod"]

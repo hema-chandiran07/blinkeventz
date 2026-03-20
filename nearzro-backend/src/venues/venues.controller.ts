@@ -16,7 +16,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { VenuesService } from './venues.service';
 import { CreateVenueDto } from './dto/create-venue.dto';
-import { VenueQueryDto, VenueSearchQueryDto, VenueIdParamDto } from './dto/venue-query.dto';
+import { VenueQueryDto, VenueSearchQueryDto } from './dto/venue-query.dto';
 import { ApiBearerAuth, ApiTags, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { Public } from '../common/decorators/public.decorator';
 import { VenueOwnerGuard } from './guards/venue-owner.guard';
@@ -49,14 +49,6 @@ export class VenuesController {
     return this.venuesService.getApprovedVenues(query);
   }
 
-  /// 👤 PUBLIC → Get single venue by ID
-  @Public()
-  @Get(':id')
-  @ApiParam({ name: 'id', type: Number, description: 'Venue ID' })
-  getVenueById(@Param('id', ParseIntPipe) id: number) {
-    return this.venuesService.findById(id);
-  }
-
   /// 👤 PUBLIC → Search venues
   @Public()
   @Get('search')
@@ -84,28 +76,8 @@ export class VenuesController {
     return this.venuesService.getVenuesByOwner(req.user.userId);
   }
 
-  /// 🏢 VENUE OWNER → Update venue (ownership guard)
-  @UseGuards(JwtAuthGuard, VenueOwnerGuard)
-  @Patch(':id')
-  @ApiParam({ name: 'id', type: Number, description: 'Venue ID' })
-  updateVenue(
-    @Param('id', ParseIntPipe) id: number,
-    @Req() req: any,
-    @Body() dto: Partial<CreateVenueDto>,
-  ) {
-    return this.venuesService.updateVenue(id, dto, req.user.userId);
-  }
-
-  /// 🏢 VENUE OWNER → Delete venue (ownership guard)
-  @UseGuards(JwtAuthGuard, VenueOwnerGuard)
-  @Delete(':id')
-  @ApiParam({ name: 'id', type: Number, description: 'Venue ID' })
-  deleteVenue(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
-    return this.venuesService.deleteVenue(id, req.user.userId);
-  }
-
   // ============================================
-  // ADMIN ENDPOINTS
+  // ADMIN ENDPOINTS (must be BEFORE :id routes)
   // ============================================
 
   /// 👑 ADMIN → Approve venue
@@ -137,6 +109,38 @@ export class VenuesController {
       console.error('Error rejecting venue:', error);
       throw error;
     }
+  }
+
+  // ============================================
+  // DYNAMIC :id ROUTES (must be AFTER specific routes)
+  // ============================================
+
+  /// 🏢 VENUE OWNER → Update venue (ownership guard)
+  @UseGuards(JwtAuthGuard, VenueOwnerGuard)
+  @Patch(':id')
+  @ApiParam({ name: 'id', type: Number, description: 'Venue ID' })
+  updateVenue(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: any,
+    @Body() dto: Partial<CreateVenueDto>,
+  ) {
+    return this.venuesService.updateVenue(id, dto, req.user.userId);
+  }
+
+  /// 🏢 VENUE OWNER → Delete venue (ownership guard)
+  @UseGuards(JwtAuthGuard, VenueOwnerGuard)
+  @Delete(':id')
+  @ApiParam({ name: 'id', type: Number, description: 'Venue ID' })
+  deleteVenue(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    return this.venuesService.deleteVenue(id, req.user.userId);
+  }
+
+  /// 👤 PUBLIC → Get single venue by ID (MUST BE LAST)
+  @Public()
+  @Get(':id')
+  @ApiParam({ name: 'id', type: Number, description: 'Venue ID' })
+  getVenueById(@Param('id', ParseIntPipe) id: number) {
+    return this.venuesService.findById(id);
   }
 
   // ============================================

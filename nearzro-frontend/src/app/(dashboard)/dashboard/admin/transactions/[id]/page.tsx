@@ -1,45 +1,83 @@
 "use client";
 
-import { useState } from "react";
-import React from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { TrendingUp, TrendingDown, Calendar,
-  Search, Download, Eye, ArrowLeft, CheckCircle2,
-  Clock, XCircle
+import {
+  ArrowLeft, Download, Calendar, DollarSign, CheckCircle2,
+  Clock, AlertCircle, Loader2, CreditCard
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
+import { toast } from "sonner";
+import api from "@/lib/api";
 
-const MOCK_TRANSACTIONS = [
-  { id: 1, type: "Payment", customer: "Rajesh Kumar", event: "Priya & Karthik Wedding", amount: 1500000, status: "Success", date: "2024-03-15", method: "Razorpay" },
-  { id: 2, type: "Payment", customer: "Anita Sharma", event: "TechCorp Annual Meet", amount: 750000, status: "Pending", date: "2024-03-14", method: "UPI" },
-  { id: 3, type: "Refund", customer: "Mohammed Rizwan", event: "Fatima's Engagement", amount: 50000, status: "Processing", date: "2024-03-13", method: "Bank Transfer" },
-  { id: 4, type: "Payment", customer: "Lakshmi Devi", event: "Arjun's Birthday Bash", amount: 150000, status: "Success", date: "2024-03-12", method: "Credit Card" },
-  { id: 5, type: "Payment", customer: "Global Solutions Pvt Ltd", event: "Global Solutions Conference", amount: 2500000, status: "Success", date: "2024-03-11", method: "Net Banking" },
-  { id: 6, type: "Failed", customer: "John David", event: "Corporate Retreat", amount: 350000, status: "Failed", date: "2024-03-10", method: "Debit Card" },
-];
+interface TransactionDetail {
+  id: number;
+  userId: number;
+  cartId: number;
+  provider: string;
+  providerOrderId: string;
+  providerPaymentId?: string;
+  signature?: string;
+  amount: number;
+  currency: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  user?: {
+    name: string;
+    email: string;
+  };
+  cart?: {
+    items?: any[];
+  };
+  Event?: {
+    id: number;
+    title?: string;
+    date: string;
+    eventType: string;
+  };
+}
 
 const STATUS_COLORS: Record<string, string> = {
-  Success: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  Pending: "bg-amber-50 text-amber-700 border-amber-200",
-  Processing: "bg-blue-50 text-blue-700 border-blue-200",
-  Failed: "bg-red-50 text-red-700 border-red-200",
+  PENDING: "bg-amber-100 text-amber-700 border-amber-200",
+  AUTHORIZED: "bg-blue-100 text-blue-700 border-blue-200",
+  SUCCESS: "bg-emerald-100 text-emerald-700 border-emerald-200",
+  FAILED: "bg-red-100 text-red-700 border-red-200",
+  REFUNDED: "bg-purple-100 text-purple-700 border-purple-200",
 };
 
-export default function TransactionDetailsPage({ params }: { params: Promise<{ id: string }> }) {
-  const router = useRouter();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] = useState("all");
-  const unwrappedParams = React.use(params);
-  const transaction = MOCK_TRANSACTIONS.find(t => t.id === parseInt(unwrappedParams.id));
+const PROVIDER_LABELS: Record<string, string> = {
+  RAZORPAY: "Razorpay",
+  STRIPE: "Stripe",
+  PAYPAL: "PayPal",
+};
 
-  const stats = {
-    totalRevenue: MOCK_TRANSACTIONS.filter(t => t.status === "Success").reduce((sum, t) => sum + t.amount, 0),
-    pendingAmount: MOCK_TRANSACTIONS.filter(t => t.status === "Pending").reduce((sum, t) => sum + t.amount, 0),
-    refundAmount: MOCK_TRANSACTIONS.filter(t => t.type === "Refund").reduce((sum, t) => sum + t.amount, 0),
-    successRate: 83.3,
+export default function TransactionDetailPage() {
+  const router = useRouter();
+  const params = useParams();
+  const [loading, setLoading] = useState(true);
+  const [transaction, setTransaction] = useState<TransactionDetail | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+
+  useEffect(() => {
+    loadTransaction();
+  }, [params.id]);
+
+  const loadTransaction = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get("/payments");
+      const payments = response.data.payments || response.data || [];
+      const found = payments.find((p: any) => p.id === parseInt(params.id as string));
+      setTransaction(found || null);
+    } catch (error: any) {
+      console.error("Failed to load transaction:", error);
+      toast.error("Failed to load transaction details");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const formatCurrency = (amount: number) => {
@@ -48,44 +86,121 @@ export default function TransactionDetailsPage({ params }: { params: Promise<{ i
     return `₹${(amount / 1000).toFixed(2)}K`;
   };
 
+  const handleDownloadReceipt = () => {
+    const receiptData = `
+PAYMENT RECEIPT
+===============
+
+Transaction ID: #${transaction?.id}
+Date: ${transaction ? new Date(transaction.createdAt).toLocaleString() : 'N/A'}
+Status: ${transaction?.status}
+
+Customer Details:
+- Name: ${transaction?.user?.name || 'N/A'}
+- Email: ${transaction?.user?.email || 'N/A'}
+
+Payment Details:
+- Amount: ${transaction ? formatCurrency(transaction.amount) : 'N/A'}
+- Currency: ${transaction?.currency || 'N/A'}
+- Provider: ${transaction ? PROVIDER_LABELS[transaction.provider] || transaction.provider : 'N/A'}
+- Order ID: ${transaction?.providerOrderId || 'N/A'}
+- Payment ID: ${transaction?.providerPaymentId || 'Pending'}
+
+${transaction?.Event ? `
+Event Details:
+- Event: ${transaction.Event.title || 'N/A'}
+- Date: ${new Date(transaction.Event.date).toLocaleDateString()}
+- Type: ${transaction.Event.eventType}
+` : ''}
+
+Thank you for your payment!
+    `.trim();
+
+    const blob = new Blob([receiptData], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `payment-receipt-${transaction?.id}.txt`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success("Receipt downloaded successfully!");
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-black" />
+          <p className="text-neutral-600">Loading transaction details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!transaction) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <AlertCircle className="h-16 w-16 mx-auto mb-4 text-red-600" />
+          <h3 className="text-lg font-bold text-black mb-2">Transaction Not Found</h3>
+          <Button onClick={() => router.push("/dashboard/admin/transactions")}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Transactions
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      {/* Header with Back Button */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => router.back()}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <h1 className="text-3xl font-bold text-black">Transaction Details</h1>
-          <p className="text-neutral-600">Transaction ID: #{transaction?.id || unwrappedParams.id}</p>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="sm" onClick={() => router.back()}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold text-black">Transaction #{transaction.id}</h1>
+            <p className="text-neutral-600 flex items-center gap-2">
+              <Calendar className="h-4 w-4" />
+              {new Date(transaction.createdAt).toLocaleString()}
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" className="border-black" onClick={handleDownloadReceipt}>
+            <Download className="h-4 w-4 mr-2" />
+            Download Receipt
+          </Button>
         </div>
       </div>
 
-      {/* Stats Overview */}
+      {/* Stats */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card className="border-2 border-emerald-600">
+        <Card className="border-2 border-black">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-600">Total Revenue</p>
-                <p className="text-2xl font-bold text-emerald-600 mt-1">{formatCurrency(stats.totalRevenue)}</p>
+                <p className="text-sm font-medium text-neutral-600">Status</p>
+                <p className="text-2xl font-bold text-black mt-1">{transaction.status}</p>
               </div>
-              <div className="p-3 rounded-full bg-emerald-600">
-                <TrendingUp className="h-6 w-6 text-white" />
+              <div className="p-3 rounded-full bg-black">
+                <Clock className="h-6 w-6 text-white" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-2 border-amber-600">
+        <Card className="border-2 border-emerald-600">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-600">Pending Amount</p>
-                <p className="text-2xl font-bold text-amber-600 mt-1">{formatCurrency(stats.pendingAmount)}</p>
+                <p className="text-sm font-medium text-neutral-600">Amount</p>
+                <p className="text-2xl font-bold text-emerald-600 mt-1">{formatCurrency(transaction.amount)}</p>
               </div>
-              <div className="p-3 rounded-full bg-amber-600">
-                <Clock className="h-6 w-6 text-white" />
+              <div className="p-3 rounded-full bg-emerald-600">
+                <DollarSign className="h-6 w-6 text-white" />
               </div>
             </div>
           </CardContent>
@@ -95,24 +210,24 @@ export default function TransactionDetailsPage({ params }: { params: Promise<{ i
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-600">Refunds</p>
-                <p className="text-2xl font-bold text-blue-600 mt-1">{formatCurrency(stats.refundAmount)}</p>
+                <p className="text-sm font-medium text-neutral-600">Provider</p>
+                <p className="text-2xl font-bold text-blue-600 mt-1">{PROVIDER_LABELS[transaction.provider] || transaction.provider}</p>
               </div>
               <div className="p-3 rounded-full bg-blue-600">
-                <TrendingDown className="h-6 w-6 text-white" />
+                <CreditCard className="h-6 w-6 text-white" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-2 border-neutral-600">
+        <Card className="border-2 border-amber-600">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-600">Success Rate</p>
-                <p className="text-2xl font-bold text-neutral-900 mt-1">{stats.successRate}%</p>
+                <p className="text-sm font-medium text-neutral-600">Currency</p>
+                <p className="text-2xl font-bold text-amber-600 mt-1">{transaction.currency}</p>
               </div>
-              <div className="p-3 rounded-full bg-neutral-900">
+              <div className="p-3 rounded-full bg-amber-600">
                 <CheckCircle2 className="h-6 w-6 text-white" />
               </div>
             </div>
@@ -120,154 +235,127 @@ export default function TransactionDetailsPage({ params }: { params: Promise<{ i
         </Card>
       </div>
 
-      {/* Transaction Details */}
-      {transaction && (
+      {/* Transaction Information */}
+      <div className="grid gap-6 md:grid-cols-2">
         <Card className="border-2 border-black">
           <CardHeader>
-            <CardTitle className="text-black">Transaction Information</CardTitle>
+            <CardTitle className="text-black">Payment Information</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <p className="text-xs text-neutral-600">Transaction ID</p>
+              <p className="font-medium text-black">#{transaction.id}</p>
+            </div>
+            <div>
+              <p className="text-xs text-neutral-600">Order ID</p>
+              <p className="font-medium text-black font-mono text-sm">{transaction.providerOrderId}</p>
+            </div>
+            {transaction.providerPaymentId && (
+              <div>
+                <p className="text-xs text-neutral-600">Payment ID</p>
+                <p className="font-medium text-black font-mono text-sm">{transaction.providerPaymentId}</p>
+              </div>
+            )}
+            <div>
+              <p className="text-xs text-neutral-600">Amount</p>
+              <p className="font-medium text-black text-lg">{formatCurrency(transaction.amount)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-neutral-600">Currency</p>
+              <p className="font-medium text-black">{transaction.currency}</p>
+            </div>
+            <div>
+              <p className="text-xs text-neutral-600">Payment Gateway</p>
+              <p className="font-medium text-black">{PROVIDER_LABELS[transaction.provider] || transaction.provider}</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-2 border-black">
+          <CardHeader>
+            <CardTitle className="text-black">Customer Information</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <p className="text-xs text-neutral-600">Customer Name</p>
+              <p className="font-medium text-black">{transaction.user?.name || 'N/A'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-neutral-600">Email Address</p>
+              <p className="font-medium text-black">{transaction.user?.email || 'N/A'}</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {transaction.Event && (
+          <Card className="border-2 border-black md:col-span-2">
+            <CardHeader>
+              <CardTitle className="text-black">Event Information</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid md:grid-cols-3 gap-4">
+                <div>
+                  <p className="text-xs text-neutral-600">Event</p>
+                  <p className="font-medium text-black">{transaction.Event.title || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-neutral-600">Event Date</p>
+                  <p className="font-medium text-black">{new Date(transaction.Event.date).toLocaleDateString()}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-neutral-600">Event Type</p>
+                  <p className="font-medium text-black">{transaction.Event.eventType}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        <Card className="border-2 border-black md:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-black">Transaction Timeline</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm font-medium text-neutral-600">Transaction ID</p>
-                  <p className="text-lg font-bold text-black">#{transaction.id}</p>
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <div className="p-2 rounded-full bg-emerald-100">
+                  <CheckCircle2 className="h-5 w-5 text-emerald-600" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-neutral-600">Customer Name</p>
-                  <p className="text-lg font-bold text-black">{transaction.customer}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-neutral-600">Event</p>
-                  <p className="text-lg font-bold text-black">{transaction.event}</p>
+                  <p className="font-medium text-black">Transaction Created</p>
+                  <p className="text-sm text-neutral-600">{new Date(transaction.createdAt).toLocaleString()}</p>
                 </div>
               </div>
-
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm font-medium text-neutral-600">Amount</p>
-                  <p className="text-2xl font-bold text-black">{formatCurrency(transaction.amount)}</p>
+              
+              {transaction.providerPaymentId && (
+                <div className="flex items-center gap-4">
+                  <div className="p-2 rounded-full bg-emerald-100">
+                    <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-black">Payment Completed</p>
+                    <p className="text-sm text-neutral-600">{new Date(transaction.updatedAt).toLocaleString()}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-neutral-600">Status</p>
-                  <Badge className={`${STATUS_COLORS[transaction.status]} border mt-1`}>
-                    {transaction.status}
-                  </Badge>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-neutral-600">Payment Method</p>
-                  <p className="text-lg font-bold text-black">{transaction.method}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-6 pt-6 border-t">
-              <div className="flex items-center gap-2 text-sm text-neutral-600">
-                <Calendar className="h-4 w-4" />
-                <span>Transaction Date: {new Date(transaction.date).toLocaleDateString("en-IN", { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <Button variant="outline" className="border-black">
-                <Download className="h-4 w-4 mr-2" />
-                Download Invoice
-              </Button>
-              <Button variant="outline" className="border-black">
-                <Eye className="h-4 w-4 mr-2" />
-                View Details
-              </Button>
-              {transaction.status === "Pending" && (
-                <Button className="bg-emerald-600 hover:bg-emerald-700">
-                  <CheckCircle2 className="h-4 w-4 mr-2" />
-                  Approve Payment
-                </Button>
-              )}
-              {transaction.status === "Failed" && (
-                <Button variant="destructive">
-                  <XCircle className="h-4 w-4 mr-2" />
-                  Initiate Refund
-                </Button>
               )}
             </div>
           </CardContent>
         </Card>
-      )}
+      </div>
 
-      {/* All Transactions Table */}
+      {/* Status Badge */}
       <Card className="border-2 border-black">
-        <CardHeader>
+        <CardContent className="p-6">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-black">All Transactions</CardTitle>
-            <Button variant="outline" size="sm" className="border-black">
-              <Download className="h-4 w-4 mr-2" />
-              Export
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col md:flex-row gap-4 mb-6">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
-              <Input
-                placeholder="Search transactions..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 border-neutral-300"
-              />
+            <div>
+              <p className="text-sm font-medium text-neutral-600 mb-2">Payment Status</p>
+              <Badge className={STATUS_COLORS[transaction.status]}>
+                {transaction.status}
+              </Badge>
             </div>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="flex h-10 rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm"
-            >
-              <option value="all">All Status</option>
-              <option value="Success">Success</option>
-              <option value="Pending">Pending</option>
-              <option value="Failed">Failed</option>
-              <option value="Processing">Processing</option>
-            </select>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-neutral-50 border-b-2 border-neutral-200">
-                <tr>
-                  <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">ID</th>
-                  <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Customer</th>
-                  <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Event</th>
-                  <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Amount</th>
-                  <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Status</th>
-                  <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Method</th>
-                  <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-100">
-                {MOCK_TRANSACTIONS.map((t) => (
-                  <tr key={t.id} className="hover:bg-neutral-50 transition-colors">
-                    <td className="py-3 px-4 text-sm font-medium text-black">#{t.id}</td>
-                    <td className="py-3 px-4 text-sm text-black">{t.customer}</td>
-                    <td className="py-3 px-4 text-sm text-black">{t.event}</td>
-                    <td className="py-3 px-4 text-sm font-bold text-black">{formatCurrency(t.amount)}</td>
-                    <td className="py-3 px-4">
-                      <Badge className={`${STATUS_COLORS[t.status]} border text-xs`}>
-                        {t.status}
-                      </Badge>
-                    </td>
-                    <td className="py-3 px-4 text-sm text-black">{t.method}</td>
-                    <td className="py-3 px-4">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => router.push(`/dashboard/admin/transactions/${t.id}`)}
-                      >
-                        <Eye className="h-4 w-4 text-black" />
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="text-sm text-neutral-600">
+              Last Updated: {new Date(transaction.updatedAt).toLocaleString()}
+            </div>
           </div>
         </CardContent>
       </Card>

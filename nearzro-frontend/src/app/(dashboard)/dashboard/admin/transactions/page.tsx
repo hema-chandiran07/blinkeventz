@@ -6,12 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  TrendingUp, TrendingDown, Search, Download, Eye, CheckCircle2,
-  Clock
+  TrendingUp, TrendingDown, Search, Download, Eye,
+  Clock, CheckCircle2, AlertCircle, RefreshCw
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
-import { extractArray } from "@/lib/api-response";
 
 interface Transaction {
   id: number;
@@ -28,6 +27,7 @@ export default function AdminTransactionsPage() {
   const router = useRouter();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
 
@@ -38,24 +38,34 @@ export default function AdminTransactionsPage() {
   const loadTransactions = async () => {
     try {
       setLoading(true);
+      setError(null);
       const response = await api.get("/payments");
-      const payments = extractArray<any>(response);
-      
+      const payments = response.data?.payments || response.data || [];
+
+      if (!Array.isArray(payments)) {
+        console.warn("Payments data is not an array:", payments);
+        setTransactions([]);
+        return;
+      }
+
       const formattedTransactions: Transaction[] = payments.map((p: any) => ({
         id: p.id,
         type: p.refundId ? "Refund" : "Payment",
         customer: p.user?.name || "Unknown",
-        event: p.event?.title || "N/A",
+        event: p.Event?.title || "N/A",
         amount: p.amount,
         status: p.status,
         date: p.createdAt,
-        method: p.provider,
+        method: p.provider || "Razorpay",
       }));
 
       setTransactions(formattedTransactions);
     } catch (error: any) {
       console.error("Failed to load transactions:", error);
-      toast.error("Failed to load transactions");
+      const errorMessage = error?.response?.data?.message || error?.message || "Failed to load transactions";
+      setError(errorMessage);
+      toast.error("Failed to load transactions: " + errorMessage);
+      setTransactions([]);
     } finally {
       setLoading(false);
     }
@@ -72,8 +82,8 @@ export default function AdminTransactionsPage() {
     totalRevenue: transactions.filter(t => t.status === "SUCCESS").reduce((sum, t) => sum + t.amount, 0),
     pendingAmount: transactions.filter(t => t.status === "PENDING").reduce((sum, t) => sum + t.amount, 0),
     refundAmount: transactions.filter(t => t.type === "Refund").reduce((sum, t) => sum + t.amount, 0),
-    successRate: transactions.length > 0 
-      ? (transactions.filter(t => t.status === "SUCCESS").length / transactions.length) * 100 
+    successRate: transactions.length > 0
+      ? (transactions.filter(t => t.status === "SUCCESS").length / transactions.length) * 100
       : 0,
   };
 
@@ -98,6 +108,17 @@ export default function AdminTransactionsPage() {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="h-12 w-12 rounded-full border-4 border-neutral-200 border-t-black animate-spin mx-auto mb-4" />
+          <p className="text-neutral-600">Loading transactions...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 bg-neutral-50 min-h-screen">
       {/* Header */}
@@ -107,11 +128,32 @@ export default function AdminTransactionsPage() {
             <h1 className="text-2xl font-bold text-neutral-900">Transactions</h1>
             <p className="text-sm text-neutral-600 mt-1">Payment and transaction history</p>
           </div>
-          <Button variant="outline" className="border-black" onClick={handleExport}>
-            <Download className="h-4 w-4 mr-2" /> Export CSV
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" className="border-black" onClick={loadTransactions}>
+              <RefreshCw className="h-4 w-4 mr-2" /> Refresh
+            </Button>
+            <Button variant="outline" className="border-black" onClick={handleExport}>
+              <Download className="h-4 w-4 mr-2" /> Export CSV
+            </Button>
+          </div>
         </div>
       </div>
+
+      {/* Error State */}
+      {error && (
+        <Card className="border-2 border-red-200 mx-6">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-4">
+              <AlertCircle className="h-10 w-10 text-red-600" />
+              <div>
+                <p className="font-semibold text-red-600">Failed to Load Transactions</p>
+                <p className="text-sm text-neutral-600">{error}</p>
+                <p className="text-xs text-neutral-500 mt-1">Note: The backend /api/payments endpoint may need to be rebuilt with latest code</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-4 px-6">
@@ -207,10 +249,16 @@ export default function AdminTransactionsPage() {
           <CardTitle className="text-neutral-900">Transaction History</CardTitle>
         </CardHeader>
         <CardContent>
-          {loading ? (
-            <div className="text-center py-8 text-neutral-600">Loading transactions...</div>
-          ) : filteredTransactions.length === 0 ? (
-            <div className="text-center py-8 text-neutral-600">No transactions found</div>
+          {!error && filteredTransactions.length === 0 ? (
+            <div className="text-center py-12">
+              <AlertCircle className="h-12 w-12 mx-auto mb-4 text-neutral-400" />
+              <p className="text-lg font-semibold text-neutral-700">No Transactions Found</p>
+              <p className="text-sm text-neutral-500 mt-2">
+                {transactions.length === 0 
+                  ? "No payment records exist in the database yet. Transactions will appear here once customers make payments."
+                  : "No transactions match your search criteria."}
+              </p>
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">

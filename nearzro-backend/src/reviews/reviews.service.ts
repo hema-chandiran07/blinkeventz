@@ -159,26 +159,43 @@ export class ReviewsService {
     });
   }
 
-  async findAllForModeration(status?: string) {
+  async findAllForModeration(status?: string, page: number = 1, limit: number = 20) {
     const where: any = {};
     if (status) where.status = status;
+    
+    const skip = (page - 1) * limit;
 
-    return this.prisma.review.findMany({
-      where,
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
+    const [reviews, total] = await Promise.all([
+      this.prisma.review.findMany({
+        where,
+        skip,
+        take: limit,
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
           },
+          venue: true,
+          vendor: true,
+          event: true,
         },
-        venue: true,
-        vendor: true,
-        event: true,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.review.count({ where }),
+    ]);
+
+    return {
+      reviews,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
       },
-      orderBy: { createdAt: 'desc' },
-    });
+    };
   }
 
   async moderate(id: number, status: 'APPROVED' | 'REJECTED') {

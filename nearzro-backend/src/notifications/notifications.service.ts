@@ -17,6 +17,122 @@ export class NotificationsService {
     private readonly gateway: NotificationGateway,
   ) {}
 
+  // ✅ Get all notifications (Admin)
+  async getAllNotifications(page: number = 1, limit: number = 20) {
+    const skip = (page - 1) * limit;
+    
+    const [notifications, total] = await Promise.all([
+      this.prisma.notification.findMany({
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          event: {
+            select: {
+              id: true,
+              title: true,
+            },
+          },
+        },
+      }),
+      this.prisma.notification.count(),
+    ]);
+
+    return {
+      notifications,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  // ✅ Get user notifications
+  async getUserNotifications(userId: number, page: number = 1, limit: number = 20, read?: boolean) {
+    const skip = (page - 1) * limit;
+    const where: any = { userId };
+    if (read !== undefined) {
+      where.read = read;
+    }
+
+    const [notifications, total] = await Promise.all([
+      this.prisma.notification.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          event: {
+            select: {
+              id: true,
+              title: true,
+              date: true,
+            },
+          },
+        },
+      }),
+      this.prisma.notification.count({ where }),
+    ]);
+
+    return {
+      notifications,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+      unreadCount: await this.getUnreadCount(userId),
+    };
+  }
+
+  // ✅ Get unread count
+  async getUnreadCount(userId: number) {
+    return this.prisma.notification.count({
+      where: {
+        userId,
+        read: false,
+      },
+    });
+  }
+
+  // ✅ Mark notification as read
+  async markAsRead(notificationId: number, userId: number) {
+    return this.prisma.notification.updateMany({
+      where: {
+        id: notificationId,
+        userId,
+      },
+      data: {
+        read: true,
+        readAt: new Date(),
+      },
+    });
+  }
+
+  // ✅ Mark all as read
+  async markAllAsRead(userId: number) {
+    return this.prisma.notification.updateMany({
+      where: {
+        userId,
+        read: false,
+      },
+      data: {
+        read: true,
+        readAt: new Date(),
+      },
+    });
+  }
+
  async send(dto: SendNotificationDto) {
   const template = resolveTemplate(dto.type, dto.metadata);
 
