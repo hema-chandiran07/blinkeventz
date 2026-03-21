@@ -7,9 +7,9 @@ import type { AuthRequest } from '../../auth/auth-request.interface';
 import { RolesGuard } from 'src/common/guards/roles.guard';
 import { Roles } from 'src/common/decorators/roles.decorator';
 import { Role } from '@prisma/client';
+import { Public } from '../../common/decorators/public.decorator';
 
 @ApiTags('Vendor Services')
-@ApiBearerAuth()
 @Controller('vendor-services')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class VendorServicesController {
@@ -19,6 +19,7 @@ export class VendorServicesController {
    * Create a new vendor service
    * Only VENDOR role can create services
    */
+  @ApiBearerAuth()
   @Roles(Role.VENDOR)
   @Post()
   create(@Req() req: AuthRequest, @Body() dto: CreateVendorServiceDto) {
@@ -28,8 +29,16 @@ export class VendorServicesController {
   /**
    * Get all services for a vendor (public endpoint)
    */
+  @Public()
   @Get('vendor/:vendorId')
   findByVendor(@Param('vendorId') vendorId: string) {
+    return this.vendorServicesService.findByVendor(+vendorId);
+  }
+
+  // ALIAS: Get vendor services (frontend expects /vendors/:id/services)
+  @Public()
+  @Get('by-vendor/:vendorId')
+  findByVendorAlias(@Param('vendorId') vendorId: string) {
     return this.vendorServicesService.findByVendor(+vendorId);
   }
 
@@ -38,6 +47,7 @@ export class VendorServicesController {
    * VENDOR can only activate their own services
    * ADMIN can activate any service
    */
+  @ApiBearerAuth()
   @Roles(Role.VENDOR, Role.ADMIN)
   @Patch(':id/activate')
   activate(@Param('id') id: string, @Req() req: AuthRequest) {
@@ -50,6 +60,7 @@ export class VendorServicesController {
    * VENDOR can only deactivate their own services
    * ADMIN can deactivate any service
    */
+  @ApiBearerAuth()
   @Roles(Role.VENDOR, Role.ADMIN)
   @Patch(':id/deactivate')
   deactivate(@Param('id') id: string, @Req() req: AuthRequest) {

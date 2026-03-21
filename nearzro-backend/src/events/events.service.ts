@@ -679,6 +679,36 @@ export class EventsService {
   }
 
   /**
+   * UPDATE EVENT STATUS (ADMIN ONLY)
+   *
+   * Updates the status of an event.
+   */
+  async updateEventStatus(eventId: number, status: string): Promise<any> {
+    try {
+      const event = await this.prisma.event.findUnique({
+        where: { id: eventId },
+      });
+
+      if (!event) {
+        throw new NotFoundException(`Event with ID ${eventId} not found`);
+      }
+
+      return this.prisma.event.update({
+        where: { id: eventId },
+        data: {
+          status: status as any,
+        },
+      });
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      console.error('Error updating event status:', error);
+      throw new InternalServerErrorException('Failed to update event status');
+    }
+  }
+
+  /**
    * DELETE EVENT (ADMIN ONLY)
    * 
    * Deletes an event and all related services.

@@ -261,4 +261,90 @@ export class BookingService {
 
     return booking;
   }
+
+  /**
+   * Get bookings for a specific venue
+   * RBAC: VENUE_OWNER can only view bookings for their own venues, ADMIN can view all
+   */
+  async getVenueBookings(venueId: number, userId?: number, userRole?: string): Promise<any[]> {
+    // For VENUE_OWNER role, verify they own this venue
+    if (userRole === 'VENUE_OWNER' && userId) {
+      const venue = await this.prisma.venue.findFirst({
+        where: {
+          id: venueId,
+          ownerId: userId,
+        },
+        select: { id: true },
+      });
+
+      if (!venue) {
+        throw new BadRequestException('You do not have access to this venue\'s bookings');
+      }
+    }
+
+    // ADMIN can view all venue bookings, VENUE_OWNER verified above
+    return this.prisma.booking.findMany({
+      where: {
+        slot: {
+          entityType: 'VENUE',
+          entityId: venueId,
+        },
+      },
+      include: {
+        slot: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /**
+   * Get bookings for venue owner
+   */
+  async getVenueOwnerBookings(ownerId: number): Promise<any[]> {
+    // First get all venues owned by this user
+    const venues = await this.prisma.venue.findMany({
+      where: { ownerId },
+      select: { id: true },
+    });
+    const venueIds = venues.map(v => v.id);
+
+    // Then get bookings for those venues
+    return this.prisma.booking.findMany({
+      where: {
+        slot: {
+          entityType: 'VENUE',
+          entityId: { in: venueIds },
+        },
+      },
+      include: {
+        slot: {
+          include: {
+            venue: {
+              select: {
+                id: true,
+                name: true,
+                address: true,
+                city: true,
+              },
+            },
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
 }

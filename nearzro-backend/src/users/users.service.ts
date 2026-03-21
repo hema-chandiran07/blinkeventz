@@ -52,4 +52,45 @@ export class UsersService {
       orderBy: { createdAt: 'desc' },
     });
   }
+
+  /**
+   * Get events for a specific user
+   */
+  async getUserEvents(userId: number): Promise<any[]> {
+    return this.prisma.event.findMany({
+      where: { customerId: userId },
+      include: {
+        services: {
+          include: {
+            vendorService: {
+              include: {
+                vendor: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /**
+   * Get payments for a specific user
+   */
+  async getUserPayments(userId: number): Promise<any[]> {
+    return this.prisma.payment.findMany({
+      where: { userId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        event: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
 }

@@ -4,12 +4,14 @@ import {
   BadRequestException,
   ConflictException,
   Logger,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { S3Service } from '../storage/s3.service';
 import { AuditService } from '../audit/audit.service';
 import { SubmitKycDto } from './dto/submit-kyc.dto';
-import { KycStatus, AuditSeverity, AuditSource } from '@prisma/client';
+import { CreateKycDto } from './dto/create-kyc.dto';
+import { KycStatus, KycDocType, AuditSeverity, AuditSource, KycDocument, BankAccount } from '@prisma/client';
 import { encrypt, hash } from '../common/utils/crypto.util';
 
 // ─────────────────────────────────────────────────────────────
@@ -31,20 +33,51 @@ export class KycService {
   // SUBMIT KYC WITH FILE
   // ──────────────────────────────────────────────────────────
 
+  /**
+   * Submit KYC with file upload to S3
+   * Uses database transaction for data integrity
+   */
   async submitKycWithFile(
     userId: number,
     dto: SubmitKycDto,
     file: Express.Multer.File,
-  ) {
+  ): Promise<{
+    id: number;
+    docType: KycDocType;
+    status: KycStatus;
+    createdAt: Date;
+    message: string;
+  }> {
     return this.createKyc(userId, dto, file);
   }
 
+  /**
+   * Create KYC record with S3 file upload
+   * All operations are atomic
+   */
   async createKyc(
     userId: number,
     dto: SubmitKycDto,
     file: Express.Multer.File,
-  ) {
-    // 1️⃣ Prevent duplicate PENDING or VERIFIED KYC
+  ): Promise<{
+    id: number;
+    docType: KycDocType;
+    status: KycStatus;
+    createdAt: Date;
+    message: string;
+  }> {
+    // 1️⃣ Validate file upload to S3
+    let docFileUrl: string;
+    try {
+      docFileUrl = await this.s3Service.uploadKycDocument(file);
+    } catch (error) {
+      this.logger.error(`S3 upload failed for user ${userId}: ${error.message}`);
+      throw new ServiceUnavailableException(
+        'Failed to upload document. Please try again later.',
+      );
+    }
+
+    // 2️⃣ Prevent duplicate PENDING or VERIFIED KYC
     const activeKyc = await this.prisma.kycDocument.findFirst({
       where: {
         userId,
@@ -58,7 +91,7 @@ export class KycService {
       );
     }
 
-    // 2️⃣ Hash the doc number for duplicate detection across all users
+    // 3️⃣ Hash the doc number for duplicate detection across all users
     const docNumberHash = hash(dto.docNumber);
 
     const duplicateDoc = await this.prisma.kycDocument.findFirst({
@@ -75,22 +108,21 @@ export class KycService {
       );
     }
 
-    // 3️⃣ Save document locally (instead of S3 for now)
-    const docFileUrl = `/uploads/kyc/${file.filename}`;
-
     // 4️⃣ Encrypt the document number
     const encryptedDocNumber = encrypt(dto.docNumber);
 
-    // 5️⃣ Create KYC record
-    const kyc = await this.prisma.kycDocument.create({
-      data: {
-        userId,
-        docType: dto.docType,
-        docNumber: encryptedDocNumber,
-        docNumberHash,
-        docFileUrl,
-        status: KycStatus.PENDING,
-      },
+    // 5️⃣ Create KYC record using transaction
+    const kyc = await this.prisma.$transaction(async (tx) => {
+      return tx.kycDocument.create({
+        data: {
+          userId,
+          docType: dto.docType,
+          docNumber: encryptedDocNumber,
+          docNumberHash,
+          docFileUrl,
+          status: KycStatus.PENDING,
+        },
+      });
     });
 
     this.logger.log(`KYC submitted: userId=${userId}, kycId=${kyc.id}`);
@@ -101,6 +133,7 @@ export class KycService {
       docType: kyc.docType,
       status: kyc.status,
       createdAt: kyc.createdAt,
+      message: 'KYC document submitted successfully. Pending verification.',
     };
   }
 
@@ -108,7 +141,14 @@ export class KycService {
   // GET MY KYC (User-facing — safe fields only)
   // ──────────────────────────────────────────────────────────
 
-  async getMyKyc(userId: number) {
+  async getMyKyc(userId: number): Promise<{
+    id: number;
+    docType: KycDocType;
+    status: KycStatus;
+    rejectionReason?: string;
+    createdAt: Date;
+    verifiedAt?: Date;
+  }[]> {
     const kycDocs = await this.prisma.kycDocument.findMany({
       where: { userId },
       select: {
@@ -126,7 +166,15 @@ export class KycService {
       throw new NotFoundException('No KYC documents found');
     }
 
-    return kycDocs;
+    // Convert null to undefined for optional fields
+    return kycDocs.map((doc) => ({
+      id: doc.id,
+      docType: doc.docType,
+      status: doc.status,
+      rejectionReason: doc.rejectionReason ?? undefined,
+      createdAt: doc.createdAt,
+      verifiedAt: doc.verifiedAt ?? undefined,
+    }));
   }
 
   // ──────────────────────────────────────────────────────────
@@ -138,7 +186,13 @@ export class KycService {
     status: KycStatus,
     adminId: number,
     reason?: string,
-  ) {
+  ): Promise<{
+    id: number;
+    status: KycStatus;
+    verifiedAt?: Date;
+    rejectionReason?: string;
+    message: string;
+  }> {
     // 1️⃣ Fetch existing KYC
     const kyc = await this.prisma.kycDocument.findUnique({
       where: { id: kycId },
@@ -162,14 +216,16 @@ export class KycService {
       throw new BadRequestException('Rejection reason is required');
     }
 
-    // 4️⃣ Update KYC status
-    const updatedKyc = await this.prisma.kycDocument.update({
-      where: { id: kycId },
-      data: {
-        status,
-        rejectionReason: status === KycStatus.REJECTED ? reason : null,
-        verifiedAt: status === KycStatus.VERIFIED ? new Date() : null,
-      },
+    // 4️⃣ Update KYC status using transaction
+    const updatedKyc = await this.prisma.$transaction(async (tx) => {
+      return tx.kycDocument.update({
+        where: { id: kycId },
+        data: {
+          status,
+          rejectionReason: status === KycStatus.REJECTED ? reason : null,
+          verifiedAt: status === KycStatus.VERIFIED ? new Date() : null,
+        },
+      });
     });
 
     // 5️⃣ Create audit log
@@ -193,15 +249,19 @@ export class KycService {
       },
     });
 
-    this.logger.log(
-      `KYC #${kycId} ${status} by admin #${adminId}`,
-    );
+    const message =
+      status === KycStatus.VERIFIED
+        ? 'KYC verified successfully'
+        : `KYC rejected: ${reason}`;
+
+    this.logger.log(`KYC #${kycId} ${status} by admin #${adminId}`);
 
     return {
       id: updatedKyc.id,
       status: updatedKyc.status,
-      verifiedAt: updatedKyc.verifiedAt,
-      rejectionReason: updatedKyc.rejectionReason,
+      verifiedAt: updatedKyc.verifiedAt ?? undefined,
+      rejectionReason: updatedKyc.rejectionReason ?? undefined,
+      message,
     };
   }
 
@@ -209,75 +269,233 @@ export class KycService {
   // GET ALL KYC (Admin — paginated list)
   // ──────────────────────────────────────────────────────────
 
-  async getAllKyc(statusFilter?: KycStatus) {
+  async getAllKyc(
+    statusFilter?: KycStatus,
+    page: number = 1,
+    limit: number = 20,
+  ): Promise<{
+    kycDocuments: any[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+      hasNext: boolean;
+      hasPrevious: boolean;
+    };
+  }> {
     const where = statusFilter ? { status: statusFilter } : {};
+    const skip = (page - 1) * limit;
 
-    return this.prisma.kycDocument.findMany({
-      where,
-      select: {
-        id: true,
-        userId: true,
-        docType: true,
-        docFileUrl: true,
-        status: true,
-        rejectionReason: true,
-        createdAt: true,
-        verifiedAt: true,
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
+    const [kycDocs, total] = await Promise.all([
+      this.prisma.kycDocument.findMany({
+        where,
+        select: {
+          id: true,
+          userId: true,
+          docType: true,
+          docFileUrl: true,
+          status: true,
+          rejectionReason: true,
+          createdAt: true,
+          verifiedAt: true,
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
           },
         },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.kycDocument.count({ where }),
+    ]);
+
+    return {
+      kycDocuments: kycDocs,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasNext: page < Math.ceil(total / limit),
+        hasPrevious: page > 1,
       },
-      orderBy: { createdAt: 'desc' },
-    });
+    };
   }
 
-  // Customer KYC
-  async createCustomerKyc(userId: number, dto: any, file: Express.Multer.File) {
-    return this.createKyc(userId, dto, file);
+  // ──────────────────────────────────────────────────────────
+  // CUSTOMER KYC
+  // ──────────────────────────────────────────────────────────
+
+  async createCustomerKyc(
+    userId: number,
+    dto: CreateKycDto,
+    file: Express.Multer.File,
+  ) {
+    const submitDto: SubmitKycDto = {
+      docType: dto.docType,
+      docNumber: dto.docNumber,
+    };
+    return this.createKyc(userId, submitDto, file);
   }
 
-  async getCustomerKyc(userId: number) {
-    return this.prisma.kycDocument.findFirst({
+  async getCustomerKyc(userId: number): Promise<{
+    id: number;
+    docType: KycDocType;
+    status: KycStatus;
+    rejectionReason?: string;
+    createdAt: Date;
+    verifiedAt?: Date;
+  }> {
+    const kyc = await this.prisma.kycDocument.findFirst({
       where: { userId },
       orderBy: { createdAt: 'desc' },
     });
+
+    if (!kyc) {
+      throw new NotFoundException('No KYC document found');
+    }
+
+    return {
+      id: kyc.id,
+      docType: kyc.docType,
+      status: kyc.status,
+      rejectionReason: kyc.rejectionReason ?? undefined,
+      createdAt: kyc.createdAt,
+      verifiedAt: kyc.verifiedAt ?? undefined,
+    };
   }
 
-  // Vendor KYC
-  async createVendorKyc(userId: number, dto: any, file: Express.Multer.File) {
-    return this.createKyc(userId, dto, file);
+  // ──────────────────────────────────────────────────────────
+  // VENDOR KYC
+  // ──────────────────────────────────────────────────────────
+
+  async createVendorKyc(
+    userId: number,
+    dto: CreateKycDto,
+    file: Express.Multer.File,
+  ) {
+    const submitDto: SubmitKycDto = {
+      docType: dto.docType,
+      docNumber: dto.docNumber,
+    };
+    return this.createKyc(userId, submitDto, file);
   }
 
-  async getVendorKyc(userId: number) {
-    return this.prisma.kycDocument.findFirst({
+  async getVendorKyc(userId: number): Promise<{
+    id: number;
+    docType: KycDocType;
+    status: KycStatus;
+    rejectionReason?: string;
+    createdAt: Date;
+    verifiedAt?: Date;
+  }> {
+    const kyc = await this.prisma.kycDocument.findFirst({
       where: { userId },
       orderBy: { createdAt: 'desc' },
     });
+
+    if (!kyc) {
+      throw new NotFoundException('No KYC document found');
+    }
+
+    return {
+      id: kyc.id,
+      docType: kyc.docType,
+      status: kyc.status,
+      rejectionReason: kyc.rejectionReason ?? undefined,
+      createdAt: kyc.createdAt,
+      verifiedAt: kyc.verifiedAt ?? undefined,
+    };
   }
 
-  // Venue Owner KYC
-  async createVenueOwnerKyc(userId: number, dto: any, file: Express.Multer.File) {
-    // Create KYC record first
-    const kycResult = await this.createKyc(userId, dto, file);
+  // ──────────────────────────────────────────────────────────
+  // VENUE OWNER KYC (with optional bank account)
+  // ──────────────────────────────────────────────────────────
 
-    // If bank details are provided, create bank account
-    if (dto.accountHolder && dto.bankAccountNumber && dto.ifscCode && dto.bankName) {
+  async createVenueOwnerKyc(
+    userId: number,
+    dto: CreateKycDto,
+    file: Express.Multer.File,
+  ): Promise<{
+    id: number;
+    docType: KycDocType;
+    status: KycStatus;
+    createdAt: Date;
+    message: string;
+    bankAccountId?: number;
+  }> {
+    const submitDto: SubmitKycDto = {
+      docType: dto.docType,
+      docNumber: dto.docNumber,
+    };
+
+    // Create KYC record and optionally bank account in a single transaction
+    const result = await this.prisma.$transaction(async (tx) => {
+      // 1️⃣ Create KYC record
+      // First upload file to S3
+      let docFileUrl: string;
       try {
-        // Check if bank account already exists for this user
-        const existingAccount = await this.prisma.bankAccount.findFirst({
+        docFileUrl = await this.s3Service.uploadKycDocument(file);
+      } catch (error) {
+        throw new ServiceUnavailableException(
+          'Failed to upload document. Please try again later.',
+        );
+      }
+
+      // Check for existing KYC
+      const activeKyc = await tx.kycDocument.findFirst({
+        where: {
+          userId,
+          status: { in: [KycStatus.PENDING, KycStatus.VERIFIED] },
+        },
+      });
+
+      if (activeKyc) {
+        throw new ConflictException(
+          `KYC already ${activeKyc.status === KycStatus.PENDING ? 'pending' : 'verified'}`,
+        );
+      }
+
+      const docNumberHash = hash(dto.docNumber);
+      const encryptedDocNumber = encrypt(dto.docNumber);
+
+      const kyc = await tx.kycDocument.create({
+        data: {
+          userId,
+          docType: dto.docType,
+          docNumber: encryptedDocNumber,
+          docNumberHash,
+          docFileUrl,
+          status: KycStatus.PENDING,
+        },
+      });
+
+      let bankAccountId: number | undefined = undefined;
+
+      // 2️⃣ If bank details are provided, create bank account
+      if (
+        dto.accountHolder &&
+        dto.bankAccountNumber &&
+        dto.ifscCode &&
+        dto.bankName
+      ) {
+        // Check if bank account already exists
+        const existingAccount = await tx.bankAccount.findFirst({
           where: { userId },
         });
 
         if (!existingAccount) {
-          const { randomUUID } = await import('crypto');
           const accountNumberHash = hash(dto.bankAccountNumber);
           const encryptedAccountNumber = encrypt(dto.bankAccountNumber);
 
-          await this.prisma.bankAccount.create({
+          const { randomUUID } = await import('crypto');
+
+          const bankAccount = await tx.bankAccount.create({
             data: {
               userId,
               accountHolder: dto.accountHolder,
@@ -290,30 +508,57 @@ export class KycService {
             },
           });
 
+          bankAccountId = bankAccount.id;
           this.logger.log(`Bank account created for venue owner: userId=${userId}`);
         }
-      } catch (error) {
-        this.logger.error(`Failed to create bank account: ${error.message}`);
-        // Don't fail the KYC submission if bank account creation fails
       }
-    }
 
-    return kycResult;
+      return { kyc, bankAccountId };
+    });
+
+    return {
+      id: result.kyc.id,
+      docType: result.kyc.docType,
+      status: result.kyc.status,
+      createdAt: result.kyc.createdAt,
+      message: 'KYC submitted successfully. Pending verification.',
+      bankAccountId: result.bankAccountId,
+    };
   }
 
-  async getVenueOwnerKyc(userId: number) {
-    return this.prisma.kycDocument.findFirst({
+  async getVenueOwnerKyc(userId: number): Promise<{
+    id: number;
+    docType: KycDocType;
+    status: KycStatus;
+    rejectionReason?: string;
+    createdAt: Date;
+    verifiedAt?: Date;
+  }> {
+    const kyc = await this.prisma.kycDocument.findFirst({
       where: { userId },
       orderBy: { createdAt: 'desc' },
     });
+
+    if (!kyc) {
+      throw new NotFoundException('No KYC document found');
+    }
+
+    return {
+      id: kyc.id,
+      docType: kyc.docType,
+      status: kyc.status,
+      rejectionReason: kyc.rejectionReason ?? undefined,
+      createdAt: kyc.createdAt,
+      verifiedAt: kyc.verifiedAt ?? undefined,
+    };
   }
 
-  async getAllKycSubmissions() {
-    return this.getAllKyc();
+  async getAllKycSubmissions(statusFilter?: KycStatus) {
+    return this.getAllKyc(statusFilter);
   }
 
   async getKycById(id: number) {
-    return this.prisma.kycDocument.findUnique({
+    const kyc = await this.prisma.kycDocument.findUnique({
       where: { id },
       include: {
         user: {
@@ -325,51 +570,16 @@ export class KycService {
         },
       },
     });
+
+    if (!kyc) {
+      throw new NotFoundException('KYC document not found');
+    }
+
+    return kyc;
   }
 
   // Get Pending KYC submissions (Admin)
   async getPendingKyc(page: number = 1, limit: number = 20) {
-    const skip = (page - 1) * limit;
-    const where = { status: KycStatus.PENDING };
-
-    const [kycDocs, total] = await Promise.all([
-      this.prisma.kycDocument.findMany({
-        where,
-        skip,
-        take: limit,
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              phone: true,
-            },
-          },
-        },
-        orderBy: { createdAt: 'desc' },
-      }),
-      this.prisma.kycDocument.count({ where }),
-    ]);
-
-    return {
-      kycDocuments: kycDocs.map((kyc) => ({
-        id: kyc.id,
-        userId: kyc.userId,
-        docType: kyc.docType,
-        docFileUrl: kyc.docFileUrl,
-        status: kyc.status,
-        rejectionReason: kyc.rejectionReason,
-        createdAt: kyc.createdAt,
-        verifiedAt: kyc.verifiedAt,
-        user: kyc.user,
-      })),
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
+    return this.getAllKyc(KycStatus.PENDING, page, limit);
   }
 }

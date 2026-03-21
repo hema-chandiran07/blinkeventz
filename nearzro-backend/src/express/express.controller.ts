@@ -30,10 +30,11 @@ export class ExpressController {
   }
 
   @Get('event/:id')
-  getByEvent(@Req() req: AuthRequest, @Param('id') id: string) {
-    return this.service.getByEventForUser(
+  async getByEvent(@Req() req: AuthRequest, @Param('id') id: string) {
+    const result = await this.service.getByEventForUser(
       req.user.userId,
       +id,
     );
+    return result ?? null;
   }
 }

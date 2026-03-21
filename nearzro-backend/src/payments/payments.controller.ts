@@ -3,6 +3,7 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
   Body,
   Req,
   Res,
@@ -30,9 +31,13 @@ import { PaymentOrderResponseDto, PaymentConfirmResponseDto, PaymentStatusRespon
 @ApiTags('Payments')
 @Controller('payments')
 export class PaymentsController {
+  // ============================================
+  // PUBLIC ENDPOINTS
+  // ============================================
   constructor(private readonly paymentsService: PaymentsService) {}
 
   // ✅ Get all payments (Admin only)
+  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
   @Get()
@@ -49,6 +54,7 @@ export class PaymentsController {
   // ENDPOINT 1: Create Payment Order (with cart)
   // ============================================================
 
+  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @Post('create-order')
   @HttpCode(HttpStatus.OK)
@@ -111,6 +117,7 @@ export class PaymentsController {
   // ENDPOINT 3: Confirm Payment (Client Callback - FALLBACK)
   // ============================================================
 
+  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @Post('confirm')
   @HttpCode(HttpStatus.OK)
@@ -138,6 +145,7 @@ export class PaymentsController {
   // ENDPOINT 4: Get Payment Status
   // ============================================================
 
+  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @Get('status/:paymentId')
   @HttpCode(HttpStatus.OK)
@@ -161,6 +169,7 @@ export class PaymentsController {
   // ENDPOINT 5: Get Payment by Order ID
   // ============================================================
 
+  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @Get('order/:orderId')
   @HttpCode(HttpStatus.OK)
@@ -176,6 +185,7 @@ export class PaymentsController {
   }
 
   // ✅ Export payments to CSV (Admin only)
+  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
   @Get('export')
@@ -186,5 +196,45 @@ export class PaymentsController {
     @Query('status') status?: string,
   ) {
     return this.paymentsService.exportPaymentsToCsv(page, limit, status);
+  }
+
+  // ============================================================
+  // ADMIN ACTIONS: Approve, Reject, Refund
+  // ============================================================
+
+  // Approve payment (admin action)
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @Patch(':id/approve')
+  @ApiParam({ name: 'id', type: Number, description: 'Payment ID' })
+  async approvePayment(@Param('id', ParseIntPipe) id: number) {
+    return this.paymentsService.approvePayment(id);
+  }
+
+  // Reject payment (admin action)
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @Patch(':id/reject')
+  @ApiParam({ name: 'id', type: Number, description: 'Payment ID' })
+  async rejectPayment(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { reason?: string },
+  ) {
+    return this.paymentsService.rejectPayment(id, body.reason);
+  }
+
+  // Refund payment (admin action)
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @Post(':id/refund')
+  @ApiParam({ name: 'id', type: Number, description: 'Payment ID' })
+  async refundPayment(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { amount?: number; reason?: string },
+  ) {
+    return this.paymentsService.refundPayment(id, body.amount, body.reason);
   }
 }

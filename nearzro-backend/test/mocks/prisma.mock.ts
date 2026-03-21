@@ -1,12 +1,10 @@
 /**
  * Prisma Service Mock
  * NearZro Event Management Platform
- * 
+ *
  * Reusable mock for PrismaService.
  * Provides comprehensive mocking for all Prisma operations used in the application.
  */
-
-import { jest } from '@jest/globals';
 
 /**
  * Creates a mock for PrismaService with all commonly used methods
@@ -133,8 +131,54 @@ export const createPrismaMock = () => ({
     findFirst: jest.fn(),
   },
 
+  // Promotion model
+  promotion: {
+    findMany: jest.fn(),
+    findUnique: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    count: jest.fn(),
+    findFirst: jest.fn(),
+  },
+
+  // Review model
+  review: {
+    findMany: jest.fn(),
+    findUnique: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    count: jest.fn(),
+    findFirst: jest.fn(),
+    aggregate: jest.fn(),
+  },
+
+  // ReviewVote model
+  reviewVote: {
+    findMany: jest.fn(),
+    findUnique: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    count: jest.fn(),
+    findFirst: jest.fn(),
+  },
+
+  // Settings model
+  settings: {
+    findMany: jest.fn(),
+    findUnique: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    upsert: jest.fn(),
+    count: jest.fn(),
+    findFirst: jest.fn(),
+  },
+
   // Transaction helper for database transactions
-  $transaction: jest.fn((callback: (prisma: typeof prismaMock) => unknown) => callback(prismaMock)),
+  $transaction: jest.fn((callback: (prisma: unknown) => unknown) => callback({})),
 });
 
 /**
