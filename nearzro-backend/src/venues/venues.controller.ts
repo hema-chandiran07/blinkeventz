@@ -33,7 +33,6 @@ const Role = {
 export type Role = typeof Role[keyof typeof Role];
 
 @ApiTags('Venues')
-@ApiBearerAuth()
 @Controller('venues')
 export class VenuesController {
   constructor(private readonly venuesService: VenuesService) {}
@@ -61,6 +60,7 @@ export class VenuesController {
   // ============================================
 
   /// 🏢 VENUE OWNER → Create venue
+  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.VENUE_OWNER)
   @Post()
@@ -69,6 +69,7 @@ export class VenuesController {
   }
 
   /// 🏢 VENUE OWNER → Get my venues
+  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.VENUE_OWNER)
   @Get('owner/my-venues')
@@ -81,6 +82,7 @@ export class VenuesController {
   // ============================================
 
   /// 👑 ADMIN → Approve venue
+  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
   @Patch(':id/approve')
@@ -95,6 +97,7 @@ export class VenuesController {
   }
 
   /// 👑 ADMIN → Reject venue
+  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
   @Patch(':id/reject')
@@ -116,6 +119,7 @@ export class VenuesController {
   // ============================================
 
   /// 🏢 VENUE OWNER → Update venue (ownership guard)
+  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, VenueOwnerGuard)
   @Patch(':id')
   @ApiParam({ name: 'id', type: Number, description: 'Venue ID' })
@@ -128,6 +132,7 @@ export class VenuesController {
   }
 
   /// 🏢 VENUE OWNER → Delete venue (ownership guard)
+  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, VenueOwnerGuard)
   @Delete(':id')
   @ApiParam({ name: 'id', type: Number, description: 'Venue ID' })
@@ -136,6 +141,7 @@ export class VenuesController {
   }
 
   /// 👤 PUBLIC → Get single venue by ID (MUST BE LAST)
+  // No @ApiBearerAuth() - this is a public endpoint
   @Public()
   @Get(':id')
   @ApiParam({ name: 'id', type: Number, description: 'Venue ID' })
@@ -148,6 +154,7 @@ export class VenuesController {
   // ============================================
 
   /// Get current user profile (debug)
+  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @Get('me/profile')
   getProfile(@Req() req) {
@@ -159,6 +166,7 @@ export class VenuesController {
   // ============================================
 
   /// ALIAS: Get my venues (frontend expects /venues/my)
+  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.VENUE_OWNER)
   @Get('my')
@@ -167,6 +175,7 @@ export class VenuesController {
   }
 
   /// Get venue owner stats (frontend expects /venues/owner/stats)
+  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.VENUE_OWNER)
   @Get('owner/stats')
@@ -175,6 +184,7 @@ export class VenuesController {
   }
 
   /// Update venue availability
+  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, VenueOwnerGuard)
   @Patch(':id/availability')
   @ApiParam({ name: 'id', type: Number, description: 'Venue ID' })

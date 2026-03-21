@@ -31,9 +31,13 @@ import { PaymentOrderResponseDto, PaymentConfirmResponseDto, PaymentStatusRespon
 @ApiTags('Payments')
 @Controller('payments')
 export class PaymentsController {
+  // ============================================
+  // PUBLIC ENDPOINTS
+  // ============================================
   constructor(private readonly paymentsService: PaymentsService) {}
 
   // ✅ Get all payments (Admin only)
+  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
   @Get()
@@ -50,6 +54,7 @@ export class PaymentsController {
   // ENDPOINT 1: Create Payment Order (with cart)
   // ============================================================
 
+  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @Post('create-order')
   @HttpCode(HttpStatus.OK)
@@ -112,6 +117,7 @@ export class PaymentsController {
   // ENDPOINT 3: Confirm Payment (Client Callback - FALLBACK)
   // ============================================================
 
+  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @Post('confirm')
   @HttpCode(HttpStatus.OK)
@@ -139,6 +145,7 @@ export class PaymentsController {
   // ENDPOINT 4: Get Payment Status
   // ============================================================
 
+  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @Get('status/:paymentId')
   @HttpCode(HttpStatus.OK)
@@ -162,6 +169,7 @@ export class PaymentsController {
   // ENDPOINT 5: Get Payment by Order ID
   // ============================================================
 
+  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @Get('order/:orderId')
   @HttpCode(HttpStatus.OK)
@@ -177,6 +185,7 @@ export class PaymentsController {
   }
 
   // ✅ Export payments to CSV (Admin only)
+  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
   @Get('export')
@@ -194,6 +203,7 @@ export class PaymentsController {
   // ============================================================
 
   // Approve payment (admin action)
+  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
   @Patch(':id/approve')
@@ -203,6 +213,7 @@ export class PaymentsController {
   }
 
   // Reject payment (admin action)
+  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
   @Patch(':id/reject')
@@ -215,6 +226,7 @@ export class PaymentsController {
   }
 
   // Refund payment (admin action)
+  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
   @Post(':id/refund')

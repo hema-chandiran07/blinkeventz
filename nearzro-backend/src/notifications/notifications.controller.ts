@@ -19,7 +19,6 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { NotificationActionDto } from './dto/notification-action.dto';
 import { Public } from '../common/decorators/public.decorator';
 
-@ApiBearerAuth()
 @ApiTags('Notifications')
 @UseGuards(JwtAuthGuard,RolesGuard)
 @Controller('notifications')
@@ -27,6 +26,7 @@ export class NotificationsController {
   constructor(private readonly service: NotificationsService) {}
 
   // ✅ Get all notifications for admin (using query param for admin flag)
+  @ApiBearerAuth()
   @Get()
   async getNotifications(
     @Req() req: any,
@@ -49,29 +49,34 @@ export class NotificationsController {
   }
 
   // ✅ Get unread count
+  @ApiBearerAuth()
   @Get('unread/count')
   async getUnreadCount(@Req() req: any) {
     return this.service.getUnreadCount(req.user.id);
   }
 
   // ✅ ALIAS: Get unread count (frontend expects /unread-count)
+  @ApiBearerAuth()
   @Get('unread-count')
   async getUnreadCountAlias(@Req() req: any) {
     return this.service.getUnreadCount(req.user.id);
   }
 
   // ✅ Mark notification as read
+  @ApiBearerAuth()
   @Post(':id/read')
   async markAsRead(@Req() req: any, @Param('id') id: number) {
     return this.service.markAsRead(id, req.user.id);
   }
 
   // ✅ Mark all as read
+  @ApiBearerAuth()
   @Post('read-all')
   async markAllAsRead(@Req() req: any) {
     return this.service.markAllAsRead(req.user.id);
   }
 
+  @ApiBearerAuth()
   @Post('send')
   @Roles(Role.ADMIN, Role.EVENT_MANAGER, Role.SUPPORT)
   async send(@Body() dto: SendNotificationDto) {
@@ -79,6 +84,7 @@ export class NotificationsController {
     return { success: true };
   }
 
+  @ApiBearerAuth()
   @Post('action')
   @Roles(
     Role.CUSTOMER,

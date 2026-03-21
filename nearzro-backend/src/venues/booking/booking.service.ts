@@ -264,8 +264,25 @@ export class BookingService {
 
   /**
    * Get bookings for a specific venue
+   * RBAC: VENUE_OWNER can only view bookings for their own venues, ADMIN can view all
    */
-  async getVenueBookings(venueId: number): Promise<any[]> {
+  async getVenueBookings(venueId: number, userId?: number, userRole?: string): Promise<any[]> {
+    // For VENUE_OWNER role, verify they own this venue
+    if (userRole === 'VENUE_OWNER' && userId) {
+      const venue = await this.prisma.venue.findFirst({
+        where: {
+          id: venueId,
+          ownerId: userId,
+        },
+        select: { id: true },
+      });
+
+      if (!venue) {
+        throw new BadRequestException('You do not have access to this venue\'s bookings');
+      }
+    }
+
+    // ADMIN can view all venue bookings, VENUE_OWNER verified above
     return this.prisma.booking.findMany({
       where: {
         slot: {
