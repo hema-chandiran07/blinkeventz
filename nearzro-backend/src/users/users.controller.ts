@@ -43,4 +43,22 @@ export class UsersController {
     }
     return user;
   }
+
+  // Get events for a specific user
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @Get(':id/events')
+  @ApiParam({ name: 'id', type: Number, description: 'User ID' })
+  async getUserEvents(@Param('id', ParseIntPipe) id: string) {
+    return this.usersService.getUserEvents(+id);
+  }
+
+  // Get payments for a specific user
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @Get(':id/payments')
+  @ApiParam({ name: 'id', type: Number, description: 'User ID' })
+  async getUserPayments(@Param('id', ParseIntPipe) id: string) {
+    return this.usersService.getUserPayments(+id);
+  }
 }

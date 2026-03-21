@@ -132,7 +132,7 @@ export class EventsController {
 
   /**
    * ASSIGN EVENT MANAGER (ADMIN ONLY)
-   * 
+   *
    * Assigns an event manager to an event.
    */
   @Roles(Role.ADMIN)
@@ -144,5 +144,20 @@ export class EventsController {
     @Body() dto: AssignManagerDto,
   ) {
     return this.eventsService.assignManager(id, dto.managerId);
+  }
+
+  /**
+   * UPDATE EVENT STATUS (ADMIN ONLY)
+   *
+   * Updates the status of an event.
+   */
+  @Roles(Role.ADMIN)
+  @Patch(':id/status')
+  @ApiParam({ name: 'id', example: 1 })
+  updateStatus(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { status: string },
+  ) {
+    return this.eventsService.updateEventStatus(id, body.status);
   }
 }

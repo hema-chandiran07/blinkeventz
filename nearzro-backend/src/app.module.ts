@@ -34,6 +34,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { ApprovalsModule } from './approvals/approvals.module';
 import { AIChatModule } from './ai-chatbot/ai-chat.module';
 import { SettingsModule } from './settings/settings.module';
+import { ReportsModule } from './reports/reports.module';
 
 @Module({
   imports: [
@@ -191,7 +192,8 @@ import { SettingsModule } from './settings/settings.module';
     ReviewsModule,
     AnalyticsModule,
     ApprovalsModule,
-    SettingsModule
+    SettingsModule,
+    ReportsModule
   ],
    // 🔐 GLOBAL SECURITY LAYER
   providers: [

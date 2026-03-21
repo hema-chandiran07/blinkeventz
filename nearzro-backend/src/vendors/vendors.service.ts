@@ -241,4 +241,31 @@ export class VendorsService {
       throw new InternalServerErrorException(message);
     }
   }
+
+  /**
+   * Get services for a specific vendor
+   * Used by frontend /vendors/:id/services endpoint
+   */
+  async getVendorServices(id: number) {
+    try {
+      const vendor = await this.prisma.vendor.findUnique({
+        where: { id },
+        include: {
+          services: true,
+        },
+      });
+
+      if (!vendor) {
+        throw new NotFoundException(`Vendor with ID ${id} not found`);
+      }
+
+      return vendor.services;
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      const message = error instanceof Error ? error.message : 'Failed to fetch vendor services';
+      throw new InternalServerErrorException(message);
+    }
+  }
 }

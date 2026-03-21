@@ -261,4 +261,73 @@ export class BookingService {
 
     return booking;
   }
+
+  /**
+   * Get bookings for a specific venue
+   */
+  async getVenueBookings(venueId: number): Promise<any[]> {
+    return this.prisma.booking.findMany({
+      where: {
+        slot: {
+          entityType: 'VENUE',
+          entityId: venueId,
+        },
+      },
+      include: {
+        slot: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /**
+   * Get bookings for venue owner
+   */
+  async getVenueOwnerBookings(ownerId: number): Promise<any[]> {
+    // First get all venues owned by this user
+    const venues = await this.prisma.venue.findMany({
+      where: { ownerId },
+      select: { id: true },
+    });
+    const venueIds = venues.map(v => v.id);
+
+    // Then get bookings for those venues
+    return this.prisma.booking.findMany({
+      where: {
+        slot: {
+          entityType: 'VENUE',
+          entityId: { in: venueIds },
+        },
+      },
+      include: {
+        slot: {
+          include: {
+            venue: {
+              select: {
+                id: true,
+                name: true,
+                address: true,
+                city: true,
+              },
+            },
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
 }
