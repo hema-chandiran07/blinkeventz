@@ -33,6 +33,12 @@ export class VendorServicesController {
     return this.vendorServicesService.findByVendor(+vendorId);
   }
 
+  // ALIAS: Get vendor services (frontend expects /vendors/:id/services)
+  @Get('by-vendor/:vendorId')
+  findByVendorAlias(@Param('vendorId') vendorId: string) {
+    return this.vendorServicesService.findByVendor(+vendorId);
+  }
+
   /**
    * Activate a vendor service
    * VENDOR can only activate their own services

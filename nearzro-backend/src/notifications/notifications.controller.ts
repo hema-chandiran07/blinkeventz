@@ -54,6 +54,12 @@ export class NotificationsController {
     return this.service.getUnreadCount(req.user.id);
   }
 
+  // ✅ ALIAS: Get unread count (frontend expects /unread-count)
+  @Get('unread-count')
+  async getUnreadCountAlias(@Req() req: any) {
+    return this.service.getUnreadCount(req.user.id);
+  }
+
   // ✅ Mark notification as read
   @Post(':id/read')
   async markAsRead(@Req() req: any, @Param('id') id: number) {

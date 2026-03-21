@@ -72,4 +72,12 @@ export class VendorsController {
   getVendorById(@Param('id', ParseIntPipe) id: string) {
     return this.vendorsService.findById(+id);
   }
+
+  // ALIAS: Get vendor services (frontend expects /vendors/:id/services)
+  @Public()
+  @Get(':id/services')
+  @ApiParam({ name: 'id', type: Number, description: 'Vendor ID' })
+  getVendorServices(@Param('id', ParseIntPipe) id: string) {
+    return this.vendorsService.getVendorServices(+id);
+  }
 }

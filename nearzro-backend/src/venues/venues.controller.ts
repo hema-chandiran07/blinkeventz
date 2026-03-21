@@ -153,4 +153,36 @@ export class VenuesController {
   getProfile(@Req() req) {
     return req.user;
   }
+
+  // ============================================
+  // ALIAS ENDPOINTS FOR FRONTEND COMPATIBILITY
+  // ============================================
+
+  /// ALIAS: Get my venues (frontend expects /venues/my)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENUE_OWNER)
+  @Get('my')
+  getMyVenuesAlias(@Req() req: any) {
+    return this.venuesService.getVenuesByOwner(req.user.userId);
+  }
+
+  /// Get venue owner stats (frontend expects /venues/owner/stats)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENUE_OWNER)
+  @Get('owner/stats')
+  getVenueOwnerStats(@Req() req: any) {
+    return this.venuesService.getVenueOwnerStats(req.user.userId);
+  }
+
+  /// Update venue availability
+  @UseGuards(JwtAuthGuard, VenueOwnerGuard)
+  @Patch(':id/availability')
+  @ApiParam({ name: 'id', type: Number, description: 'Venue ID' })
+  updateAvailability(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: any,
+    @Body() body: { availability: { date: string; timeSlot: string; status: string }[] },
+  ) {
+    return this.venuesService.updateAvailability(id, req.user.userId, body.availability);
+  }
 }

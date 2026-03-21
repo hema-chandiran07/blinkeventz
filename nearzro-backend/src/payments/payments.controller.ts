@@ -3,6 +3,7 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
   Body,
   Req,
   Res,
@@ -186,5 +187,42 @@ export class PaymentsController {
     @Query('status') status?: string,
   ) {
     return this.paymentsService.exportPaymentsToCsv(page, limit, status);
+  }
+
+  // ============================================================
+  // ADMIN ACTIONS: Approve, Reject, Refund
+  // ============================================================
+
+  // Approve payment (admin action)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @Patch(':id/approve')
+  @ApiParam({ name: 'id', type: Number, description: 'Payment ID' })
+  async approvePayment(@Param('id', ParseIntPipe) id: number) {
+    return this.paymentsService.approvePayment(id);
+  }
+
+  // Reject payment (admin action)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @Patch(':id/reject')
+  @ApiParam({ name: 'id', type: Number, description: 'Payment ID' })
+  async rejectPayment(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { reason?: string },
+  ) {
+    return this.paymentsService.rejectPayment(id, body.reason);
+  }
+
+  // Refund payment (admin action)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @Post(':id/refund')
+  @ApiParam({ name: 'id', type: Number, description: 'Payment ID' })
+  async refundPayment(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { amount?: number; reason?: string },
+  ) {
+    return this.paymentsService.refundPayment(id, body.amount, body.reason);
   }
 }

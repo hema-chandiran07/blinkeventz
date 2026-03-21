@@ -1007,4 +1007,130 @@ export class PaymentsService {
 
     return csvContent;
   }
+
+  // ============================================================
+  // ADMIN ACTIONS: Approve, Reject, Refund
+  // ============================================================
+
+  /**
+   * Approve a payment (admin action)
+   * Marks a pending payment as approved/authorized
+   */
+  async approvePayment(paymentId: number): Promise<any> {
+    const payment = await this.prisma.payment.findUnique({
+      where: { id: paymentId },
+    });
+
+    if (!payment) {
+      throw new NotFoundException('Payment not found');
+    }
+
+    if (payment.status !== PaymentStatus.PENDING && payment.status !== PaymentStatus.CREATED) {
+      throw new BadRequestException(`Cannot approve payment with status: ${payment.status}`);
+    }
+
+    const updated = await this.prisma.payment.update({
+      where: { id: paymentId },
+      data: {
+        status: PaymentStatus.AUTHORIZED,
+      },
+    });
+
+    // Create audit event
+    await this.prisma.paymentEvent.create({
+      data: {
+        paymentId,
+        eventType: 'payment.approved.admin',
+        status: PaymentStatus.AUTHORIZED,
+      },
+    });
+
+    return updated;
+  }
+
+  /**
+   * Reject a payment (admin action)
+   * Marks a payment as failed/rejected
+   */
+  async rejectPayment(paymentId: number, reason?: string): Promise<any> {
+    const payment = await this.prisma.payment.findUnique({
+      where: { id: paymentId },
+    });
+
+    if (!payment) {
+      throw new NotFoundException('Payment not found');
+    }
+
+    if (payment.status === PaymentStatus.CAPTURED || payment.status === PaymentStatus.REFUNDED) {
+      throw new BadRequestException(`Cannot reject payment with status: ${payment.status}`);
+    }
+
+    const updated = await this.prisma.payment.update({
+      where: { id: paymentId },
+      data: {
+        status: PaymentStatus.FAILED,
+        notes: reason,
+      },
+    });
+
+    // Create audit event
+    await this.prisma.paymentEvent.create({
+      data: {
+        paymentId,
+        eventType: 'payment.rejected.admin',
+        status: PaymentStatus.FAILED,
+        response: { reason },
+      },
+    });
+
+    return updated;
+  }
+
+  /**
+   * Refund a payment (admin action)
+   * Marks a captured payment as refunded
+   */
+  async refundPayment(paymentId: number, amount?: number, reason?: string): Promise<any> {
+    const payment = await this.prisma.payment.findUnique({
+      where: { id: paymentId },
+    });
+
+    if (!payment) {
+      throw new NotFoundException('Payment not found');
+    }
+
+    if (payment.status !== PaymentStatus.CAPTURED) {
+      throw new BadRequestException(`Cannot refund payment with status: ${payment.status}. Only captured payments can be refunded.`);
+    }
+
+    // If amount not specified, refund full amount
+    const refundAmount = amount || payment.amount;
+    
+    if (refundAmount > payment.amount) {
+      throw new BadRequestException('Refund amount cannot exceed payment amount');
+    }
+
+    const updated = await this.prisma.payment.update({
+      where: { id: paymentId },
+      data: {
+        status: PaymentStatus.REFUNDED,
+        notes: reason,
+      },
+    });
+
+    // Create audit event
+    await this.prisma.paymentEvent.create({
+      data: {
+        paymentId,
+        eventType: 'payment.refunded.admin',
+        status: PaymentStatus.REFUNDED,
+        response: { refundAmount, reason },
+      },
+    });
+
+    return {
+      ...updated,
+      refundAmount,
+    };
+  }
 }
