@@ -7,13 +7,13 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { Role } from '../common/enums/role.enum';
 
 @ApiTags('Reports')
-@ApiBearerAuth()
 @Controller('reports')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}
 
-  // Get revenue report
+  // Get revenue report (Admin only)
+  @ApiBearerAuth()
   @Roles(Role.ADMIN)
   @Get('revenue')
   @ApiOperation({ summary: 'Get revenue report' })
@@ -32,7 +32,8 @@ export class ReportsController {
     );
   }
 
-  // Get users report
+  // Get users report (Admin only)
+  @ApiBearerAuth()
   @Roles(Role.ADMIN)
   @Get('users')
   @ApiOperation({ summary: 'Get users report' })
@@ -45,7 +46,8 @@ export class ReportsController {
     return this.reportsService.getUsersReport(page, limit, role);
   }
 
-  // Get venues report
+  // Get venues report (Admin only)
+  @ApiBearerAuth()
   @Roles(Role.ADMIN)
   @Get('venues')
   @ApiOperation({ summary: 'Get venues report' })
@@ -58,7 +60,8 @@ export class ReportsController {
     return this.reportsService.getVenuesReport(page, limit, status);
   }
 
-  // Get vendors report
+  // Get vendors report (Admin only)
+  @ApiBearerAuth()
   @Roles(Role.ADMIN)
   @Get('vendors')
   @ApiOperation({ summary: 'Get vendors report' })
@@ -71,7 +74,8 @@ export class ReportsController {
     return this.reportsService.getVendorsReport(page, limit, status);
   }
 
-  // Export revenue report
+  // Export revenue report (Admin only)
+  @ApiBearerAuth()
   @Roles(Role.ADMIN)
   @Get('revenue/export')
   @ApiOperation({ summary: 'Export revenue report to CSV' })
@@ -82,7 +86,8 @@ export class ReportsController {
     return this.reportsService.exportRevenueReport(startDate, endDate);
   }
 
-  // Export users report
+  // Export users report (Admin only)
+  @ApiBearerAuth()
   @Roles(Role.ADMIN)
   @Get('users/export')
   @ApiOperation({ summary: 'Export users report to CSV' })

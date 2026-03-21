@@ -9,7 +9,6 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { Role } from '../common/enums/role.enum';
 import { Public } from '../common/decorators/public.decorator';
 
-@ApiBearerAuth()
 @ApiTags('Vendors')
 @Controller('vendors')
 export class VendorsController {
@@ -22,12 +21,14 @@ export class VendorsController {
     return this.vendorsService.findAll();
   }
 
+  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @Get('me')
   getMyVendor(@Req() req: AuthRequest) {
     return this.vendorsService.getVendorByUserId(req.user.userId);
   }
 
+  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.VENDOR)
   @Post()
@@ -39,6 +40,7 @@ export class VendorsController {
   }
 
   // ADMIN routes - must be BEFORE :id route
+  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
   @Patch(':id/approve')
@@ -52,6 +54,7 @@ export class VendorsController {
     }
   }
 
+  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
   @Patch(':id/reject')
