@@ -24,31 +24,33 @@ export function AIPlannerError({
       animate={{ opacity: 1, scale: 1 }}
       className={cn("w-full max-w-lg mx-auto", className)}
     >
-      <div className="bg-red-50 border border-red-100 rounded-2xl p-8 text-center">
+      <div className="bg-zinc-950/90 backdrop-blur-xl border border-red-900/30 shadow-2xl rounded-2xl p-8 text-center relative overflow-hidden">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-32 bg-red-500/5 blur-[60px] rounded-full pointer-events-none" />
+        
         {/* Error icon */}
-        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
-          <AlertCircle className="w-8 h-8 text-red-600" />
+        <div className="relative z-10 w-16 h-16 mx-auto mb-4 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center shadow-inner">
+          <AlertCircle className="w-8 h-8 text-red-400" />
         </div>
 
         {/* Error message */}
-        <h3 className="text-xl font-semibold text-gray-900 mb-2">
+        <h3 className="relative z-10 text-xl font-semibold text-zinc-100 mb-2 tracking-wide">
           {getErrorTitle(error.code)}
         </h3>
-        <p className="text-gray-600 mb-6">
+        <p className="relative z-10 text-zinc-400 mb-6 font-medium leading-relaxed">
           {error.message}
         </p>
 
         {/* Error code */}
-        <p className="text-xs text-gray-400 mb-6">
+        <p className="relative z-10 text-[11px] text-zinc-600 font-mono tracking-wider uppercase mb-8">
           Error code: {error.code}
         </p>
 
         {/* Actions */}
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+        <div className="relative z-10 flex flex-col sm:flex-row gap-3 justify-center">
           {error.canRetry && (
             <button
               onClick={onRetry}
-              className="flex items-center justify-center gap-2 px-6 py-2.5 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors"
+              className="flex items-center justify-center gap-2 px-6 py-2.5 bg-zinc-100 text-zinc-950 border border-zinc-200 rounded-lg font-semibold hover:bg-white hover:scale-[1.02] transition-all shadow-[0_0_15px_rgba(255,255,255,0.1)]"
             >
               <RefreshCw className="w-4 h-4" />
               Try Again
@@ -56,7 +58,7 @@ export function AIPlannerError({
           )}
           <button
             onClick={onReset}
-            className="flex items-center justify-center gap-2 px-6 py-2.5 bg-white text-gray-700 border border-gray-200 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+            className="flex items-center justify-center gap-2 px-6 py-2.5 bg-zinc-900 text-zinc-300 border border-zinc-800 rounded-lg font-medium hover:bg-zinc-800 hover:text-white transition-colors shadow-sm"
           >
             <Home className="w-4 h-4" />
             Start Over
@@ -65,7 +67,7 @@ export function AIPlannerError({
       </div>
 
       {/* Help text */}
-      <p className="text-center text-sm text-gray-500 mt-4">
+      <p className="text-center text-xs text-zinc-500 mt-5 font-medium tracking-wide">
         Need help? Contact our support team for assistance.
       </p>
     </motion.div>

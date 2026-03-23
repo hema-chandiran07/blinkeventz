@@ -1,6 +1,7 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { OpenAIProvider } from '../providers/openai.provider';
+import type { AIProvider } from '../ai-providers/ai-provider.interface';
+import { AI_PROVIDER_TOKEN } from '../openai.module';
 import { cleanAndParseJSON } from '../utils/json-cleaner';
 import { InputSanitizer } from '../utils/input-sanitizer';
 import { budgetSplitPrompt } from '../prompts/budget-split.prompt';
@@ -62,7 +63,7 @@ export class AIPlannerQueueService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly ai: OpenAIProvider,
+    @Inject(AI_PROVIDER_TOKEN) private readonly ai: AIProvider,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
@@ -183,8 +184,13 @@ export class AIPlannerQueueService {
         };
       }
 
-      // Step 6: Call OpenAI with circuit breaker protection
-      const aiRaw = await this.ai.generateWithCircuitBreaker(prompt);
+      // Step 6: Call OpenAI with circuit breaker protection if available
+      let aiRaw: string;
+      if ('generateWithCircuitBreaker' in this.ai) {
+        aiRaw = await (this.ai as any).generateWithCircuitBreaker(prompt);
+      } else {
+        aiRaw = await this.ai.generate(prompt);
+      }
 
       // Step 7: Parse AI response
       const planJson = cleanAndParseJSON<AIPlanJSON>(aiRaw);

@@ -68,7 +68,7 @@ export class AIChatController {
    */
   @Throttle({
     default: {
-      limit: 5,  // 5 messages per minute per user
+      limit: 20,  // 20 messages per minute per user
       ttl: 60000,
     },
   })
@@ -103,6 +103,7 @@ export class AIChatController {
       planId: result.planId,
       state: result.state,
       requiresAuth: result.requiresAuth,
+      jobId: result.jobId,
     };
   }
 
@@ -119,7 +120,7 @@ export class AIChatController {
   @UseGuards(ThrottlerGuard)
   @Throttle({
     default: {
-      limit: 3,  // 3 messages per minute for guests (stricter than authenticated)
+      limit: 10,  // 10 messages per minute for guests
       ttl: 60000,
     },
   })
@@ -146,6 +147,7 @@ export class AIChatController {
       planId: result.planId,
       state: result.state,
       requiresAuth: result.requiresAuth,
+      jobId: result.jobId,
     };
   }
 
@@ -219,6 +221,12 @@ export class AIChatController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.CUSTOMER, Role.ADMIN)
   @ApiBearerAuth()
+  @Throttle({
+    default: {
+      limit: 10,  // 10 new conversations per minute
+      ttl: 60000,
+    },
+  })
   @Post('conversations')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Start a new conversation (requires auth)' })

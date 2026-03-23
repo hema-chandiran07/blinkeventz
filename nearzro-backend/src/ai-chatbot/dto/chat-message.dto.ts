@@ -41,6 +41,15 @@ export class SendMessageDto {
     area?: string;
     eventType?: string;
   };
+
+  @ApiPropertyOptional({
+    example: '1774158026712-7s14qr8',
+    description: 'Idempotency key to prevent duplicate generations',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  generationKey?: string;
 }
 
 /**
@@ -88,6 +97,12 @@ export class ChatMessageResponseDto {
     description: 'Indicates if authentication is required',
   })
   requiresAuth?: boolean;
+
+  @ApiPropertyOptional({
+    example: 'job-123',
+    description: 'Job ID for long-running generation tasks to poll',
+  })
+  jobId?: string;
 }
 
 /**

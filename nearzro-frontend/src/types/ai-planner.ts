@@ -158,6 +158,7 @@ export interface ChatMessage {
   content: string;
   timestamp: Date;
   isLoading?: boolean;
+  planData?: AIPlanJSON;
 }
 
 export interface SendMessageRequest {
@@ -167,9 +168,9 @@ export interface SendMessageRequest {
 }
 
 export interface SendMessageResponse {
-  message: string;
+  reply: string;
   conversationId: string;
-  updatedState: AIConversationState;
+  state?: AIConversationState;
   planId?: number;
   status?: AIConversationStatus;
   jobId?: string;

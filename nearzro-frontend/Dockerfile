@@ -48,18 +48,19 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Copy standalone server from builder
-COPY --from=builder /app/.next/standalone ./
-
-# Copy static files - CRITICAL for fixing 404 errors
-# Next.js standalone mode does NOT serve static files automatically
-COPY --from=builder /app/.next/static ./.next/static
-
 # Copy public folder if it exists
 COPY --from=builder /app/public ./public
 
-# Set ownership
-RUN chown nextjs:nodejs /app
+# Set the correct permission for prerender cache
+RUN mkdir .next
+RUN chown nextjs:nodejs .next
+
+# Copy standalone server from builder
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+
+# Copy static files - CRITICAL for fixing 404 errors
+# Next.js standalone mode does NOT serve static files automatically
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 # Switch to non-root user
 USER nextjs

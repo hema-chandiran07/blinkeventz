@@ -108,16 +108,16 @@ export function AIPlannerForm({ className, onComplete, initialData }: AIPlannerF
       {/* Progress indicator */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-medium text-gray-600">
+          <span className="text-sm font-medium text-zinc-400">
             Step {step} of {totalSteps}
           </span>
-          <span className="text-sm text-gray-500">
+          <span className="text-sm text-zinc-500">
             {Math.round((step / totalSteps) * 100)}% complete
           </span>
         </div>
-        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+        <div className="h-2 bg-zinc-800 rounded-full overflow-hidden shadow-inner">
           <motion.div
-            className="h-full bg-gradient-to-r from-violet-500 to-purple-600"
+            className="h-full bg-gradient-to-r from-zinc-400 via-zinc-300 to-zinc-500 shadow-[0_0_10px_rgba(255,255,255,0.3)]"
             initial={{ width: 0 }}
             animate={{ width: `${(step / totalSteps) * 100}%` }}
             transition={{ duration: 0.3 }}
@@ -137,13 +137,13 @@ export function AIPlannerForm({ className, onComplete, initialData }: AIPlannerF
               className="space-y-6"
             >
               <div className="text-center mb-8">
-                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-violet-100 mb-4">
-                  <Sparkles className="w-6 h-6 text-violet-600" />
+                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-zinc-900 border border-zinc-800 shadow-inner mb-4">
+                  <Sparkles className="w-6 h-6 text-zinc-300" />
                 </div>
-                <h2 className="text-xl font-semibold text-gray-900">
+                <h2 className="text-xl font-semibold text-zinc-100">
                   What type of event are you planning?
                 </h2>
-                <p className="text-gray-500 mt-1">
+                <p className="text-zinc-400 mt-1">
                   Select your event type to get personalized recommendations
                 </p>
               </div>
@@ -154,13 +154,13 @@ export function AIPlannerForm({ className, onComplete, initialData }: AIPlannerF
                     key={type}
                     onClick={() => setFormData({ eventType: type })}
                     className={cn(
-                      "p-4 rounded-xl border-2 text-left transition-all",
+                      "p-4 rounded-xl border-2 text-left transition-all shadow-sm",
                       formData.eventType === type
-                        ? "border-violet-500 bg-violet-50"
-                        : "border-gray-200 hover:border-violet-200 hover:bg-gray-50"
+                        ? "border-zinc-400 bg-zinc-900/80 text-zinc-100 shadow-[0_0_15px_rgba(255,255,255,0.05)]"
+                        : "border-zinc-800 bg-zinc-950/50 hover:border-zinc-600 hover:bg-zinc-900 text-zinc-400 hover:text-zinc-200"
                     )}
                   >
-                    <span className="font-medium text-gray-900">{type}</span>
+                    <span className="font-medium">{type}</span>
                   </button>
                 ))}
               </div>
@@ -176,36 +176,36 @@ export function AIPlannerForm({ className, onComplete, initialData }: AIPlannerF
               className="space-y-6"
             >
               <div className="text-center mb-8">
-                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 mb-4">
-                  <MapPin className="w-6 h-6 text-blue-600" />
+                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-zinc-900 border border-zinc-800 shadow-inner mb-4">
+                  <MapPin className="w-6 h-6 text-zinc-300" />
                 </div>
-                <h2 className="text-xl font-semibold text-gray-900">
+                <h2 className="text-xl font-semibold text-zinc-100">
                   Where and how many guests?
                 </h2>
-                <p className="text-gray-500 mt-1">
+                <p className="text-zinc-400 mt-1">
                   Tell us your location and guest count
                 </p>
               </div>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-zinc-300 mb-2">
                     City
                   </label>
                   <select
                     value={formData.city}
                     onChange={(e) => setFormData({ city: e.target.value })}
-                    className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full p-3 bg-zinc-900/80 border border-zinc-800 rounded-xl focus:ring-1 focus:ring-zinc-400 focus:border-zinc-500 text-zinc-100 transition-all shadow-sm"
                   >
-                    <option value="">Select your city</option>
+                    <option value="" className="bg-zinc-900 text-zinc-500">Select your city</option>
                     {INDIAN_CITIES.map((city) => (
-                      <option key={city} value={city}>{city}</option>
+                      <option key={city} value={city} className="bg-zinc-900">{city}</option>
                     ))}
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-zinc-300 mb-2">
                     Area (Optional)
                   </label>
                   <input
@@ -213,13 +213,13 @@ export function AIPlannerForm({ className, onComplete, initialData }: AIPlannerF
                     value={formData.area}
                     onChange={(e) => setFormData({ area: e.target.value })}
                     placeholder="e.g., Whitefield, Andheri"
-                    className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full p-3 bg-zinc-900/80 border border-zinc-800 rounded-xl focus:ring-1 focus:ring-zinc-400 focus:border-zinc-500 text-zinc-100 transition-all shadow-sm placeholder:text-zinc-600"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    <Users className="w-4 h-4 inline mr-1" />
+                  <label className="block text-sm font-medium text-zinc-300 mb-2">
+                    <Users className="w-4 h-4 inline mr-1 text-zinc-400" />
                     Number of Guests
                   </label>
                   <input
@@ -229,7 +229,7 @@ export function AIPlannerForm({ className, onComplete, initialData }: AIPlannerF
                     placeholder="Enter guest count"
                     min={1}
                     max={10000}
-                    className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full p-3 bg-zinc-900/80 border border-zinc-800 rounded-xl focus:ring-1 focus:ring-zinc-400 focus:border-zinc-500 text-zinc-100 transition-all shadow-sm placeholder:text-zinc-600"
                   />
                 </div>
               </div>
@@ -245,20 +245,20 @@ export function AIPlannerForm({ className, onComplete, initialData }: AIPlannerF
               className="space-y-6"
             >
               <div className="text-center mb-8">
-                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-green-100 mb-4">
-                  <Wallet className="w-6 h-6 text-green-600" />
+                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-zinc-900 border border-zinc-800 shadow-inner mb-4">
+                  <Wallet className="w-6 h-6 text-zinc-300" />
                 </div>
-                <h2 className="text-xl font-semibold text-gray-900">
+                <h2 className="text-xl font-semibold text-zinc-100">
                   What's your budget?
                 </h2>
-                <p className="text-gray-500 mt-1">
+                <p className="text-zinc-400 mt-1">
                   Set your total budget for the event
                 </p>
               </div>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-zinc-300 mb-2">
                     Total Budget (₹)
                   </label>
                   <input
@@ -267,7 +267,7 @@ export function AIPlannerForm({ className, onComplete, initialData }: AIPlannerF
                     onChange={(e) => setFormData({ budget: parseInt(e.target.value) || 0 })}
                     placeholder="Enter your budget"
                     min={1000}
-                    className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-lg"
+                    className="w-full p-3 bg-zinc-900/80 border border-zinc-800 rounded-xl focus:ring-1 focus:ring-zinc-400 focus:border-zinc-500 text-zinc-100 text-lg font-medium transition-all shadow-sm placeholder:text-zinc-600"
                   />
                 </div>
 
@@ -283,10 +283,10 @@ export function AIPlannerForm({ className, onComplete, initialData }: AIPlannerF
                       key={preset.value}
                       onClick={() => setFormData({ budget: preset.value })}
                       className={cn(
-                        "p-2 rounded-lg border text-sm font-medium transition-all",
+                        "p-2 rounded-lg border text-sm font-medium transition-all shadow-sm",
                         formData.budget === preset.value
-                          ? "border-green-500 bg-green-50 text-green-700"
-                          : "border-gray-200 hover:border-green-200"
+                          ? "border-zinc-400 bg-zinc-800 text-zinc-100 shadow-[0_0_10px_rgba(255,255,255,0.05)]"
+                          : "border-zinc-800 bg-zinc-950/50 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
                       )}
                     >
                       {preset.label}
@@ -298,10 +298,10 @@ export function AIPlannerForm({ className, onComplete, initialData }: AIPlannerF
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="p-4 bg-green-50 rounded-xl"
+                    className="p-4 bg-zinc-900/80 border border-zinc-800 rounded-xl"
                   >
-                    <p className="text-sm text-green-800">
-                      <strong>₹{formData.budget.toLocaleString()}</strong> budget set
+                    <p className="text-sm text-zinc-300">
+                      <strong className="text-zinc-100">₹{formData.budget.toLocaleString()}</strong> budget set
                     </p>
                   </motion.div>
                 )}
@@ -312,15 +312,15 @@ export function AIPlannerForm({ className, onComplete, initialData }: AIPlannerF
       </div>
 
       {/* Navigation buttons */}
-      <div className="flex justify-between mt-8 pt-6 border-t border-gray-100">
+      <div className="flex justify-between mt-8 pt-6 border-t border-zinc-800/80">
         <button
           onClick={handleBack}
           disabled={step === 1 || isSubmitting}
           className={cn(
-            "px-6 py-2.5 rounded-lg font-medium transition-all",
+            "px-6 py-2.5 rounded-lg font-medium transition-all border",
             step === 1
-              ? "text-gray-300 cursor-not-allowed"
-              : "text-gray-600 hover:bg-gray-100"
+              ? "text-zinc-700 border-transparent cursor-not-allowed"
+              : "text-zinc-300 border-zinc-800 hover:bg-zinc-800 hover:text-zinc-100 bg-zinc-900/50"
           )}
         >
           Back
@@ -331,10 +331,10 @@ export function AIPlannerForm({ className, onComplete, initialData }: AIPlannerF
             onClick={handleNext}
             disabled={!canProceed()}
             className={cn(
-              "flex items-center gap-2 px-6 py-2.5 rounded-lg font-medium transition-all",
+              "flex items-center gap-2 px-6 py-2.5 rounded-lg font-medium transition-all border shadow-sm",
               canProceed()
-                ? "bg-gray-900 text-white hover:bg-gray-800"
-                : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                ? "bg-zinc-100 text-zinc-900 border-zinc-200 hover:bg-white hover:scale-[1.02]"
+                : "bg-zinc-900 text-zinc-600 border-zinc-800 cursor-not-allowed"
             )}
           >
             Continue
@@ -345,10 +345,10 @@ export function AIPlannerForm({ className, onComplete, initialData }: AIPlannerF
             onClick={handleSubmit}
             disabled={!canProceed() || isSubmitting}
             className={cn(
-              "flex items-center gap-2 px-6 py-2.5 rounded-lg font-medium transition-all",
+              "flex items-center gap-2 px-6 py-2.5 rounded-lg font-medium transition-all border shadow-sm",
               canProceed() && !isSubmitting
-                ? "bg-gradient-to-r from-violet-600 to-purple-600 text-white hover:from-violet-700 hover:to-purple-700"
-                : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                ? "bg-gradient-to-r from-zinc-200 via-zinc-300 to-zinc-400 text-zinc-950 border-zinc-300 hover:scale-[1.02] shadow-[0_0_15px_rgba(255,255,255,0.1)]"
+                : "bg-zinc-900 text-zinc-600 border-zinc-800 cursor-not-allowed"
             )}
           >
             {isSubmitting ? (

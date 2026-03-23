@@ -46,21 +46,21 @@ import { ReportsModule } from './reports/reports.module';
       validationSchema: Joi.object({
         // Database - Required
         DATABASE_URL: Joi.string().required(),
-        
+
         // Redis - Required
         REDIS_HOST: Joi.string().default('redis'),
         REDIS_PORT: Joi.number().default(6379),
-        
+
         // OpenAI - Optional (will disable AI features if missing)
         OPENAI_API_KEY: Joi.string().optional(),
         OPENAI_MODEL: Joi.string().default('gpt-4o-mini'),
-        
+
         // JWT - Required
         JWT_SECRET: Joi.string().required(),
-        
+
         // App Settings
         APP_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
-        
+
         // Feature Flags
         USE_REDIS: Joi.boolean().default(true),
 
@@ -100,7 +100,7 @@ import { ReportsModule } from './reports/reports.module';
       useFactory: () => {
         // Use memory cache if Redis is unavailable
         const useRedis = process.env.USE_REDIS !== 'false';
-        
+
         if (useRedis) {
           const redis = new Redis({
             host: process.env.REDIS_HOST || '127.0.0.1',
@@ -108,7 +108,7 @@ import { ReportsModule } from './reports/reports.module';
             lazyConnect: true,
             retryStrategy: (times) => Math.min(times * 50, 2000),
           });
-          
+
           redis.on('error', (err) => {
             console.log('⚠️  Redis connection error - falling back to memory cache');
           });
@@ -128,7 +128,7 @@ import { ReportsModule } from './reports/reports.module';
             },
           };
         }
-        
+
         // Fallback to memory-only cache
         const memoryStore = new Map<string, { value: any; expiry: number }>();
         return {
@@ -151,7 +151,7 @@ import { ReportsModule } from './reports/reports.module';
         };
       },
     }),
-      // 🐂 BULLMQ (GLOBAL REDIS CONNECTION)
+    // 🐂 BULLMQ (GLOBAL REDIS CONNECTION)
     BullModule.forRoot({
       redis: {
         host: process.env.REDIS_HOST || '127.0.0.1',
@@ -159,7 +159,7 @@ import { ReportsModule } from './reports/reports.module';
       },
       // Queue-level config controls retries - not global
     }),
-    
+
 
     // =====================================================
     // 4️⃣ SCHEDULER
@@ -195,7 +195,7 @@ import { ReportsModule } from './reports/reports.module';
     SettingsModule,
     ReportsModule
   ],
-   // 🔐 GLOBAL SECURITY LAYER
+  // 🔐 GLOBAL SECURITY LAYER
   providers: [
     {
       provide: APP_GUARD,
@@ -207,4 +207,4 @@ import { ReportsModule } from './reports/reports.module';
     },
   ],
 })
-export class AppModule {}
+export class AppModule { }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { AIPlannerProvider, useAIPlannerContext } from "@/context/ai-planner-context";
 import { useAIPlanner, usePublicPlan } from "@/hooks/useAIPlanner";
 import { AIPlannerForm } from "./ai-planner-form";
@@ -54,7 +54,7 @@ function AIPlannerWrapperContent({
     isChatLoading,
     progress,
     activePlan,
-    formatCurrency,
+    formatINR,
   } = useAIPlanner({
     onSuccess: (plan) => {
       onAccept?.(plan);
@@ -136,40 +136,42 @@ function AIPlannerWrapperContent({
             {/* Chatbot Panel */}
             <div className="order-2 lg:order-1">
               <AIChatbot
-                initialMessages={messages}
+                messages={messages}
                 onSendMessage={handleSendChatMessage}
                 isLoading={isChatLoading}
+                conversationStatus="COLLECTING"
                 className="h-[500px]"
               />
             </div>
             
             {/* Summary Panel - Shows form data as it's collected */}
             <div className="order-1 lg:order-2 space-y-4">
-              <div className="bg-white rounded-2xl border border-gray-100 p-6">
-                <h3 className="font-semibold text-gray-900 mb-4">Your Event Details</h3>
-                <div className="space-y-3">
+              <div className="bg-zinc-950/80 backdrop-blur-xl rounded-2xl border border-zinc-800 shadow-2xl p-6 relative overflow-hidden">
+                <div className="absolute -top-10 -right-10 w-32 h-32 bg-zinc-500/10 rounded-full blur-2xl pointer-events-none" />
+                <h3 className="font-semibold text-zinc-100 mb-4 tracking-wide">Your Event Details</h3>
+                <div className="space-y-3 relative z-10">
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Event Type</span>
-                    <span className="font-medium text-gray-900">
+                    <span className="text-zinc-500 tracking-wide text-sm font-medium">Event Type</span>
+                    <span className="font-medium text-zinc-200">
                       {state.formData.eventType || "—"}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">City</span>
-                    <span className="font-medium text-gray-900">
+                    <span className="text-zinc-500 tracking-wide text-sm font-medium">City</span>
+                    <span className="font-medium text-zinc-200">
                       {state.formData.city || "—"}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Guests</span>
-                    <span className="font-medium text-gray-900">
+                    <span className="text-zinc-500 tracking-wide text-sm font-medium">Guests</span>
+                    <span className="font-medium text-zinc-200">
                       {state.formData.guestCount || "—"}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Budget</span>
-                    <span className="font-medium text-gray-900">
-                      {state.formData.budget ? formatCurrency(state.formData.budget) : "—"}
+                    <span className="text-zinc-500 tracking-wide text-sm font-medium">Budget</span>
+                    <span className="font-medium text-transparent bg-clip-text bg-gradient-to-br from-zinc-100 to-zinc-400">
+                      {state.formData.budget ? formatINR(state.formData.budget) : "—"}
                     </span>
                   </div>
                 </div>
@@ -180,7 +182,7 @@ function AIPlannerWrapperContent({
                       await submitPlan();
                     }}
                     disabled={state.isSubmitting}
-                    className="w-full mt-6 py-3 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl font-medium hover:from-violet-700 hover:to-purple-700 transition-all disabled:opacity-50"
+                    className="w-full mt-8 py-3.5 bg-zinc-100 text-zinc-950 border border-zinc-200 rounded-xl font-bold hover:bg-white hover:scale-[1.02] transition-all disabled:opacity-50 shadow-[0_0_20px_rgba(255,255,255,0.1)] relative z-10 tracking-wide"
                   >
                     {state.isSubmitting ? "Generating..." : "Generate Plan"}
                   </button>
@@ -192,83 +194,103 @@ function AIPlannerWrapperContent({
 
       case "GENERATING":
         return (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Chatbot Panel - shows the generating state */}
-            <div className="order-2 lg:order-1">
-              <AIChatbot
-                initialMessages={messages}
-                onSendMessage={handleSendChatMessage}
-                isLoading={true}
-                className="h-[500px]"
-              />
-            </div>
-            
-            {/* Loading Panel */}
-            <div className="order-1 lg:order-2">
-              <AIPlannerLoading
-                progress={progress}
-                message="Generating your personalized event plan..."
-              />
+          <div className="max-w-4xl mx-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Chatbot Panel - shows the generating state */}
+              <div className="order-2 lg:order-1">
+                <AIChatbot
+                  messages={messages}
+                  onSendMessage={handleSendChatMessage}
+                  isLoading={true}
+                  conversationStatus="GENERATING"
+                  className="h-[600px] border-zinc-700/50"
+                />
+              </div>
+              
+              {/* Loading Panel */}
+              <div className="order-1 lg:order-2">
+                <AIPlannerLoading
+                  progress={progress}
+                  message="Generating your personalized event plan..."
+                  className="mt-12"
+                />
+              </div>
             </div>
           </div>
         );
 
       case "SUCCESS":
         return (
-          <div className="space-y-6">
-            {/* Plan Display */}
-            <AIPlannerDisplay
-              onAccept={handleAccept}
-              onRegenerate={handleRegenerate}
-              onShare={handleShare}
-            />
-            
-            {/* Chatbot for modifications - collapsible */}
-            <div className="mt-8">
-              <button
-                onClick={() => setShowChatbot(!showChatbot)}
-                className="w-full py-3 px-4 bg-gray-50 rounded-xl text-gray-700 font-medium hover:bg-gray-100 transition-colors flex items-center justify-center gap-2"
-              >
-                {showChatbot ? "Hide Chat Assistant" : "Chat with Event Brain"}
-              </button>
-              
-              <AnimatePresence>
-                {showChatbot && (
-                  <div className="mt-4">
-                    <AIChatbot
-                      initialMessages={messages}
-                      onSendMessage={handleSendChatMessage}
-                      onError={(err) => console.error("Chat error:", err)}
-                      isLoading={isChatLoading}
-                      className="h-[400px]"
-                    />
+          <div className="max-w-5xl mx-auto space-y-6">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6"
+            >
+              <AIChatbot
+                messages={messages}
+                onSendMessage={handleSendChatMessage}
+                onAcceptPlan={handleAccept}
+                onError={(err) => console.error("Chat error:", err)}
+                isLoading={isChatLoading}
+                conversationStatus="GENERATED"
+                className="h-[700px] shadow-[0_0_50px_rgba(255,255,255,0.05)] border-zinc-700/50"
+              />
+
+              {/* In-flow sidebar */}
+              <div className="hidden lg:flex flex-col gap-4">
+                <div className="bg-zinc-950/80 backdrop-blur-xl border border-zinc-800 rounded-2xl p-5 shadow-2xl">
+                  <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-4">Event Summary</h4>
+                  <div className="space-y-3">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-zinc-500">Total Budget</span>
+                      <span className="text-zinc-200 font-bold">{formatINR(state.activePlan?.budget || 0)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-zinc-500">Location</span>
+                      <span className="text-zinc-200">{state.activePlan?.city}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-zinc-500">Guests</span>
+                      <span className="text-zinc-200">{state.activePlan?.guestCount}</span>
+                    </div>
                   </div>
-                )}
-              </AnimatePresence>
-            </div>
+                  <button
+                    onClick={handleShare}
+                    className="w-full mt-5 py-2.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-xs font-semibold rounded-xl border border-zinc-800 transition-all"
+                  >
+                    Share Plan
+                  </button>
+                </div>
+              </div>
+            </motion.div>
           </div>
         );
 
       case "FAILED":
         return (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Error Panel */}
-            <div>
-              <AIPlannerError
-                error={state.error!}
-                onRetry={retryPlan}
-                onReset={resetPlanner}
-              />
-            </div>
-            
-            {/* Chatbot still available for retry */}
-            <div>
-              <AIChatbot
-                initialMessages={messages}
-                onSendMessage={handleSendChatMessage}
-                isLoading={isChatLoading}
-                className="h-[400px]"
-              />
+          <div className="max-w-4xl mx-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Error Panel */}
+              <div className="order-1 lg:order-2">
+                <AIPlannerError
+                  error={state.error!}
+                  onRetry={retryPlan}
+                  onReset={resetPlanner}
+                  className="mt-12"
+                />
+              </div>
+              
+              {/* Chatbot still available for retry */}
+              <div className="order-2 lg:order-1">
+                <AIChatbot
+                  messages={messages}
+                  onSendMessage={handleSendChatMessage}
+                  isLoading={isChatLoading}
+                  conversationStatus="FAILED"
+                  className="h-[600px] border-zinc-700/50"
+                />
+              </div>
             </div>
           </div>
         );
@@ -440,26 +462,27 @@ export function AIPublicPlanView({ shareId, className }: AIPublicPlanViewProps) 
   return (
     <div className={cn("w-full max-w-2xl mx-auto", className)}>
       {/* Simplified display for public view */}
-      <div className="bg-gradient-to-r from-violet-600 to-purple-600 rounded-2xl p-6 text-white mb-6">
-        <h2 className="text-2xl font-bold mb-1">{plan.planJson?.summary?.eventType}</h2>
-        <p className="text-violet-100">
+      <div className="bg-gradient-to-br from-zinc-800 to-zinc-950 border border-zinc-700/50 shadow-2xl relative overflow-hidden rounded-2xl p-6 text-zinc-100 mb-6">
+        <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-zinc-400 to-transparent opacity-50" />
+        <h2 className="text-2xl font-bold mb-1 tracking-tight">{plan.planJson?.summary?.eventType}</h2>
+        <p className="text-zinc-400 font-medium tracking-wide text-sm">
           {plan.planJson?.summary?.city} • {plan.planJson?.summary?.guestCount} guests
         </p>
-        <p className="text-3xl font-bold mt-4">
+        <p className="text-3xl font-bold mt-4 text-transparent bg-clip-text bg-gradient-to-br from-zinc-100 to-zinc-400">
           {formatCurrency(plan.planJson?.summary?.totalBudget || 0)}
         </p>
       </div>
 
       {/* Budget breakdown */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-4 border-b border-gray-100">
-          <h3 className="font-semibold text-gray-900">Budget Allocation</h3>
+      <div className="bg-zinc-950/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-zinc-800 overflow-hidden">
+        <div className="p-5 border-b border-zinc-800/80 bg-zinc-900/40">
+          <h3 className="font-semibold text-zinc-100 tracking-wide text-lg">Budget Allocation</h3>
         </div>
-        <div className="divide-y divide-gray-100">
+        <div className="divide-y divide-zinc-800/60">
           {plan.planJson?.allocations?.map((item: any, index: number) => (
-            <div key={index} className="p-4 flex justify-between items-center">
-              <span className="font-medium text-gray-900">{item.category}</span>
-              <span className="text-gray-700">{formatCurrency(item.amount)}</span>
+            <div key={index} className="p-5 flex justify-between items-center hover:bg-zinc-900/50 transition-colors">
+              <span className="font-medium text-zinc-200 tracking-wide">{item.category}</span>
+              <span className="text-zinc-400 font-semibold">{formatCurrency(item.amount)}</span>
             </div>
           ))}
         </div>

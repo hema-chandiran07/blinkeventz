@@ -12,7 +12,7 @@ export { useAIPlanner, useAIPlanById, usePublicPlan, formatINR, parseIndianNumbe
 export { AIPlannerWrapper, AIPlannerView, AIPublicPlanView, AIChatPlanner } from "./ai-planner-wrapper";
 export { AIPlannerForm } from "./ai-planner-form";
 export { AIPlannerDisplay } from "./ai-planner-display";
-export { AIPlannerLoading, AIPlannerCardSkeleton, AIPlannerFullSkeleton } from "./ai-planner-loading";
+export { AIPlannerLoading, AIPlannerFullSkeleton } from "./ai-planner-loading";
 export { AIPlannerError } from "./ai-planner-error";
 
 // Chatbot

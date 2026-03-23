@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { OpenAIProvider } from '../providers/openai.provider';
+import type { AIProvider } from '../ai-providers/ai-provider.interface';
+import { AI_PROVIDER_TOKEN } from '../openai.module';
 import { CreateAIPlanDto } from '../dto/create-ai-plan.dto';
 import { budgetSplitPrompt } from '../prompts/budget-split.prompt';
 import { cleanAndParseJSON } from '../utils/json-cleaner';
@@ -28,7 +29,7 @@ export class PlanGenerationService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly aiProvider: OpenAIProvider,
+    @Inject(AI_PROVIDER_TOKEN) private readonly aiProvider: AIProvider,
   ) {}
 
   /**

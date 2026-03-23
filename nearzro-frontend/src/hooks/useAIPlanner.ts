@@ -2,7 +2,8 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { aiPlannerApi, aiChatbotApi } from "@/lib/ai-planner";
+import { useAuth } from "@/context/auth-context";
+import { aiPlannerApi, aiChatbotApi, publicChatApi } from "@/lib/ai-planner";
 import { useAIPlannerContext } from "@/context/ai-planner-context";
 import type {
   CreateAIPlanRequest,
@@ -21,6 +22,9 @@ import type {
 const POLLING_INTERVAL_MS = 2000; // 2 seconds
 const MAX_POLLING_ATTEMPTS = 60; // 2 minutes max wait
 const TERMINAL_JOB_STATUSES = ["completed", "failed"];
+
+// Guest intent storage key
+const GUEST_INTENT_KEY = "NearZro_guestIntent";
 
 // INR Currency formatter
 const INR_FORMATTER = new Intl.NumberFormat("en-IN", {
@@ -68,7 +72,7 @@ interface UseAIPlannerReturn {
   pollJobStatus: (jobId: string) => Promise<void>;
   
   // Utilities
-  formatCurrency: (amount: number) => string;
+  formatINR: (amount: number) => string;
 }
 
 // Map backend conversation status to frontend UI state
@@ -102,6 +106,7 @@ function mapConversationStatusToUI(status: AIConversationStatus): PlannerUIState
  */
 export function useAIPlanner(options?: UseAIPlannerOptions): UseAIPlannerReturn {
   const router = useRouter();
+  const { isAuthenticated } = useAuth();
   const {
     state,
     setFormData,
@@ -133,12 +138,7 @@ export function useAIPlanner(options?: UseAIPlannerOptions): UseAIPlannerReturn 
     };
   }, []);
 
-  /**
-   * Format amount as Indian Rupees
-   */
-  const formatCurrency = useCallback((amount: number): string => {
-    return INR_FORMATTER.format(amount);
-  }, []);
+  // formatINR is imported from this file's export now
 
   /**
    * Start polling job status
@@ -175,12 +175,13 @@ export function useAIPlanner(options?: UseAIPlannerOptions): UseAIPlannerReturn 
             setUIState("SUCCESS");
             setProgress(100);
             
-            // Add system message about plan generation
+            // Add system message about plan generation with rich data
             addMessage({
-              id: `system-${Date.now()}`,
+              id: `system-plan-${Date.now()}`,
               role: "assistant",
-              content: `Your event plan for ${plan.planJson.summary.eventType} in ${plan.planJson.summary.city} has been generated! Total budget: ${formatCurrency(plan.planJson.summary.totalBudget)}`,
+              content: `Your event plan for ${plan.planJson.summary.eventType} in ${plan.planJson.summary.city} has been generated!`,
               timestamp: new Date(),
+              planData: plan.planJson,
             });
             
             options?.onSuccess?.(plan);
@@ -266,7 +267,7 @@ export function useAIPlanner(options?: UseAIPlannerOptions): UseAIPlannerReturn 
     
     // Immediate first check
     checkJobStatus();
-  }, [setPolling, setActivePlan, setUIState, setError, setProgress, options, addMessage, formatCurrency]);
+  }, [setPolling, setActivePlan, setUIState, setError, setProgress, options, addMessage]);
 
   /**
    * Submit plan generation request
@@ -331,9 +332,62 @@ export function useAIPlanner(options?: UseAIPlannerOptions): UseAIPlannerReturn 
    * Start a new conversation
    */
   const startConversation = useCallback(async () => {
+    // If not authenticated, load demo message for guests
+    if (!isAuthenticated) {
+      try {
+        const demo = await publicChatApi.getDemo();
+
+        // Set a local demo conversation
+        const demoConversationId = `demo-${Date.now()}`;
+        setConversation({
+          id: demoConversationId,
+          userId: 0,
+          state: { collectedFields: [] },
+          status: "COLLECTING",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+
+        setMessages([
+          {
+            id: `system-${Date.now()}`,
+            role: "assistant",
+            content: demo.message || "Hi! I'm your Event Brain assistant. I can help you plan your perfect event. What type of event are you planning?",
+            timestamp: new Date(),
+          },
+        ]);
+
+        return demoConversationId;
+      } catch (demoErr) {
+        console.error("Failed to load demo:", demoErr);
+        // Fallback to local demo message
+        const demoConversationId = `demo-${Date.now()}`;
+        setConversation({
+          id: demoConversationId,
+          userId: 0,
+          state: { collectedFields: [] },
+          status: "COLLECTING",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+
+        setMessages([
+          {
+            id: `system-${Date.now()}`,
+            role: "assistant",
+            content: "Hi! I'm your Event Brain assistant. I can help you plan your perfect event. What type of event are you planning?",
+            timestamp: new Date(),
+          },
+        ]);
+
+        return demoConversationId;
+      }
+    }
+
+    // Authenticated user: create real conversation
     try {
       const response = await aiChatbotApi.startConversation();
-      
+
       // Update conversation in context
       const conversation: AIConversation = {
         id: response.conversationId,
@@ -343,9 +397,9 @@ export function useAIPlanner(options?: UseAIPlannerOptions): UseAIPlannerReturn 
         createdAt: new Date(),
         updatedAt: new Date(),
       };
-      
+
       setConversation(conversation);
-      
+
       // Set initial message
       setMessages([
         {
@@ -355,7 +409,7 @@ export function useAIPlanner(options?: UseAIPlannerOptions): UseAIPlannerReturn 
           timestamp: new Date(),
         },
       ]);
-      
+
       return response.conversationId;
     } catch (err) {
       console.error("Failed to start conversation:", err);
@@ -381,7 +435,7 @@ export function useAIPlanner(options?: UseAIPlannerOptions): UseAIPlannerReturn 
       
       return demoConversationId;
     }
-  }, [setConversation, setMessages]);
+  }, [isAuthenticated, publicChatApi, setConversation, setMessages]);
 
   /**
    * Send a message in the chat
@@ -389,7 +443,54 @@ export function useAIPlanner(options?: UseAIPlannerOptions): UseAIPlannerReturn 
    */
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim()) return;
-    
+
+    // ============================================================
+    // GUEST INTERCEPT: Handle unauthenticated users gracefully
+    // ============================================================
+    if (!isAuthenticated) {
+      // Store guest's input for post-login hydration
+      try {
+        const guestState = {
+          eventType: state.formData?.eventType,
+          city: state.formData?.city,
+          guestCount: state.formData?.guestCount,
+          budget: state.formData?.budget,
+        };
+        localStorage.setItem(GUEST_INTENT_KEY, JSON.stringify({ message: text, ...guestState }));
+      } catch (e) {
+        console.error("Failed to save guest intent:", e);
+      }
+
+      // Add user message first
+      const userMessage: ChatMessage = {
+        id: `user-${Date.now()}`,
+        role: "user",
+        content: text.trim(),
+        timestamp: new Date(),
+      };
+      addMessage(userMessage);
+
+      // Add friendly redirect message
+      const aiMessage: ChatMessage = {
+        id: `ai-${Date.now()}`,
+        role: "assistant",
+        content: "To continue planning your perfect event and save your progress, please log in. Redirecting you now... 🚀",
+        timestamp: new Date(),
+      };
+      addMessage(aiMessage);
+
+      // Redirect to login after brief delay
+      setTimeout(() => {
+        router.push("/login");
+      }, 2500);
+
+      return;
+    }
+
+    // ============================================================
+    // AUTHENTICATED USER: Proceed with normal flow
+    // ============================================================
+
     const conversationId = state.conversation?.id;
     if (!conversationId) {
       console.error("No conversation ID available");
@@ -433,7 +534,7 @@ export function useAIPlanner(options?: UseAIPlannerOptions): UseAIPlannerReturn 
       const response = await aiChatbotApi.sendMessage(request);
       
       // Update AI message with response
-      updateMessage(aiMessageId, response.message);
+      updateMessage(aiMessageId, response.reply);
 
       // Handle plan ID if returned
       if (response.planId) {
@@ -441,47 +542,50 @@ export function useAIPlanner(options?: UseAIPlannerOptions): UseAIPlannerReturn 
           const plan = await aiPlannerApi.getPlan(response.planId);
           setActivePlan(plan);
           
-          // Add system message about plan
+          // Add system message about plan with rich data
           addMessage({
             id: `system-plan-${Date.now()}`,
             role: "assistant",
-            content: `Your plan is ready! Total budget: ${formatCurrency(plan.planJson.summary.totalBudget)}`,
+            content: `I've updated your plan! Here's the new budget breakdown:`,
             timestamp: new Date(),
+            planData: plan.planJson,
           });
           
-          setUIState(mapConversationStatusToUI(response.updatedState as unknown as AIConversationStatus));
+          if (response.status) {
+            setUIState(mapConversationStatusToUI(response.status));
+          }
         } catch (planErr) {
           console.error("Failed to fetch plan:", planErr);
         }
       }
 
       // Update conversation status
-      // Use response.status for the conversation status, and updatedState for form data
+      // Use response.status for the conversation status, and state for form data
       if (response.status) {
         // Update the conversation in context with new state
         const updatedConversation: AIConversation = {
           ...state.conversation!,
-          state: response.updatedState,
+          state: response.state || state.conversation?.state || { collectedFields: [] },
           status: response.status,
           planId: response.planId,
         };
         setConversation(updatedConversation);
         
         // Update form data from conversation state
-        if (response.updatedState.budget) {
-          setFormData({ budget: response.updatedState.budget });
+        if (response.state?.budget) {
+          setFormData({ budget: response.state.budget });
         }
-        if (response.updatedState.city) {
-          setFormData({ city: response.updatedState.city });
+        if (response.state?.city) {
+          setFormData({ city: response.state.city });
         }
-        if (response.updatedState.guestCount) {
-          setFormData({ guestCount: response.updatedState.guestCount });
+        if (response.state?.guestCount) {
+          setFormData({ guestCount: response.state.guestCount });
         }
-        if (response.updatedState.eventType) {
-          setFormData({ eventType: response.updatedState.eventType });
+        if (response.state?.eventType) {
+          setFormData({ eventType: response.state.eventType });
         }
-        if (response.updatedState.area) {
-          setFormData({ area: response.updatedState.area });
+        if (response.state?.area) {
+          setFormData({ area: response.state.area });
         }
         
         // Transition UI state based on conversation status
@@ -514,7 +618,7 @@ export function useAIPlanner(options?: UseAIPlannerOptions): UseAIPlannerReturn 
     } finally {
       setIsChatLoading(false);
     }
-  }, [state.conversation, addMessage, updateMessage, setActivePlan, setConversation, setFormData, setUIState, setJobId, pollJobStatus, formatCurrency]);
+  }, [isAuthenticated, state.conversation, state.formData, addMessage, updateMessage, setActivePlan, setConversation, setFormData, setUIState, setJobId, pollJobStatus, router]);
 
   /**
    * Accept the current plan and create a cart
@@ -616,7 +720,7 @@ export function useAIPlanner(options?: UseAIPlannerOptions): UseAIPlannerReturn 
     pollJobStatus,
     
     // Utilities
-    formatCurrency,
+    formatINR,
   };
 }
 
