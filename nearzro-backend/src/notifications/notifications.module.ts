@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bull';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { PrismaModule } from '../prisma/prisma.module';
 
 import { NotificationsService } from './notifications.service';
@@ -19,6 +20,12 @@ import { NotificationGateway } from './websocket/notification.gateway';
 @Module({
   imports: [
     PrismaModule,
+
+    // ✅ Rate limiting
+    ThrottlerModule.forRoot([{
+      ttl: parseInt(process.env.RATE_LIMIT_TTL || '60000', 10),
+      limit: parseInt(process.env.RATE_LIMIT_MAX || '100', 10),
+    }]),
 
     // ✅ ONLY @nestjs/bull
     BullModule.forRoot({
@@ -52,6 +59,7 @@ import { NotificationGateway } from './websocket/notification.gateway';
   exports: [
     EmailProvider,
     SmsProvider,
+    WhatsappProvider,
     NotificationsService,
   ],
 })

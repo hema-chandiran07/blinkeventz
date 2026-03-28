@@ -4,6 +4,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { OpenAIProvider } from '../providers/openai.provider';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { ConfigService } from '@nestjs/config';
+import { AI_PROVIDER_TOKEN } from '../openai.module';
 
 // Mock data for AI plan generation
 const mockAIPlanResponse = {
@@ -57,7 +58,7 @@ describe('AIPlannerQueueService', () => {
           useValue: mockPrisma,
         },
         {
-          provide: OpenAIProvider,
+          provide: AI_PROVIDER_TOKEN,
           useValue: mockAIProvider,
         },
         {
@@ -75,7 +76,7 @@ describe('AIPlannerQueueService', () => {
 
     service = module.get<AIPlannerQueueService>(AIPlannerQueueService);
     prisma = module.get(PrismaService);
-    aiProvider = module.get(OpenAIProvider);
+    aiProvider = module.get(AI_PROVIDER_TOKEN);
     cache = module.get(CACHE_MANAGER);
 
     // Reset all mocks before each test

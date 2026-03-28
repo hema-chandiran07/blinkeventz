@@ -6,6 +6,7 @@ import { OpenAIProvider } from '../ai-planner/providers/openai.provider';
 import { AIPlannerQueue } from '../ai-planner/queue/ai-planner.queue';
 import { AIPlannerService } from '../ai-planner/ai-planner.service';
 import { ConversationIntent, ConversationState } from './types/conversation-state.type';
+import { AI_PROVIDER_TOKEN } from '../ai-planner/openai.module';
 
 /**
  * AIChatService Unit Tests
@@ -77,7 +78,7 @@ describe('AIChatService', () => {
       providers: [
         AIChatService,
         { provide: ConversationService, useValue: mockConversationService },
-        { provide: OpenAIProvider, useValue: mockOpenAIProvider },
+        { provide: AI_PROVIDER_TOKEN, useValue: mockOpenAIProvider },
         { provide: AIPlannerQueue, useValue: mockAIPlannerQueue },
         { provide: AIPlannerService, useValue: mockAIPlannerService },
       ],
@@ -85,7 +86,7 @@ describe('AIChatService', () => {
 
     service = module.get<AIChatService>(AIChatService);
     conversationService = module.get<ConversationService>(ConversationService);
-    openAIProvider = module.get<OpenAIProvider>(OpenAIProvider);
+    openAIProvider = module.get(AI_PROVIDER_TOKEN);
     aiPlannerQueue = module.get<AIPlannerQueue>(AIPlannerQueue);
     aiPlannerService = module.get<AIPlannerService>(AIPlannerService);
 

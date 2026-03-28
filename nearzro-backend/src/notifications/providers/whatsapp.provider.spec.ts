@@ -1,11 +1,11 @@
 /**
- * Unit Tests for SmsProvider
+ * Unit Tests for WhatsappProvider
  * NearZro Event Management Platform
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { SmsProvider } from './sms.provider';
+import { WhatsappProvider } from './whatsapp.provider';
 
 // Mock Twilio
 const mockMessagesCreate = jest.fn().mockResolvedValue({ sid: 'SM123456789' });
@@ -18,8 +18,8 @@ jest.mock('twilio', () => ({
   })),
 }));
 
-describe('SmsProvider', () => {
-  let provider: SmsProvider;
+describe('WhatsappProvider', () => {
+  let provider: WhatsappProvider;
   let configService: ConfigService;
 
   beforeEach(async () => {
@@ -31,7 +31,7 @@ describe('SmsProvider', () => {
         const config: Record<string, string> = {
           TWILIO_ACCOUNT_SID: 'test_sid',
           TWILIO_AUTH_TOKEN: 'test_token',
-          TWILIO_SMS_FROM: '+1234567890',
+          TWILIO_WHATSAPP_FROM: 'whatsapp:+1234567890',
           CIRCUIT_BREAKER_THRESHOLD: '5',
           CIRCUIT_BREAKER_TIMEOUT: '60000',
         };
@@ -41,12 +41,12 @@ describe('SmsProvider', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        SmsProvider,
+        WhatsappProvider,
         { provide: ConfigService, useValue: mockConfigService },
       ],
     }).compile();
 
-    provider = module.get<SmsProvider>(SmsProvider);
+    provider = module.get<WhatsappProvider>(WhatsappProvider);
     configService = module.get<ConfigService>(ConfigService);
   });
 
@@ -77,12 +77,12 @@ describe('SmsProvider', () => {
 
       const module: TestingModule = await Test.createTestingModule({
         providers: [
-          SmsProvider,
+          WhatsappProvider,
           { provide: ConfigService, useValue: mockConfigServiceNoCreds },
         ],
       }).compile();
 
-      const testProvider = module.get<SmsProvider>(SmsProvider);
+      const testProvider = module.get<WhatsappProvider>(WhatsappProvider);
       testProvider.onModuleInit();
       expect(testProvider.isConnected()).toBe(false);
     });
@@ -93,28 +93,28 @@ describe('SmsProvider', () => {
       provider.onModuleInit();
     });
 
-    it('should send SMS successfully', async () => {
+    it('should send WhatsApp message successfully', async () => {
       const result = await provider.send('+1234567890', 'Test message');
       expect(result).toBe(true);
       expect(mockMessagesCreate).toHaveBeenCalledWith({
-        from: '+1234567890',
-        to: '+1234567890',
+        from: 'whatsapp:+1234567890',
+        to: 'whatsapp:+1234567890',
         body: 'Test message',
       });
     });
 
-    it('should send SMS with long message', async () => {
-      const longMessage = 'A'.repeat(1600);
+    it('should send WhatsApp with long message', async () => {
+      const longMessage = 'A'.repeat(4096);
       const result = await provider.send('+1234567890', longMessage);
       expect(result).toBe(true);
     });
 
-    it('should send SMS to international numbers', async () => {
+    it('should send WhatsApp to international numbers', async () => {
       const result = await provider.send('+919876543210', 'Test message');
       expect(result).toBe(true);
       expect(mockMessagesCreate).toHaveBeenCalledWith({
-        from: '+1234567890',
-        to: '+919876543210',
+        from: 'whatsapp:+1234567890',
+        to: 'whatsapp:+919876543210',
         body: 'Test message',
       });
     });
@@ -136,15 +136,15 @@ describe('SmsProvider', () => {
 
       const module: TestingModule = await Test.createTestingModule({
         providers: [
-          SmsProvider,
+          WhatsappProvider,
           { provide: ConfigService, useValue: mockConfigServiceNoCreds },
         ],
       }).compile();
 
-      const testProvider = module.get<SmsProvider>(SmsProvider);
+      const testProvider = module.get<WhatsappProvider>(WhatsappProvider);
       testProvider.onModuleInit();
       
-      await expect(testProvider.send('+1234567890', 'Test')).rejects.toThrow('SMS provider not configured');
+      await expect(testProvider.send('+1234567890', 'Test')).rejects.toThrow('WhatsApp provider not configured');
     });
 
     it('should reject invalid phone number', async () => {
@@ -159,9 +159,9 @@ describe('SmsProvider', () => {
       await expect(provider.send('+1234567890', '')).rejects.toThrow('Message cannot be empty');
     });
 
-    it('should reject message over 1600 characters', async () => {
-      const longMessage = 'A'.repeat(1601);
-      await expect(provider.send('+1234567890', longMessage)).rejects.toThrow('Message must be 1600 characters or less');
+    it('should reject message over 4096 characters', async () => {
+      const longMessage = 'A'.repeat(4097);
+      await expect(provider.send('+1234567890', longMessage)).rejects.toThrow('Message must be 4096 characters or less');
     });
 
     it('should handle Twilio authentication error', async () => {
