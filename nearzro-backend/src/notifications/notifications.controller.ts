@@ -8,26 +8,188 @@ import {
   ParseIntPipe,
   UseGuards,
   Query,
+  HttpCode,
+  HttpStatus,
+  ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 import { SendNotificationDto } from './dto/send-notification.dto';
-import { ApiBearerAuth,ApiTags } from '@nestjs/swagger';
+import { DebugLiveDto } from './dto/debug-live.dto';
+import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Role } from '../common/enums/role.enum';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { NotificationActionDto } from './dto/notification-action.dto';
 import { Public } from '../common/decorators/public.decorator';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
+import { EmailProvider } from './providers/email.provider';
+import { SmsProvider } from './providers/sms.provider';
+import { WhatsappProvider } from './providers/whatsapp.provider';
+import { NotificationQueue } from './queue/notification.queue';
 
 @ApiTags('Notifications')
-@UseGuards(JwtAuthGuard,RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('notifications')
 export class NotificationsController {
-  constructor(private readonly service: NotificationsService) {}
+  private readonly logger = new Logger(NotificationsController.name);
+
+  constructor(
+    private readonly service: NotificationsService,
+    private readonly emailProvider: EmailProvider,
+    private readonly smsProvider: SmsProvider,
+    private readonly whatsappProvider: WhatsappProvider,
+    private readonly queue: NotificationQueue,
+  ) {}
+
+  // ✅ Health check endpoint (public, no auth required)
+  @Public()
+  @Get('health')
+  @ApiOperation({ summary: 'Check notification service health' })
+  @ApiResponse({ status: 200, description: 'Service is healthy' })
+  @ApiResponse({ status: 503, description: 'Service is degraded or down' })
+  async healthCheck() {
+    const checks = {
+      email: false,
+      sms: false,
+      whatsapp: false,
+      redis: false,
+    };
+
+    // Check email provider
+    try {
+      checks.email = this.emailProvider.isConnected();
+    } catch (e) {
+      checks.email = false;
+    }
+
+    // Check SMS provider
+    try {
+      checks.sms = this.smsProvider.isConnected();
+    } catch (e) {
+      checks.sms = false;
+    }
+
+    // Check WhatsApp provider
+    try {
+      checks.whatsapp = this.whatsappProvider.isConnected();
+    } catch (e) {
+      checks.whatsapp = false;
+    }
+
+    // Check Redis queue
+    try {
+      await this.queue.queue.client.ping();
+      checks.redis = true;
+    } catch (e) {
+      checks.redis = false;
+    }
+
+    const allHealthy = Object.values(checks).every(v => v);
+    const anyHealthy = Object.values(checks).some(v => v);
+
+    return {
+      status: allHealthy ? 'healthy' : anyHealthy ? 'degraded' : 'down',
+      services: checks,
+      circuitBreakers: {
+        email: this.emailProvider.getCircuitBreakerState(),
+        sms: this.smsProvider.getCircuitBreakerState(),
+        whatsapp: this.whatsappProvider.getCircuitBreakerState(),
+      },
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  // ✅ Debug-live endpoint - sends real notifications
+  @Public()
+  @Post('debug-live')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Send real notifications for debugging (non-production only)' })
+  @ApiResponse({ status: 200, description: 'Notifications sent successfully' })
+  @ApiResponse({ status: 403, description: 'Endpoint disabled in production' })
+  @ApiResponse({ status: 400, description: 'Invalid input or provider not configured' })
+  async debugLive(@Body() dto: DebugLiveDto) {
+    // ✅ Safety: Block in production
+    if (process.env.NODE_ENV === 'production') {
+      throw new ForbiddenException('Debug endpoint is disabled in production');
+    }
+
+    // ✅ Validate at least one channel is provided
+    if (!dto.email && !dto.phone) {
+      return {
+        success: false,
+        error: 'At least one of email or phone is required',
+      };
+    }
+
+    const results: {
+      email?: { messageId?: string; error?: string };
+      sms?: { sid?: string; error?: string };
+      whatsapp?: { sid?: string; error?: string };
+    } = {};
+
+    const message = dto.message || 'Test notification from NearZro';
+
+    // ✅ Send Email
+    if (dto.email) {
+      this.logger.log(`📧 Sending email to ${dto.email}`);
+      try {
+        const emailResult = await this.emailProvider.send(
+          dto.email,
+          'NearZro Debug Notification',
+          message,
+          `<p>${message}</p>`,
+        );
+        results.email = { messageId: emailResult.messageId };
+        this.logger.log(`✅ Email sent successfully to ${dto.email}. Message ID: ${emailResult.messageId}`);
+      } catch (error) {
+        results.email = { error: error.message };
+        this.logger.error(`❌ Failed to send email to ${dto.email}:`, error.message);
+      }
+    }
+
+    // ✅ Send SMS
+    if (dto.phone) {
+      this.logger.log(`📱 Sending SMS to ${dto.phone}`);
+      try {
+        const smsResult = await this.smsProvider.send(dto.phone, message);
+        results.sms = { sid: smsResult.sid };
+        this.logger.log(`✅ SMS sent successfully to ${dto.phone}. SID: ${smsResult.sid}`);
+      } catch (error) {
+        results.sms = { error: error.message };
+        this.logger.error(`❌ Failed to send SMS to ${dto.phone}:`, error.message);
+      }
+
+      // ✅ Send WhatsApp
+      this.logger.log(`💬 Sending WhatsApp to ${dto.phone}`);
+      try {
+        const whatsappResult = await this.whatsappProvider.send(dto.phone, message);
+        results.whatsapp = { sid: whatsappResult.sid };
+        this.logger.log(`✅ WhatsApp sent successfully to ${dto.phone}. SID: ${whatsappResult.sid}`);
+      } catch (error) {
+        results.whatsapp = { error: error.message };
+        this.logger.error(`❌ Failed to send WhatsApp to ${dto.phone}:`, error.message);
+      }
+    }
+
+    // ✅ Determine overall success
+    const hasErrors = Object.values(results).some(r => r.error);
+    const hasSuccess = Object.values(results).some(r => !r.error);
+
+    return {
+      success: hasSuccess && !hasErrors,
+      results,
+      timestamp: new Date().toISOString(),
+    };
+  }
 
   // ✅ Get all notifications for admin (using query param for admin flag)
   @ApiBearerAuth()
   @Get()
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 100, ttl: 60000 } }) // 100 requests per minute
+  @ApiOperation({ summary: 'Get notifications (user or admin)' })
   async getNotifications(
     @Req() req: any,
     @Query('page') page: string = '1',
@@ -51,6 +213,9 @@ export class NotificationsController {
   // ✅ Get unread count
   @ApiBearerAuth()
   @Get('unread/count')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 100, ttl: 60000 } })
+  @ApiOperation({ summary: 'Get unread notification count' })
   async getUnreadCount(@Req() req: any) {
     return this.service.getUnreadCount(req.user.id);
   }
@@ -58,6 +223,9 @@ export class NotificationsController {
   // ✅ ALIAS: Get unread count (frontend expects /unread-count)
   @ApiBearerAuth()
   @Get('unread-count')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 100, ttl: 60000 } })
+  @ApiOperation({ summary: 'Get unread notification count (alias)' })
   async getUnreadCountAlias(@Req() req: any) {
     return this.service.getUnreadCount(req.user.id);
   }
@@ -65,6 +233,9 @@ export class NotificationsController {
   // ✅ Mark notification as read
   @ApiBearerAuth()
   @Post(':id/read')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 50, ttl: 60000 } }) // 50 requests per minute
+  @ApiOperation({ summary: 'Mark notification as read' })
   async markAsRead(@Req() req: any, @Param('id') id: number) {
     return this.service.markAsRead(id, req.user.id);
   }
@@ -72,6 +243,9 @@ export class NotificationsController {
   // ✅ Mark all as read
   @ApiBearerAuth()
   @Post('read-all')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 10, ttl: 60000 } }) // 10 requests per minute
+  @ApiOperation({ summary: 'Mark all notifications as read' })
   async markAllAsRead(@Req() req: any) {
     return this.service.markAllAsRead(req.user.id);
   }
@@ -79,6 +253,10 @@ export class NotificationsController {
   @ApiBearerAuth()
   @Post('send')
   @Roles(Role.ADMIN, Role.EVENT_MANAGER, Role.SUPPORT)
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 30, ttl: 60000 } }) // 30 requests per minute
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Send notification (admin only)' })
   async send(@Body() dto: SendNotificationDto) {
     await this.service.send(dto);
     return { success: true };
@@ -91,9 +269,12 @@ export class NotificationsController {
     Role.VENDOR,
     Role.VENUE_OWNER,
   )
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 50, ttl: 60000 } }) // 50 requests per minute
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Handle notification action (accept/reject)' })
   async action(@Req() req, @Body() dto: NotificationActionDto) {
     await this.service.handleAction(req.user.id, dto);
     return { success: true };
   }
 }
-

@@ -6,7 +6,7 @@ import type { Queue } from 'bull';
 export class NotificationQueue {
   constructor(
     @InjectQueue('notifications') // ✅ MUST MATCH MODULE
-    private readonly queue: Queue,
+    public readonly queue: Queue, // ✅ Changed from private to public
   ) {}
 
   async add(data: {

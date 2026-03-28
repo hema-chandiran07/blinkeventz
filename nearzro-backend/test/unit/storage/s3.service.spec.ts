@@ -1,40 +1,61 @@
 /**
- * Storage (S3) Service Unit Tests
- * NearZro Event Management Platform
- *
- * Comprehensive unit tests for S3Service.
- * Uses dependency injection for proper mocking.
- */
+ *  * Storage (S3) Service Unit Tests
+ *  * NearZro Event Management Platform
+ *  *
+ *  * Comprehensive unit tests for S3Service.
+ *  * Uses dependency injection for proper mocking.
+ *  */
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
 import { S3Service } from '../../../src/storage/s3.service';
 
+// Mock the AWS SDK
+const mockSend = jest.fn();
+
+jest.mock('@aws-sdk/client-s3', () => {
+  return {
+    S3Client: jest.fn().mockImplementation(() => {
+      return {
+        send: mockSend
+      };
+    }),
+    PutObjectCommand: jest.fn().mockImplementation((params) => {
+      return { input: params };
+    })
+  };
+});
+
+// Import the mocked module
+const { S3Client } = require('@aws-sdk/client-s3');
+
 describe('S3Service', () => {
   let service: S3Service;
 
-  // Create mock S3Client
-  const mockS3Send = jest.fn();
-
   beforeEach(async () => {
-    // Mock the AWS SDK module
-    jest.doMock('@aws-sdk/client-s3', () => ({
-      S3Client: jest.fn().mockImplementation(() => ({
-        send: mockS3Send,
-      })),
-      PutObjectCommand: jest.fn().mockImplementation((input) => ({ input })),
-    }));
+    // Clear all mocks
+    jest.clearAllMocks();
+    mockSend.mockClear();
+
+    // Set environment variables for the S3Service
+    process.env.AWS_S3_BUCKET = 'test-bucket';
+    process.env.AWS_ACCESS_KEY_ID = 'test-key';
+    process.env.AWS_SECRET_ACCESS_KEY = 'test-secret';
+    process.env.AWS_REGION = 'ap-south-1';
+
+    // Reset the S3Client mock
+    S3Client.mockClear();
+    S3Client.mockImplementation(() => {
+      return {
+        send: mockSend
+      };
+    });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [S3Service],
     }).compile();
 
     service = module.get<S3Service>(S3Service);
-    jest.clearAllMocks();
-  });
-
-  afterEach(() => {
-    jest.resetModules();
   });
 
   it('should be defined', () => {
@@ -59,30 +80,27 @@ describe('S3Service', () => {
     } as unknown as Express.Multer.File;
 
     it('should upload a valid PDF file', async () => {
-      mockS3Send.mockResolvedValue({
+      mockSend.mockResolvedValue({
         $metadata: { httpStatusCode: 200 },
       });
 
       const result = await service.uploadKycDocument(mockFile);
 
       expect(result).toContain('s3');
-      expect(mockS3Send).toHaveBeenCalled();
+      expect(mockSend).toHaveBeenCalled();
     });
 
     it('should add server-side encryption', async () => {
-      mockS3Send.mockResolvedValue({
+      mockSend.mockResolvedValue({
         $metadata: { httpStatusCode: 200 },
       });
 
       await service.uploadKycDocument(mockFile);
 
-      expect(mockS3Send).toHaveBeenCalledWith(
-        expect.objectContaining({
-          input: expect.objectContaining({
-            ServerSideEncryption: 'AES256',
-          }),
-        }),
-      );
+      expect(mockSend).toHaveBeenCalled();
+      const callArgs = mockSend.mock.calls[0][0];
+      expect(callArgs).toHaveProperty('input');
+      expect(callArgs.input).toHaveProperty('ServerSideEncryption', 'AES256');
     });
   });
 
@@ -127,7 +145,7 @@ describe('S3Service', () => {
     });
 
     it('should accept JPEG images', async () => {
-      mockS3Send.mockResolvedValue({ $metadata: { httpStatusCode: 200 } });
+      mockSend.mockResolvedValue({ $metadata: { httpStatusCode: 200 } });
 
       const jpegFile = {
         buffer: Buffer.from('image'),
@@ -147,7 +165,7 @@ describe('S3Service', () => {
     });
 
     it('should accept PNG images', async () => {
-      mockS3Send.mockResolvedValue({ $metadata: { httpStatusCode: 200 } });
+      mockSend.mockResolvedValue({ $metadata: { httpStatusCode: 200 } });
 
       const pngFile = {
         buffer: Buffer.from('image'),
@@ -185,7 +203,7 @@ describe('S3Service', () => {
         stream: null as unknown as Express.Multer.File['stream'],
       } as unknown as Express.Multer.File;
 
-      mockS3Send.mockRejectedValue(new Error('AWS Error'));
+      mockSend.mockRejectedValue(new Error('AWS Error'));
 
       await expect(service.uploadKycDocument(file)).rejects.toThrow(BadRequestException);
     });
