@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/context/auth-context";
 import { Eye, EyeOff, Mail, Lock, User, Store, Phone, MapPin, CheckCircle2, AlertCircle, Chrome } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -13,9 +13,23 @@ import { toast } from "sonner";
 import api from "@/lib/api";
 import { PasswordStrength } from "@/components/ui/password-strength";
 
+const chennaiAreas = [
+  "Adyar", "Alwarpet", "Ambattur", "Ambattur OT", "Anna Nagar", "Annanur",
+  "Athipattu", "Avadi", "Besant Nagar", "Chengalpattu", "Chromepet", "ECR",
+  "Ennore", "Guduvanchery", "Gummidipoondi", "Iyyapanthangal", "Karapakkam",
+  "Kelambakkam", "Kilpauk", "Kolathur", "Kotturpuram", "Koyambedu", "Madipakkam",
+  "Manali", "Manivakkam", "Maraimalai Nagar", "Medavakkam", "Minjur", "Mogappair",
+  "Mylapore", "Navalur", "Nettukupam", "Nungambakkam", "Oragadam", "Pallavaram",
+  "Pallikaranai", "Perambur", "Perungalathur", "Perungudi", "Poonamallee", "Porur",
+  "RA Puram", "Red Hills", "Semmancheri", "Sholinganallur", "Sriperumbudur",
+  "T. Nagar", "Tambaram", "Thirumazhisai", "Thirumullaivoyal", "Thiruvanmiyur",
+  "Thoraipakkam", "Tiruvallur", "Urapakkam", "Vanagaram", "Vandalur", "Velachery",
+  "Villivakkam"
+];
+
 export default function VendorRegisterPage() {
   const router = useRouter();
-  const { login, googleLogin, facebookLogin } = useAuth();
+  const { login, googleLogin, facebookLogin, user } = useAuth();
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -57,15 +71,29 @@ export default function VendorRegisterPage() {
   } | null>(null);
   const [emailCheckTimeout, setEmailCheckTimeout] = useState<NodeJS.Timeout | null>(null);
 
+  // Auto-advance to Step 2 if user is already logged in (e.g., after Google OAuth)
+  useEffect(() => {
+    if (user && user.role === "VENDOR") {
+      // User is logged in as vendor, check if they need to complete business details
+      const urlParams = new URLSearchParams(window.location.search);
+      const stepParam = urlParams.get("step");
+      
+      if (stepParam === "2" || (!stepParam && user.id)) {
+        // Pre-fill name and email from user data
+        setFormData(prev => ({
+          ...prev,
+          name: prev.name || user.name || "",
+          email: prev.email || user.email || "",
+        }));
+        setStep(2);
+      }
+    }
+  }, [user]);
+
   const handleGoogleLogin = () => {
     toast.info("Redirecting to Google...");
-    googleLogin();
-  };
-
-  const handleFacebookLogin = () => {
-    toast.info("Facebook login coming soon!", {
-      description: "This feature is currently under development."
-    });
+    // Pass vendor role metadata to auth provider
+    googleLogin({ role: "VENDOR", callbackUrl: "/register/vendor?step=2" });
   };
 
   const validateStep1 = () => {
@@ -362,37 +390,37 @@ export default function VendorRegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-transparent py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl mx-auto">
+    <div className="min-h-screen bg-transparent py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-lg mx-auto">
         {/* Progress Steps */}
-        <div className="mb-8">
+        <div className="mb-6">
           <div className="flex items-center justify-center">
             {[1, 2, 3, 4, 5].map((stepNumber) => (
               <div key={stepNumber} className="flex items-center">
                 <div
-                  className={`flex items-center justify-center w-10 h-10 rounded-full font-semibold transition-all ${
+                  className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold transition-all ${
                     step >= stepNumber
-                      ? "bg-black text-white"
-                      : "bg-neutral-200 text-neutral-600"
+                      ? "bg-white text-zinc-950"
+                      : "bg-zinc-800 text-zinc-500"
                   }`}
                 >
                   {step > stepNumber ? (
-                    <CheckCircle2 className="h-5 w-5" />
+                    <CheckCircle2 className="h-4 w-4" />
                   ) : (
                     stepNumber
                   )}
                 </div>
                 {stepNumber < 5 && (
                   <div
-                    className={`w-16 sm:w-24 h-1 mx-2 ${
-                      step > stepNumber ? "bg-black" : "bg-neutral-200"
+                    className={`w-12 sm:w-16 h-0.5 mx-1.5 ${
+                      step > stepNumber ? "bg-white" : "bg-zinc-800"
                     }`}
                   />
                 )}
               </div>
             ))}
           </div>
-          <div className="flex justify-between mt-2 text-xs text-neutral-600">
+          <div className="flex justify-between mt-1.5 text-xs text-zinc-400">
             <span>Account</span>
             <span>Business</span>
             <span>Contact</span>
@@ -401,166 +429,162 @@ export default function VendorRegisterPage() {
           </div>
         </div>
 
-        <Card className="border-2 border-black shadow-2xl">
+        <Card className="border-0 shadow-[0_20px_50px_rgba(0,0,0,0.8)] bg-zinc-950/60 backdrop-blur-xl border border-white/10 ring-1 ring-white/5 rounded-2xl p-6">
           <CardHeader className="text-center pb-2">
-            <div className="inline-flex h-16 w-16 rounded-2xl bg-gradient-to-br from-black to-neutral-800 mx-auto mb-4 shadow-lg shadow-black/20 flex items-center justify-center">
-              <Store className="h-8 w-8 text-white" />
+            <div className="inline-flex h-12 w-12 rounded-xl bg-zinc-900 border border-white/10 mx-auto mb-3 flex items-center justify-center">
+              <Store className="h-6 w-6 text-zinc-200" />
             </div>
-            <CardTitle className="text-3xl font-bold text-black">
+            <CardTitle className="text-2xl font-bold text-zinc-50">
               {step === 1 && "Create Your Vendor Account"}
               {step === 2 && "Business Details"}
               {step === 3 && "Contact Information"}
-              {step === 4 && "Verify Email"}
+              {step === 4 && "Images & KYC"}
+              {step === 5 && "Verify Email"}
             </CardTitle>
-            <CardDescription className="text-neutral-600">
+            <CardDescription className="text-sm text-zinc-400">
               {step === 1 && "Enter your personal details to get started"}
               {step === 2 && "Tell us about your business"}
               {step === 3 && "How can we reach you?"}
-              {step === 4 && "Enter the OTP sent to your email"}
+              {step === 4 && "Upload business photos and KYC documents"}
+              {step === 5 && "Enter the OTP sent to your email"}
             </CardDescription>
           </CardHeader>
 
-          <CardContent>
+          <CardContent className="pt-2">
             {/* Step 1: Account Details */}
             {step === 1 && (
-              <div className="space-y-5">
-                <div className="space-y-2">
-                  <Label htmlFor="name" className="text-sm font-medium text-black">
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="name" className="text-sm font-medium text-zinc-300">
                     Full Name *
                   </Label>
                   <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
                     <Input
                       id="name"
                       placeholder="John Doe"
                       type="text"
                       value={formData.name}
                       onChange={(e) => handleInputChange("name", e.target.value)}
-                      className={`pl-10 h-12 border-neutral-300 bg-white text-black focus:border-black focus:ring-black ${
+                      className={`pl-9 h-10 text-sm bg-zinc-900/50 border-white/10 text-white placeholder-zinc-500 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-300 focus:border-zinc-300 transition-all ${
                         errors.name ? "border-red-500" : ""
                       }`}
                     />
                   </div>
-                  {errors.name && <p className="text-xs text-red-500">{errors.name}</p>}
+                  {errors.name && <p className="text-xs text-red-400">{errors.name}</p>}
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-sm font-medium text-black">
+                <div className="space-y-1.5">
+                  <Label htmlFor="email" className="text-sm font-medium text-zinc-300">
                     Email Address *
                   </Label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
                     <Input
                       id="email"
                       placeholder="name@example.com"
                       type="email"
                       value={formData.email}
                       onChange={(e) => handleInputChange("email", e.target.value)}
-                      className={`pl-10 h-12 border-neutral-300 bg-white text-black focus:border-black focus:ring-black ${
+                      className={`pl-9 h-10 text-sm bg-zinc-900/50 border-white/10 text-white placeholder-zinc-500 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-300 focus:border-zinc-300 transition-all ${
                         errors.email ? "border-red-500" : ""
                       }`}
                       disabled={isCheckingEmail}
                     />
                     {isCheckingEmail && (
                       <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                        <div className="animate-spin h-4 w-4 border-2 border-neutral-300 border-t-black rounded-full" />
+                        <div className="animate-spin h-4 w-4 border-2 border-zinc-600 border-t-white rounded-full" />
                       </div>
                     )}
                   </div>
-                  {errors.email && <p className="text-xs text-red-500">{errors.email}</p>}
+                  {errors.email && <p className="text-xs text-red-400">{errors.email}</p>}
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="password" className="text-sm font-medium text-black">
+                <div className="space-y-1.5">
+                  <Label htmlFor="password" className="text-sm font-medium text-zinc-300">
                     Password *
                   </Label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
                     <Input
                       id="password"
                       type={showPassword ? "text" : "password"}
                       value={formData.password}
                       onChange={(e) => handleInputChange("password", e.target.value)}
                       placeholder="Min. 8 characters"
-                      className={`pl-10 pr-10 h-12 border-neutral-300 bg-white text-black focus:border-black focus:ring-black ${
+                      className={`pl-9 pr-9 h-10 text-sm bg-zinc-900/50 border-white/10 text-white placeholder-zinc-500 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-300 focus:border-zinc-300 transition-all ${
                         errors.password ? "border-red-500" : ""
                       }`}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-black transition-colors"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white transition-colors"
                     >
-                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
-                  {errors.password && <p className="text-xs text-red-500">{errors.password}</p>}
+                  {errors.password && <p className="text-xs text-red-400">{errors.password}</p>}
                   <PasswordStrength password={formData.password} />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword" className="text-sm font-medium text-black">
+                <div className="space-y-1.5">
+                  <Label htmlFor="confirmPassword" className="text-sm font-medium text-zinc-300">
                     Confirm Password *
                   </Label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
                     <Input
                       id="confirmPassword"
                       type={showConfirmPassword ? "text" : "password"}
                       value={formData.confirmPassword}
                       onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
                       placeholder="Re-enter password"
-                      className={`pl-10 pr-10 h-12 border-neutral-300 bg-white text-black focus:border-black focus:ring-black ${
+                      className={`pl-9 pr-9 h-10 text-sm bg-zinc-900/50 border-white/10 text-white placeholder-zinc-500 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-300 focus:border-zinc-300 transition-all ${
                         errors.confirmPassword ? "border-red-500" : ""
                       }`}
                     />
                     <button
                       type="button"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-black transition-colors"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white transition-colors"
                     >
-                      {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
-                  {errors.confirmPassword && <p className="text-xs text-red-500">{errors.confirmPassword}</p>}
+                  {errors.confirmPassword && <p className="text-xs text-red-400">{errors.confirmPassword}</p>}
                 </div>
 
                 {/* OAuth Buttons */}
                 <div className="relative">
                   <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-neutral-300"></div>
+                    <div className="w-full border-t border-white/10"></div>
                   </div>
                   <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-white px-2 text-neutral-500">Or continue with</span>
+                    <span className="bg-zinc-950/60 px-2 text-zinc-500">Or continue with</span>
                   </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full h-12 border-neutral-300"
-                    onClick={handleGoogleLogin}
-                    disabled={isLoading}
-                  >
-                    <Chrome className="h-5 w-5 mr-2" />
-                    Google
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full h-12 border-neutral-300"
-                    onClick={handleFacebookLogin}
-                    disabled={isLoading}
-                  >
-                    Facebook
-                  </Button>
                 </div>
 
                 <Button
                   type="button"
+                  variant="outline"
+                  className="w-full flex items-center justify-center gap-3 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white text-sm font-medium hover:bg-white/10 hover:border-white/20 transition-all"
+                  onClick={handleGoogleLogin}
+                  disabled={isLoading}
+                >
+                  <svg className="h-4 w-4" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                  </svg>
+                  Google
+                </Button>
+
+                <Button
+                  type="button"
                   variant="default"
-                  className="w-full h-12 text-base font-semibold bg-black hover:bg-neutral-800"
+                  className="w-full h-10 text-sm font-semibold bg-white/10 border border-white/20 text-white backdrop-blur-md hover:bg-white/20 hover:border-white/40 transition-all duration-300"
                   onClick={handleNextStep}
                   disabled={isLoading}
                 >
@@ -571,9 +595,9 @@ export default function VendorRegisterPage() {
 
             {/* Step 2: Business Details */}
             {step === 2 && (
-              <div className="space-y-5">
-                <div className="space-y-2">
-                  <Label htmlFor="businessName" className="text-sm font-medium text-black">
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="businessName" className="text-sm font-medium text-zinc-300">
                     Business Name *
                   </Label>
                   <Input
@@ -581,22 +605,22 @@ export default function VendorRegisterPage() {
                     placeholder="Elite Photography Services"
                     value={formData.businessName}
                     onChange={(e) => handleInputChange("businessName", e.target.value)}
-                    className={`h-12 border-neutral-300 bg-white text-black focus:border-black focus:ring-black ${
+                    className={`h-10 text-sm bg-zinc-900/50 border-white/10 text-white placeholder-zinc-500 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-300 focus:border-zinc-300 transition-all ${
                       errors.businessName ? "border-red-500" : ""
                     }`}
                   />
-                  {errors.businessName && <p className="text-xs text-red-500">{errors.businessName}</p>}
+                  {errors.businessName && <p className="text-xs text-red-400">{errors.businessName}</p>}
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="businessType" className="text-sm font-medium text-black">
+                <div className="space-y-1.5">
+                  <Label htmlFor="businessType" className="text-sm font-medium text-zinc-300">
                     Business Type *
                   </Label>
                   <select
                     id="businessType"
                     value={formData.businessType}
                     onChange={(e) => handleInputChange("businessType", e.target.value)}
-                    className={`flex h-12 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-black focus:ring-black ${
+                    className={`flex h-10 w-full rounded-lg border border-white/10 bg-zinc-900/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-zinc-300 focus:border-zinc-300 transition-all ${
                       errors.businessType ? "border-red-500" : ""
                     }`}
                   >
@@ -610,11 +634,11 @@ export default function VendorRegisterPage() {
                     <option value="ENTERTAINMENT">Entertainment</option>
                     <option value="OTHER">Other</option>
                   </select>
-                  {errors.businessType && <p className="text-xs text-red-500">{errors.businessType}</p>}
+                  {errors.businessType && <p className="text-xs text-red-400">{errors.businessType}</p>}
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="description" className="text-sm font-medium text-black">
+                <div className="space-y-1.5">
+                  <Label htmlFor="description" className="text-sm font-medium text-zinc-300">
                     Business Description *
                   </Label>
                   <textarea
@@ -622,48 +646,66 @@ export default function VendorRegisterPage() {
                     value={formData.description}
                     onChange={(e) => handleInputChange("description", e.target.value)}
                     placeholder="Describe your services, experience, and what makes you unique... (min. 20 characters)"
-                    rows={4}
-                    className={`flex min-h-[120px] w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-black focus:ring-black ${
+                    rows={3}
+                    className={`flex min-h-[80px] w-full rounded-lg border border-white/10 bg-zinc-900/50 px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-300 focus:border-zinc-300 transition-all ${
                       errors.description ? "border-red-500" : ""
                     }`}
                   />
-                  {errors.description && <p className="text-xs text-red-500">{errors.description}</p>}
+                  {errors.description && <p className="text-xs text-red-400">{errors.description}</p>}
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="city" className="text-sm font-medium text-black">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="city" className="text-sm font-medium text-zinc-300">
                       City *
                     </Label>
                     <div className="relative">
-                      <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
-                      <Input
+                      <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500 pointer-events-none" />
+                      <select
                         id="city"
-                        placeholder="Chennai"
                         value={formData.city}
                         onChange={(e) => handleInputChange("city", e.target.value)}
-                        className={`pl-10 h-12 border-neutral-300 bg-white text-black focus:border-black focus:ring-black ${
+                        className={`flex h-10 w-full rounded-lg border border-white/10 bg-zinc-900/50 pl-9 pr-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-zinc-300 focus:border-zinc-300 transition-all appearance-none cursor-pointer ${
                           errors.city ? "border-red-500" : ""
                         }`}
-                      />
+                      >
+                        <option className="bg-zinc-900 text-white" value="">Select city</option>
+                        <option className="bg-zinc-900 text-white" value="Chennai">Chennai</option>
+                        <option className="bg-zinc-900 text-white" value="Coimbatore">Coimbatore</option>
+                        <option className="bg-zinc-900 text-white" value="Madurai">Madurai</option>
+                        <option className="bg-zinc-900 text-white" value="Trichy">Trichy</option>
+                        <option className="bg-zinc-900 text-white" value="Salem">Salem</option>
+                      </select>
                     </div>
-                    {errors.city && <p className="text-xs text-red-500">{errors.city}</p>}
+                    {errors.city && <p className="text-xs text-red-400">{errors.city}</p>}
+                    {formData.city && formData.city !== "Chennai" && (
+                      <div className="mt-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-2">
+                        <span className="text-amber-400 text-sm">We currently only service Chennai. Operations in other cities will be launching soon!</span>
+                      </div>
+                    )}
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="area" className="text-sm font-medium text-black">
+                  <div className={`space-y-1.5 ${formData.city !== "Chennai" ? "opacity-50 cursor-not-allowed" : ""}`}>
+                    <Label htmlFor="area" className="text-sm font-medium text-zinc-300">
                       Area *
                     </Label>
                     <Input
                       id="area"
+                      list="areas-list"
                       placeholder="T Nagar"
                       value={formData.area}
                       onChange={(e) => handleInputChange("area", e.target.value)}
-                      className={`h-12 border-neutral-300 bg-white text-black focus:border-black focus:ring-black ${
+                      disabled={formData.city !== "Chennai"}
+                      className={`h-10 text-sm bg-zinc-900/50 border-white/10 text-white placeholder-zinc-500 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-300 focus:border-zinc-300 transition-all ${
                         errors.area ? "border-red-500" : ""
                       }`}
                     />
-                    {errors.area && <p className="text-xs text-red-500">{errors.area}</p>}
+                    <datalist id="areas-list">
+                      {chennaiAreas.map((area) => (
+                        <option key={area} value={area} />
+                      ))}
+                    </datalist>
+                    {errors.area && <p className="text-xs text-red-400">{errors.area}</p>}
                   </div>
                 </div>
 
@@ -671,7 +713,7 @@ export default function VendorRegisterPage() {
                   <Button
                     type="button"
                     variant="outline"
-                    className="flex-1 h-12 border-black"
+                    className="flex-1 h-10 text-sm bg-white/5 border border-white/20 text-white font-semibold backdrop-blur-md transition-all duration-300 hover:bg-white/10 hover:border-white/40 hover:-translate-y-0.5 hover:shadow-[0_4px_20px_rgba(255,255,255,0.1)] active:scale-95"
                     onClick={() => setStep(1)}
                     disabled={isLoading}
                   >
@@ -680,7 +722,7 @@ export default function VendorRegisterPage() {
                   <Button
                     type="button"
                     variant="default"
-                    className="flex-1 h-12 text-base font-semibold bg-black hover:bg-neutral-800"
+                    className="flex-1 h-10 text-sm font-semibold bg-white/10 border border-white/20 text-white backdrop-blur-md hover:bg-white/20 hover:border-white/40 transition-all duration-300"
                     onClick={handleNextStep}
                     disabled={isLoading}
                   >
@@ -692,30 +734,30 @@ export default function VendorRegisterPage() {
 
             {/* Step 3: Contact Information */}
             {step === 3 && (
-              <div className="space-y-5">
-                <div className="space-y-2">
-                  <Label htmlFor="phone" className="text-sm font-medium text-black">
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="phone" className="text-sm font-medium text-zinc-300">
                     Phone Number *
                   </Label>
                   <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
                     <Input
                       id="phone"
                       placeholder="9876543210"
                       type="tel"
                       value={formData.phone}
                       onChange={(e) => handleInputChange("phone", e.target.value)}
-                      className={`pl-10 h-12 border-neutral-300 bg-white text-black focus:border-black focus:ring-black ${
+                      className={`pl-9 h-10 text-sm bg-zinc-900/50 border-white/10 text-white placeholder-zinc-500 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-300 focus:border-zinc-300 transition-all ${
                         errors.phone ? "border-red-500" : ""
                       }`}
                       maxLength={10}
                     />
                   </div>
-                  {errors.phone && <p className="text-xs text-red-500">{errors.phone}</p>}
+                  {errors.phone && <p className="text-xs text-red-400">{errors.phone}</p>}
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="serviceRadiusKm" className="text-sm font-medium text-black">
+                <div className="space-y-1.5">
+                  <Label htmlFor="serviceRadiusKm" className="text-sm font-medium text-zinc-300">
                     Service Radius (km)
                   </Label>
                   <Input
@@ -723,16 +765,16 @@ export default function VendorRegisterPage() {
                     type="number"
                     value={formData.serviceRadiusKm}
                     onChange={(e) => handleInputChange("serviceRadiusKm", e.target.value)}
-                    className="h-12 border-neutral-300 bg-white text-black focus:border-black focus:ring-black"
+                    className="h-10 text-sm bg-zinc-900/50 border-white/10 text-white placeholder-zinc-500 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-300 focus:border-zinc-300 transition-all"
                   />
-                  <p className="text-xs text-neutral-600">How far are you willing to travel for events?</p>
+                  <p className="text-xs text-zinc-500">How far are you willing to travel for events?</p>
                 </div>
 
                 <div className="flex gap-3">
                   <Button
                     type="button"
                     variant="outline"
-                    className="flex-1 h-12 border-black"
+                    className="flex-1 h-10 text-sm bg-white/5 border border-white/20 text-white font-semibold backdrop-blur-md transition-all duration-300 hover:bg-white/10 hover:border-white/40 hover:-translate-y-0.5 hover:shadow-[0_4px_20px_rgba(255,255,255,0.1)] active:scale-95"
                     onClick={() => setStep(2)}
                     disabled={isLoading}
                   >
@@ -741,7 +783,7 @@ export default function VendorRegisterPage() {
                   <Button
                     type="button"
                     variant="default"
-                    className="flex-1 h-12 text-base font-semibold bg-black hover:bg-neutral-800"
+                    className="flex-1 h-10 text-sm font-semibold bg-white/10 border border-white/20 text-white backdrop-blur-md hover:bg-white/20 hover:border-white/40 transition-all duration-300"
                     onClick={handleNextStep}
                     disabled={isLoading}
                   >
@@ -753,13 +795,13 @@ export default function VendorRegisterPage() {
 
             {/* Step 4: Business Images & KYC */}
             {step === 4 && (
-              <div className="space-y-5">
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <div className="flex items-start gap-3">
-                    <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
+              <div className="space-y-4">
+                <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="h-4 w-4 text-blue-400 mt-0.5" />
                     <div>
-                      <p className="text-sm font-semibold text-blue-900">Business Photos & KYC Required</p>
-                      <p className="text-sm text-blue-700 mt-1">
+                      <p className="text-sm font-semibold text-blue-200">Business Photos & KYC Required</p>
+                      <p className="text-xs text-blue-300/80 mt-0.5">
                         Upload photos of your business and a valid KYC document for verification.
                       </p>
                     </div>
@@ -767,11 +809,11 @@ export default function VendorRegisterPage() {
                 </div>
 
                 {/* Business Images Upload */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-black">
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-medium text-zinc-300">
                     Business Photos * (Minimum 1, Maximum 5)
                   </Label>
-                  <div className="border-2 border-dashed border-neutral-300 rounded-lg p-6 text-center">
+                  <div className="border-2 border-dashed border-zinc-600 hover:border-zinc-400 bg-zinc-900/30 rounded-lg p-4 text-center transition-colors">
                     <input
                       type="file"
                       accept="image/*"
@@ -787,19 +829,19 @@ export default function VendorRegisterPage() {
                     />
                     <label htmlFor="business-images-upload" className="cursor-pointer">
                       <div className="flex flex-col items-center">
-                        <svg className="w-12 h-12 text-neutral-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-10 h-10 text-zinc-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
-                        <p className="text-sm text-neutral-600">
-                          <span className="font-semibold text-black">Click to upload</span> or drag and drop
+                        <p className="text-sm text-zinc-400">
+                          <span className="font-semibold text-white">Click to upload</span> or drag and drop
                         </p>
-                        <p className="text-xs text-neutral-500 mt-1">PNG, JPG up to 5MB each</p>
+                        <p className="text-xs text-zinc-500 mt-1">PNG, JPG up to 5MB each</p>
                       </div>
                     </label>
                     {formData.businessImages.length > 0 && (
                       <div className="mt-4 grid grid-cols-3 gap-2">
                         {formData.businessImages.map((image, index) => (
-                          <div key={index} className="relative aspect-square rounded-lg overflow-hidden border border-neutral-200">
+                          <div key={index} className="relative aspect-square rounded-lg overflow-hidden border border-zinc-700">
                             <img
                               src={URL.createObjectURL(image)}
                               alt={`Business ${index + 1}`}
@@ -824,19 +866,19 @@ export default function VendorRegisterPage() {
                       </div>
                     )}
                   </div>
-                  {errors.businessImages && <p className="text-xs text-red-500">{errors.businessImages}</p>}
+                  {errors.businessImages && <p className="text-xs text-red-400">{errors.businessImages}</p>}
                 </div>
 
                 {/* KYC Document Type */}
-                <div className="space-y-2">
-                  <Label htmlFor="kycDocType" className="text-sm font-medium text-black">
+                <div className="space-y-1.5">
+                  <Label htmlFor="kycDocType" className="text-sm font-medium text-zinc-300">
                     KYC Document Type *
                   </Label>
                   <select
                     id="kycDocType"
                     value={formData.kycDocType}
                     onChange={(e) => handleInputChange("kycDocType", e.target.value)}
-                    className={`flex h-12 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-black focus:ring-black ${
+                    className={`flex h-10 w-full rounded-lg border border-white/10 bg-zinc-900/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-zinc-300 focus:border-zinc-300 transition-all ${
                       errors.kycDocType ? "border-red-500" : ""
                     }`}
                   >
@@ -845,12 +887,12 @@ export default function VendorRegisterPage() {
                     <option value="PASSPORT">Passport</option>
                     <option value="DRIVING_LICENSE">Driving License</option>
                   </select>
-                  {errors.kycDocType && <p className="text-xs text-red-500">{errors.kycDocType}</p>}
+                  {errors.kycDocType && <p className="text-xs text-red-400">{errors.kycDocType}</p>}
                 </div>
 
                 {/* KYC Document Number */}
-                <div className="space-y-2">
-                  <Label htmlFor="kycDocNumber" className="text-sm font-medium text-black">
+                <div className="space-y-1.5">
+                  <Label htmlFor="kycDocNumber" className="text-sm font-medium text-zinc-300">
                     KYC Document Number *
                   </Label>
                   <Input
@@ -863,19 +905,19 @@ export default function VendorRegisterPage() {
                     }
                     value={formData.kycDocNumber}
                     onChange={(e) => handleInputChange("kycDocNumber", e.target.value)}
-                    className={`h-12 border-neutral-300 bg-white text-black focus:border-black focus:ring-black ${
+                    className={`h-10 text-sm bg-zinc-900/50 border-white/10 text-white placeholder-zinc-500 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-300 focus:border-zinc-300 transition-all ${
                       errors.kycDocNumber ? "border-red-500" : ""
                     }`}
                   />
-                  {errors.kycDocNumber && <p className="text-xs text-red-500">{errors.kycDocNumber}</p>}
+                  {errors.kycDocNumber && <p className="text-xs text-red-400">{errors.kycDocNumber}</p>}
                 </div>
 
                 {/* KYC Document Files Upload (1-5 images) */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-black">
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-medium text-zinc-300">
                     KYC Document Images * (Minimum 1, Maximum 5 - Clear images of {formData.kycDocType === "AADHAAR" ? "Aadhar" : formData.kycDocType === "PAN" ? "PAN" : formData.kycDocType === "PASSPORT" ? "Passport" : "Driving License"})
                   </Label>
-                  <div className="border-2 border-dashed border-neutral-300 rounded-lg p-6 text-center">
+                  <div className="border-2 border-dashed border-zinc-600 hover:border-zinc-400 bg-zinc-900/30 rounded-lg p-4 text-center transition-colors">
                     <input
                       type="file"
                       accept="image/*"
@@ -891,19 +933,19 @@ export default function VendorRegisterPage() {
                     />
                     <label htmlFor="kyc-doc-upload" className="cursor-pointer">
                       <div className="flex flex-col items-center">
-                        <svg className="w-12 h-12 text-neutral-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-10 h-10 text-zinc-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
-                        <p className="text-sm text-neutral-600">
-                          <span className="font-semibold text-black">Click to upload KYC images</span> or drag and drop
+                        <p className="text-sm text-zinc-400">
+                          <span className="font-semibold text-white">Click to upload KYC images</span> or drag and drop
                         </p>
-                        <p className="text-xs text-neutral-500 mt-1">PNG, JPG up to 5MB each (1-5 images)</p>
+                        <p className="text-xs text-zinc-500 mt-1">PNG, JPG up to 5MB each (1-5 images)</p>
                       </div>
                     </label>
                     {formData.kycDocFiles.length > 0 && (
                       <div className="mt-4 grid grid-cols-3 gap-2">
                         {formData.kycDocFiles.map((file, index) => (
-                          <div key={index} className="relative aspect-square rounded-lg overflow-hidden border border-neutral-200">
+                          <div key={index} className="relative aspect-square rounded-lg overflow-hidden border border-zinc-700">
                             <img
                               src={URL.createObjectURL(file)}
                               alt={`KYC ${index + 1}`}
@@ -928,14 +970,14 @@ export default function VendorRegisterPage() {
                       </div>
                     )}
                   </div>
-                  {errors.kycDocFiles && <p className="text-xs text-red-500">{errors.kycDocFiles}</p>}
+                  {errors.kycDocFiles && <p className="text-xs text-red-400">{errors.kycDocFiles}</p>}
                 </div>
 
                 <div className="flex gap-3">
                   <Button
                     type="button"
                     variant="outline"
-                    className="flex-1 h-12 border-black"
+                    className="flex-1 h-10 text-sm bg-white/5 border border-white/20 text-white font-semibold backdrop-blur-md transition-all duration-300 hover:bg-white/10 hover:border-white/40 hover:-translate-y-0.5 hover:shadow-[0_4px_20px_rgba(255,255,255,0.1)] active:scale-95"
                     onClick={() => setStep(3)}
                     disabled={isLoading}
                   >
@@ -944,7 +986,7 @@ export default function VendorRegisterPage() {
                   <Button
                     type="button"
                     variant="default"
-                    className="flex-1 h-12 text-base font-semibold bg-black hover:bg-neutral-800"
+                    className="flex-1 h-10 text-sm font-semibold bg-white/10 border border-white/20 text-white backdrop-blur-md hover:bg-white/20 hover:border-white/40 transition-all duration-300"
                     onClick={handleNextStep}
                     disabled={isLoading}
                   >
@@ -956,13 +998,13 @@ export default function VendorRegisterPage() {
 
             {/* Step 5: OTP Verification */}
             {step === 5 && (
-              <div className="space-y-5">
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <div className="flex items-start gap-3">
-                    <Mail className="h-5 w-5 text-blue-600 mt-0.5" />
+              <div className="space-y-4">
+                <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
+                  <div className="flex items-start gap-2">
+                    <Mail className="h-4 w-4 text-blue-400 mt-0.5" />
                     <div>
-                      <p className="text-sm font-semibold text-blue-900">Check Your Email</p>
-                      <p className="text-sm text-blue-700 mt-1">
+                      <p className="text-sm font-semibold text-blue-200">Check Your Email</p>
+                      <p className="text-xs text-blue-300/80 mt-0.5">
                         We've sent a 6-digit verification code to <strong>{formData.email}</strong>
                       </p>
                     </div>
@@ -971,18 +1013,18 @@ export default function VendorRegisterPage() {
 
                 {/* DEV ONLY: Show OTP in development mode */}
                 {devOtp && process.env.NODE_ENV === 'development' && (
-                  <div className="bg-amber-50 border-2 border-amber-300 rounded-lg p-4">
+                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4">
                     <div className="flex items-start gap-3">
-                      <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
+                      <AlertCircle className="h-5 w-5 text-amber-400 mt-0.5" />
                       <div className="flex-1">
-                        <p className="text-sm font-semibold text-amber-900">Development Mode - OTP Display</p>
-                        <p className="text-sm text-amber-700 mt-1 mb-2">
+                        <p className="text-sm font-semibold text-amber-200">Development Mode - OTP Display</p>
+                        <p className="text-sm text-amber-300/80 mt-1 mb-2">
                           Email sending is disabled in development. Use this OTP:
                         </p>
-                        <div className="bg-white border border-amber-300 rounded-md py-3 px-4 text-center">
-                          <span className="text-3xl font-bold tracking-widest text-amber-600">{devOtp}</span>
+                        <div className="bg-zinc-900/50 border border-amber-500/20 rounded-md py-3 px-4 text-center">
+                          <span className="text-3xl font-bold tracking-widest text-amber-400">{devOtp}</span>
                         </div>
-                        <p className="text-xs text-amber-600 mt-2">
+                        <p className="text-xs text-amber-400/80 mt-2">
                           Click the OTP to copy • This will not work in production
                         </p>
                       </div>
@@ -990,8 +1032,8 @@ export default function VendorRegisterPage() {
                   </div>
                 )}
 
-                <div className="space-y-2">
-                  <Label htmlFor="otp" className="text-sm font-medium text-black">
+                <div className="space-y-1.5">
+                  <Label htmlFor="otp" className="text-sm font-medium text-zinc-300">
                     Enter OTP *
                   </Label>
                   <Input
@@ -1000,17 +1042,17 @@ export default function VendorRegisterPage() {
                     type="text"
                     value={otp}
                     onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                    className="h-12 border-neutral-300 bg-white text-black text-center text-2xl tracking-widest focus:border-black focus:ring-black"
+                    className="h-10 bg-zinc-900/50 border-white/10 text-white text-center text-xl tracking-widest placeholder-zinc-500 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-300 focus:border-zinc-300 transition-all"
                     maxLength={6}
                   />
                 </div>
 
                 <div className="flex items-center justify-center gap-2">
-                  <p className="text-sm text-neutral-600">Didn't receive the code?</p>
+                  <p className="text-sm text-zinc-400">Didn't receive the code?</p>
                   <Button
                     type="button"
                     variant="link"
-                    className="text-sm font-semibold text-black underline"
+                    className="text-sm font-semibold text-white underline"
                     onClick={handleResendOTP}
                   >
                     Resend OTP
@@ -1020,7 +1062,7 @@ export default function VendorRegisterPage() {
                 <Button
                   type="button"
                   variant="default"
-                  className="w-full h-12 text-base font-semibold bg-black hover:bg-neutral-800"
+                  className="w-full h-10 text-sm font-semibold bg-white/10 border border-white/20 text-white backdrop-blur-md hover:bg-white/20 hover:border-white/40 transition-all duration-300"
                   onClick={handleVerifyOTP}
                   disabled={isLoading || otp.length !== 6}
                 >
@@ -1030,7 +1072,7 @@ export default function VendorRegisterPage() {
                 <Button
                   type="button"
                   variant="ghost"
-                  className="w-full h-12 text-neutral-600"
+                  className="w-full h-10 text-sm text-zinc-400 hover:text-white"
                   onClick={() => router.push("/login")}
                 >
                   Back to Login
@@ -1041,20 +1083,20 @@ export default function VendorRegisterPage() {
         </Card>
 
         {/* Footer Links */}
-        <div className="mt-6 text-center text-sm text-neutral-600">
+        <div className="mt-6 text-center text-sm text-zinc-400">
           <p>
             Already have an account?{" "}
-            <Link href="/login" className="font-semibold text-black underline hover:text-neutral-800">
+            <Link href="/login" className="font-semibold text-white underline hover:text-zinc-300">
               Sign in
             </Link>
           </p>
           <p className="mt-2">
             By registering, you agree to our{" "}
-            <Link href="/terms" className="font-semibold text-black underline hover:text-neutral-800">
+            <Link href="/terms" className="font-semibold text-white underline hover:text-zinc-300">
               Terms of Service
             </Link>{" "}
             and{" "}
-            <Link href="/privacy" className="font-semibold text-black underline hover:text-neutral-800">
+            <Link href="/privacy" className="font-semibold text-white underline hover:text-zinc-300">
               Privacy Policy
             </Link>
           </p>

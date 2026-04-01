@@ -23,7 +23,7 @@ interface AuthContextType {
   register: (name: string, email: string, password: string, role: UserRole) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
-  googleLogin: () => void;
+  googleLogin: (options?: { role?: UserRole; callbackUrl?: string }) => void;
   facebookLogin: () => void;
 }
 
@@ -211,10 +211,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const googleLogin = useCallback(() => {
+  const googleLogin = useCallback((options?: { role?: UserRole; callbackUrl?: string }) => {
     // Google OAuth - redirect to backend
     // Use window.location for direct backend access (bypasses frontend proxy)
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+    
+    // Store intended role and callback URL in localStorage before redirecting
+    if (options?.role) {
+      localStorage.setItem('NearZro_intendedRole', options.role);
+    }
+    if (options?.callbackUrl) {
+      localStorage.setItem('NearZro_callbackUrl', options.callbackUrl);
+    }
+    
     window.location.href = `${apiUrl}/api/auth/google`;
   }, []);
 
