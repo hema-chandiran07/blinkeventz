@@ -7,11 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState, useEffect } from "react";
 import { useAuth, UserRole } from "@/context/auth-context";
-import { Eye, EyeOff, Mail, Lock, User, Building, Phone, MapPin, CheckCircle2, AlertCircle, Chrome, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, User, Building, Phone, MapPin, CheckCircle2, AlertCircle, Chrome, Loader2, FileText } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { PasswordStrength } from "@/components/ui/password-strength";
+import { compressImage } from "@/lib/image-utils";
 
 const chennaiAreas = [
   "Adyar", "Alwarpet", "Ambattur", "Ambattur OT", "Anna Nagar", "Annanur",
@@ -104,6 +105,12 @@ export default function VenueOwnerRegisterPage() {
   const [userId, setUserId] = useState<number | null>(null);
   const [devOtp, setDevOtp] = useState<string | null>(null);
 
+  const [isCompressing, setIsCompressing] = useState(false);
+  const [isPhoneVerified, setIsPhoneVerified] = useState(false);
+  const [showPhoneOTP, setShowPhoneOTP] = useState(false);
+  const [phoneOtp, setPhoneOtp] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -126,6 +133,7 @@ export default function VenueOwnerRegisterPage() {
     kycDocFiles: [] as File[],
     kycDocType: "AADHAAR",
     kycDocNumber: "",
+    venueGovtCertificateFiles: [] as File[],
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -138,6 +146,42 @@ export default function VenueOwnerRegisterPage() {
   const [emailCheckTimeout, setEmailCheckTimeout] = useState<NodeJS.Timeout | null>(null);
 
   const { setUserFromOAuth } = useAuth();
+
+  // Hydrate from localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedDraft = localStorage.getItem("registration_draft_venue");
+      if (savedDraft) {
+        try {
+          const parsed = JSON.parse(savedDraft);
+          setFormData(prev => ({ ...prev, ...parsed }));
+        } catch (e) {
+          console.error("Draft hydration failed", e);
+        }
+      }
+    }
+  }, []);
+
+  // Save to localStorage whenever formData changes
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (typeof window !== "undefined") {
+        const { password, confirmPassword, venueImages, kycDocFiles, venueGovtCertificateFiles, ...safeData } = formData;
+        if (safeData.email || safeData.name || safeData.venueName) {
+          localStorage.setItem("registration_draft_venue", JSON.stringify(safeData));
+        }
+      }
+    }, 1000);
+    return () => clearTimeout(timeout);
+  }, [formData]);
+
+  // Handle Phone Verification state for OAuth bypass
+  useEffect(() => {
+    if (user && 'phone' in user && user.phone && (user.phone as string).length > 0 && !isPhoneVerified) {
+      setIsPhoneVerified(true);
+      setFormData(prev => ({ ...prev, phone: prev.phone || (user.phone as string) }));
+    }
+  }, [user, isPhoneVerified]);
 
   const handleGoogleLogin = () => {
     const state = encodeURIComponent(JSON.stringify({
@@ -248,10 +292,54 @@ export default function VenueOwnerRegisterPage() {
       newErrors.phone = "Phone number is required";
     } else if (!/^[6-9]\d{9}$/.test(formData.phone.replace(/\s/g, ""))) {
       newErrors.phone = "Please enter a valid 10-digit Indian mobile number";
+    } else if (!isPhoneVerified) {
+      newErrors.phone = "Please verify your phone number";
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  const sendPhoneOTP = async () => {
+    if (!/^[6-9]\d{9}$/.test(formData.phone.replace(/\s/g, ""))) {
+      setErrors(prev => ({ ...prev, phone: "Please enter a valid 10-digit Indian mobile number first" }));
+      return;
+    }
+    setErrors(prev => ({ ...prev, phone: "" }));
+    setIsLoading(true);
+    try {
+      await api.post("/otp/send-phone", { phone: formData.phone });
+      setShowPhoneOTP(true);
+      toast.success("OTP sent to your phone");
+    } catch (error: any) {
+      console.error("Failed to send phone OTP:", error);
+      toast.error(error?.response?.data?.message || "Failed to send OTP. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const verifyPhoneOTP = async () => {
+    setIsLoading(true);
+    try {
+      const response = await api.post("/otp/verify-phone", { phone: formData.phone, otp: phoneOtp });
+      
+      // Check if the API returned a success response
+      if (response.data?.success) {
+        setIsPhoneVerified(true);
+        setShowPhoneOTP(false);
+        toast.success("Phone verified successfully!");
+      } else {
+        // API returned success:false - throw to trigger catch block
+        throw new Error(response.data?.message || "Verification failed");
+      }
+    } catch (error: any) {
+      console.error("OTP verification error:", error);
+      toast.error(error?.response?.data?.message || error?.message || "Invalid OTP. Please try again.");
+      // Do NOT set isPhoneVerified true or hide OTP input on error
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const validateStep4 = () => {
@@ -269,8 +357,32 @@ export default function VenueOwnerRegisterPage() {
       newErrors.kycDocFiles = "Maximum 5 KYC images allowed";
     }
 
-    if (!formData.kycDocNumber.trim()) {
+    const docNum = formData.kycDocNumber;
+    if (!docNum) {
       newErrors.kycDocNumber = "KYC document number is required";
+    } else {
+      switch (formData.kycDocType) {
+        case "AADHAAR":
+          if (!/^\d{12}$/.test(docNum)) newErrors.kycDocNumber = "Aadhaar must be exactly 12 digits";
+          break;
+        case "PAN":
+          if (!/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(docNum)) newErrors.kycDocNumber = "Invalid PAN format (e.g., ABCDE1234F)";
+          break;
+        case "PASSPORT":
+          if (!/^[A-Z][0-9]{7}$/.test(docNum)) newErrors.kycDocNumber = "Invalid Passport format";
+          break;
+        case "DRIVING_LICENSE":
+          if (!/^[A-Z]{2}[0-9]{13}$/.test(docNum)) newErrors.kycDocNumber = "Invalid DL format (e.g., TN0120230000123)";
+          break;
+      }
+    }
+
+    if (formData.venueGovtCertificateFiles.length === 0) {
+      newErrors.venueGovtCertificateFiles = "Original Government Certified Document (Trade License/Registration) is strictly required.";
+    }
+
+    if (!acceptedTerms) {
+      newErrors.terms = "You must agree to the Terms and Privacy Policy";
     }
 
     setErrors(newErrors);
@@ -327,6 +439,7 @@ export default function VenueOwnerRegisterPage() {
         
         formData.venueImages.forEach((image) => formDataObj.append("venueImages", image));
         formData.kycDocFiles.forEach((file) => formDataObj.append("kycDocFiles", file));
+        formData.venueGovtCertificateFiles.forEach((file) => formDataObj.append("venueGovtCertificateFiles", file));
 
         // Check if they already have a venue
         const venuesResponse = await api.get("/venues/my");
@@ -372,6 +485,10 @@ export default function VenueOwnerRegisterPage() {
 
       formData.kycDocFiles.forEach((file) => {
         formDataObj.append("kycDocFiles", file);
+      });
+
+      formData.venueGovtCertificateFiles.forEach((file) => {
+        formDataObj.append("venueGovtCertificateFiles", file);
       });
 
       const response = await api.post("/auth/register-venue-owner", formDataObj, {
@@ -1088,18 +1205,65 @@ export default function VenueOwnerRegisterPage() {
                   <Label htmlFor="phone" className="text-sm font-medium text-zinc-300">
                     Phone Number *
                   </Label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-400" />
-                    <Input
-                      id="phone"
-                      placeholder="9876543210"
-                      value={formData.phone}
-                      onChange={(e) => handleInputChange("phone", e.target.value)}
-                      className={`pl-10 h-12 bg-zinc-900/50 border border-zinc-800 text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all ${
-                        errors.phone ? "border-red-500" : ""
-                      }`}
-                    />
+                  <div className="flex gap-2 relative">
+                    <div className="relative flex-1">
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-400" />
+                      <Input
+                        id="phone"
+                        placeholder="9876543210"
+                        value={formData.phone}
+                        onChange={(e) => {
+                          handleInputChange("phone", e.target.value);
+                          setIsPhoneVerified(false);
+                        }}
+                        disabled={isPhoneVerified}
+                        className={`pl-10 h-12 bg-zinc-900/50 border border-zinc-800 text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all ${
+                          errors.phone ? "border-red-500" : ""
+                        }`}
+                        maxLength={10}
+                      />
+                    </div>
+                    {!isPhoneVerified ? (
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        onClick={sendPhoneOTP}
+                        disabled={isLoading || formData.phone.length !== 10}
+                        className="bg-white/5 border-zinc-800 text-white h-12 shrink-0 px-6"
+                      >
+                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Verify"}
+                      </Button>
+                    ) : (
+                      <div className="h-12 px-4 flex items-center justify-center bg-green-500/10 border border-green-500/20 rounded-lg shrink-0">
+                        <CheckCircle2 className="h-5 w-5 text-green-400" />
+                      </div>
+                    )}
                   </div>
+                  {errors.phone && <p className="text-xs text-red-400">{errors.phone}</p>}
+
+                  {showPhoneOTP && !isPhoneVerified && (
+                    <div className="mt-3 p-4 bg-zinc-900/50 border border-zinc-800 rounded-lg space-y-3 animate-in fade-in slide-in-from-top-2">
+                      <Label htmlFor="phoneOtp" className="text-sm font-medium text-zinc-300">Enter Phone OTP</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          id="phoneOtp"
+                          placeholder="123456"
+                          value={phoneOtp}
+                          onChange={(e) => setPhoneOtp(e.target.value)}
+                          maxLength={6}
+                          className="h-12 text-center tracking-widest text-lg bg-zinc-950 border-zinc-800 focus:border-zinc-600 text-white"
+                        />
+                        <Button 
+                          type="button" 
+                          onClick={verifyPhoneOTP}
+                          disabled={isLoading || phoneOtp.length < 4}
+                          className="bg-zinc-700 hover:bg-zinc-600 text-white h-12 px-6"
+                        >
+                          Confirm
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                   {errors.phone && <p className="text-xs text-red-400">{errors.phone}</p>}
                 </div>
 
@@ -1151,22 +1315,29 @@ export default function VenueOwnerRegisterPage() {
                       type="file"
                       accept="image/*"
                       multiple
-                      onChange={(e) => {
+                      onChange={async (e) => {
                         const files = Array.from(e.target.files || []);
                         if (files.length > 0) {
-                          setFormData(prev => ({ ...prev, venueImages: [...prev.venueImages, ...files].slice(0, 5) }));
+                          setIsCompressing(true);
+                          const compressedFiles = await Promise.all(files.map(compressImage));
+                          setFormData(prev => ({ ...prev, venueImages: [...prev.venueImages, ...compressedFiles].slice(0, 5) }));
+                          setIsCompressing(false);
                         }
                       }}
                       className="hidden"
                       id="venue-images-upload"
                     />
-                    <label htmlFor="venue-images-upload" className="cursor-pointer">
+                    <label htmlFor="venue-images-upload" className="cursor-pointer text-center">
                       <div className="flex flex-col items-center">
-                        <svg className="w-10 h-10 text-zinc-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
+                        {isCompressing ? (
+                          <Loader2 className="w-10 h-10 text-zinc-500 mb-2 animate-spin" />
+                        ) : (
+                          <svg className="w-10 h-10 text-zinc-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                        )}
                         <p className="text-sm text-zinc-400">
-                          <span className="font-semibold text-white">Click to upload</span> or drag and drop
+                          <span className="font-semibold text-white">{isCompressing ? "Processing images..." : "Click to upload"}</span> or drag and drop
                         </p>
                         <p className="text-xs text-zinc-500 mt-1">PNG, JPG up to 5MB each</p>
                       </div>
@@ -1237,7 +1408,15 @@ export default function VenueOwnerRegisterPage() {
                       "DL Number"
                     }
                     value={formData.kycDocNumber}
-                    onChange={(e) => handleInputChange("kycDocNumber", e.target.value)}
+                    onChange={(e) => {
+                      let val = e.target.value;
+                      if (formData.kycDocType === "AADHAAR") {
+                        val = val.replace(/\D/g, '').slice(0, 12);
+                      } else {
+                        val = val.toUpperCase().replace(/[^A-Z0-9]/g, '');
+                      }
+                      handleInputChange("kycDocNumber", val);
+                    }}
                     className={`h-12 bg-zinc-900/50 border border-zinc-800 text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all ${
                       errors.kycDocNumber ? "border-red-500" : ""
                     }`}
@@ -1253,37 +1432,51 @@ export default function VenueOwnerRegisterPage() {
                   <div className="border-2 border-dashed border-zinc-700 hover:border-zinc-500 bg-zinc-900/30 rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer transition-colors">
                     <input
                       type="file"
-                      accept="image/*"
+                      accept="image/*,application/pdf"
                       multiple
-                      onChange={(e) => {
+                      onChange={async (e) => {
                         const files = Array.from(e.target.files || []);
                         if (files.length > 0) {
-                          setFormData(prev => ({ ...prev, kycDocFiles: [...prev.kycDocFiles, ...files].slice(0, 5) }));
+                          setIsCompressing(true);
+                          const compressedFiles = await Promise.all(files.map(compressImage));
+                          setFormData(prev => ({ ...prev, kycDocFiles: [...prev.kycDocFiles, ...compressedFiles].slice(0, 5) }));
+                          setIsCompressing(false);
                         }
                       }}
                       className="hidden"
                       id="kyc-doc-upload"
                     />
-                    <label htmlFor="kyc-doc-upload" className="cursor-pointer">
+                    <label htmlFor="kyc-doc-upload" className="cursor-pointer text-center">
                       <div className="flex flex-col items-center">
-                        <svg className="w-10 h-10 text-zinc-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
+                        {isCompressing ? (
+                          <Loader2 className="w-10 h-10 text-zinc-500 mb-2 animate-spin" />
+                        ) : (
+                          <svg className="w-10 h-10 text-zinc-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                        )}
                         <p className="text-sm text-zinc-400">
-                          <span className="font-semibold text-white">Click to upload KYC images</span> or drag and drop
+                          <span className="font-semibold text-white">{isCompressing ? "Processing documents..." : "Click to upload KYC images"}</span> or drag and drop
                         </p>
-                        <p className="text-xs text-zinc-500 mt-1">PNG, JPG up to 5MB each (1-5 images)</p>
+                        <p className="text-xs text-zinc-500 mt-1">PNG, JPG, PDF up to 5MB each (1-5 images)</p>
                       </div>
                     </label>
                     {formData.kycDocFiles.length > 0 && (
                       <div className="mt-4 grid grid-cols-3 gap-2">
                         {formData.kycDocFiles.map((file, index) => (
                           <div key={index} className="relative aspect-square rounded-lg overflow-hidden border border-zinc-700">
-                            <img
-                              src={URL.createObjectURL(file)}
-                              alt={`KYC ${index + 1}`}
-                              className="w-full h-full object-cover"
-                            />
+                            {file.type === "application/pdf" ? (
+                              <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-800">
+                                <FileText className="w-8 h-8 text-blue-400 mb-1" />
+                                <span className="text-[10px] text-zinc-400 text-center px-1 truncate w-full">{file.name}</span>
+                              </div>
+                            ) : (
+                              <img
+                                src={URL.createObjectURL(file)}
+                                alt={`KYC ${index + 1}`}
+                                className="w-full h-full object-cover"
+                              />
+                            )}
                             <button
                               type="button"
                               onClick={() => {
@@ -1306,25 +1499,118 @@ export default function VenueOwnerRegisterPage() {
                   {errors.kycDocFiles && <p className="text-xs text-red-400">{errors.kycDocFiles}</p>}
                 </div>
 
-                <div className="flex gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="flex-1 h-12 bg-zinc-800 text-white hover:bg-zinc-700 transition-all duration-300"
-                    onClick={() => setStep(3)}
-                    disabled={isLoading}
-                  >
-                    Back
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="default"
-                    className="flex-1 h-12 text-base font-semibold text-zinc-100 bg-gradient-to-b from-zinc-700 to-zinc-900 border border-zinc-600 rounded-lg hover:from-zinc-600 hover:to-zinc-800 hover:border-zinc-400 hover:shadow-[0_0_15px_rgba(255,255,255,0.1)] transition-all duration-300 active:scale-[0.99]"
-                    onClick={handleNextStep}
-                    disabled={isLoading}
-                  >
-                    {isLoading ? "Creating Account..." : "Create Account"}
-                  </Button>
+                {/* Venue Government Certificate (Trade License) */}
+                <div className="space-y-2 mt-6 p-5 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                  <Label className="text-sm font-medium text-amber-300">
+                    Original Venue Government Certification * (Trade License / Registration)
+                  </Label>
+                  <div className="border-2 border-dashed border-amber-500/40 hover:border-amber-400 bg-zinc-900/30 rounded-lg p-4 text-center transition-colors">
+                    <input
+                      type="file"
+                      accept="image/*,application/pdf"
+                      multiple
+                      onChange={async (e) => {
+                        const files = Array.from(e.target.files || []);
+                        if (files.length > 0) {
+                          setIsCompressing(true);
+                          const compressedFiles = await Promise.all(files.map(compressImage));
+                          setFormData(prev => ({ ...prev, venueGovtCertificateFiles: [...prev.venueGovtCertificateFiles, ...compressedFiles].slice(0, 5) }));
+                          setIsCompressing(false);
+                        }
+                      }}
+                      className="hidden"
+                      id="venue-govt-cert-upload"
+                    />
+                    <label htmlFor="venue-govt-cert-upload" className="cursor-pointer">
+                      <div className="flex flex-col items-center">
+                        {isCompressing ? (
+                          <Loader2 className="w-10 h-10 text-amber-500 mb-2 animate-spin" />
+                        ) : (
+                          <svg className="w-10 h-10 text-amber-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                        )}
+                        <p className="text-sm text-amber-300/80">
+                          <span className="font-semibold text-amber-400">{isCompressing ? "Processing..." : "Click to upload Trade License"}</span> or drag and drop
+                        </p>
+                        <p className="text-xs text-amber-500/60 mt-1">PNG, JPG, PDF up to 5MB each</p>
+                      </div>
+                    </label>
+                    {formData.venueGovtCertificateFiles.length > 0 && (
+                      <div className="mt-4 grid grid-cols-3 gap-2">
+                        {formData.venueGovtCertificateFiles.map((file, index) => (
+                          <div key={index} className="relative aspect-square rounded-lg overflow-hidden border border-amber-500/30">
+                            {file.type === "application/pdf" ? (
+                              <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-800">
+                                <FileText className="w-8 h-8 text-amber-400 mb-1" />
+                                <span className="text-[10px] text-amber-300/80 text-center px-1 truncate w-full">{file.name}</span>
+                              </div>
+                            ) : (
+                              <img
+                                src={URL.createObjectURL(file)}
+                                alt={`Govt Cert ${index + 1}`}
+                                className="w-full h-full object-cover"
+                              />
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  venueGovtCertificateFiles: prev.venueGovtCertificateFiles.filter((_, i) => i !== index)
+                                }));
+                              }}
+                              className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                            >
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {errors.venueGovtCertificateFiles && <p className="text-xs text-red-400">{errors.venueGovtCertificateFiles}</p>}
+                </div>
+
+                <div className="pt-4 border-t border-zinc-800">
+                  <div className="flex items-start gap-3 mb-6">
+                    <div className="flex items-center h-5">
+                      <input
+                        id="terms"
+                        type="checkbox"
+                        checked={acceptedTerms}
+                        onChange={(e) => setAcceptedTerms(e.target.checked)}
+                        className="w-4 h-4 rounded border-zinc-800 bg-zinc-900 text-zinc-100 focus:ring-zinc-600 focus:ring-offset-zinc-950"
+                      />
+                    </div>
+                    <Label htmlFor="terms" className="text-sm text-zinc-400 leading-snug cursor-pointer">
+                      I agree to the <Link href="/terms" className="underline hover:text-white transition-colors">Terms of Service</Link> and <Link href="/privacy" className="underline hover:text-white transition-colors">DPDP Privacy Policy</Link>.
+                    </Label>
+                  </div>
+                  {errors.terms && <p className="text-xs text-red-400 mb-4">{errors.terms}</p>}
+                  
+                  <div className="flex gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1 h-12 bg-zinc-800 text-white hover:bg-zinc-700 transition-all duration-300"
+                      onClick={() => setStep(4)}
+                      disabled={isLoading || isCompressing}
+                    >
+                      Back
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="default"
+                      className="flex-1 h-12 text-base font-semibold text-zinc-100 bg-gradient-to-b from-zinc-700 to-zinc-900 border border-zinc-600 rounded-lg hover:from-zinc-600 hover:to-zinc-800 hover:border-zinc-400 hover:shadow-[0_0_15px_rgba(255,255,255,0.1)] transition-all duration-300 active:scale-[0.99]"
+                      onClick={handleNextStep}
+                      disabled={isLoading || isCompressing || !acceptedTerms}
+                    >
+                      {isLoading ? "Creating Account..." : "Submit for Verification"}
+                    </Button>
+                  </div>
                 </div>
               </div>
             )}

@@ -294,6 +294,7 @@ export class VenuesService {
     ownerId: number,
     venueImageUrls?: string[],
     kycDocUrls?: string[],
+    govtCertUrls?: string[],
   ): Promise<VenueResponseDto> {
     // Verify ownership is handled by guard
     const venue = await this.prisma.venue.findUnique({
@@ -327,8 +328,20 @@ export class VenuesService {
 
     // Handle new venue images - append to existing images array
     if (venueImageUrls && venueImageUrls.length > 0) {
-      const existingImages = venue.images || [];
-      updateData.images = [...existingImages, ...venueImageUrls];
+      const existingImages = venue.venueImages || [];
+      updateData.venueImages = [...existingImages, ...venueImageUrls];
+    }
+
+    // Handle KYC documents stored directly on Venue model
+    if (kycDocUrls && kycDocUrls.length > 0) {
+      const existingKycFiles = venue.kycDocFiles || [];
+      updateData.kycDocFiles = [...existingKycFiles, ...kycDocUrls];
+    }
+
+    // Handle Trade License (MANDATORY for venues)
+    if (govtCertUrls && govtCertUrls.length > 0) {
+      const existingCerts = venue.venueGovtCertificateFiles || [];
+      updateData.venueGovtCertificateFiles = [...existingCerts, ...govtCertUrls];
     }
 
     // Handle KYC documents - create single KycDocument entry
@@ -517,7 +530,7 @@ export class VenuesService {
     dto.amenities = venue.amenities;
     dto.policies = venue.policies;
     dto.status = venue.status;
-    dto.images = venue.images;
+    dto.images = venue.venueImages;
     dto.photos = venue.photos?.map((p: any) => ({
       id: p.id,
       url: p.url,

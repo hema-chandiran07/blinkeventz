@@ -120,6 +120,7 @@ export class VenuesController {
     FileFieldsInterceptor([
       { name: 'venueImages', maxCount: 5 },
       { name: 'kycDocFiles', maxCount: 5 },
+      { name: 'venueGovtCertificateFiles', maxCount: 5 },
     ], {
       storage: diskStorage({
         destination: './uploads',
@@ -134,7 +135,7 @@ export class VenuesController {
   async updateMyVenue(
     @Req() req: any,
     @Body() dto: Partial<CreateVenueDto>,
-    @UploadedFiles() files: { venueImages?: Express.Multer.File[], kycDocFiles?: Express.Multer.File[] },
+    @UploadedFiles() files: { venueImages?: Express.Multer.File[], kycDocFiles?: Express.Multer.File[], venueGovtCertificateFiles?: Express.Multer.File[] },
   ) {
     const ownerId = req.user.userId;
     const venues = await this.venuesService.getVenuesByOwner(ownerId);
@@ -142,8 +143,9 @@ export class VenuesController {
 
     const venueImageUrls = files?.venueImages?.map(f => `/uploads/${f.filename}`) || [];
     const kycDocUrls = files?.kycDocFiles?.map(f => `/uploads/${f.filename}`) || [];
+    const govtCertUrls = files?.venueGovtCertificateFiles?.map(f => `/uploads/${f.filename}`) || [];
 
-    return this.venuesService.updateVenue(venues[0].id, dto, ownerId, venueImageUrls, kycDocUrls);
+    return this.venuesService.updateVenue(venues[0].id, dto, ownerId, venueImageUrls, kycDocUrls, govtCertUrls);
   }
 
   // ============================================
@@ -205,6 +207,7 @@ export class VenuesController {
     FileFieldsInterceptor([
       { name: 'venueImages', maxCount: 5 },
       { name: 'kycDocFiles', maxCount: 5 },
+      { name: 'venueGovtCertificateFiles', maxCount: 5 },
     ], {
       storage: diskStorage({
         destination: './uploads',
@@ -220,11 +223,12 @@ export class VenuesController {
     @Param('id', ParseIntPipe) id: number,
     @Req() req: any,
     @Body() dto: Partial<CreateVenueDto>,
-    @UploadedFiles() files: { venueImages?: Express.Multer.File[], kycDocFiles?: Express.Multer.File[] },
+    @UploadedFiles() files: { venueImages?: Express.Multer.File[], kycDocFiles?: Express.Multer.File[], venueGovtCertificateFiles?: Express.Multer.File[] },
   ) {
     const venueImageUrls = files?.venueImages?.map(f => `/uploads/${f.filename}`) || [];
     const kycDocUrls = files?.kycDocFiles?.map(f => `/uploads/${f.filename}`) || [];
-    return this.venuesService.updateVenue(id, dto, req.user.userId, venueImageUrls, kycDocUrls);
+    const govtCertUrls = files?.venueGovtCertificateFiles?.map(f => `/uploads/${f.filename}`) || [];
+    return this.venuesService.updateVenue(id, dto, req.user.userId, venueImageUrls, kycDocUrls, govtCertUrls);
   }
 
   /// 🏢 VENUE OWNER → Delete venue (ownership guard)

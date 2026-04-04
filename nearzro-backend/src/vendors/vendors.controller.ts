@@ -50,6 +50,7 @@ export class VendorsController {
     FileFieldsInterceptor([
       { name: 'businessImages', maxCount: 5 },
       { name: 'kycDocFiles', maxCount: 5 },
+      { name: 'foodLicenseFiles', maxCount: 5 },
     ], {
       storage: diskStorage({
         destination: './uploads',
@@ -64,11 +65,12 @@ export class VendorsController {
   updateMyVendor(
     @Req() req: AuthRequest,
     @Body() dto: Partial<CreateVendorDto>,
-    @UploadedFiles() files: { businessImages?: Express.Multer.File[], kycDocFiles?: Express.Multer.File[] },
+    @UploadedFiles() files: { businessImages?: Express.Multer.File[], kycDocFiles?: Express.Multer.File[], foodLicenseFiles?: Express.Multer.File[] },
   ) {
     const businessImageUrls = files?.businessImages?.map(f => `/uploads/${f.filename}`) || [];
     const kycDocUrls = files?.kycDocFiles?.map(f => `/uploads/${f.filename}`) || [];
-    return this.vendorsService.updateVendorByUserId(req.user.userId, dto, businessImageUrls, kycDocUrls);
+    const foodLicenseUrls = files?.foodLicenseFiles?.map(f => `/uploads/${f.filename}`) || [];
+    return this.vendorsService.updateVendorByUserId(req.user.userId, dto, businessImageUrls, kycDocUrls, foodLicenseUrls);
   }
 
   // ADMIN routes - must be BEFORE :id route

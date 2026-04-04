@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsString, IsOptional, IsInt, Min, MaxLength, IsNotEmpty, IsEnum } from 'class-validator';
+import { Type, Transform } from 'class-transformer';
+import { IsString, IsOptional, IsInt, Min, Max, MaxLength, IsNotEmpty, IsEnum, IsArray, ValidateNested } from 'class-validator';
 
 export class CreateVendorDto {
   @ApiProperty({
@@ -49,6 +49,15 @@ export class CreateVendorDto {
   area: string;
 
   @ApiPropertyOptional({
+    example: '9876543210',
+    description: 'Phone number',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20, { message: 'phone must not exceed 20 characters' })
+  phone?: string;
+
+  @ApiPropertyOptional({
     example: 25,
     description: 'Service radius in kilometers',
   })
@@ -59,15 +68,6 @@ export class CreateVendorDto {
   serviceRadiusKm?: number;
 
   @ApiPropertyOptional({
-    example: 'ABCD1234E',
-    description: 'KYC document number (Aadhar/PAN)',
-  })
-  @IsOptional()
-  @IsString()
-  @MaxLength(50, { message: 'kycDocNumber must not exceed 50 characters' })
-  kycDocNumber?: string;
-
-  @ApiPropertyOptional({
     example: 'AADHAAR',
     description: 'KYC document type',
   })
@@ -75,4 +75,16 @@ export class CreateVendorDto {
   @IsString()
   @MaxLength(20, { message: 'kycDocType must not exceed 20 characters' })
   kycDocType?: string;
+
+  @ApiPropertyOptional({
+    example: '123456789012',
+    description: 'KYC document number (validated by regex)',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50, { message: 'kycDocNumber must not exceed 50 characters' })
+  kycDocNumber?: string;
+
+  // Files - handled by interceptor, not validated here
+  // businessImages, kycDocFiles, foodLicenseFiles are handled via @UploadedFiles()
 }

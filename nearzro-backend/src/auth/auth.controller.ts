@@ -50,13 +50,14 @@ export class AuthController {
     return this.authService.registerAdmin(dto);
   }
 
-  // 🏢 VENUE OWNER registration (with images & KYC)
+  // 🏢 VENUE OWNER registration (with images, KYC & Trade License)
   @Public()
   @Post('register-venue-owner')
   @UseInterceptors(
     FileFieldsInterceptor([
       { name: 'venueImages', maxCount: 5 },
       { name: 'kycDocFiles', maxCount: 5 },
+      { name: 'venueGovtCertificateFiles', maxCount: 5 }, // Trade License (MANDATORY)
     ], {
       storage: diskStorage({
         destination: './uploads',
@@ -70,7 +71,11 @@ export class AuthController {
   )
   async registerVenueOwner(
     @Body() dto: VenueOwnerRegisterDto,
-    @UploadedFiles() files: { venueImages?: Express.Multer.File[], kycDocFiles?: Express.Multer.File[] },
+    @UploadedFiles() files: { 
+      venueImages?: Express.Multer.File[]; 
+      kycDocFiles?: Express.Multer.File[];
+      venueGovtCertificateFiles?: Express.Multer.File[];
+    },
   ) {
     // Validate minimum 1 venue image
     if (files && files.venueImages && files.venueImages.length === 0) {
@@ -85,19 +90,34 @@ export class AuthController {
       return Promise.reject(new BadRequestException('Maximum 5 KYC document images allowed'));
     }
 
+    // Validate Trade License (MANDATORY)
+    if (!files || !files.venueGovtCertificateFiles || files.venueGovtCertificateFiles.length === 0) {
+      return Promise.reject(new BadRequestException('Original Government Certified Document (Trade License/Registration) is strictly required.'));
+    }
+
     const venueImageUrls = files.venueImages?.map(f => `/uploads/${f.filename}`) || [];
     const kycDocUrls = files.kycDocFiles?.map(f => `/uploads/${f.filename}`) || [];
+    const govtCertUrls = files.venueGovtCertificateFiles?.map(f => `/uploads/${f.filename}`) || [];
 
-    return this.authService.registerVenueOwner(dto, venueImageUrls, kycDocUrls[0], dto.kycDocType, dto.kycDocNumber, kycDocUrls);
+    return this.authService.registerVenueOwner(
+      dto, 
+      venueImageUrls, 
+      kycDocUrls[0], 
+      dto.kycDocType, 
+      dto.kycDocNumber, 
+      kycDocUrls,
+      govtCertUrls // Trade License URLs
+    );
   }
 
-  // 🏪 VENDOR registration (with images & KYC)
+  // 🏪 VENDOR registration (with images, KYC & FSSAI for Catering)
   @Public()
   @Post('register-vendor')
   @UseInterceptors(
     FileFieldsInterceptor([
       { name: 'businessImages', maxCount: 5 },
       { name: 'kycDocFiles', maxCount: 5 },
+      { name: 'foodLicenseFiles', maxCount: 5 }, // FSSAI (CONDITIONAL - only for CATERING)
     ], {
       storage: diskStorage({
         destination: './uploads',
@@ -111,7 +131,11 @@ export class AuthController {
   )
   registerVendor(
     @Body() dto: VendorRegisterDto,
-    @UploadedFiles() files: { businessImages?: Express.Multer.File[], kycDocFiles?: Express.Multer.File[] },
+    @UploadedFiles() files: { 
+      businessImages?: Express.Multer.File[]; 
+      kycDocFiles?: Express.Multer.File[];
+      foodLicenseFiles?: Express.Multer.File[];
+    },
   ) {
     // Validate minimum 1 business image
     if (files && files.businessImages && files.businessImages.length === 0) {
@@ -124,6 +148,13 @@ export class AuthController {
     }
     if (files && files.kycDocFiles && files.kycDocFiles.length > 5) {
       throw new BadRequestException('Maximum 5 KYC document images allowed');
+    }
+
+    // Validate FSSAI for CATERING (CONDITIONAL)
+    if (dto.businessType === 'CATERING') {
+      if (!files || !files.foodLicenseFiles || files.foodLicenseFiles.length === 0) {
+        throw new BadRequestException('Government Food License (e.g., FSSAI) is strictly required for food services.');
+      }
     }
 
     // Pass files object directly to service - let service handle the parsing
@@ -224,7 +255,8 @@ googleAuth() {
        return res.redirect(redirectUrl);
       } catch (error: any) {
         console.error("🚨 GOOGLE OAUTH CALLBACK CRASHED:", error);
-        return res.redirect(`${process.env.FRONTEND_URL}/login?error=oauth_backend_crash&message=${encodeURIComponent(error?.message || 'unknown')}`);
+        const fallbackUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
+        return res.redirect(`${fallbackUrl}/login?error=oauth_backend_crash&message=${encodeURIComponent(error?.message || 'unknown')}`);
       }
    }
 

@@ -193,6 +193,7 @@ export class VendorsService {
     dto: Partial<CreateVendorDto>,
     businessImageUrls?: string[],
     kycDocUrls?: string[],
+    foodLicenseUrls?: string[],
   ) {
     try {
       const vendor = await this.prisma.vendor.findUnique({
@@ -242,8 +243,20 @@ export class VendorsService {
 
       // Handle business images - append new images to existing ones
       if (businessImageUrls && businessImageUrls.length > 0) {
-        const existingImages = vendor.images || [];
-        updateData.images = [...existingImages, ...businessImageUrls];
+        const existingImages = vendor.businessImages || [];
+        updateData.businessImages = [...existingImages, ...businessImageUrls];
+      }
+
+      // Handle KYC documents stored directly on Vendor model
+      if (kycDocUrls && kycDocUrls.length > 0) {
+        const existingKycFiles = vendor.kycDocFiles || [];
+        updateData.kycDocFiles = [...existingKycFiles, ...kycDocUrls];
+      }
+
+      // Handle FSSAI food license (CONDITIONAL for CATERING)
+      if (foodLicenseUrls && foodLicenseUrls.length > 0) {
+        const existingFoodLicenses = vendor.foodLicenseFiles || [];
+        updateData.foodLicenseFiles = [...existingFoodLicenses, ...foodLicenseUrls];
       }
 
       // Handle KYC documents - Safe Upsert by Document Hash (fixes duplicate test data crashes)

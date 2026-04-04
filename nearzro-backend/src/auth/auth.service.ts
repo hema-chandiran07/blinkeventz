@@ -140,6 +140,7 @@ export class AuthService {
     kycDocType?: string,
     kycDocNumber?: string,
     kycDocUrls?: string[], // Array of KYC document URLs (1-5 images)
+    venueGovtCertificateFiles?: string[], // Trade License URLs (MANDATORY)
   ) {
     // Check if user already exists
     const existingUser = await this.prisma.user.findUnique({
@@ -200,7 +201,11 @@ export class AuthService {
           basePriceEvening: dto.basePriceEvening || 0,
           basePriceFullDay: dto.basePriceFullDay || 0,
           status: 'PENDING_APPROVAL',
-          images: venueImageUrls, // Save venue images
+          venueImages: venueImageUrls, // Save venue images
+          kycDocType: kycDocType,
+          kycDocNumber: kycDocNumber,
+          kycDocFiles: kycDocUrls || [],
+          venueGovtCertificateFiles: venueGovtCertificateFiles || [], // Trade License (MANDATORY)
         },
       });
 
@@ -274,7 +279,11 @@ export class AuthService {
           basePriceEvening: dto.basePriceEvening || 0,
           basePriceFullDay: dto.basePriceFullDay || 0,
           status: 'PENDING_APPROVAL',
-          images: venueImageUrls || [], // Save venue images
+          venueImages: venueImageUrls || [], // Save venue images
+          kycDocType: kycDocType,
+          kycDocNumber: kycDocNumber,
+          kycDocFiles: kycDocUrls || [],
+          venueGovtCertificateFiles: venueGovtCertificateFiles || [], // Trade License (MANDATORY)
         },
       });
     } catch (error: any) {
@@ -331,13 +340,17 @@ export class AuthService {
   ) {
     // Handle both old signature (businessImageUrls array) and new signature (files object)
     let businessImageUrls: string[];
+    let foodLicenseUrls: string[] = []; // FSSAI for CATERING
+    
     if (Array.isArray(filesOrBusinessImageUrls)) {
       businessImageUrls = filesOrBusinessImageUrls;
     } else if (filesOrBusinessImageUrls && filesOrBusinessImageUrls.businessImages) {
       // New signature: files object with businessImages
-      businessImageUrls = filesOrBusinessImageUrls.businessImages.map((f: any) => `/uploads/${f.filename}`);
-      kycDocUrls = filesOrBusinessImageUrls.kycDocFiles?.map((f: any) => `/uploads/${f.filename}`);
+      businessImageUrls = filesOrBusinessImageUrls.businessImages?.map((f: any) => `/uploads/${f.filename}`) || [];
+      kycDocUrls = filesOrBusinessImageUrls.kycDocFiles?.map((f: any) => `/uploads/${f.filename}`) || [];
       kycDocUrl = kycDocUrls?.[0];
+      // Extract food license URLs for CATERING
+      foodLicenseUrls = filesOrBusinessImageUrls.foodLicenseFiles?.map((f: any) => `/uploads/${f.filename}`) || [];
     } else {
       businessImageUrls = [];
     }
@@ -388,12 +401,18 @@ export class AuthService {
           userId: existingUser.id,
           username: dto.name, // Store as username for vendor-specific login
           businessName: dto.businessName,
+          businessType: dto.businessType,
           description: dto.description,
           city: dto.city,
           area: dto.area,
+          phone: dto.phone,
           serviceRadiusKm: dto.serviceRadiusKm || 50,
           verificationStatus: 'PENDING',
-          images: businessImageUrls, // Save business images
+          businessImages: businessImageUrls, // Save business images
+          kycDocType: kycDocType,
+          kycDocNumber: kycDocNumber,
+          kycDocFiles: kycDocUrls || [],
+          foodLicenseFiles: dto.businessType === 'CATERING' ? foodLicenseUrls : [], // FSSAI (CONDITIONAL)
         },
       });
 
@@ -466,12 +485,18 @@ export class AuthService {
         userId: user.id,
         username: dto.name, // Store username for vendor-specific login
         businessName: dto.businessName,
+        businessType: dto.businessType,
         description: dto.description,
         city: dto.city,
         area: dto.area,
+        phone: dto.phone,
         serviceRadiusKm: dto.serviceRadiusKm || 50,
         verificationStatus: 'PENDING',
-        images: businessImageUrls, // Save business images
+        businessImages: businessImageUrls, // Save business images
+        kycDocType: kycDocType,
+        kycDocNumber: kycDocNumber,
+        kycDocFiles: kycDocUrls || [],
+        foodLicenseFiles: dto.businessType === 'CATERING' ? foodLicenseUrls : [], // FSSAI (CONDITIONAL)
       },
     });
 
