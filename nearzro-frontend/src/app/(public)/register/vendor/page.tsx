@@ -742,59 +742,74 @@ export default function VendorRegisterPage() {
                   {errors.description && <p className="text-xs text-red-400">{errors.description}</p>}
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="city" className="text-sm font-medium text-zinc-300">
-                      City *
-                    </Label>
-                    <div className="relative">
-                      <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500 pointer-events-none" />
+                <div className="space-y-4 mt-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* City Dropdown */}
+                    <div className="space-y-1.5">
+                      <Label htmlFor="city" className="text-sm font-medium text-zinc-300">
+                        City *
+                      </Label>
+                      <div className="relative">
+                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500 pointer-events-none" />
+                        <select
+                          id="city"
+                          value={formData.city}
+                          onChange={(e) => {
+                            handleInputChange("city", e.target.value);
+                            // Auto-clear area selection if a non-Chennai city is selected
+                            if (e.target.value !== "Chennai") {
+                              handleInputChange("area", ""); 
+                            }
+                          }}
+                          className={`pl-9 h-10 w-full appearance-none bg-zinc-900/50 border border-white/10 text-white focus:outline-none focus:border-zinc-300 focus:ring-1 focus:ring-zinc-300 transition-all rounded-lg text-sm ${
+                            errors.city ? "border-red-500" : ""
+                          }`}
+                        >
+                          <option className="bg-zinc-900 text-white" value="" disabled>Select City</option>
+                          <option className="bg-zinc-900 text-white" value="Chennai">Chennai</option>
+                          <option className="bg-zinc-900 text-white" value="Coimbatore">Coimbatore</option>
+                          <option className="bg-zinc-900 text-white" value="Madurai">Madurai</option>
+                          <option className="bg-zinc-900 text-white" value="Trichy">Trichy</option>
+                          <option className="bg-zinc-900 text-white" value="Salem">Salem</option>
+                          <option className="bg-zinc-900 text-white" value="Tirunelveli">Tirunelveli</option>
+                          <option className="bg-zinc-900 text-white" value="Tiruppur">Tiruppur</option>
+                        </select>
+                      </div>
+                      {errors.city && <p className="text-xs text-red-400">{errors.city}</p>}
+                    </div>
+
+                    {/* Area Dropdown */}
+                    <div className={`space-y-1.5 ${formData.city !== "Chennai" ? "opacity-50 pointer-events-none" : ""}`}>
+                      <Label htmlFor="area" className="text-sm font-medium text-zinc-300">
+                        Area *
+                      </Label>
                       <select
-                        id="city"
-                        value={formData.city}
-                        onChange={(e) => handleInputChange("city", e.target.value)}
-                        className={`flex h-10 w-full rounded-lg border border-white/10 bg-zinc-900/50 pl-9 pr-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-zinc-300 focus:border-zinc-300 transition-all appearance-none cursor-pointer ${
-                          errors.city ? "border-red-500" : ""
+                        id="area"
+                        value={formData.area}
+                        onChange={(e) => handleInputChange("area", e.target.value)}
+                        disabled={formData.city !== "Chennai"}
+                        className={`h-10 w-full appearance-none px-3 bg-zinc-900/50 border border-white/10 text-white focus:outline-none focus:border-zinc-300 focus:ring-1 focus:ring-zinc-300 transition-all rounded-lg text-sm ${
+                          errors.area ? "border-red-500" : ""
                         }`}
                       >
-                        <option className="bg-zinc-900 text-white" value="">Select city</option>
-                        <option className="bg-zinc-900 text-white" value="Chennai">Chennai</option>
-                        <option className="bg-zinc-900 text-white" value="Coimbatore">Coimbatore</option>
-                        <option className="bg-zinc-900 text-white" value="Madurai">Madurai</option>
-                        <option className="bg-zinc-900 text-white" value="Trichy">Trichy</option>
-                        <option className="bg-zinc-900 text-white" value="Salem">Salem</option>
+                        <option className="bg-zinc-900 text-white" value="" disabled>Select Area</option>
+                        {chennaiAreas.sort().map((area) => (
+                          <option className="bg-zinc-900 text-white" key={area} value={area}>{area}</option>
+                        ))}
                       </select>
+                      {errors.area && <p className="text-xs text-red-400">{errors.area}</p>}
                     </div>
-                    {errors.city && <p className="text-xs text-red-400">{errors.city}</p>}
-                    {formData.city && formData.city !== "Chennai" && (
-                      <div className="mt-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-2">
-                        <span className="text-amber-400 text-sm">We currently only service Chennai. Operations in other cities will be launching soon!</span>
-                      </div>
-                    )}
                   </div>
 
-                  <div className={`space-y-1.5 ${formData.city !== "Chennai" ? "opacity-50 cursor-not-allowed" : ""}`}>
-                    <Label htmlFor="area" className="text-sm font-medium text-zinc-300">
-                      Area *
-                    </Label>
-                    <Input
-                      id="area"
-                      list="areas-list"
-                      placeholder="T Nagar"
-                      value={formData.area}
-                      onChange={(e) => handleInputChange("area", e.target.value)}
-                      disabled={formData.city !== "Chennai"}
-                      className={`h-10 text-sm bg-zinc-900/50 border-white/10 text-white placeholder-zinc-500 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-300 focus:border-zinc-300 transition-all ${
-                        errors.area ? "border-red-500" : ""
-                      }`}
-                    />
-                    <datalist id="areas-list">
-                      {chennaiAreas.map((area) => (
-                        <option key={area} value={area} />
-                      ))}
-                    </datalist>
-                    {errors.area && <p className="text-xs text-red-400">{errors.area}</p>}
-                  </div>
+                  {/* Geofence Expansion Warning Banner */}
+                  {formData.city && formData.city !== "Chennai" && (
+                    <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                      <AlertCircle className="h-5 w-5 text-amber-400 mt-0.5 shrink-0" />
+                      <p className="text-sm text-amber-200">
+                        Currently, we only operate in Chennai. Services in <strong className="text-amber-400">{formData.city}</strong> will be launching in the near future!
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex gap-3">
