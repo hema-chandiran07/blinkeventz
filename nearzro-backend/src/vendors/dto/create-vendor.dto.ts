@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsOptional, IsInt, Min, MaxLength, IsNotEmpty } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsString, IsOptional, IsInt, Min, MaxLength, IsNotEmpty, IsEnum } from 'class-validator';
 
 export class CreateVendorDto {
   @ApiProperty({
@@ -10,6 +11,15 @@ export class CreateVendorDto {
   @IsString()
   @MaxLength(255, { message: 'businessName must not exceed 255 characters' })
   businessName: string;
+
+  @ApiPropertyOptional({
+    example: 'CATERING',
+    description: 'Business type/service category',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50, { message: 'businessType must not exceed 50 characters' })
+  businessType?: string;
 
   @ApiPropertyOptional({
     example: 'We provide premium wedding catering services',
@@ -43,7 +53,26 @@ export class CreateVendorDto {
     description: 'Service radius in kilometers',
   })
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   @Min(0, { message: 'serviceRadiusKm must be greater than or equal to 0' })
   serviceRadiusKm?: number;
+
+  @ApiPropertyOptional({
+    example: 'ABCD1234E',
+    description: 'KYC document number (Aadhar/PAN)',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50, { message: 'kycDocNumber must not exceed 50 characters' })
+  kycDocNumber?: string;
+
+  @ApiPropertyOptional({
+    example: 'AADHAAR',
+    description: 'KYC document type',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20, { message: 'kycDocType must not exceed 20 characters' })
+  kycDocType?: string;
 }

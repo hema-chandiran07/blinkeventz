@@ -135,21 +135,25 @@ export class OtpService {
     // OTP verified successfully
     this.otpStore.delete(email);
 
-    // Update user's email verification status
-    const user = await this.prisma.user.update({
-      where: { email },
-      data: { isEmailVerified: true },
-    });
+    // Safely update user's email verification status ONLY if user exists
+    // (User may not exist yet during pre-registration OTP verification)
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (user) {
+      await this.prisma.user.update({
+        where: { email },
+        data: { isEmailVerified: true },
+      });
+    }
 
     return {
       success: true,
       message: 'Email verified successfully',
-      user: {
+      user: user ? {
         id: user.id,
         email: user.email,
         name: user.name,
         isEmailVerified: true,
-      },
+      } : null,
     };
   }
 

@@ -1,4 +1,5 @@
 import { IsEmail, IsNotEmpty, IsString, MinLength, IsOptional, IsInt, Min, IsEnum } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 import { RegisterDto } from './register.dto';
 import { KycDocType } from '@prisma/client';
@@ -30,13 +31,9 @@ export class VendorRegisterDto extends RegisterDto {
   @IsString()
   area: string;
 
-  @ApiProperty({ example: '9876543210' })
-  @IsNotEmpty()
-  @IsString()
-  phone: string;
-
   @ApiProperty({ example: 50, required: false })
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   @Min(1)
   serviceRadiusKm?: number;

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Req, Res, UseGuards, UseInterceptors, UploadedFiles, BadRequestException, HttpStatus, UnauthorizedException } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req, Res, UseGuards, UseInterceptors, UploadedFiles, BadRequestException, HttpStatus, UnauthorizedException, ForbiddenException } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
@@ -12,6 +12,7 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { ForgotPasswordDto, ResetPasswordDto } from './dto/forgot-password.dto';
 import { SendOtpDto, VerifyOtpDto } from './dto/otp.dto';
 import { AuthGuard } from '@nestjs/passport';
+import { GoogleAuthGuard } from '../common/guards/google-auth.guard';
 import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import type { AuthRequest } from './auth-request.interface';
 import { JwtAuthGuard } from './jwt-auth.guard';
@@ -194,49 +195,38 @@ export class AuthController {
 // 🚀 Redirect to Google OAuth
 @Public()
 @Get('google')
-@UseGuards(AuthGuard('google'))
+@UseGuards(GoogleAuthGuard)
 @ApiOperation({ summary: 'Initiate Google OAuth flow' })
 googleAuth() {
-  // Passport automatically redirects to Google
+  // Guard redirects to Google with state parameter forwarded
 }
 
-  // 🎯 Google callback - returns tokens to frontend
-  @Public()
-  @Get('google/callback')
-  @UseGuards(AuthGuard('google'))
-  @ApiOperation({ summary: 'Google OAuth callback' })
-  @ApiResponse({ status: 302, description: 'Redirects to frontend with tokens' })
-  async googleAuthCallback(@Req() req: Request & { user?: { googleId: string; email: string; name: string; picture?: string } }, @Res() res: Response) {
-    try {
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
-      
-      if (!req.user) {
-        console.log('⚠️ Google OAuth: No user data in request');
-        return res.redirect(`${frontendUrl}/login?error=no_user_data`);
+// 🎯 Google callback - returns tokens to frontend
+   @Public()
+   @Get('google/callback')
+   @UseGuards(AuthGuard('google'))
+   @ApiOperation({ summary: 'Google OAuth callback' })
+   @ApiResponse({ status: 302, description: 'Redirects to frontend with tokens' })
+   async googleAuthCallback(@Req() req: any, @Res() res: Response) {
+     try {
+       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
+       if (!req.user) return res.redirect(`${frontendUrl}/login?error=no_user_data`);
+       
+       // Extract state data parsed by the strategy
+        const { intendedRole = 'CUSTOMER', callbackUrl = '/' } = req.user || {};
+       
+       const result = await this.authService.handleOAuthLogin(req.user, 'google', intendedRole);
+       const userData = { id: result.user.id, email: result.user.email, name: result.user.name, role: result.user.role };
+       
+       // Dynamically route back to the correct registration page at step 2
+       const redirectUrl = `${frontendUrl}${callbackUrl}?step=2&token=${result.accessToken}&user=${encodeURIComponent(JSON.stringify(userData))}`;
+       
+       return res.redirect(redirectUrl);
+      } catch (error: any) {
+        console.error("🚨 GOOGLE OAUTH CALLBACK CRASHED:", error);
+        return res.redirect(`${process.env.FRONTEND_URL}/login?error=oauth_backend_crash&message=${encodeURIComponent(error?.message || 'unknown')}`);
       }
-      
-      // Generate tokens via service
-      const result = await this.authService.handleOAuthLogin(req.user, 'google');
-      
-      // Redirect to frontend callback page with token and user data
-      // Frontend expects: ?token=ACCESS_TOKEN&user=JSON_USER_DATA
-      const userData = {
-        id: result.user?.id,
-        email: result.user?.email,
-        name: result.user?.name,
-        role: result.user?.role,
-        picture: req.user.picture
-      };
-      
-      const redirectUrl = `${frontendUrl}/auth/callback?token=${result.accessToken}&user=${encodeURIComponent(JSON.stringify(userData))}`;
-      
-      return res.redirect(redirectUrl);
-    } catch (error) {
-      console.error('Google OAuth error:', error);
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
-      return res.redirect(`${frontendUrl}/login?error=google_auth_failed`);
-    }
-  }
+   }
 
   // 📘 Redirect to Facebook
   @Public()

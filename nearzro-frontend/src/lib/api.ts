@@ -6,15 +6,22 @@ const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 const api = axios.create({
   baseURL: `${apiBaseUrl}/api`,
   withCredentials: true,
-  headers: {
-    'Content-Type': 'application/json',
-  },
   timeout: 30000,
 });
 
 // Request interceptor - Add auth token
 api.interceptors.request.use(
   (config) => {
+    // IMPORTANT: Let Axios auto-set Content-Type for FormData
+    // Do NOT set Content-Type header for FormData - it will break file uploads
+    if (config.data instanceof FormData) {
+      // Remove any default Content-Type to let Axios set multipart boundary
+      delete config.headers['Content-Type'];
+    } else if (!config.headers['Content-Type']) {
+      // Default to JSON for other requests
+      config.headers['Content-Type'] = 'application/json';
+    }
+    
     if (typeof window !== 'undefined') {
       const user = localStorage.getItem('NearZro_user');
       if (user) {

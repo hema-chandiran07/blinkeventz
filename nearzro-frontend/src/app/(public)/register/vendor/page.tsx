@@ -71,21 +71,24 @@ export default function VendorRegisterPage() {
   } | null>(null);
   const [emailCheckTimeout, setEmailCheckTimeout] = useState<NodeJS.Timeout | null>(null);
 
-  // Auto-advance to Step 2 if user is already logged in (e.g., after Google OAuth)
+  // Auto-advance to Step 3 if user is already logged in (e.g., after Google OAuth)
   useEffect(() => {
-    if (user && user.role === "VENDOR") {
-      // User is logged in as vendor, check if they need to complete business details
-      const urlParams = new URLSearchParams(window.location.search);
-      const stepParam = urlParams.get("step");
+    if (user && user.role === "VENDOR") { 
+      const searchString = window.location.search;
       
-      if (stepParam === "2" || (!stepParam && user.id)) {
+      // If the URL contains step 2 or 3, or if they just have an ID, force them to Business Details
+      if (searchString.includes("step=3") || searchString.includes("step=2") || user.id) {
         // Pre-fill name and email from user data
         setFormData(prev => ({
           ...prev,
           name: prev.name || user.name || "",
           email: prev.email || user.email || "",
         }));
-        setStep(2);
+        
+        setStep(3); // Jump to Business details
+        
+        // Clean up the messy URL quietly in the browser
+        window.history.replaceState(null, '', window.location.pathname + '?step=3');
       }
     }
   }, [user]);
@@ -93,7 +96,7 @@ export default function VendorRegisterPage() {
   const handleGoogleLogin = () => {
     toast.info("Redirecting to Google...");
     // Pass vendor role metadata to auth provider
-    googleLogin({ role: "VENDOR", callbackUrl: "/register/vendor?step=2" });
+    googleLogin({ role: "VENDOR", callbackUrl: "/register/vendor?step=3" });
   };
 
   const validateStep1 = () => {
@@ -173,14 +176,39 @@ export default function VendorRegisterPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleNextStep = () => {
+  const handleNextStep = async () => {
     if (step === 1 && validateStep1()) {
-      setStep(2);
-    } else if (step === 2 && validateStep2()) {
-      setStep(3);
-    } else if (step === 3 && validateStep3()) {
-      setStep(4); // Move to Images & KYC step
-    } else if (step === 4 && validateStep4()) {
+      // Send OTP before moving to step 2 (OTP verification)
+      setIsLoading(true);
+      try {
+        await api.post("/otp/send", { email: formData.email });
+        
+        if (process.env.NODE_ENV === 'development') {
+          try {
+            const debugRes = await api.get(`/otp/debug?email=${formData.email}`);
+            if (debugRes.data.otp) {
+              setDevOtp(debugRes.data.otp);
+            }
+          } catch (e) {
+            console.log('Dev OTP fetch failed (expected in production)');
+          }
+        }
+        
+        toast.success("OTP sent to your email!", {
+          description: "Check your inbox to verify your email.",
+        });
+        setStep(2);
+      } catch (error: any) {
+        toast.error(error?.response?.data?.message || "Failed to send OTP. Please try again.");
+        return;
+      } finally {
+        setIsLoading(false);
+      }
+    } else if (step === 3 && validateStep2()) {
+      setStep(4);
+    } else if (step === 4 && validateStep3()) {
+      setStep(5); // Move to Images & KYC step
+    } else if (step === 5 && validateStep4()) {
       handleRegister();
     }
   };
@@ -216,7 +244,7 @@ export default function VendorRegisterPage() {
       const formDataObj = new FormData();
       formDataObj.append("name", formData.name);
       formDataObj.append("email", formData.email);
-      formDataObj.append("password", formData.password);
+      if (formData.password) formDataObj.append("password", formData.password);
       formDataObj.append("businessName", formData.businessName);
       formDataObj.append("businessType", formData.businessType);
       formDataObj.append("description", formData.description);
@@ -227,46 +255,30 @@ export default function VendorRegisterPage() {
       formDataObj.append("kycDocType", formData.kycDocType);
       formDataObj.append("kycDocNumber", formData.kycDocNumber);
       
-      // Append images
-      formData.businessImages.forEach((image) => {
-        formDataObj.append("businessImages", image);
-      });
+      formData.businessImages.forEach((image) => formDataObj.append("businessImages", image));
+      formData.kycDocFiles.forEach((file) => formDataObj.append("kycDocFiles", file));
 
-      // Append KYC documents (1-5 images)
-      formData.kycDocFiles.forEach((file) => {
-        formDataObj.append("kycDocFiles", file);
-      });
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
 
-      // Create vendor account with ALL business details
-      const response = await api.post("/auth/register-vendor", formDataObj, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
-
-      const user = response.data.user;
-      setUserId(user.id);
-
-      // Send OTP for email verification
-      await api.post("/otp/send", { email: formData.email });
-
-      // DEV ONLY: Fetch OTP for development/testing
-      if (process.env.NODE_ENV === 'development') {
-        try {
-          const debugRes = await api.get(`/otp/debug?email=${formData.email}`);
-          if (debugRes.data.otp) {
-            setDevOtp(debugRes.data.otp);
-          }
-        } catch (e) {
-          console.log('Dev OTP fetch failed (expected in production)');
-        }
+      // OAUTH USER FLOW (User already logged in via Google/Facebook)
+      if (token || user?.id) {
+        await api.patch("/vendors/me", formDataObj, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        
+        toast.success("Profile completed successfully!", { description: "Redirecting to your dashboard..." });
+        setTimeout(() => router.push("/dashboard/vendor"), 1000);
+        return; // Exit function early
       }
 
-      toast.success("Successfully registered!", {
-        description: "Check your email for the 6-digit OTP code.",
+      // STANDARD USER FLOW (New email/password registration)
+      const response = await api.post("/auth/register-vendor", formDataObj, {
+        headers: { "Content-Type": "multipart/form-data" },
       });
+      setUserId(response.data.user.id);
 
-      setStep(5);
+      toast.success("Registration completed successfully!", { description: "Logging you in..." });
+      await login(formData.email, formData.password);
     } catch (error: any) {
       console.error("Registration error:", error);
       toast.error(error?.response?.data?.message || "Registration failed. Please try again.");
@@ -290,23 +302,13 @@ export default function VendorRegisterPage() {
         otp: otp,
       });
 
-      // Auto-login after verification
-      const loginResponse = await api.post("/auth/login", {
-        email: formData.email,
-        password: formData.password,
-      });
-
-      // Store auth data
-      localStorage.setItem("NearZro_user", JSON.stringify(loginResponse.data));
-
       toast.success("Email verified successfully!", {
-        description: "Welcome to NearZro! Redirecting to your dashboard...",
+        description: "Continue to complete your business details.",
       });
 
-      // Redirect to vendor dashboard
-      setTimeout(() => {
-        router.push("/dashboard/vendor");
-      }, 1000);
+      // Move to business details step (step 3)
+      setStep(3);
+      setOtp("");
     } catch (error: any) {
       console.error("OTP verification error:", error);
       toast.error(error?.response?.data?.message || "Invalid OTP. Please try again.");
@@ -422,10 +424,10 @@ export default function VendorRegisterPage() {
           </div>
           <div className="flex justify-between mt-1.5 text-xs text-zinc-400">
             <span>Account</span>
+            <span>Verify</span>
             <span>Business</span>
             <span>Contact</span>
-            <span>Images & KYC</span>
-            <span>Verify</span>
+            <span>KYC</span>
           </div>
         </div>
 
@@ -436,17 +438,17 @@ export default function VendorRegisterPage() {
             </div>
             <CardTitle className="text-2xl font-bold text-zinc-50">
               {step === 1 && "Create Your Vendor Account"}
-              {step === 2 && "Business Details"}
-              {step === 3 && "Contact Information"}
-              {step === 4 && "Images & KYC"}
-              {step === 5 && "Verify Email"}
+              {step === 2 && "Verify Email"}
+              {step === 3 && "Business Details"}
+              {step === 4 && "Contact Information"}
+              {step === 5 && "Images & KYC"}
             </CardTitle>
             <CardDescription className="text-sm text-zinc-400">
               {step === 1 && "Enter your personal details to get started"}
-              {step === 2 && "Tell us about your business"}
-              {step === 3 && "How can we reach you?"}
-              {step === 4 && "Upload business photos and KYC documents"}
-              {step === 5 && "Enter the OTP sent to your email"}
+              {step === 2 && "Enter the OTP sent to your email"}
+              {step === 3 && "Tell us about your business"}
+              {step === 4 && "How can we reach you?"}
+              {step === 5 && "Upload business photos and KYC documents"}
             </CardDescription>
           </CardHeader>
 
@@ -593,8 +595,94 @@ export default function VendorRegisterPage() {
               </div>
             )}
 
-            {/* Step 2: Business Details */}
+            {/* Step 2: OTP Verification */}
             {step === 2 && (
+              <div className="space-y-4">
+                <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
+                  <div className="flex items-start gap-2">
+                    <Mail className="h-4 w-4 text-blue-400 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-semibold text-blue-200">Check Your Email</p>
+                      <p className="text-xs text-blue-300/80 mt-0.5">
+                        We've sent a 6-digit verification code to <strong>{formData.email}</strong>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {devOtp && process.env.NODE_ENV === 'development' && (
+                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="h-5 w-5 text-amber-400 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-amber-200">Development Mode - OTP Display</p>
+                        <p className="text-sm text-amber-300/80 mt-1 mb-2">
+                          Email sending is disabled in development. Use this OTP:
+                        </p>
+                        <div className="bg-zinc-900/50 border border-amber-500/20 rounded-md py-3 px-4 text-center">
+                          <span className="text-3xl font-bold tracking-widest text-amber-400">{devOtp}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="otp" className="text-sm font-medium text-zinc-300">
+                    Enter OTP *
+                  </Label>
+                  <Input
+                    id="otp"
+                    type="text"
+                    placeholder="123456"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    maxLength={6}
+                    className={`h-12 text-center text-xl tracking-widest bg-zinc-900/50 border-white/10 text-white placeholder-zinc-500 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-300 focus:border-zinc-300 transition-all ${
+                      errors.otp ? "border-red-500" : ""
+                    }`}
+                  />
+                  {errors.otp && <p className="text-xs text-red-400">{errors.otp}</p>}
+                </div>
+
+                <Button
+                  type="button"
+                  variant="default"
+                  className="w-full h-10 text-sm font-semibold text-zinc-100 bg-gradient-to-b from-zinc-700 to-zinc-900 border border-zinc-600 rounded-lg hover:from-zinc-600 hover:to-zinc-800 hover:border-zinc-400 hover:shadow-[0_0_15px_rgba(255,255,255,0.1)] transition-all duration-300 active:scale-[0.99]"
+                  onClick={handleVerifyOTP}
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Verifying..." : "Verify Email"}
+                </Button>
+
+                <div className="text-center">
+                  <Button
+                    type="button"
+                    variant="link"
+                    onClick={handleResendOTP}
+                    disabled={isLoading}
+                    className="text-sm text-zinc-400 hover:text-white"
+                  >
+                    Didn't receive the OTP? Resend
+                  </Button>
+                </div>
+
+                <div className="flex gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="flex-1 h-10 text-sm bg-white/5 border border-white/20 text-white font-semibold backdrop-blur-md transition-all duration-300 hover:bg-white/10 hover:border-white/40 hover:-translate-y-0.5 hover:shadow-[0_4px_20px_rgba(255,255,255,0.1)] active:scale-95"
+                    onClick={() => setStep(1)}
+                    disabled={isLoading}
+                  >
+                    Back
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Step 3: Business Details */}
+            {step === 3 && (
               <div className="space-y-4">
                 <div className="space-y-1.5">
                   <Label htmlFor="businessName" className="text-sm font-medium text-zinc-300">
@@ -714,7 +802,7 @@ export default function VendorRegisterPage() {
                     type="button"
                     variant="outline"
                     className="flex-1 h-10 text-sm bg-white/5 border border-white/20 text-white font-semibold backdrop-blur-md transition-all duration-300 hover:bg-white/10 hover:border-white/40 hover:-translate-y-0.5 hover:shadow-[0_4px_20px_rgba(255,255,255,0.1)] active:scale-95"
-                    onClick={() => setStep(1)}
+                    onClick={() => setStep(2)}
                     disabled={isLoading}
                   >
                     Back
@@ -723,7 +811,9 @@ export default function VendorRegisterPage() {
                     type="button"
                     variant="default"
                     className="flex-1 h-10 text-sm font-semibold bg-white/10 border border-white/20 text-white backdrop-blur-md hover:bg-white/20 hover:border-white/40 transition-all duration-300"
-                    onClick={handleNextStep}
+                    onClick={() => {
+                      if (validateStep2()) setStep(4);
+                    }}
                     disabled={isLoading}
                   >
                     {isLoading ? "Saving..." : "Continue to Contact"}
@@ -732,8 +822,8 @@ export default function VendorRegisterPage() {
               </div>
             )}
 
-            {/* Step 3: Contact Information */}
-            {step === 3 && (
+            {/* Step 4: Contact Information */}
+            {step === 4 && (
               <div className="space-y-4">
                 <div className="space-y-1.5">
                   <Label htmlFor="phone" className="text-sm font-medium text-zinc-300">
@@ -775,7 +865,7 @@ export default function VendorRegisterPage() {
                     type="button"
                     variant="outline"
                     className="flex-1 h-10 text-sm bg-white/5 border border-white/20 text-white font-semibold backdrop-blur-md transition-all duration-300 hover:bg-white/10 hover:border-white/40 hover:-translate-y-0.5 hover:shadow-[0_4px_20px_rgba(255,255,255,0.1)] active:scale-95"
-                    onClick={() => setStep(2)}
+                    onClick={() => setStep(3)}
                     disabled={isLoading}
                   >
                     Back
@@ -793,8 +883,8 @@ export default function VendorRegisterPage() {
               </div>
             )}
 
-            {/* Step 4: Business Images & KYC */}
-            {step === 4 && (
+            {/* Step 5: Business Images & KYC */}
+            {step === 5 && (
               <div className="space-y-4">
                 <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
                   <div className="flex items-start gap-2">
@@ -978,7 +1068,7 @@ export default function VendorRegisterPage() {
                     type="button"
                     variant="outline"
                     className="flex-1 h-10 text-sm bg-white/5 border border-white/20 text-white font-semibold backdrop-blur-md transition-all duration-300 hover:bg-white/10 hover:border-white/40 hover:-translate-y-0.5 hover:shadow-[0_4px_20px_rgba(255,255,255,0.1)] active:scale-95"
-                    onClick={() => setStep(3)}
+                    onClick={() => setStep(4)}
                     disabled={isLoading}
                   >
                     Back
@@ -993,90 +1083,6 @@ export default function VendorRegisterPage() {
                     {isLoading ? "Creating Account..." : "Submit for Verification"}
                   </Button>
                 </div>
-              </div>
-            )}
-
-            {/* Step 5: OTP Verification */}
-            {step === 5 && (
-              <div className="space-y-4">
-                <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
-                  <div className="flex items-start gap-2">
-                    <Mail className="h-4 w-4 text-blue-400 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-semibold text-blue-200">Check Your Email</p>
-                      <p className="text-xs text-blue-300/80 mt-0.5">
-                        We've sent a 6-digit verification code to <strong>{formData.email}</strong>
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* DEV ONLY: Show OTP in development mode */}
-                {devOtp && process.env.NODE_ENV === 'development' && (
-                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4">
-                    <div className="flex items-start gap-3">
-                      <AlertCircle className="h-5 w-5 text-amber-400 mt-0.5" />
-                      <div className="flex-1">
-                        <p className="text-sm font-semibold text-amber-200">Development Mode - OTP Display</p>
-                        <p className="text-sm text-amber-300/80 mt-1 mb-2">
-                          Email sending is disabled in development. Use this OTP:
-                        </p>
-                        <div className="bg-zinc-900/50 border border-amber-500/20 rounded-md py-3 px-4 text-center">
-                          <span className="text-3xl font-bold tracking-widest text-amber-400">{devOtp}</span>
-                        </div>
-                        <p className="text-xs text-amber-400/80 mt-2">
-                          Click the OTP to copy • This will not work in production
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="otp" className="text-sm font-medium text-zinc-300">
-                    Enter OTP *
-                  </Label>
-                  <Input
-                    id="otp"
-                    placeholder="000000"
-                    type="text"
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                    className="h-10 bg-zinc-900/50 border-white/10 text-white text-center text-xl tracking-widest placeholder-zinc-500 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-300 focus:border-zinc-300 transition-all"
-                    maxLength={6}
-                  />
-                </div>
-
-                <div className="flex items-center justify-center gap-2">
-                  <p className="text-sm text-zinc-400">Didn't receive the code?</p>
-                  <Button
-                    type="button"
-                    variant="link"
-                    className="text-sm font-semibold text-white underline"
-                    onClick={handleResendOTP}
-                  >
-                    Resend OTP
-                  </Button>
-                </div>
-
-                <Button
-                  type="button"
-                  variant="default"
-                  className="w-full h-10 text-sm font-semibold bg-white/10 border border-white/20 text-white backdrop-blur-md hover:bg-white/20 hover:border-white/40 transition-all duration-300"
-                  onClick={handleVerifyOTP}
-                  disabled={isLoading || otp.length !== 6}
-                >
-                  {isLoading ? "Verifying..." : "Verify & Continue to Dashboard"}
-                </Button>
-
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="w-full h-10 text-sm text-zinc-400 hover:text-white"
-                  onClick={() => router.push("/login")}
-                >
-                  Back to Login
-                </Button>
               </div>
             )}
           </CardContent>

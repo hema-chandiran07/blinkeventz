@@ -1,4 +1,5 @@
-import { IsEmail, IsNotEmpty, IsString, MinLength, IsOptional, IsInt, Min } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString, MinLength, IsOptional, IsInt, Min, IsNumber } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 import { RegisterDto } from './register.dto';
 
@@ -29,15 +30,47 @@ export class VenueOwnerRegisterDto extends RegisterDto {
   @IsString()
   area: string;
 
-  @ApiProperty({ example: '9876543210' })
+  @ApiProperty({ example: '123 Main Street, Guindy' })
   @IsNotEmpty()
   @IsString()
-  phone: string;
+  address: string;
 
-  @ApiProperty({ example: 800, required: false })
-  @IsOptional()
+  @ApiProperty({ example: '600001' })
+  @IsNotEmpty()
   @IsString()
-  capacity?: string;
+  pincode: string;
+
+  @ApiProperty({ example: 100, required: false })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  capacityMin?: number;
+
+  @ApiProperty({ example: 500, required: false })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  capacityMax?: number;
+
+  @ApiProperty({ example: 50000, required: false })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  basePriceMorning?: number;
+
+  @ApiProperty({ example: 75000, required: false })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  basePriceEvening?: number;
+
+  @ApiProperty({ example: 120000, required: false })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  basePriceFullDay?: number;
 
   @ApiProperty({ example: 'AADHAAR', enum: ['AADHAAR', 'PAN', 'PASSPORT', 'DRIVING_LICENSE'] })
   @IsNotEmpty()

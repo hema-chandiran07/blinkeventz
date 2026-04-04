@@ -1,5 +1,6 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsEnum, IsOptional, IsNumber } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type, Transform } from 'class-transformer';
+import { IsString, IsEnum, IsOptional, IsNumber, IsNumberString } from 'class-validator';
 import { VenueType } from '@prisma/client';
 
 export class CreateVenueDto {
@@ -9,7 +10,7 @@ export class CreateVenueDto {
 
   @ApiProperty({ enum: VenueType, example: VenueType.BANQUET })
   @IsEnum(VenueType)
-  type: VenueType;
+  type!: VenueType;
 
   @ApiProperty({ example: 'Luxury wedding venue', default: '' })
   @IsString()
@@ -31,25 +32,35 @@ export class CreateVenueDto {
   @IsString()
   pincode: string = '000000';
 
-  @ApiProperty({ example: 100, default: 50 })
+  @ApiProperty({ example: 100, required: false })
+  @Transform(({ value }) => value === '' ? undefined : (isNaN(Number(value)) ? undefined : Number(value)))
+  @IsOptional()
   @IsNumber()
-  capacityMin: number = 50;
+  capacityMin?: number;
 
-  @ApiProperty({ example: 500, default: 200 })
+  @ApiProperty({ example: 500, required: false })
+  @Transform(({ value }) => value === '' ? undefined : (isNaN(Number(value)) ? undefined : Number(value)))
+  @IsOptional()
   @IsNumber()
-  capacityMax: number = 200;
+  capacityMax?: number;
 
-  @ApiProperty({ example: 50000, default: 0 })
+  @ApiProperty({ example: 50000, required: false })
+  @Transform(({ value }) => value === '' ? undefined : (isNaN(Number(value)) ? undefined : Number(value)))
+  @IsOptional()
   @IsNumber()
-  basePriceMorning: number = 0;
+  basePriceMorning?: number;
 
-  @ApiProperty({ example: 80000, default: 0 })
+  @ApiProperty({ example: 80000, required: false })
+  @Transform(({ value }) => value === '' ? undefined : (isNaN(Number(value)) ? undefined : Number(value)))
+  @IsOptional()
   @IsNumber()
-  basePriceEvening: number = 0;
+  basePriceEvening?: number;
 
-  @ApiProperty({ example: 120000, default: 0 })
+  @ApiProperty({ example: 120000, required: false })
+  @Transform(({ value }) => value === '' ? undefined : (isNaN(Number(value)) ? undefined : Number(value)))
+  @IsOptional()
   @IsNumber()
-  basePriceFullDay: number = 0;
+  basePriceFullDay?: number;
 
   @ApiProperty({
     example: 'Parking, AC, Power backup',
@@ -68,4 +79,21 @@ export class CreateVenueDto {
   @IsOptional()
   @IsString()
   policies?: string = '';
+
+  @ApiPropertyOptional({
+    example: 'ABCD1234E',
+    description: 'KYC document number',
+  })
+  @IsOptional()
+  @IsString()
+  kycDocNumber?: string;
+
+  @ApiPropertyOptional({
+    enum: ['AADHAAR', 'PAN', 'PASSPORT', 'DRIVING_LICENSE'],
+    example: 'AADHAAR',
+    description: 'KYC document type',
+  })
+  @IsOptional()
+  @IsString()
+  kycDocType?: string;
 }

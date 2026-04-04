@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+@layer base {
+  html {
+    font-size: 14px;
+  }
+}
+
 /* ============================================
    CRED-INSPIRED DARK/SILVER THEME
    True Black (#000000 to #0a0a0a) - 80% ratio
@@ -459,4 +465,15 @@ body::after {
 ::-moz-selection {
   background: rgba(192, 192, 192, 0.3);
   color: #ffffff;
+}
+
+/* Hide native password reveal icon in Edge and Chrome */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none;
+}
+input[type="password"]::-webkit-credentials-auto-fill-button {
+  visibility: hidden;
+  display: none !important;
+  pointer-events: none;
 }

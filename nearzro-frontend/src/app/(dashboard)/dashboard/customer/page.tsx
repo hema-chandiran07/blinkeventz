@@ -40,14 +40,16 @@ const itemVariants = {
 
 export default function CustomerDashboardPage() {
   const router = useRouter();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isInitialized } = useAuth();
   const [loading, setLoading] = useState(true);
   const [events, setEvents] = useState<Event[]>([]);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [isProcessingOAuth, setIsProcessingOAuth] = useState(false);
 
   useEffect(() => {
+    if (!isInitialized) return;
     if (!isAuthenticated) {
       router.push("/login");
       return;
@@ -57,7 +59,15 @@ export default function CustomerDashboardPage() {
       return;
     }
     loadDashboardData();
-  }, [isAuthenticated, user, router]);
+  }, [isInitialized, isAuthenticated, user, router]);
+
+  if (!isInitialized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-zinc-950">
+        <div className="animate-pulse text-zinc-400">Loading dashboard...</div>
+      </div>
+    );
+  }
 
   const loadDashboardData = async () => {
     try {
@@ -125,6 +135,17 @@ export default function CustomerDashboardPage() {
       case "CANCELLED": return <AlertCircle className="h-4 w-4" />;
     }
   };
+
+  if (isProcessingOAuth) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <div className="h-12 w-12 rounded-full border-4 border-silver-800 border-t-silver-400 animate-spin mx-auto mb-4" />
+          <p className="text-silver-400">Authenticating...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

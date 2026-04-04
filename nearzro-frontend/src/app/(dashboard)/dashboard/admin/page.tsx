@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/auth-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -51,6 +52,7 @@ interface RecentActivity {
 
 export default function AdminDashboardPage() {
   const router = useRouter();
+  const { user, isAuthenticated, isInitialized } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -76,8 +78,25 @@ export default function AdminDashboardPage() {
   };
 
   useEffect(() => {
+    if (!isInitialized) return;
+    if (!isAuthenticated) {
+      router.push("/login");
+      return;
+    }
+    if (user?.role !== "ADMIN") {
+      router.push("/dashboard");
+      return;
+    }
     fetchDashboardData();
-  }, []);
+  }, [isInitialized, isAuthenticated, user, router]);
+
+  if (!isInitialized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-zinc-950">
+        <div className="animate-pulse text-zinc-400">Loading dashboard...</div>
+      </div>
+    );
+  }
 
   const handleRefresh = async () => {
     setRefreshing(true);

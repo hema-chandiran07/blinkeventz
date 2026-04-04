@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
 import { useAuth } from "@/context/auth-context";
-import { Eye, EyeOff, Mail, Lock, User as UserIcon, Loader2, CheckCircle2, ArrowLeft } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, User as UserIcon, Loader2, CheckCircle2, ArrowLeft, Phone, MapPin } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import api from "@/lib/api";
@@ -21,6 +21,8 @@ export default function CustomerRegisterPage() {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
+    phone: "",
+    preferredCity: "",
     password: "",
     confirmPassword: ""
   });
@@ -47,6 +49,16 @@ export default function CustomerRegisterPage() {
       newErrors.email = "Email is required";
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = "Please enter a valid email address";
+    }
+
+    if (!formData.phone.trim()) {
+      newErrors.phone = "Phone number is required";
+    } else if (!/^[6-9]\d{9}$/.test(formData.phone.replace(/\s/g, ""))) {
+      newErrors.phone = "Please enter a valid 10-digit Indian mobile number";
+    }
+
+    if (!formData.preferredCity.trim()) {
+      newErrors.preferredCity = "Preferred city is required";
     }
 
     if (!formData.password) {
@@ -80,7 +92,9 @@ export default function CustomerRegisterPage() {
       // Step 1: Register user (creates account, requires OTP verification)
       await api.post("/auth/register", { 
         name: formData.name, 
-        email: formData.email, 
+        email: formData.email,
+        phone: formData.phone,
+        preferredCity: formData.preferredCity,
         password: formData.password 
       });
 
@@ -108,14 +122,16 @@ export default function CustomerRegisterPage() {
   const handleOtpVerified = async () => {
     try {
       toast.success("Email verified! Logging you in...", {
-        description: "Redirecting to your dashboard...",
+        description: "Redirecting to home page...",
       });
 
       // Login with the credentials
       await login(formData.email, formData.password);
       
-      // Redirect handled by login function
-      router.push("/dashboard/customer");
+      // Redirect to home page with timeout
+      setTimeout(() => {
+        router.push("/");
+      }, 1000);
     } catch (error: any) {
       toast.error("Verification successful, but login failed. Please login manually.");
       setTimeout(() => {
@@ -125,7 +141,7 @@ export default function CustomerRegisterPage() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center bg-transparent py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center bg-zinc-950 py-12 px-4 sm:px-6 lg:px-8">
       <div className="w-full max-w-md">
         {step === 'register' && (
           <Link href="/register" className="inline-flex items-center gap-2 text-sm text-zinc-200 hover:text-white mb-6 transition-colors">
@@ -161,7 +177,7 @@ export default function CustomerRegisterPage() {
                       type="text"
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      className={`pl-10 h-12 bg-zinc-900/50 border-white/10 text-white placeholder-zinc-500 rounded-xl focus:outline-none focus:border-white/20 focus:shadow-[0_0_10px_rgba(255,255,255,0.05)] transition-all ${errors.name ? 'border-red-500' : ''}`}
+                      className={`pl-10 h-12 bg-zinc-900/50 border border-zinc-800 text-white placeholder:text-zinc-500 rounded-xl focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all ${errors.name ? 'border-red-500' : ''}`}
                     />
                   </div>
                   {errors.name && <p className="text-xs text-red-400">{errors.name}</p>}
@@ -179,10 +195,52 @@ export default function CustomerRegisterPage() {
                       type="email"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className={`pl-10 h-12 bg-zinc-900/50 border-white/10 text-white placeholder-zinc-500 rounded-xl focus:outline-none focus:border-white/20 focus:shadow-[0_0_10px_rgba(255,255,255,0.05)] transition-all ${errors.email ? 'border-red-500' : ''}`}
+                      className={`pl-10 h-12 bg-zinc-900/50 border border-zinc-800 text-white placeholder:text-zinc-500 rounded-xl focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all ${errors.email ? 'border-red-500' : ''}`}
                     />
                   </div>
                   {errors.email && <p className="text-xs text-red-400">{errors.email}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="phone" className="text-sm font-medium text-zinc-200">
+                    Phone Number
+                  </Label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-400" />
+                    <Input
+                      id="phone"
+                      placeholder="9876543210"
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      className={`pl-10 h-12 bg-zinc-900/50 border border-zinc-800 text-white placeholder:text-zinc-500 rounded-xl focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all ${errors.phone ? 'border-red-500' : ''}`}
+                      maxLength={10}
+                    />
+                  </div>
+                  {errors.phone && <p className="text-xs text-red-400">{errors.phone}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="preferredCity" className="text-sm font-medium text-zinc-200">
+                    Preferred City
+                  </Label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-400" />
+                    <select
+                      id="preferredCity"
+                      value={formData.preferredCity}
+                      onChange={(e) => setFormData({ ...formData, preferredCity: e.target.value })}
+                      className={`pl-10 h-12 w-full rounded-xl border border-zinc-800 bg-zinc-900/50 px-3 py-2 text-sm text-white focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all ${errors.preferredCity ? 'border-red-500' : ''}`}
+                    >
+                      <option value="" className="bg-zinc-900">Select your city</option>
+                      <option value="Chennai" className="bg-zinc-900">Chennai</option>
+                      <option value="Coimbatore" className="bg-zinc-900">Coimbatore</option>
+                      <option value="Madurai" className="bg-zinc-900">Madurai</option>
+                      <option value="Trichy" className="bg-zinc-900">Trichy</option>
+                      <option value="Salem" className="bg-zinc-900">Salem</option>
+                    </select>
+                  </div>
+                  {errors.preferredCity && <p className="text-xs text-red-400">{errors.preferredCity}</p>}
                 </div>
 
                 <div className="space-y-2">
@@ -197,7 +255,7 @@ export default function CustomerRegisterPage() {
                       value={formData.password}
                       onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                       placeholder="Min. 8 characters"
-                      className={`pl-10 pr-10 h-12 bg-zinc-900/50 border-white/10 text-white placeholder-zinc-500 rounded-xl focus:outline-none focus:border-white/20 focus:shadow-[0_0_10px_rgba(255,255,255,0.05)] transition-all ${errors.password ? 'border-red-500' : ''}`}
+                      className={`pl-10 pr-10 h-12 bg-zinc-900/50 border border-zinc-800 text-white placeholder:text-zinc-500 rounded-xl focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all ${errors.password ? 'border-red-500' : ''}`}
                     />
                     <button
                       type="button"
@@ -224,7 +282,7 @@ export default function CustomerRegisterPage() {
                       value={formData.confirmPassword}
                       onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                       placeholder="Re-enter password"
-                      className={`pl-10 pr-10 h-12 bg-zinc-900/50 border-white/10 text-white placeholder-zinc-500 rounded-xl focus:outline-none focus:border-white/20 focus:shadow-[0_0_10px_rgba(255,255,255,0.05)] transition-all ${errors.confirmPassword ? 'border-red-500' : ''}`}
+                      className={`pl-10 pr-10 h-12 bg-zinc-900/50 border border-zinc-800 text-white placeholder:text-zinc-500 rounded-xl focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all ${errors.confirmPassword ? 'border-red-500' : ''}`}
                     />
                     <button
                       type="button"
