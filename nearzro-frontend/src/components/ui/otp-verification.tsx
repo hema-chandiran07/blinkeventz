@@ -107,26 +107,26 @@ export default function OtpVerification({ email, phone, onVerified, onBack }: Ot
         Back
       </Button>
 
-      <Card className="border-0 shadow-2xl bg-white/90 backdrop-blur-sm">
+      <Card className="border-0 shadow-2xl bg-zinc-900/40 backdrop-blur-xl border border-white/10 ring-1 ring-white/5 rounded-2xl p-8">
         <CardHeader className="text-center pb-2">
-          <div className="inline-flex h-16 w-16 rounded-2xl bg-blue-50 items-center justify-center mx-auto mb-4">
-            <Shield className="h-8 w-8 text-blue-600" />
+          <div className="inline-flex h-16 w-16 rounded-2xl bg-zinc-800/50 items-center justify-center mx-auto mb-4">
+            <Shield className="h-8 w-8 text-zinc-300" />
           </div>
-          <CardTitle className="text-3xl font-bold text-black">
+          <CardTitle className="text-3xl font-bold text-zinc-50">
             Verify Your Email
           </CardTitle>
-          <CardDescription className="text-neutral-600">
+          <CardDescription className="text-zinc-400">
             Enter the 6-digit OTP sent to {email}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleVerify} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="otp" className="text-sm font-medium text-neutral-700">
+              <Label htmlFor="otp" className="text-sm font-medium text-zinc-300">
                 One-Time Password (OTP)
               </Label>
               <div className="relative">
-                <Shield className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
+                <Shield className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500" />
                 <Input
                   id="otp"
                   type="text"
@@ -134,21 +134,20 @@ export default function OtpVerification({ email, phone, onVerified, onBack }: Ot
                   value={otp}
                   onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
                   maxLength={6}
-                  className={`pl-10 h-12 border-neutral-200 focus:border-blue-600 focus:ring-blue-600 text-center text-2xl tracking-widest ${errors.otp ? 'border-red-500' : ''}`}
+                  className={`pl-10 h-12 bg-zinc-900/50 border-zinc-800 text-white text-center text-2xl tracking-widest focus:border-zinc-600 focus:ring-zinc-600 placeholder-zinc-500 ${errors.otp ? 'border-red-500' : ''}`}
                 />
               </div>
-              {errors.otp && <p className="text-xs text-red-500">{errors.otp}</p>}
+              {errors.otp && <p className="text-xs text-red-400">{errors.otp}</p>}
             </div>
 
-            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="p-4 bg-zinc-800/30 border border-zinc-700/50 rounded-lg">
               <div className="flex items-start gap-3">
-                <Mail className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                <div className="text-sm text-blue-800">
+                <Mail className="h-5 w-5 text-zinc-400 mt-0.5 flex-shrink-0" />
+                <div className="text-sm text-zinc-300">
                   <p className="font-semibold mb-1">Didn't receive the OTP?</p>
-                  <ul className="text-blue-700 space-y-1">
+                  <ul className="text-zinc-400 space-y-1">
                     <li>• Check your email inbox</li>
                     <li>• Check your spam/junk folder</li>
-                    <li>• For demo: Check the browser console</li>
                   </ul>
                 </div>
               </div>

@@ -10,6 +10,9 @@ import {
   Query,
   Delete,
   ParseIntPipe,
+  UseInterceptors,
+  UploadedFiles,
+  NotFoundException,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -20,6 +23,9 @@ import { VenueQueryDto, VenueSearchQueryDto } from './dto/venue-query.dto';
 import { ApiBearerAuth, ApiTags, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { Public } from '../common/decorators/public.decorator';
 import { VenueOwnerGuard } from './guards/venue-owner.guard';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
 
 // Define Role locally
 const Role = {
@@ -38,7 +44,7 @@ export class VenuesController {
   constructor(private readonly venuesService: VenuesService) {}
 
   // ============================================
-  // PUBLIC ENDPOINTS
+  // BLOCK 1: ALL STATIC GET ROUTES (MUST BE FIRST)
   // ============================================
 
   /// 👤 PUBLIC → Get paginated list of approved venues
@@ -55,8 +61,45 @@ export class VenuesController {
     return this.venuesService.searchVenues(query);
   }
 
+  /// 🏢 VENUE OWNER → Get my venues
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENUE_OWNER)
+  @Get('owner/my-venues')
+  getMyVenues(@Req() req: any) {
+    return this.venuesService.getVenuesByOwner(req.user.userId);
+  }
+
+  /// Get current user profile (debug)
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Get('me/profile')
+  getProfile(@Req() req) {
+    return req.user;
+  }
+
+  /// 🏢 VENUE OWNER → Get my venue (Frontend Alias)
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENUE_OWNER)
+  @Get('my')
+  async getMyVenueAlias(@Req() req: any) {
+    const ownerId = req.user.userId;
+    const venues = await this.venuesService.getVenuesByOwner(ownerId);
+    return venues;
+  }
+
+  /// Get venue owner stats (frontend expects /venues/owner/stats)
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENUE_OWNER)
+  @Get('owner/stats')
+  getVenueOwnerStats(@Req() req: any) {
+    return this.venuesService.getVenueOwnerStats(req.user.userId);
+  }
+
   // ============================================
-  // VENUE OWNER ENDPOINTS
+  // BLOCK 2: ALL STATIC POST/PATCH ROUTES
   // ============================================
 
   /// 🏢 VENUE OWNER → Create venue
@@ -68,17 +111,45 @@ export class VenuesController {
     return this.venuesService.createVenue(dto, req.user.userId);
   }
 
-  /// 🏢 VENUE OWNER → Get my venues
+  /// 🏢 VENUE OWNER → Update my venue (no ID param, uses JWT)
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.VENUE_OWNER)
-  @Get('owner/my-venues')
-  getMyVenues(@Req() req: any) {
-    return this.venuesService.getVenuesByOwner(req.user.userId);
+  @Patch('my')
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'venueImages', maxCount: 5 },
+      { name: 'kycDocFiles', maxCount: 5 },
+      { name: 'venueGovtCertificateFiles', maxCount: 5 },
+    ], {
+      storage: diskStorage({
+        destination: './uploads',
+        filename: (req, file, callback) => {
+          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+          const ext = extname(file.originalname);
+          callback(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
+        },
+      }),
+    }),
+  )
+  async updateMyVenue(
+    @Req() req: any,
+    @Body() dto: Partial<CreateVenueDto>,
+    @UploadedFiles() files: { venueImages?: Express.Multer.File[], kycDocFiles?: Express.Multer.File[], venueGovtCertificateFiles?: Express.Multer.File[] },
+  ) {
+    const ownerId = req.user.userId;
+    const venues = await this.venuesService.getVenuesByOwner(ownerId);
+    if (!venues || venues.length === 0) throw new NotFoundException('No venue found for this owner');
+
+    const venueImageUrls = files?.venueImages?.map(f => `/uploads/${f.filename}`) || [];
+    const kycDocUrls = files?.kycDocFiles?.map(f => `/uploads/${f.filename}`) || [];
+    const govtCertUrls = files?.venueGovtCertificateFiles?.map(f => `/uploads/${f.filename}`) || [];
+
+    return this.venuesService.updateVenue(venues[0].id, dto, ownerId, venueImageUrls, kycDocUrls, govtCertUrls);
   }
 
   // ============================================
-  // ADMIN ENDPOINTS (must be BEFORE :id routes)
+  // BLOCK 3: ALL DYNAMIC :id ROUTES (ABSOLUTELY LAST)
   // ============================================
 
   /// 👑 ADMIN → Approve venue
@@ -114,75 +185,6 @@ export class VenuesController {
     }
   }
 
-  // ============================================
-  // DYNAMIC :id ROUTES (must be AFTER specific routes)
-  // ============================================
-
-  /// 🏢 VENUE OWNER → Update venue (ownership guard)
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, VenueOwnerGuard)
-  @Patch(':id')
-  @ApiParam({ name: 'id', type: Number, description: 'Venue ID' })
-  updateVenue(
-    @Param('id', ParseIntPipe) id: number,
-    @Req() req: any,
-    @Body() dto: Partial<CreateVenueDto>,
-  ) {
-    return this.venuesService.updateVenue(id, dto, req.user.userId);
-  }
-
-  /// 🏢 VENUE OWNER → Delete venue (ownership guard)
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, VenueOwnerGuard)
-  @Delete(':id')
-  @ApiParam({ name: 'id', type: Number, description: 'Venue ID' })
-  deleteVenue(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
-    return this.venuesService.deleteVenue(id, req.user.userId);
-  }
-
-  /// 👤 PUBLIC → Get single venue by ID (MUST BE LAST)
-  // No @ApiBearerAuth() - this is a public endpoint
-  @Public()
-  @Get(':id')
-  @ApiParam({ name: 'id', type: Number, description: 'Venue ID' })
-  getVenueById(@Param('id', ParseIntPipe) id: number) {
-    return this.venuesService.findById(id);
-  }
-
-  // ============================================
-  // MISC ENDPOINTS
-  // ============================================
-
-  /// Get current user profile (debug)
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
-  @Get('me/profile')
-  getProfile(@Req() req) {
-    return req.user;
-  }
-
-  // ============================================
-  // ALIAS ENDPOINTS FOR FRONTEND COMPATIBILITY
-  // ============================================
-
-  /// ALIAS: Get my venues (frontend expects /venues/my)
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.VENUE_OWNER)
-  @Get('my')
-  getMyVenuesAlias(@Req() req: any) {
-    return this.venuesService.getVenuesByOwner(req.user.userId);
-  }
-
-  /// Get venue owner stats (frontend expects /venues/owner/stats)
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.VENUE_OWNER)
-  @Get('owner/stats')
-  getVenueOwnerStats(@Req() req: any) {
-    return this.venuesService.getVenueOwnerStats(req.user.userId);
-  }
-
   /// Update venue availability
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, VenueOwnerGuard)
@@ -194,5 +196,57 @@ export class VenuesController {
     @Body() body: { availability: { date: string; timeSlot: string; status: string }[] },
   ) {
     return this.venuesService.updateAvailability(id, req.user.userId, body.availability);
+  }
+
+  /// 🏢 VENUE OWNER → Update venue (ownership guard) with images and KYC
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, VenueOwnerGuard)
+  @Patch(':id')
+  @ApiParam({ name: 'id', type: Number, description: 'Venue ID' })
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'venueImages', maxCount: 5 },
+      { name: 'kycDocFiles', maxCount: 5 },
+      { name: 'venueGovtCertificateFiles', maxCount: 5 },
+    ], {
+      storage: diskStorage({
+        destination: './uploads',
+        filename: (req, file, callback) => {
+          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+          const ext = extname(file.originalname);
+          callback(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
+        },
+      }),
+    }),
+  )
+  updateVenue(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: any,
+    @Body() dto: Partial<CreateVenueDto>,
+    @UploadedFiles() files: { venueImages?: Express.Multer.File[], kycDocFiles?: Express.Multer.File[], venueGovtCertificateFiles?: Express.Multer.File[] },
+  ) {
+    const venueImageUrls = files?.venueImages?.map(f => `/uploads/${f.filename}`) || [];
+    const kycDocUrls = files?.kycDocFiles?.map(f => `/uploads/${f.filename}`) || [];
+    const govtCertUrls = files?.venueGovtCertificateFiles?.map(f => `/uploads/${f.filename}`) || [];
+    return this.venuesService.updateVenue(id, dto, req.user.userId, venueImageUrls, kycDocUrls, govtCertUrls);
+  }
+
+  /// 🏢 VENUE OWNER → Delete venue (ownership guard)
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, VenueOwnerGuard)
+  @Delete(':id')
+  @ApiParam({ name: 'id', type: Number, description: 'Venue ID' })
+  deleteVenue(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    return this.venuesService.deleteVenue(id, req.user.userId);
+  }
+
+  // ============================================
+  // 👤 PUBLIC → Get single venue by ID (TRULY LAST)
+  // ============================================
+  @Public()
+  @Get(':id')
+  @ApiParam({ name: 'id', type: Number, description: 'Venue ID' })
+  getVenueById(@Param('id', ParseIntPipe) id: number) {
+    return this.venuesService.findById(id);
   }
 }

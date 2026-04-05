@@ -19,12 +19,14 @@ export interface User {
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
+  isInitialized: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string, role: UserRole) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
-  googleLogin: () => void;
+  googleLogin: (options?: { role?: UserRole; callbackUrl?: string }) => void;
   facebookLogin: () => void;
+  setUserFromOAuth: (user: User) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -43,6 +45,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      // 1. GLOBAL OAUTH INTERCEPTOR - Check for token in URL before localStorage
+      const params = new URLSearchParams(window.location.search);
+      const urlToken = params.get('token');
+      const urlUser = params.get('user');
+
+      if (urlToken) {
+        try {
+          // Save OAuth data to localStorage immediately
+          localStorage.setItem('token', urlToken);
+          if (urlUser) {
+            const parsedUser = JSON.parse(decodeURIComponent(urlUser));
+            localStorage.setItem('user', JSON.stringify(parsedUser));
+            // Also save to NearZro_user for consistency with standard login flow
+            const authUser = {
+              id: String(parsedUser.id),
+              name: parsedUser.name,
+              email: parsedUser.email,
+              role: parsedUser.role,
+              token: urlToken,
+            };
+            localStorage.setItem('NearZro_user', JSON.stringify(authUser));
+            // Update context state immediately
+            setUser({
+              id: String(parsedUser.id),
+              name: parsedUser.name,
+              email: parsedUser.email,
+              role: parsedUser.role as UserRole,
+              token: urlToken,
+            });
+          }
+          // Delete only the sensitive tokens, keep routing parameters like ?step=2
+          params.delete('token');
+          params.delete('user');
+          const remainingParams = params.toString();
+          const cleanUrl = window.location.pathname + (remainingParams ? `?${remainingParams}` : '');
+          window.history.replaceState(null, '', cleanUrl);
+        } catch (error) {
+          console.error("Global OAuth interception failed:", error);
+        }
+      }
+
+      // 2. STANDARD SESSION RESTORE (Existing Logic)
+      // The existing logic will now smoothly pick up the token we just saved above!
       const storedUser = localStorage.getItem("NearZro_user");
       if (storedUser) {
         try {
@@ -110,7 +155,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const hasVendor = userData.hasVendorProfile || userData.role === 'VENDOR';
       const hasVenue = userData.hasVenueProfile || userData.role === 'VENUE_OWNER';
       
-      let redirectPath = '/dashboard/customer'; // default
+      let redirectPath = '/'; // default for CUSTOMER
       
       if (userData.role === 'ADMIN') {
         redirectPath = '/dashboard/admin';
@@ -126,9 +171,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           "ADMIN": "/dashboard/admin",
           "VENDOR": "/dashboard/vendor",
           "VENUE_OWNER": "/dashboard/venue",
-          "CUSTOMER": "/dashboard/customer",
+          "CUSTOMER": "/",
         };
-        redirectPath = redirectPaths[userData.role] || '/dashboard/customer';
+        redirectPath = redirectPaths[userData.role] || '/';
       }
 
       // Use window.location for immediate redirect
@@ -189,7 +234,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         "ADMIN": "/dashboard/admin",
         "VENDOR": "/dashboard/vendor",
         "VENUE_OWNER": "/dashboard/venue",
-        "CUSTOMER": "/dashboard/customer",
+        "CUSTOMER": "/",
       };
 
       window.location.href = redirectPaths[userData.role] || "/";
@@ -211,11 +256,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const googleLogin = useCallback(() => {
+  const googleLogin = useCallback((options?: { role?: UserRole; callbackUrl?: string }) => {
     // Google OAuth - redirect to backend
     // Use window.location for direct backend access (bypasses frontend proxy)
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-    window.location.href = `${apiUrl}/api/auth/google`;
+    
+    // Build state parameter with role and callback URL
+    // This will be passed to Google and returned in the callback
+    const stateData: { intendedRole?: string; callbackUrl?: string } = {};
+    
+    if (options?.role) {
+      stateData.intendedRole = options.role;
+    }
+    if (options?.callbackUrl) {
+      stateData.callbackUrl = options.callbackUrl;
+    }
+    
+    // Base64 encode the state data
+    const state = btoa(JSON.stringify(stateData));
+    
+    // Redirect to Google OAuth with state parameter
+    window.location.href = `${apiUrl}/api/auth/google?state=${encodeURIComponent(state)}`;
   }, []);
 
   const facebookLogin = useCallback(() => {
@@ -234,6 +295,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Redirect to backend Facebook OAuth endpoint
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
     window.location.href = `${apiUrl}/api/auth/facebook`;
+  }, []);
+
+  const setUserFromOAuth = useCallback((authUser: User) => {
+    setUser(authUser);
+    localStorage.setItem("NearZro_user", JSON.stringify(authUser));
   }, []);
 
   const logout = useCallback(() => {
@@ -258,12 +324,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider value={{
       user,
       isAuthenticated: !!user,
+      isInitialized,
       login,
       register,
       logout,
       isLoading,
       googleLogin,
-      facebookLogin
+      facebookLogin,
+      setUserFromOAuth
     }}>
       {children}
     </AuthContext.Provider>

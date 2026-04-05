@@ -7,9 +7,10 @@ import { DashboardSkeleton } from "@/components/ui/skeleton";
 
 export default function DashboardIndexPage() {
   const router = useRouter();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isInitialized } = useAuth();
 
   useEffect(() => {
+    if (!isInitialized) return;
     if (!isAuthenticated) {
       router.push("/login");
       return;
@@ -32,7 +33,15 @@ export default function DashboardIndexPage() {
       default:
         router.push("/login");
     }
-  }, [user, isAuthenticated, router]);
+  }, [isInitialized, user, isAuthenticated, router]);
+
+  if (!isInitialized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-zinc-950">
+        <div className="animate-pulse text-zinc-400">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

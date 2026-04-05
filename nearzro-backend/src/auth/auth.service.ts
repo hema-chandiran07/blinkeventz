@@ -56,11 +56,22 @@ export class AuthService {
       data: {
         name: dto.name,
         email: dto.email,
+        phone: dto.phone || null,
         passwordHash: hashedPassword,
         role: Role.CUSTOMER,
         isEmailVerified: false, // Requires OTP verification
       },
     });
+
+    // Create customer profile with preferred city
+    if (dto.preferredCity) {
+      await this.prisma.customerProfile.create({
+        data: {
+          userId: user.id,
+          preferredCity: dto.preferredCity,
+        },
+      });
+    }
 
     // Send OTP for email verification
     await this.otpService.sendOtp(user.email!, undefined);
@@ -129,6 +140,7 @@ export class AuthService {
     kycDocType?: string,
     kycDocNumber?: string,
     kycDocUrls?: string[], // Array of KYC document URLs (1-5 images)
+    venueGovtCertificateFiles?: string[], // Trade License URLs (MANDATORY)
   ) {
     // Check if user already exists
     const existingUser = await this.prisma.user.findUnique({
@@ -181,15 +193,19 @@ export class AuthService {
           description: dto.description,
           city: dto.city,
           area: dto.area,
-          address: 'Address to be updated by owner',
-          pincode: '000000',
-          capacityMin: 100,
-          capacityMax: dto.capacity ? parseInt(dto.capacity as any, 10) || 500 : 500,
-          basePriceMorning: 50000,
-          basePriceEvening: 75000,
-          basePriceFullDay: 120000,
+          address: dto.address || 'Address to be updated by owner',
+          pincode: dto.pincode || '000000',
+          capacityMin: dto.capacityMin || 100,
+          capacityMax: dto.capacityMax || 500,
+          basePriceMorning: dto.basePriceMorning || 0,
+          basePriceEvening: dto.basePriceEvening || 0,
+          basePriceFullDay: dto.basePriceFullDay || 0,
           status: 'PENDING_APPROVAL',
-          images: venueImageUrls, // Save venue images
+          venueImages: venueImageUrls, // Save venue images
+          kycDocType: kycDocType,
+          kycDocNumber: kycDocNumber,
+          kycDocFiles: kycDocUrls || [],
+          venueGovtCertificateFiles: venueGovtCertificateFiles || [], // Trade License (MANDATORY)
         },
       });
 
@@ -255,15 +271,19 @@ export class AuthService {
           description: dto.description,
           city: dto.city,
           area: dto.area,
-          address: 'Address to be updated by owner',
-          pincode: '000000',
-          capacityMin: 100,
-          capacityMax: dto.capacity ? parseInt(dto.capacity as any, 10) || 500 : 500,
-          basePriceMorning: 50000,
-          basePriceEvening: 75000,
-          basePriceFullDay: 120000,
+          address: dto.address || 'Address to be updated by owner',
+          pincode: dto.pincode || '000000',
+          capacityMin: dto.capacityMin || 100,
+          capacityMax: dto.capacityMax || 500,
+          basePriceMorning: dto.basePriceMorning || 0,
+          basePriceEvening: dto.basePriceEvening || 0,
+          basePriceFullDay: dto.basePriceFullDay || 0,
           status: 'PENDING_APPROVAL',
-          images: venueImageUrls || [], // Save venue images
+          venueImages: venueImageUrls || [], // Save venue images
+          kycDocType: kycDocType,
+          kycDocNumber: kycDocNumber,
+          kycDocFiles: kycDocUrls || [],
+          venueGovtCertificateFiles: venueGovtCertificateFiles || [], // Trade License (MANDATORY)
         },
       });
     } catch (error: any) {
@@ -320,13 +340,17 @@ export class AuthService {
   ) {
     // Handle both old signature (businessImageUrls array) and new signature (files object)
     let businessImageUrls: string[];
+    let foodLicenseUrls: string[] = []; // FSSAI for CATERING
+    
     if (Array.isArray(filesOrBusinessImageUrls)) {
       businessImageUrls = filesOrBusinessImageUrls;
     } else if (filesOrBusinessImageUrls && filesOrBusinessImageUrls.businessImages) {
       // New signature: files object with businessImages
-      businessImageUrls = filesOrBusinessImageUrls.businessImages.map((f: any) => `/uploads/${f.filename}`);
-      kycDocUrls = filesOrBusinessImageUrls.kycDocFiles?.map((f: any) => `/uploads/${f.filename}`);
+      businessImageUrls = filesOrBusinessImageUrls.businessImages?.map((f: any) => `/uploads/${f.filename}`) || [];
+      kycDocUrls = filesOrBusinessImageUrls.kycDocFiles?.map((f: any) => `/uploads/${f.filename}`) || [];
       kycDocUrl = kycDocUrls?.[0];
+      // Extract food license URLs for CATERING
+      foodLicenseUrls = filesOrBusinessImageUrls.foodLicenseFiles?.map((f: any) => `/uploads/${f.filename}`) || [];
     } else {
       businessImageUrls = [];
     }
@@ -377,12 +401,18 @@ export class AuthService {
           userId: existingUser.id,
           username: dto.name, // Store as username for vendor-specific login
           businessName: dto.businessName,
+          businessType: dto.businessType,
           description: dto.description,
           city: dto.city,
           area: dto.area,
+          phone: dto.phone,
           serviceRadiusKm: dto.serviceRadiusKm || 50,
           verificationStatus: 'PENDING',
-          images: businessImageUrls, // Save business images
+          businessImages: businessImageUrls, // Save business images
+          kycDocType: kycDocType,
+          kycDocNumber: kycDocNumber,
+          kycDocFiles: kycDocUrls || [],
+          foodLicenseFiles: dto.businessType === 'CATERING' ? foodLicenseUrls : [], // FSSAI (CONDITIONAL)
         },
       });
 
@@ -455,12 +485,18 @@ export class AuthService {
         userId: user.id,
         username: dto.name, // Store username for vendor-specific login
         businessName: dto.businessName,
+        businessType: dto.businessType,
         description: dto.description,
         city: dto.city,
         area: dto.area,
+        phone: dto.phone,
         serviceRadiusKm: dto.serviceRadiusKm || 50,
         verificationStatus: 'PENDING',
-        images: businessImageUrls, // Save business images
+        businessImages: businessImageUrls, // Save business images
+        kycDocType: kycDocType,
+        kycDocNumber: kycDocNumber,
+        kycDocFiles: kycDocUrls || [],
+        foodLicenseFiles: dto.businessType === 'CATERING' ? foodLicenseUrls : [], // FSSAI (CONDITIONAL)
       },
     });
 
@@ -1006,6 +1042,7 @@ export class AuthService {
 
   /**
    * Handle OAuth login - creates or updates user and generates tokens
+   * Supports role-aware OAuth for VENDOR and VENUE_OWNER roles
    */
   async handleOAuthLogin(
     oauthUser: {
@@ -1016,6 +1053,7 @@ export class AuthService {
       picture?: string;
     },
     provider: 'google' | 'facebook',
+    intendedRole?: string,
   ): Promise<{
     accessToken: string;
     refreshToken: string;
@@ -1028,7 +1066,7 @@ export class AuthService {
       role: Role;
     };
   }> {
-    console.log('🔍 handleOAuthLogin called with:', JSON.stringify({ oauthUser, provider }, null, 2));
+    console.log('🔍 handleOAuthLogin called with:', JSON.stringify({ oauthUser, provider, intendedRole }, null, 2));
     
     const isGoogle = provider === 'google';
     const oauthId = isGoogle ? oauthUser.googleId : oauthUser.facebookId;
@@ -1036,6 +1074,12 @@ export class AuthService {
     if (!oauthId) {
       console.log('⚠️ Invalid OAuth profile data - no oauthId');
       throw new BadRequestException(`Invalid ${provider} profile data`);
+    }
+
+    // Validate intendedRole if provided
+    const validRoles = ['CUSTOMER', 'VENDOR', 'VENUE_OWNER'];
+    if (intendedRole && !validRoles.includes(intendedRole)) {
+      throw new BadRequestException(`Invalid role: ${intendedRole}`);
     }
 
     // Find user by OAuth ID
@@ -1072,12 +1116,15 @@ export class AuthService {
 
     // Create new user if doesn't exist
     if (!user) {
+      // Determine role for new user
+      const userRole = intendedRole ? (intendedRole as Role) : Role.CUSTOMER;
+      
       const createData = isGoogle
         ? {
             email: oauthUser.email,
             name: oauthUser.name,
             googleId: oauthId,
-            role: Role.CUSTOMER,
+            role: userRole,
             passwordHash: null,
             isEmailVerified: true,
           }
@@ -1085,7 +1132,7 @@ export class AuthService {
             email: oauthUser.email,
             name: oauthUser.name,
             facebookId: oauthId,
-            role: Role.CUSTOMER,
+            role: userRole,
             passwordHash: null,
             isEmailVerified: true,
           };
@@ -1094,22 +1141,105 @@ export class AuthService {
         data: createData,
         include: { vendor: true, venues: true },
       });
+
+       // Create stub profiles based on role
+       if (userRole === Role.VENDOR) {
+         // Create a pending vendor profile stub
+         await this.prisma.vendor.create({
+           data: {
+             userId: user.id,
+             businessName: `${oauthUser.name}'s Business`,
+             city: 'TBD',
+             area: 'TBD',
+           },
+         });
+       } else if (userRole === Role.VENUE_OWNER) {
+         // Create a pending venue profile stub
+         await this.prisma.venue.create({
+           data: {
+             ownerId: user.id,
+             name: `${oauthUser.name}'s Venue`,
+             type: 'OTHER',
+             address: 'TBD',
+             city: 'TBD',
+             area: 'TBD',
+             pincode: '000000',
+             capacityMin: 100,
+             capacityMax: 500,
+             status: 'PENDING_APPROVAL',
+           },
+         });
+       }
+    } else {
+      // User exists - check for role collision
+      if (intendedRole) {
+        const existingRole = user.role;
+        
+        // If user's existing role doesn't match intended role, throw error
+        // Exception: Allow VENDOR and VENUE_OWNER to coexist (user can have both businesses)
+        if (existingRole !== intendedRole as Role) {
+          // Check if user is trying to add a second business type
+          const hasVendor = !!user.vendor;
+          const hasVenue = user.venues && user.venues.length > 0;
+          
+          if (intendedRole === 'VENDOR' && !hasVendor) {
+            // User is VENUE_OWNER or CUSTOMER, wants to add VENDOR profile
+            // This is allowed - create vendor stub
+            await this.prisma.vendor.create({
+              data: {
+                userId: user.id,
+                businessName: `${oauthUser.name}'s Business`,
+                city: 'TBD',
+                area: 'TBD',
+                verificationStatus: 'PENDING',
+              },
+            });
+            console.log('✅ Created vendor stub for existing user:', user.id);
+          } else if (intendedRole === 'VENUE_OWNER' && !hasVenue) {
+            // User is VENDOR or CUSTOMER, wants to add VENUE_OWNER profile
+            // This is allowed - create venue stub
+            await this.prisma.venue.create({
+              data: {
+                ownerId: user.id,
+                name: `${oauthUser.name}'s Venue`,
+                type: 'HALL',
+                address: 'TBD',
+                city: 'TBD',
+                area: 'TBD',
+                pincode: '000000',
+                capacityMin: 100,
+                capacityMax: 500,
+                status: 'PENDING_APPROVAL',
+              },
+            });
+            console.log('✅ Created venue stub for existing user:', user.id);
+          } else if (intendedRole === 'CUSTOMER' && existingRole !== Role.CUSTOMER) {
+            // Non-customer trying to login as CUSTOMER - this is allowed
+            // They can access customer features with their existing role
+          } else {
+            // Role collision - user already has this business type
+            throw new ForbiddenException(
+              `You already have a ${existingRole} account. Please use the correct portal or create a separate account.`
+            );
+          }
+        }
+      }
     }
 
     // Check if user is active
-    if (!user.isActive) {
+    if (!user!.isActive) {
       throw new UnauthorizedException('Account is deactivated');
     }
 
     // Get vendor and venues if not loaded
-    const vendor = user.vendor || await this.prisma.vendor.findUnique({ where: { userId: user.id } });
-    const venues = user.venues || await this.prisma.venue.findMany({ where: { ownerId: user.id } });
+    const vendor = user!.vendor || await this.prisma.vendor.findUnique({ where: { userId: user!.id } });
+    const venues = user!.venues || await this.prisma.venue.findMany({ where: { ownerId: user!.id } });
 
     // Generate tokens
     const tokens = await this.generateTokens({
-      id: user.id,
-      email: user.email!,
-      role: user.role,
+      id: user!.id,
+      email: user!.email!,
+      role: user!.role,
       hasVendorProfile: !!vendor,
       hasVenueProfile: venues.length > 0,
     });
@@ -1118,10 +1248,10 @@ export class AuthService {
     return {
       ...tokens,
       user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
+        id: user!.id,
+        email: user!.email,
+        name: user!.name,
+        role: user!.role,
       }
     };
   }

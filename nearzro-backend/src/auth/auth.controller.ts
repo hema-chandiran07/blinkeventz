@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Req, Res, UseGuards, UseInterceptors, UploadedFiles, BadRequestException, HttpStatus, UnauthorizedException } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req, Res, UseGuards, UseInterceptors, UploadedFiles, BadRequestException, HttpStatus, UnauthorizedException, ForbiddenException } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
@@ -12,6 +12,7 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { ForgotPasswordDto, ResetPasswordDto } from './dto/forgot-password.dto';
 import { SendOtpDto, VerifyOtpDto } from './dto/otp.dto';
 import { AuthGuard } from '@nestjs/passport';
+import { GoogleAuthGuard } from '../common/guards/google-auth.guard';
 import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import type { AuthRequest } from './auth-request.interface';
 import { JwtAuthGuard } from './jwt-auth.guard';
@@ -49,13 +50,14 @@ export class AuthController {
     return this.authService.registerAdmin(dto);
   }
 
-  // 🏢 VENUE OWNER registration (with images & KYC)
+  // 🏢 VENUE OWNER registration (with images, KYC & Trade License)
   @Public()
   @Post('register-venue-owner')
   @UseInterceptors(
     FileFieldsInterceptor([
       { name: 'venueImages', maxCount: 5 },
       { name: 'kycDocFiles', maxCount: 5 },
+      { name: 'venueGovtCertificateFiles', maxCount: 5 }, // Trade License (MANDATORY)
     ], {
       storage: diskStorage({
         destination: './uploads',
@@ -69,7 +71,11 @@ export class AuthController {
   )
   async registerVenueOwner(
     @Body() dto: VenueOwnerRegisterDto,
-    @UploadedFiles() files: { venueImages?: Express.Multer.File[], kycDocFiles?: Express.Multer.File[] },
+    @UploadedFiles() files: { 
+      venueImages?: Express.Multer.File[]; 
+      kycDocFiles?: Express.Multer.File[];
+      venueGovtCertificateFiles?: Express.Multer.File[];
+    },
   ) {
     // Validate minimum 1 venue image
     if (files && files.venueImages && files.venueImages.length === 0) {
@@ -84,19 +90,34 @@ export class AuthController {
       return Promise.reject(new BadRequestException('Maximum 5 KYC document images allowed'));
     }
 
+    // Validate Trade License (MANDATORY)
+    if (!files || !files.venueGovtCertificateFiles || files.venueGovtCertificateFiles.length === 0) {
+      return Promise.reject(new BadRequestException('Original Government Certified Document (Trade License/Registration) is strictly required.'));
+    }
+
     const venueImageUrls = files.venueImages?.map(f => `/uploads/${f.filename}`) || [];
     const kycDocUrls = files.kycDocFiles?.map(f => `/uploads/${f.filename}`) || [];
+    const govtCertUrls = files.venueGovtCertificateFiles?.map(f => `/uploads/${f.filename}`) || [];
 
-    return this.authService.registerVenueOwner(dto, venueImageUrls, kycDocUrls[0], dto.kycDocType, dto.kycDocNumber, kycDocUrls);
+    return this.authService.registerVenueOwner(
+      dto, 
+      venueImageUrls, 
+      kycDocUrls[0], 
+      dto.kycDocType, 
+      dto.kycDocNumber, 
+      kycDocUrls,
+      govtCertUrls // Trade License URLs
+    );
   }
 
-  // 🏪 VENDOR registration (with images & KYC)
+  // 🏪 VENDOR registration (with images, KYC & FSSAI for Catering)
   @Public()
   @Post('register-vendor')
   @UseInterceptors(
     FileFieldsInterceptor([
       { name: 'businessImages', maxCount: 5 },
       { name: 'kycDocFiles', maxCount: 5 },
+      { name: 'foodLicenseFiles', maxCount: 5 }, // FSSAI (CONDITIONAL - only for CATERING)
     ], {
       storage: diskStorage({
         destination: './uploads',
@@ -110,7 +131,11 @@ export class AuthController {
   )
   registerVendor(
     @Body() dto: VendorRegisterDto,
-    @UploadedFiles() files: { businessImages?: Express.Multer.File[], kycDocFiles?: Express.Multer.File[] },
+    @UploadedFiles() files: { 
+      businessImages?: Express.Multer.File[]; 
+      kycDocFiles?: Express.Multer.File[];
+      foodLicenseFiles?: Express.Multer.File[];
+    },
   ) {
     // Validate minimum 1 business image
     if (files && files.businessImages && files.businessImages.length === 0) {
@@ -123,6 +148,13 @@ export class AuthController {
     }
     if (files && files.kycDocFiles && files.kycDocFiles.length > 5) {
       throw new BadRequestException('Maximum 5 KYC document images allowed');
+    }
+
+    // Validate FSSAI for CATERING (CONDITIONAL)
+    if (dto.businessType === 'CATERING') {
+      if (!files || !files.foodLicenseFiles || files.foodLicenseFiles.length === 0) {
+        throw new BadRequestException('Government Food License (e.g., FSSAI) is strictly required for food services.');
+      }
     }
 
     // Pass files object directly to service - let service handle the parsing
@@ -194,49 +226,39 @@ export class AuthController {
 // 🚀 Redirect to Google OAuth
 @Public()
 @Get('google')
-@UseGuards(AuthGuard('google'))
+@UseGuards(GoogleAuthGuard)
 @ApiOperation({ summary: 'Initiate Google OAuth flow' })
 googleAuth() {
-  // Passport automatically redirects to Google
+  // Guard redirects to Google with state parameter forwarded
 }
 
-  // 🎯 Google callback - returns tokens to frontend
-  @Public()
-  @Get('google/callback')
-  @UseGuards(AuthGuard('google'))
-  @ApiOperation({ summary: 'Google OAuth callback' })
-  @ApiResponse({ status: 302, description: 'Redirects to frontend with tokens' })
-  async googleAuthCallback(@Req() req: Request & { user?: { googleId: string; email: string; name: string; picture?: string } }, @Res() res: Response) {
-    try {
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
-      
-      if (!req.user) {
-        console.log('⚠️ Google OAuth: No user data in request');
-        return res.redirect(`${frontendUrl}/login?error=no_user_data`);
+// 🎯 Google callback - returns tokens to frontend
+   @Public()
+   @Get('google/callback')
+   @UseGuards(AuthGuard('google'))
+   @ApiOperation({ summary: 'Google OAuth callback' })
+   @ApiResponse({ status: 302, description: 'Redirects to frontend with tokens' })
+   async googleAuthCallback(@Req() req: any, @Res() res: Response) {
+     try {
+       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
+       if (!req.user) return res.redirect(`${frontendUrl}/login?error=no_user_data`);
+       
+       // Extract state data parsed by the strategy
+        const { intendedRole = 'CUSTOMER', callbackUrl = '/' } = req.user || {};
+       
+       const result = await this.authService.handleOAuthLogin(req.user, 'google', intendedRole);
+       const userData = { id: result.user.id, email: result.user.email, name: result.user.name, role: result.user.role };
+       
+       // Dynamically route back to the correct registration page at step 2
+       const redirectUrl = `${frontendUrl}${callbackUrl}?step=2&token=${result.accessToken}&user=${encodeURIComponent(JSON.stringify(userData))}`;
+       
+       return res.redirect(redirectUrl);
+      } catch (error: any) {
+        console.error("🚨 GOOGLE OAUTH CALLBACK CRASHED:", error);
+        const fallbackUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
+        return res.redirect(`${fallbackUrl}/login?error=oauth_backend_crash&message=${encodeURIComponent(error?.message || 'unknown')}`);
       }
-      
-      // Generate tokens via service
-      const result = await this.authService.handleOAuthLogin(req.user, 'google');
-      
-      // Redirect to frontend callback page with token and user data
-      // Frontend expects: ?token=ACCESS_TOKEN&user=JSON_USER_DATA
-      const userData = {
-        id: result.user?.id,
-        email: result.user?.email,
-        name: result.user?.name,
-        role: result.user?.role,
-        picture: req.user.picture
-      };
-      
-      const redirectUrl = `${frontendUrl}/auth/callback?token=${result.accessToken}&user=${encodeURIComponent(JSON.stringify(userData))}`;
-      
-      return res.redirect(redirectUrl);
-    } catch (error) {
-      console.error('Google OAuth error:', error);
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
-      return res.redirect(`${frontendUrl}/login?error=google_auth_failed`);
-    }
-  }
+   }
 
   // 📘 Redirect to Facebook
   @Public()

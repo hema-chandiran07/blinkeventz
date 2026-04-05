@@ -4,6 +4,7 @@ import { plainToInstance } from 'class-transformer';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateVendorDto } from './dto/create-vendor.dto';
 import { VendorVerificationStatus } from '@prisma/client';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class VendorsService {
@@ -141,7 +142,7 @@ export class VendorsService {
           description: dto.description?.trim(),
           city: dto.city.trim(),
           area: dto.area.trim(),
-          serviceRadiusKm: dto.serviceRadiusKm,
+          serviceRadiusKm: dto.serviceRadiusKm ? Number(dto.serviceRadiusKm) : undefined,
         },
       });
     } catch (error) {
@@ -180,6 +181,133 @@ export class VendorsService {
       }
       // Preserve original Prisma error message
       const message = error instanceof Error ? error.message : 'Failed to fetch vendor';
+      throw new InternalServerErrorException(message);
+    }
+  }
+
+  /**
+   * Update vendor profile by user ID (for OAuth users completing registration)
+   */
+  async updateVendorByUserId(
+    userId: number,
+    dto: Partial<CreateVendorDto>,
+    businessImageUrls?: string[],
+    kycDocUrls?: string[],
+    foodLicenseUrls?: string[],
+  ) {
+    try {
+      const vendor = await this.prisma.vendor.findUnique({
+        where: { userId },
+      });
+
+      if (!vendor) {
+        throw new NotFoundException(`Vendor not found for userId ${userId}`);
+      }
+
+      const updateData: any = {};
+      if (dto.businessName !== undefined) updateData.businessName = dto.businessName.trim();
+      if (dto.description !== undefined) updateData.description = dto.description?.trim();
+      if (dto.city !== undefined) updateData.city = dto.city.trim();
+      if (dto.area !== undefined) updateData.area = dto.area.trim();
+      if (dto.serviceRadiusKm !== undefined) updateData.serviceRadiusKm = Number(dto.serviceRadiusKm);
+      
+      // Handle businessType - update the first service if exists
+      if (dto.businessType !== undefined && dto.businessType) {
+        const existingServices = await this.prisma.vendorService.findMany({
+          where: { vendorId: vendor.id },
+        });
+        
+        if (existingServices.length > 0) {
+          // Update the first service with new business type
+          await this.prisma.vendorService.update({
+            where: { id: existingServices[0].id },
+            data: {
+              serviceType: dto.businessType.toUpperCase() as any,
+              name: `${dto.businessName || vendor.businessName} - ${dto.businessType}`,
+            },
+          });
+        } else {
+          // Create initial service with business type
+          await this.prisma.vendorService.create({
+            data: {
+              vendorId: vendor.id,
+              name: `${dto.businessName || vendor.businessName} - ${dto.businessType}`,
+              serviceType: dto.businessType.toUpperCase() as any,
+              baseRate: 50000,
+              pricingModel: 'PER_EVENT',
+              isActive: true,
+            },
+          });
+        }
+      }
+
+      // Handle business images - append new images to existing ones
+      if (businessImageUrls && businessImageUrls.length > 0) {
+        const existingImages = vendor.businessImages || [];
+        updateData.businessImages = [...existingImages, ...businessImageUrls];
+      }
+
+      // Handle KYC documents stored directly on Vendor model
+      if (kycDocUrls && kycDocUrls.length > 0) {
+        const existingKycFiles = vendor.kycDocFiles || [];
+        updateData.kycDocFiles = [...existingKycFiles, ...kycDocUrls];
+      }
+
+      // Handle FSSAI food license (CONDITIONAL for CATERING)
+      if (foodLicenseUrls && foodLicenseUrls.length > 0) {
+        const existingFoodLicenses = vendor.foodLicenseFiles || [];
+        updateData.foodLicenseFiles = [...existingFoodLicenses, ...foodLicenseUrls];
+      }
+
+      // Handle KYC documents - Safe Upsert by Document Hash (fixes duplicate test data crashes)
+      if (kycDocUrls && kycDocUrls.length > 0 && dto.kycDocNumber) {
+        const docType = (dto.kycDocType || 'AADHAAR').toUpperCase();
+        const docNumberHash = crypto.createHash('sha256').update(dto.kycDocNumber).digest('hex');
+        const combinedDocUrls = kycDocUrls.join(',');
+
+        // 1. Search by the strict database unique constraint, NOT the userId
+        const existingKyc = await this.prisma.kycDocument.findFirst({
+          where: {
+            docType: docType as any,
+            docNumberHash: docNumberHash,
+          },
+        });
+
+        if (existingKyc) {
+          // 2. If this test document already exists, just update it and take ownership
+          await this.prisma.kycDocument.update({
+            where: { id: existingKyc.id },
+            data: {
+              userId: vendor.userId, // Take ownership for current test user
+              docFileUrl: combinedDocUrls,
+              status: 'PENDING',
+            },
+          });
+        } else {
+          // 3. Create fresh if it truly doesn't exist
+          await this.prisma.kycDocument.create({
+            data: {
+              userId: vendor.userId,
+              docType: docType as any,
+              docNumber: dto.kycDocNumber,
+              docFileUrl: combinedDocUrls,
+              docNumberHash: docNumberHash,
+              status: 'PENDING',
+            },
+          });
+        }
+      }
+
+      return await this.prisma.vendor.update({
+        where: { id: vendor.id },
+        data: updateData,
+        include: { services: true },
+      });
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      const message = error instanceof Error ? error.message : 'Failed to update vendor';
       throw new InternalServerErrorException(message);
     }
   }

@@ -35,6 +35,11 @@ export class VenueOwnerGuard implements CanActivate {
       throw new ForbiddenException('Authentication required');
     }
 
+    // Bypass ID check for the /venues/my route
+    if (request.path.includes('/venues/my')) {
+      return true;
+    }
+
     // Get venue ID from params
     const venueId = parseInt(request.params.id, 10);
 

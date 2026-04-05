@@ -91,16 +91,29 @@ model Vendor {
   id                 Int                      @id @default(autoincrement())
   userId             Int                      @unique
   businessName       String
+  businessType      String?  // PHOTOGRAPHY, CATERING, DECOR, DJ, MAKEUP, VIDEOGRAPHY, ENTERTAINMENT, OTHER
   description        String?
   city               String
   area               String
-  serviceRadiusKm    Int?
+  phone             String?
+  serviceRadiusKm    Int                      @default(50)
   verificationStatus VendorVerificationStatus @default(PENDING)
   createdAt          DateTime                 @default(now())
   updatedAt          DateTime                 @updatedAt
   username           String?                  @unique
   rejectionReason    String?
-  images             String[]                 @default([])
+  
+  // Business Images
+  businessImages    String[]                 @default([])
+  
+  // KYC Documents
+  kycDocType       String?                  // AADHAAR, PAN, PASSPORT, DRIVING_LICENSE
+  kycDocNumber     String?
+  kycDocFiles      String[]                 @default([])
+  
+  // FSSAI License (CONDITIONAL - only for CATERING)
+  foodLicenseFiles String[]                @default([])
+  
   payouts            Payout[]
   reviews            Review[]
   user               User                     @relation(fields: [userId], references: [id])
@@ -153,7 +166,18 @@ model Venue {
   updatedAt        DateTime           @updatedAt
   username         String?            @unique
   rejectionReason  String?
-  images           String[]           @default([])
+  
+  // Venue Images (main photos)
+  venueImages      String[]           @default([])
+  
+  // KYC Documents
+  kycDocType       String?            // AADHAAR, PAN, PASSPORT, DRIVING_LICENSE
+  kycDocNumber     String?
+  kycDocFiles     String[]            @default([])
+  
+  // Trade License (MANDATORY for venues)
+  venueGovtCertificateFiles String[]  @default([])
+  
   availability     AvailabilitySlot[]
   cartItems        CartItem[]
   events           Event[]

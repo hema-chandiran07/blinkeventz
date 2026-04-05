@@ -8,6 +8,7 @@ import { ExecutionContext, ForbiddenException, NotFoundException } from '@nestjs
 import { Reflector } from '@nestjs/core';
 import { VenueOwnerGuard } from './guards/venue-owner.guard';
 import { PrismaService } from '../prisma/prisma.service';
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 
 // ============================================
 // TEST UTILITIES & MOCK DATA
@@ -277,6 +278,7 @@ describe('VenuesController', () => {
         1,
         mockVenueOwnerRequest as any,
         updateDto,
+        { venueImages: undefined, kycDocFiles: undefined, venueGovtCertificateFiles: undefined },
       );
 
       // Assert
@@ -385,7 +387,7 @@ describe('VenuesController', () => {
 
       // Act & Assert
       await expect(
-        controller.updateVenue(1, nonOwnerRequest as any, { name: 'Hacked' }),
+        controller.updateVenue(1, nonOwnerRequest as any, { name: 'Hacked' }, { venueImages: undefined, kycDocFiles: undefined, venueGovtCertificateFiles: undefined }),
       ).rejects.toThrow(NotFoundException);
     });
   });
@@ -631,6 +633,7 @@ describe('VenuesController', () => {
         42,
         mockVenueOwnerRequest as any,
         { name: 'Test' },
+        { venueImages: undefined, kycDocFiles: undefined, venueGovtCertificateFiles: undefined },
       );
 
       // Assert

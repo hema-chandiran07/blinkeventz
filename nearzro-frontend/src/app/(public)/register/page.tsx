@@ -21,9 +21,6 @@ const roles = [
     title: "Customer",
     description: "Plan your dream events with ease",
     icon: User,
-    color: "from-blue-500 to-blue-600",
-    bgColor: "bg-blue-50",
-    borderColor: "border-blue-200",
     features: [
       "Browse & compare venues",
       "Find verified vendors",
@@ -39,9 +36,6 @@ const roles = [
     title: "Vendor",
     description: "Grow your event services business",
     icon: Store,
-    color: "from-orange-500 to-orange-600",
-    bgColor: "bg-orange-50",
-    borderColor: "border-orange-200",
     features: [
       "List your services",
       "Manage bookings & calendar",
@@ -57,9 +51,6 @@ const roles = [
     title: "Venue Owner",
     description: "Showcase your event spaces",
     icon: Building2,
-    color: "from-emerald-500 to-emerald-600",
-    bgColor: "bg-emerald-50",
-    borderColor: "border-emerald-200",
     features: [
       "List multiple venues",
       "Manage availability calendar",
@@ -74,18 +65,30 @@ const roles = [
 
 export default function RegisterPage() {
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-transparent py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
+    <div className="relative min-h-[calc(100vh-4rem)] overflow-hidden py-12 px-4 sm:px-6 lg:px-8">
+      {/* Dynamic Fluid Mercury/Chrome Texture Background - Matching Home Page */}
+      <div className="absolute inset-0 z-0">
+        <div className="absolute inset-0 bg-gradient-to-br from-zinc-900 via-black to-zinc-800" />
+        <div className="absolute inset-0 opacity-40">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_20%_30%,rgba(192,192,192,0.4),transparent_50%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_80%_70%,rgba(163,163,163,0.3),transparent_50%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_50%,rgba(229,229,229,0.2),transparent_60%)]" />
+        </div>
+        {/* Liquid mercury animation overlay */}
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-zinc-600/10 to-transparent animate-pulse" />
+      </div>
+
+      <div className="relative z-10 max-w-7xl mx-auto">
         {/* Header */}
         <div className="text-center mb-12">
-          <div className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-silver-800/50 to-silver-700/50 backdrop-blur-md border border-silver-600/30 text-white text-sm font-medium mb-6 shadow-lg shadow-black/20">
-            <Sparkles className="h-4 w-4 text-silver-300" />
+          <div className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-zinc-800/50 to-zinc-700/50 backdrop-blur-md border border-white/10 text-white text-sm font-medium mb-6 shadow-lg shadow-black/20">
+            <Sparkles className="h-4 w-4 text-zinc-300" />
             Join NearZro Today
           </div>
-          <h1 className="text-4xl sm:text-5xl font-bold text-black mb-4">
+          <h1 className="text-4xl sm:text-5xl font-bold text-white mb-4">
             Choose Your Journey
           </h1>
-          <p className="text-xl text-neutral-600 max-w-2xl mx-auto">
+          <p className="text-xl text-zinc-300 max-w-2xl mx-auto">
             Whether you're planning an event, offering services, or managing a venue -
             we have the perfect tools for you.
           </p>
@@ -94,65 +97,72 @@ export default function RegisterPage() {
         {/* Why Choose Us */}
         <div className="grid sm:grid-cols-3 gap-6 mb-12">
           <div className="flex flex-col items-center text-center p-6">
-            <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center mb-4">
-              <Shield className="h-6 w-6 text-green-600" />
+            <div className="h-12 w-12 rounded-full bg-zinc-900 border border-white/10 flex items-center justify-center mb-4">
+              <Shield className="h-6 w-6 text-zinc-200" />
             </div>
-            <h3 className="font-semibold text-black mb-2">Verified & Trusted</h3>
-            <p className="text-sm text-neutral-600">All vendors and venues are verified for quality assurance</p>
+            <h3 className="font-semibold text-white mb-2">Verified & Trusted</h3>
+            <p className="text-sm text-zinc-400">All vendors and venues are verified for quality assurance</p>
           </div>
           <div className="flex flex-col items-center text-center p-6">
-            <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center mb-4">
-              <TrendingUp className="h-6 w-6 text-blue-600" />
+            <div className="h-12 w-12 rounded-full bg-zinc-900 border border-white/10 flex items-center justify-center mb-4">
+              <TrendingUp className="h-6 w-6 text-zinc-200" />
             </div>
-            <h3 className="font-semibold text-black mb-2">Grow Your Business</h3>
-            <p className="text-sm text-neutral-600">Reach thousands of customers and grow your revenue</p>
+            <h3 className="font-semibold text-white mb-2">Grow Your Business</h3>
+            <p className="text-sm text-zinc-400">Reach thousands of customers and grow your revenue</p>
           </div>
           <div className="flex flex-col items-center text-center p-6">
-            <div className="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center mb-4">
-              <Heart className="h-6 w-6 text-purple-600" />
+            <div className="h-12 w-12 rounded-full bg-zinc-900 border border-white/10 flex items-center justify-center mb-4">
+              <Heart className="h-6 w-6 text-zinc-200" />
             </div>
-            <h3 className="font-semibold text-black mb-2">Plan with Love</h3>
-            <p className="text-sm text-neutral-600">Create memorable events with our comprehensive tools</p>
+            <h3 className="font-semibold text-white mb-2">Plan with Love</h3>
+            <p className="text-sm text-zinc-400">Create memorable events with our comprehensive tools</p>
           </div>
         </div>
 
-        {/* Role Cards */}
+        {/* Role Cards - EXACT styling from WhyChooseUs.tsx */}
         <div className="grid md:grid-cols-3 gap-8">
           {roles.map((role) => {
             const Icon = role.icon;
             return (
               <Card 
                 key={role.id}
-                className={`group relative overflow-hidden border-2 ${role.borderColor} hover:shadow-2xl transition-all duration-300 hover:-translate-y-2`}
+                className="group h-full flex flex-col bg-zinc-950/80 backdrop-blur-sm border border-white/10 ring-1 ring-white/5 rounded-2xl hover:border-white/20 hover:-translate-y-1.5 hover:shadow-[0_8px_30px_rgb(0,0,0,0.5)] transition-all duration-400 ease-out relative overflow-hidden"
               >
-                <CardHeader className="text-center pb-2">
-                  <div className={`inline-flex h-20 w-20 rounded-2xl ${role.bgColor} items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300`}>
-                    <Icon className={`h-10 w-10 bg-gradient-to-br ${role.color} bg-clip-text text-transparent`} style={{ WebkitTextFillColor: 'transparent' }} />
+                {/* Faint glass-edge top highlight */}
+                <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent pointer-events-none" />
+                {/* Radial glow behind icon area */}
+                <div className="absolute top-0 left-0 w-36 h-36 bg-[radial-gradient(ellipse_at_top_left,_rgba(161,161,170,0.07)_0%,_transparent_65%)] pointer-events-none" />
+                {/* Hover satin sheen */}
+                <div className="absolute inset-0 bg-gradient-to-b from-white/[0.04] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+                
+                <CardHeader className="text-center pb-2 relative">
+                  {/* Flat matte icon container - EXACT from WhyChooseUs.tsx */}
+                  <div className="h-12 w-12 rounded-full bg-zinc-900 border border-white/10 flex items-center justify-center mx-auto mb-5 relative group-hover:border-white/20 transition-all duration-400">
+                    <Icon className="h-5 w-5 text-zinc-200 transition-colors duration-300 group-hover:text-white" />
                   </div>
-                  <CardTitle className="text-2xl font-bold text-black">{role.title}</CardTitle>
-                  <CardDescription className="text-neutral-600">
+                  <CardTitle className="text-2xl font-bold text-zinc-50 mb-2 group-hover:text-white transition-colors duration-300 tracking-tight">{role.title}</CardTitle>
+                  <CardDescription className="text-zinc-400">
                     {role.description}
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-4 relative">
                   <ul className="space-y-3">
                     {role.features.map((feature, index) => (
-                      <li key={index} className="flex items-start gap-3 text-sm text-neutral-700">
-                        <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
+                      <li key={index} className="flex items-start gap-3 text-sm text-zinc-400">
+                        <CheckCircle2 className="h-5 w-5 text-emerald-500/80 flex-shrink-0 mt-0.5" />
                         <span>{feature}</span>
                       </li>
                     ))}
                   </ul>
                   <Link href={role.href} className="block mt-6">
                     <Button 
-                      variant="premium" 
-                      className="w-full h-12 text-base font-medium shadow-lg hover:shadow-xl transition-all duration-300 group-hover:scale-105"
+                      className="w-full py-3 rounded-xl bg-white/5 border border-white/10 text-white font-semibold backdrop-blur-md transition-all duration-300 hover:bg-white/10 hover:border-white/30 hover:-translate-y-0.5 hover:shadow-[0_4px_20px_rgba(255,255,255,0.08)] active:scale-95 active:translate-y-0"
                     >
                       {role.cta}
                       <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                     </Button>
                   </Link>
-                  <p className="text-xs text-center text-neutral-500">
+                  <p className="text-xs text-center text-zinc-500">
                     Free to get started
                   </p>
                 </CardContent>
@@ -163,34 +173,34 @@ export default function RegisterPage() {
 
         {/* Already have an account */}
         <div className="text-center mt-12">
-          <p className="text-neutral-600">
+          <p className="text-zinc-400">
             Already have an account?{" "}
-            <Link href="/login" className="font-semibold text-neutral-900 hover:underline">
+            <Link href="/login" className="font-medium text-white hover:underline">
               Sign in here
             </Link>
           </p>
         </div>
 
         {/* Trust Badges */}
-        <div className="mt-16 pt-8 border-t border-neutral-200">
-          <p className="text-center text-sm text-neutral-500 mb-6">
+        <div className="mt-16 pt-8 border-t border-white/10">
+          <p className="text-center text-sm text-zinc-400 mb-6">
             Trusted by 10,000+ customers, vendors, and venue owners across India
           </p>
           <div className="flex flex-wrap justify-center items-center gap-8">
-            <div className="flex items-center gap-2 text-neutral-600">
-              <CheckCircle2 className="h-5 w-5 text-green-500" />
+            <div className="flex items-center gap-2 text-zinc-400">
+              <CheckCircle2 className="h-5 w-5 text-emerald-500/80" />
               <span className="text-sm">Secure & Encrypted</span>
             </div>
-            <div className="flex items-center gap-2 text-neutral-600">
-              <CheckCircle2 className="h-5 w-5 text-green-500" />
+            <div className="flex items-center gap-2 text-zinc-400">
+              <CheckCircle2 className="h-5 w-5 text-emerald-500/80" />
               <span className="text-sm">Verified Profiles</span>
             </div>
-            <div className="flex items-center gap-2 text-neutral-600">
-              <CheckCircle2 className="h-5 w-5 text-green-500" />
+            <div className="flex items-center gap-2 text-zinc-400">
+              <CheckCircle2 className="h-5 w-5 text-emerald-500/80" />
               <span className="text-sm">24/7 Support</span>
             </div>
-            <div className="flex items-center gap-2 text-neutral-600">
-              <CheckCircle2 className="h-5 w-5 text-green-500" />
+            <div className="flex items-center gap-2 text-zinc-400">
+              <CheckCircle2 className="h-5 w-5 text-emerald-500/80" />
               <span className="text-sm">Free to Start</span>
             </div>
           </div>

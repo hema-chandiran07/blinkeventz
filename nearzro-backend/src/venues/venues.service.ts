@@ -5,6 +5,8 @@ import { VenueQueryDto, VenueSearchQueryDto } from './dto/venue-query.dto';
 import { VenueResponseDto, PaginatedVenueResponseDto } from './dto/venue-response.dto';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
+import { KycDocType } from '@prisma/client';
+import * as crypto from 'crypto';
 
 // Define VenueStatus locally
 const VenueStatus = {
@@ -82,11 +84,11 @@ export class VenuesService {
         city: dto.city,
         area: dto.area,
         pincode: dto.pincode,
-        capacityMin: dto.capacityMin,
-        capacityMax: dto.capacityMax,
-        basePriceMorning: dto.basePriceMorning,
-        basePriceEvening: dto.basePriceEvening,
-        basePriceFullDay: dto.basePriceFullDay,
+        capacityMin: dto.capacityMin ? Number(dto.capacityMin) : 0,
+        capacityMax: dto.capacityMax ? Number(dto.capacityMax) : 0,
+        basePriceMorning: dto.basePriceMorning ? Number(dto.basePriceMorning) : 0,
+        basePriceEvening: dto.basePriceEvening ? Number(dto.basePriceEvening) : 0,
+        basePriceFullDay: dto.basePriceFullDay ? Number(dto.basePriceFullDay) : 0,
         amenities: dto.amenities,
         policies: dto.policies,
         owner: {
@@ -286,7 +288,14 @@ export class VenuesService {
   /**
    * Update venue - Owner only
    */
-  async updateVenue(id: number, dto: Partial<CreateVenueDto>, ownerId: number): Promise<VenueResponseDto> {
+  async updateVenue(
+    id: number,
+    dto: Partial<CreateVenueDto>,
+    ownerId: number,
+    venueImageUrls?: string[],
+    kycDocUrls?: string[],
+    govtCertUrls?: string[],
+  ): Promise<VenueResponseDto> {
     // Verify ownership is handled by guard
     const venue = await this.prisma.venue.findUnique({
       where: { id },
@@ -300,24 +309,83 @@ export class VenuesService {
       throw new NotFoundException('You do not own this venue');
     }
 
+    const updateData: any = {
+      name: dto.name,
+      type: dto.type,
+      description: dto.description,
+      address: dto.address,
+      city: dto.city,
+      area: dto.area,
+      pincode: dto.pincode,
+      capacityMin: dto.capacityMin ? Number(dto.capacityMin) : undefined,
+      capacityMax: dto.capacityMax ? Number(dto.capacityMax) : undefined,
+      basePriceMorning: dto.basePriceMorning ? Number(dto.basePriceMorning) : undefined,
+      basePriceEvening: dto.basePriceEvening ? Number(dto.basePriceEvening) : undefined,
+      basePriceFullDay: dto.basePriceFullDay ? Number(dto.basePriceFullDay) : undefined,
+      amenities: dto.amenities,
+      policies: dto.policies,
+    };
+
+    // Handle new venue images - append to existing images array
+    if (venueImageUrls && venueImageUrls.length > 0) {
+      const existingImages = venue.venueImages || [];
+      updateData.venueImages = [...existingImages, ...venueImageUrls];
+    }
+
+    // Handle KYC documents stored directly on Venue model
+    if (kycDocUrls && kycDocUrls.length > 0) {
+      const existingKycFiles = venue.kycDocFiles || [];
+      updateData.kycDocFiles = [...existingKycFiles, ...kycDocUrls];
+    }
+
+    // Handle Trade License (MANDATORY for venues)
+    if (govtCertUrls && govtCertUrls.length > 0) {
+      const existingCerts = venue.venueGovtCertificateFiles || [];
+      updateData.venueGovtCertificateFiles = [...existingCerts, ...govtCertUrls];
+    }
+
+    // Handle KYC documents - create single KycDocument entry
+    if (kycDocUrls && kycDocUrls.length > 0 && dto.kycDocNumber) {
+      const docNumberHash = crypto.createHash('sha256').update(dto.kycDocNumber).digest('hex');
+      const docType = (dto.kycDocType || 'AADHAAR').toUpperCase() as KycDocType;
+      const docUrlsString = kycDocUrls.join(',');
+      
+      // Search by the GLOBAL unique constraint (docType + hash)
+      const existingKyc = await this.prisma.kycDocument.findUnique({
+        where: {
+          docType_docNumberHash: {
+            docType: docType,
+            docNumberHash: docNumberHash,
+          }
+        },
+      });
+
+      if (existingKyc) {
+        await this.prisma.kycDocument.update({
+          where: { id: existingKyc.id },
+          data: {
+            userId: venue.ownerId,
+            docFileUrl: docUrlsString,
+            status: 'PENDING',
+          },
+        });
+      } else {
+        await this.prisma.kycDocument.create({
+          data: {
+            userId: venue.ownerId,
+            docType,
+            docNumber: dto.kycDocNumber,
+            docFileUrl: docUrlsString,
+            docNumberHash,
+            status: 'PENDING',
+          },
+        });
+      }
+    }
+
     const updated = await this.prisma.venue.update({
       where: { id },
-      data: {
-        name: dto.name,
-        type: dto.type,
-        description: dto.description,
-        address: dto.address,
-        city: dto.city,
-        area: dto.area,
-        pincode: dto.pincode,
-        capacityMin: dto.capacityMin,
-        capacityMax: dto.capacityMax,
-        basePriceMorning: dto.basePriceMorning,
-        basePriceEvening: dto.basePriceEvening,
-        basePriceFullDay: dto.basePriceFullDay,
-        amenities: dto.amenities,
-        policies: dto.policies,
-      },
+      data: updateData,
       include: { photos: true },
     });
 
@@ -462,7 +530,7 @@ export class VenuesService {
     dto.amenities = venue.amenities;
     dto.policies = venue.policies;
     dto.status = venue.status;
-    dto.images = venue.images;
+    dto.images = venue.venueImages;
     dto.photos = venue.photos?.map((p: any) => ({
       id: p.id,
       url: p.url,
