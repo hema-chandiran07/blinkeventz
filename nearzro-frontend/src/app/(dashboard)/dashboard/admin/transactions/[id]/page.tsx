@@ -1,136 +1,104 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  ArrowLeft, Download, Calendar, DollarSign, CheckCircle2,
-  Clock, AlertCircle, Loader2, CreditCard
-} from "lucide-react";
-import { useRouter, useParams } from "next/navigation";
-import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { ArrowLeft, CreditCard, User, Calendar, DollarSign, RefreshCcw, CheckCircle2, XCircle, AlertCircle, Loader2 } from "lucide-react";
 import api from "@/lib/api";
-
-interface TransactionDetail {
-  id: number;
-  userId: number;
-  cartId: number;
-  provider: string;
-  providerOrderId: string;
-  providerPaymentId?: string;
-  signature?: string;
-  amount: number;
-  currency: string;
-  status: string;
-  createdAt: string;
-  updatedAt: string;
-  user?: {
-    name: string;
-    email: string;
-  };
-  cart?: {
-    items?: any[];
-  };
-  Event?: {
-    id: number;
-    title?: string;
-    date: string;
-    eventType: string;
-  };
-}
-
-const STATUS_COLORS: Record<string, string> = {
-  PENDING: "bg-amber-100 text-amber-700 border-amber-200",
-  AUTHORIZED: "bg-blue-100 text-blue-700 border-blue-200",
-  SUCCESS: "bg-emerald-100 text-emerald-700 border-emerald-200",
-  FAILED: "bg-red-100 text-red-700 border-red-200",
-  REFUNDED: "bg-purple-100 text-purple-700 border-purple-200",
-};
-
-const PROVIDER_LABELS: Record<string, string> = {
-  RAZORPAY: "Razorpay",
-  STRIPE: "Stripe",
-  PAYPAL: "PayPal",
-};
+import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { motion } from "framer-motion";
 
 export default function TransactionDetailPage() {
-  const router = useRouter();
   const params = useParams();
+  const router = useRouter();
+  const [transaction, setTransaction] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [transaction, setTransaction] = useState<TransactionDetail | null>(null);
-  const [actionLoading, setActionLoading] = useState(false);
+  const [showRefundDialog, setShowRefundDialog] = useState(false);
+  const [refundAmount, setRefundAmount] = useState("");
+  const [refundReason, setRefundReason] = useState("");
+  const [processing, setProcessing] = useState(false);
+  const [refundHistory, setRefundHistory] = useState<any[]>([]);
 
   useEffect(() => {
-    loadTransaction();
+    if (params.id) {
+      loadTransaction();
+      loadRefundHistory();
+    }
   }, [params.id]);
 
   const loadTransaction = async () => {
     try {
-      setLoading(true);
-      const response = await api.get("/payments");
-      const payments = response.data.payments || response.data || [];
-      const found = payments.find((p: any) => p.id === parseInt(params.id as string));
-      setTransaction(found || null);
+      const response = await api.get(`/payments/${params.id}`);
+      setTransaction(response.data);
     } catch (error: any) {
-      console.error("Failed to load transaction:", error);
-      toast.error("Failed to load transaction details");
+      toast.error("Failed to load transaction details", {
+        description: error?.response?.data?.message || "Please try again"
+      });
+      router.push("/dashboard/admin/transactions");
     } finally {
       setLoading(false);
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    if (amount >= 10000000) return `₹${(amount / 10000000).toFixed(2)}Cr`;
-    if (amount >= 100000) return `₹${(amount / 100000).toFixed(2)}L`;
-    return `₹${(amount / 1000).toFixed(2)}K`;
+  const loadRefundHistory = async () => {
+    try {
+      const response = await api.get(`/payments/${params.id}/refunds`);
+      setRefundHistory(response.data.refunds || []);
+    } catch (error) {
+      // Refund history might not exist yet
+      setRefundHistory([]);
+    }
   };
 
-  const handleDownloadReceipt = () => {
-    const receiptData = `
-PAYMENT RECEIPT
-===============
+  const handleRefund = async () => {
+    if (!refundAmount || parseFloat(refundAmount) <= 0) {
+      toast.error("Please enter a valid refund amount");
+      return;
+    }
 
-Transaction ID: #${transaction?.id}
-Date: ${transaction ? new Date(transaction.createdAt).toLocaleString() : 'N/A'}
-Status: ${transaction?.status}
+    if (!transaction) return;
 
-Customer Details:
-- Name: ${transaction?.user?.name || 'N/A'}
-- Email: ${transaction?.user?.email || 'N/A'}
+    const amount = parseFloat(refundAmount);
+    if (amount > transaction.amount) {
+      toast.error("Refund amount cannot exceed transaction amount");
+      return;
+    }
 
-Payment Details:
-- Amount: ${transaction ? formatCurrency(transaction.amount) : 'N/A'}
-- Currency: ${transaction?.currency || 'N/A'}
-- Provider: ${transaction ? PROVIDER_LABELS[transaction.provider] || transaction.provider : 'N/A'}
-- Order ID: ${transaction?.providerOrderId || 'N/A'}
-- Payment ID: ${transaction?.providerPaymentId || 'Pending'}
-
-${transaction?.Event ? `
-Event Details:
-- Event: ${transaction.Event.title || 'N/A'}
-- Date: ${new Date(transaction.Event.date).toLocaleDateString()}
-- Type: ${transaction.Event.eventType}
-` : ''}
-
-Thank you for your payment!
-    `.trim();
-
-    const blob = new Blob([receiptData], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `payment-receipt-${transaction?.id}.txt`;
-    link.click();
-    URL.revokeObjectURL(url);
-    toast.success("Receipt downloaded successfully!");
+    try {
+      setProcessing(true);
+      await api.patch(`/payments/${params.id}/refund`, {
+        amount: amount,
+        reason: refundReason || "Admin initiated refund"
+      });
+      
+      toast.success("Refund processed successfully", {
+        description: amount === transaction.amount ? "Full refund completed" : "Partial refund completed"
+      });
+      
+      setShowRefundDialog(false);
+      setRefundAmount("");
+      setRefundReason("");
+      loadTransaction();
+      loadRefundHistory();
+    } catch (error: any) {
+      toast.error("Failed to process refund", {
+        description: error?.response?.data?.message || "Please try again"
+      });
+    } finally {
+      setProcessing(false);
+    }
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-black" />
+          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-neutral-400" />
           <p className="text-neutral-600">Loading transaction details...</p>
         </div>
       </div>
@@ -139,226 +107,276 @@ Thank you for your payment!
 
   if (!transaction) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <AlertCircle className="h-16 w-16 mx-auto mb-4 text-red-600" />
-          <h3 className="text-lg font-bold text-black mb-2">Transaction Not Found</h3>
-          <Button onClick={() => router.push("/dashboard/admin/transactions")}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Transactions
-          </Button>
-        </div>
+      <div className="text-center py-12">
+        <AlertCircle className="h-16 w-16 text-neutral-300 mx-auto mb-4" />
+        <h3 className="text-lg font-semibold text-black mb-2">Transaction not found</h3>
+        <Button onClick={() => router.push("/dashboard/admin/transactions")}>
+          Back to Transactions
+        </Button>
       </div>
     );
   }
 
+  const getStatusBadge = (status: string) => {
+    const badges = {
+      PENDING: <Badge className="bg-yellow-100 text-yellow-700 border-yellow-300">Pending</Badge>,
+      SUCCESS: <Badge className="bg-green-100 text-green-700 border-green-300">Success</Badge>,
+      CAPTURED: <Badge className="bg-green-100 text-green-700 border-green-300">Captured</Badge>,
+      FAILED: <Badge className="bg-red-100 text-red-700 border-red-300">Failed</Badge>,
+      REFUNDED: <Badge className="bg-blue-100 text-blue-700 border-blue-300">Refunded</Badge>,
+      PARTIALLY_REFUNDED: <Badge className="bg-purple-100 text-purple-700 border-purple-300">Partially Refunded</Badge>,
+    };
+    return badges[status as keyof typeof badges] || <Badge>{status}</Badge>;
+  };
+
+  const canRefund = transaction.status === "CAPTURED" || transaction.status === "PARTIALLY_REFUNDED";
+
   return (
-    <div className="space-y-6">
+    <motion.div
+      className="space-y-6"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+    >
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => router.back()}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold text-black">Transaction #{transaction.id}</h1>
-            <p className="text-neutral-600 flex items-center gap-2">
-              <Calendar className="h-4 w-4" />
-              {new Date(transaction.createdAt).toLocaleString()}
-            </p>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" className="border-black" onClick={handleDownloadReceipt}>
-            <Download className="h-4 w-4 mr-2" />
-            Download Receipt
-          </Button>
-        </div>
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" onClick={() => router.push("/dashboard/admin/transactions")}>
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back
+        </Button>
+        <h1 className="text-3xl font-bold text-black">Transaction Details</h1>
       </div>
 
-      {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card className="border-2 border-black">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-neutral-600">Status</p>
-                <p className="text-2xl font-bold text-black mt-1">{transaction.status}</p>
-              </div>
-              <div className="p-3 rounded-full bg-black">
-                <Clock className="h-6 w-6 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-2 border-emerald-600">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-neutral-600">Amount</p>
-                <p className="text-2xl font-bold text-emerald-600 mt-1">{formatCurrency(transaction.amount)}</p>
-              </div>
-              <div className="p-3 rounded-full bg-emerald-600">
-                <DollarSign className="h-6 w-6 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-2 border-blue-600">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-neutral-600">Provider</p>
-                <p className="text-2xl font-bold text-blue-600 mt-1">{PROVIDER_LABELS[transaction.provider] || transaction.provider}</p>
-              </div>
-              <div className="p-3 rounded-full bg-blue-600">
-                <CreditCard className="h-6 w-6 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-2 border-amber-600">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-neutral-600">Currency</p>
-                <p className="text-2xl font-bold text-amber-600 mt-1">{transaction.currency}</p>
-              </div>
-              <div className="p-3 rounded-full bg-amber-600">
-                <CheckCircle2 className="h-6 w-6 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Transaction Information */}
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card className="border-2 border-black">
+      {/* Transaction Info Cards */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-black">Payment Information</CardTitle>
+            <CardTitle className="text-lg">Transaction Information</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <p className="text-xs text-neutral-600">Transaction ID</p>
-              <p className="font-medium text-black">#{transaction.id}</p>
+              <p className="text-sm text-neutral-600">Transaction ID</p>
+              <p className="font-mono text-black text-sm">{transaction.id}</p>
             </div>
             <div>
-              <p className="text-xs text-neutral-600">Order ID</p>
-              <p className="font-medium text-black font-mono text-sm">{transaction.providerOrderId}</p>
+              <p className="text-sm text-neutral-600">Status</p>
+              <div className="mt-1">{getStatusBadge(transaction.status)}</div>
             </div>
-            {transaction.providerPaymentId && (
+            <div>
+              <p className="text-sm text-neutral-600">Amount</p>
+              <p className="text-2xl font-bold text-black mt-1">₹{transaction.amount.toLocaleString()}</p>
+            </div>
+            <div>
+              <p className="text-sm text-neutral-600">Platform Fee (5%)</p>
+              <p className="text-lg font-semibold text-black mt-1">₹{transaction.platformFee?.toLocaleString()}</p>
+            </div>
+            <div>
+              <p className="text-sm text-neutral-600">Net Amount</p>
+              <p className="text-lg font-semibold text-black mt-1">₹{transaction.netAmount?.toLocaleString()}</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Payment Details</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <p className="text-sm text-neutral-600">Payment Method</p>
+              <p className="text-black">{transaction.provider || "Razorpay"}</p>
+            </div>
+            <div>
+              <p className="text-sm text-neutral-600">Order ID</p>
+              <p className="font-mono text-black text-sm">{transaction.providerOrderId}</p>
+            </div>
+            <div>
+              <p className="text-sm text-neutral-600">Payment ID</p>
+              <p className="font-mono text-black text-sm">{transaction.providerPaymentId || "N/A"}</p>
+            </div>
+            <div>
+              <p className="text-sm text-neutral-600">Currency</p>
+              <p className="text-black">{transaction.currency || "INR"}</p>
+            </div>
+            <div>
+              <p className="text-sm text-neutral-600">Created</p>
+              <p className="text-black">
+                {new Date(transaction.createdAt).toLocaleString("en-IN")}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Customer Information</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-full bg-silver-200 flex items-center justify-center">
+                <User className="h-5 w-5 text-neutral-600" />
+              </div>
               <div>
-                <p className="text-xs text-neutral-600">Payment ID</p>
-                <p className="font-medium text-black font-mono text-sm">{transaction.providerPaymentId}</p>
+                <p className="font-medium text-black">{transaction.user?.name || "N/A"}</p>
+                <p className="text-sm text-neutral-600">{transaction.user?.role || "Customer"}</p>
+              </div>
+            </div>
+            <div>
+              <p className="text-sm text-neutral-600">Email</p>
+              <p className="text-black text-sm">{transaction.user?.email || "N/A"}</p>
+            </div>
+            <div>
+              <p className="text-sm text-neutral-600">Phone</p>
+              <p className="text-black text-sm">{transaction.user?.phone || "N/A"}</p>
+            </div>
+            {transaction.event && (
+              <div className="pt-4 border-t border-silver-200">
+                <p className="text-sm font-medium text-neutral-600 mb-2">Event</p>
+                <p className="text-black text-sm">{transaction.event.title}</p>
+                <p className="text-xs text-neutral-500">
+                  {transaction.event.venue?.name} • {new Date(transaction.event.date).toLocaleDateString("en-IN")}
+                </p>
               </div>
             )}
-            <div>
-              <p className="text-xs text-neutral-600">Amount</p>
-              <p className="font-medium text-black text-lg">{formatCurrency(transaction.amount)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-neutral-600">Currency</p>
-              <p className="font-medium text-black">{transaction.currency}</p>
-            </div>
-            <div>
-              <p className="text-xs text-neutral-600">Payment Gateway</p>
-              <p className="font-medium text-black">{PROVIDER_LABELS[transaction.provider] || transaction.provider}</p>
-            </div>
           </CardContent>
         </Card>
+      </div>
 
-        <Card className="border-2 border-black">
+      {/* Refund Actions */}
+      {canRefund && (
+        <Card className="border-amber-300 bg-gradient-to-br from-amber-50 to-amber-100">
           <CardHeader>
-            <CardTitle className="text-black">Customer Information</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-amber-900">
+              <RefreshCcw className="h-5 w-5" />
+              Refund Actions
+            </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <p className="text-xs text-neutral-600">Customer Name</p>
-              <p className="font-medium text-black">{transaction.user?.name || 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-xs text-neutral-600">Email Address</p>
-              <p className="font-medium text-black">{transaction.user?.email || 'N/A'}</p>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-amber-800 mb-1">
+                  {transaction.status === "PARTIALLY_REFUNDED" 
+                    ? "Process additional refund" 
+                    : "Process full or partial refund"}
+                </p>
+                <p className="text-xs text-amber-700">
+                  Refundable amount: ₹{transaction.amount.toLocaleString()}
+                </p>
+              </div>
+              <Button 
+                variant="outline" 
+                className="text-amber-700 border-amber-600 hover:bg-amber-200"
+                onClick={() => setShowRefundDialog(true)}
+              >
+                <RefreshCcw className="h-4 w-4 mr-2" />
+                Process Refund
+              </Button>
             </div>
           </CardContent>
         </Card>
+      )}
 
-        {transaction.Event && (
-          <Card className="border-2 border-black md:col-span-2">
-            <CardHeader>
-              <CardTitle className="text-black">Event Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid md:grid-cols-3 gap-4">
-                <div>
-                  <p className="text-xs text-neutral-600">Event</p>
-                  <p className="font-medium text-black">{transaction.Event.title || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-neutral-600">Event Date</p>
-                  <p className="font-medium text-black">{new Date(transaction.Event.date).toLocaleDateString()}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-neutral-600">Event Type</p>
-                  <p className="font-medium text-black">{transaction.Event.eventType}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        <Card className="border-2 border-black md:col-span-2">
+      {/* Refund History */}
+      {refundHistory.length > 0 && (
+        <Card>
           <CardHeader>
-            <CardTitle className="text-black">Transaction Timeline</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <RefreshCcw className="h-5 w-5" />
+              Refund History
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <div className="p-2 rounded-full bg-emerald-100">
-                  <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-                </div>
-                <div>
-                  <p className="font-medium text-black">Transaction Created</p>
-                  <p className="text-sm text-neutral-600">{new Date(transaction.createdAt).toLocaleString()}</p>
-                </div>
-              </div>
-              
-              {transaction.providerPaymentId && (
-                <div className="flex items-center gap-4">
-                  <div className="p-2 rounded-full bg-emerald-100">
-                    <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+              {refundHistory.map((refund, index) => (
+                <div key={index} className="flex items-center justify-between p-4 rounded-lg border border-silver-200 bg-silver-50">
+                  <div className="flex items-center gap-4">
+                    <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                      <RefreshCcw className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-black">₹{refund.amount.toLocaleString()}</p>
+                      <p className="text-sm text-neutral-600">{refund.reason}</p>
+                      <p className="text-xs text-neutral-500">
+                        By {refund.initiatedBy} • {new Date(refund.timestamp).toLocaleString("en-IN")}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-medium text-black">Payment Completed</p>
-                    <p className="text-sm text-neutral-600">{new Date(transaction.updatedAt).toLocaleString()}</p>
-                  </div>
+                  {refund.isFullRefund && (
+                    <Badge className="bg-blue-100 text-blue-700 border-blue-300">Full Refund</Badge>
+                  )}
                 </div>
-              )}
+              ))}
             </div>
           </CardContent>
         </Card>
-      </div>
+      )}
 
-      {/* Status Badge */}
-      <Card className="border-2 border-black">
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-neutral-600 mb-2">Payment Status</p>
-              <Badge className={STATUS_COLORS[transaction.status]}>
-                {transaction.status}
-              </Badge>
+      {/* Refund Dialog */}
+      <Dialog open={showRefundDialog} onOpenChange={setShowRefundDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <RefreshCcw className="h-5 w-5 text-amber-600" />
+              Process Refund
+            </DialogTitle>
+            <DialogDescription>
+              {transaction?.status === "PARTIALLY_REFUNDED" 
+                ? "Process an additional partial refund" 
+                : "Process a full or partial refund for this transaction"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-black">Refund Amount (₹)</label>
+              <Input
+                type="number"
+                value={refundAmount}
+                onChange={(e) => setRefundAmount(e.target.value)}
+                placeholder={`Max: ${transaction?.amount || 0}`}
+                max={transaction?.amount}
+                className="border-silver-300"
+              />
+              {transaction && (
+                <p className="text-xs text-neutral-600">
+                  Original amount: ₹{transaction.amount.toLocaleString()}
+                </p>
+              )}
             </div>
-            <div className="text-sm text-neutral-600">
-              Last Updated: {new Date(transaction.updatedAt).toLocaleString()}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-black">Refund Reason</label>
+              <Textarea
+                value={refundReason}
+                onChange={(e) => setRefundReason(e.target.value)}
+                placeholder="Enter reason for refund (optional)"
+                rows={3}
+                className="border-silver-300"
+              />
             </div>
           </div>
-        </CardContent>
-      </Card>
-    </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRefundDialog(false)} disabled={processing}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleRefund} 
+              disabled={processing || !refundAmount || parseFloat(refundAmount) <= 0}
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              {processing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <RefreshCcw className="h-4 w-4 mr-2" />
+                  Confirm Refund
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </motion.div>
   );
 }

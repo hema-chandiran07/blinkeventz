@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
-import { extractArray } from "@/lib/api-response";
 
 interface Notification {
   id: number;
@@ -35,7 +34,11 @@ export default function NotificationsPage() {
   const loadNotifications = async () => {
     try {
       const response = await api.get("/notifications");
-      const notificationsData = extractArray<Notification>(response);
+      // Backend returns: { notifications: [...], pagination: {...}, unreadCount: X }
+      const responseData = response.data;
+      const notificationsData = Array.isArray(responseData)
+        ? responseData
+        : (responseData?.notifications || responseData?.data || []);
       setNotifications(notificationsData);
     } catch (error: any) {
       console.error("Failed to load notifications:", error);
@@ -48,7 +51,7 @@ export default function NotificationsPage() {
   const handleMarkAsRead = async (id: number) => {
     try {
       await api.patch(`/notifications/${id}/read`);
-      setNotifications(notifications.map(n => 
+      setNotifications(notifications.map(n =>
         n.id === id ? { ...n, read: true } : n
       ));
       toast.success("Notification marked as read");
@@ -111,7 +114,7 @@ export default function NotificationsPage() {
     }
   };
 
-  const filteredNotifications = filter === "unread" 
+  const filteredNotifications = filter === "unread"
     ? notifications.filter(n => !n.read)
     : notifications;
 
@@ -225,8 +228,8 @@ export default function NotificationsPage() {
                 {filter === "unread" ? "No Unread Notifications" : "No Notifications Yet"}
               </h3>
               <p className="text-neutral-600">
-                {filter === "unread" 
-                  ? "You've read all your notifications" 
+                {filter === "unread"
+                  ? "You've read all your notifications"
                   : "New notifications will appear here"}
               </p>
             </div>

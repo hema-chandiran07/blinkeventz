@@ -14,42 +14,49 @@ import {
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { KycDocType } from '@prisma/client';
 
-// Custom validator for document number based on type
+// Lenient document number validator - accepts common real-world formats
 @ValidatorConstraint({ async: false })
 export class IsValidDocNumber implements ValidatorConstraintInterface {
   validate(docNumber: string, args: ValidationArguments) {
     const docType = (args.object as any).docType;
-    
+
     if (!docType || !docNumber) {
       return false;
     }
 
-    switch (docType) {
-      case 'AADHAAR':
-        return /^[2-9][0-9]{11}$/.test(docNumber);
-      case 'PAN':
-        return /^[A-Z]{5}[0-9]{4}[A-Z]$/.test(docNumber);
-      case 'PASSPORT':
-        return /^[A-Z0-9]{8,9}$/i.test(docNumber);
-      case 'DRIVING_LICENSE':
-        return /^[A-Z]{2}[0-9]{13,15}$/i.test(docNumber);
-      default:
-        return docNumber.length >= 4 && docNumber.length <= 20;
+    // Accept any reasonable input (4-20 characters, alphanumeric)
+    const isValid = /^[a-zA-Z0-9\s\-\/.]{4,20}$/.test(docNumber);
+    
+    // Additional warnings for specific types but still accept valid input
+    if (docType === 'PAN') {
+      // Standard PAN: 5 uppercase + 4 digits + 1 uppercase, but also accept lowercase
+      return /^[A-Za-z]{5}[0-9]{4}[A-Za-z]$/.test(docNumber);
+    } else if (docType === 'AADHAAR') {
+      // Accept 12 digits with optional spaces/dashes
+      return /^[0-9\s\-]{12,16}$/.test(docNumber.replace(/\s/g, '').replace(/-/g, ''));
+    } else if (docType === 'PASSPORT') {
+      // Accept 6-12 alphanumeric
+      return /^[a-zA-Z0-9]{6,12}$/.test(docNumber);
+    } else if (docType === 'DRIVING_LICENSE') {
+      // Accept 8-20 alphanumeric
+      return /^[a-zA-Z0-9]{8,20}$/.test(docNumber);
     }
+
+    return isValid;
   }
 
   defaultMessage(args: ValidationArguments) {
     const docType = (args.object as any).docType;
-    
+
     switch (docType) {
       case 'AADHAAR':
-        return 'Aadhaar must be 12 digits starting with 2-9';
+        return 'Aadhaar must be 12 digits';
       case 'PAN':
-        return 'PAN must be 10 characters (5 uppercase, 4 digits, 1 uppercase)';
+        return 'PAN must be 10 characters (e.g., ABCDE1234F)';
       case 'PASSPORT':
-        return 'Passport must be 8-9 alphanumeric characters';
+        return 'Passport must be 6-12 alphanumeric characters';
       case 'DRIVING_LICENSE':
-        return 'Invalid driving license format';
+        return 'Driving license must be 8-20 characters';
       default:
         return 'Invalid document number format';
     }
@@ -76,9 +83,9 @@ export class CreateKycDto {
   })
   docType: KycDocType;
 
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Document number',
-    example: '123456789012'
+    example: 'ABCDE1234F'
   })
   @IsNotEmpty({ message: 'Document number is required' })
   @IsString({ message: 'Document number must be a string' })
@@ -92,16 +99,16 @@ export class CreateKycDto {
   @IsString()
   accountHolder?: string;
 
-  @ApiPropertyOptional({ description: 'Bank account number (9-18 digits)' })
+  @ApiPropertyOptional({ description: 'Bank account number' })
   @IsOptional()
   @IsString()
-  @Matches(/^\d{9,18}$/, { message: 'Account number must be 9-18 digits' })
+  @Matches(/^[0-9\s\-]{8,18}$/, { message: 'Account number must be 8-18 digits' })
   bankAccountNumber?: string;
 
   @ApiPropertyOptional({ description: 'IFSC code (e.g., SBIN0001234)' })
   @IsOptional()
   @IsString()
-  @Matches(/^[A-Z]{4}0[A-Z0-9]{6}$/, { message: 'Invalid IFSC code format' })
+  @Matches(/^[A-Za-z]{4}0[A-Za-z0-9]{6}$/, { message: 'Invalid IFSC code format (e.g., SBIN0001234)' })
   ifscCode?: string;
 
   @ApiPropertyOptional({ description: 'Bank name' })

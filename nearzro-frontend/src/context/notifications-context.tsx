@@ -13,6 +13,7 @@ import {
   NotificationType,
   NotificationChannel
 } from "@/services/notifications";
+import { useAuth } from "@/context/auth-context";
 import { toast } from "sonner";
 
 interface NotificationsContextType {
@@ -37,32 +38,51 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [preferences, setPreferences] = useState<NotificationPreference[]>([]);
+  const { isAuthenticated } = useAuth();
 
   const loadNotifications = useCallback(async () => {
+    // Skip if not authenticated
+    if (!isAuthenticated) {
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     try {
-      const [notifs, count, prefs] = await Promise.all([
-        getUserNotifications(1),
-        getUnreadCount(1),
-        getNotificationPreferences(1)
+      const [notifsData, count, prefs] = await Promise.all([
+        getUserNotifications(),
+        getUnreadCount(),
+        getNotificationPreferences()
       ]);
-      setNotifications(notifs);
-      setUnreadCount(count);
+      setNotifications(notifsData.notifications || []);
+      setUnreadCount(notifsData.unreadCount || count);
       setPreferences(prefs);
-    } catch (error) {
-      console.error("Failed to load notifications:", error);
+    } catch (error: any) {
+      // Silently handle 401 errors (expected during auth transitions)
+      if (error?.response?.status !== 401) {
+        console.error("Failed to load notifications:", error);
+      }
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [isAuthenticated]);
 
   useEffect(() => {
+    // Only load notifications if authenticated
+    if (!isAuthenticated) {
+      setNotifications([]);
+      setUnreadCount(0);
+      setPreferences([]);
+      setIsLoading(false);
+      return;
+    }
+
     loadNotifications();
-    
+
     // Poll for new notifications every 30 seconds
     const interval = setInterval(loadNotifications, 30000);
     return () => clearInterval(interval);
-  }, [loadNotifications]);
+  }, [loadNotifications, isAuthenticated]);
 
   const refreshNotifications = async () => {
     await loadNotifications();
@@ -80,7 +100,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
   };
 
   const markAllAsRead = async () => {
-    await markAllNotificationsAsRead(1);
+    await markAllNotificationsAsRead();
     setNotifications(prev =>
       prev.map(n => ({ ...n, read: true, readAt: new Date().toISOString() }))
     );
@@ -93,7 +113,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
     channel: NotificationChannel,
     enabled: boolean
   ) => {
-    await updateNotificationPreference(1, type, channel, enabled);
+    await updateNotificationPreference(type, channel, enabled);
     setPreferences(prev =>
       prev.map(p =>
         p.type === type && p.channel === channel ? { ...p, enabled } : p

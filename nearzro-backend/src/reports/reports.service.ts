@@ -6,6 +6,51 @@ export class ReportsService {
   constructor(private prisma: PrismaService) {}
 
   /**
+   * Get reports hub - overview of all report categories
+   */
+  async getReportsHub() {
+    const [userCount, venueCount, vendorCount, eventCount, paymentCount] = await Promise.all([
+      this.prisma.user.count(),
+      this.prisma.venue.count(),
+      this.prisma.vendor.count(),
+      this.prisma.event.count(),
+      this.prisma.payment.count({ where: { status: 'CAPTURED' } }),
+    ]);
+
+    const totalRevenue = await this.prisma.payment.aggregate({
+      where: { status: 'CAPTURED' },
+      _sum: { amount: true },
+    });
+
+    return {
+      users: {
+        total: userCount,
+        endpoint: '/reports/users',
+        exportEndpoint: '/reports/users/export',
+      },
+      venues: {
+        total: venueCount,
+        endpoint: '/reports/venues',
+      },
+      vendors: {
+        total: vendorCount,
+        endpoint: '/reports/vendors',
+      },
+      events: {
+        total: eventCount,
+        endpoint: '/events',
+      },
+      revenue: {
+        totalPayments: paymentCount,
+        totalAmount: totalRevenue._sum.amount || 0,
+        totalAmountINR: ((totalRevenue._sum.amount || 0) / 100).toFixed(2),
+        endpoint: '/reports/revenue',
+        exportEndpoint: '/reports/revenue/export',
+      },
+    };
+  }
+
+  /**
    * Get revenue report
    */
   async getRevenueReport(
@@ -59,10 +104,16 @@ export class ReportsService {
     const totalRevenue = payments.reduce((sum, p) => sum + p.amount, 0);
 
     return {
-      data: payments,
+      data: payments.map(p => ({
+        ...p,
+        id: Number(p.id),
+        userId: p.userId ? Number(p.userId) : null,
+        eventId: p.eventId ? Number(p.eventId) : null,
+        cartId: p.cartId ? Number(p.cartId) : null,
+      })),
       page,
       limit,
-      total,
+      total: Number(total),
       totalPages: Math.ceil(total / limit),
       hasNext: page * limit < total,
       hasPrevious: page > 1,
@@ -108,10 +159,13 @@ export class ReportsService {
     ]);
 
     return {
-      data: users,
+      data: users.map(u => ({
+        ...u,
+        id: Number(u.id),
+      })),
       page,
       limit,
-      total,
+      total: Number(total),
       totalPages: Math.ceil(total / limit),
       hasNext: page * limit < total,
       hasPrevious: page > 1,
@@ -153,10 +207,14 @@ export class ReportsService {
     ]);
 
     return {
-      data: venues,
+      data: venues.map(v => ({
+        ...v,
+        id: Number(v.id),
+        ownerId: v.ownerId ? Number(v.ownerId) : null,
+      })),
       page,
       limit,
-      total,
+      total: Number(total),
       totalPages: Math.ceil(total / limit),
       hasNext: page * limit < total,
       hasPrevious: page > 1,
@@ -174,7 +232,7 @@ export class ReportsService {
     const skip = (page - 1) * limit;
     // Note: Vendor model might not have status field, so we'll query all
     // In production, you'd add status to the Vendor model
-    
+
     const [vendors, total] = await Promise.all([
       this.prisma.vendor.findMany({
         include: {
@@ -195,10 +253,14 @@ export class ReportsService {
     ]);
 
     return {
-      data: vendors,
+      data: vendors.map(v => ({
+        ...v,
+        id: Number(v.id),
+        userId: v.userId ? Number(v.userId) : null,
+      })),
       page,
       limit,
-      total,
+      total: Number(total),
       totalPages: Math.ceil(total / limit),
       hasNext: page * limit < total,
       hasPrevious: page > 1,

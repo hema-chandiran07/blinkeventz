@@ -73,7 +73,7 @@ export default function CreatePromotionPage() {
 
         <Card className="border-2 border-black">
           <CardHeader>
-            <CardTitle className="text-2xl">Create New Promotion</CardTitle>
+            <CardTitle className="text-black">Create New Promotion</CardTitle>
             <CardDescription>Add a new discount code or promotion</CardDescription>
           </CardHeader>
           <CardContent>

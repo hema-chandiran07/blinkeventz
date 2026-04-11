@@ -69,7 +69,7 @@ export default function AdminVendorsPage() {
 
   const handleApprove = async (id: number) => {
     try {
-      await api.post(`/vendors/${id}/approve`);
+      await api.patch(`/vendors/${id}/approve`);
       setVendors(prev => prev.map(v => v.id === id ? { ...v, verificationStatus: "VERIFIED" } : v));
       toast.success("Vendor approved successfully");
     } catch (error: any) {
@@ -79,7 +79,7 @@ export default function AdminVendorsPage() {
 
   const handleReject = async (id: number) => {
     try {
-      await api.post(`/vendors/${id}/reject`, { reason: "Rejected by admin" });
+      await api.patch(`/vendors/${id}/reject`, { reason: "Rejected by admin" });
       setVendors(prev => prev.map(v => v.id === id ? { ...v, verificationStatus: "REJECTED" } : v));
       toast.success("Vendor rejected");
     } catch (error: any) {
@@ -198,7 +198,7 @@ export default function AdminVendorsPage() {
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <CardTitle className="text-lg text-black">{vendor.businessName}</CardTitle>
+                    <CardTitle className="text-black">{vendor.businessName}</CardTitle>
                     <p className="text-sm text-neutral-600 mt-1">{vendor.user?.name}</p>
                   </div>
                   <Badge className={`text-xs ${

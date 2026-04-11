@@ -46,13 +46,28 @@ export default function UnifiedApprovalsPage() {
     try {
       setLoading(true);
       const [vendors, venues, kyc] = await Promise.all([
-        api.get("/vendors?verificationStatus=PENDING"),
-        api.get("/venues?status=PENDING_APPROVAL"),
+        api.get("/vendors"),
+        api.get("/venues"),
         api.get("/kyc/admin/submissions"),
       ]);
 
+      // Filter pending vendors
+      const pendingVendors = (vendors.data || []).filter(
+        (v: any) => v.verificationStatus === 'PENDING'
+      );
+      
+      // Filter pending venues  
+      const pendingVenues = (venues.data || []).filter(
+        (v: any) => v.status === 'PENDING_APPROVAL'
+      );
+
+      // Filter pending KYC
+      const pendingKyc = (kyc.data?.kycDocuments || []).filter(
+        (k: any) => k.status === 'PENDING'
+      );
+
       const items: ApprovalItem[] = [
-        ...(vendors.data || []).map((v: any) => ({
+        ...pendingVendors.map((v: any) => ({
           id: v.id,
           type: 'VENDOR' as const,
           title: v.businessName,
@@ -62,7 +77,7 @@ export default function UnifiedApprovalsPage() {
           submittedAt: v.createdAt,
           documentUrl: v.images?.[0],
         })),
-        ...(venues.data || []).map((v: any) => ({
+        ...pendingVenues.map((v: any) => ({
           id: v.id,
           type: 'VENUE' as const,
           title: v.name,
@@ -70,9 +85,9 @@ export default function UnifiedApprovalsPage() {
           user: { name: v.owner?.name, email: v.owner?.email, role: 'VENUE_OWNER' },
           status: v.status,
           submittedAt: v.createdAt,
-          documentUrl: v.images?.[0],
+          documentUrl: v.venueImages?.[0],
         })),
-        ...(kyc.data || []).map((k: any) => ({
+        ...pendingKyc.map((k: any) => ({
           id: k.id,
           type: 'KYC' as const,
           title: `${k.docType} - ${k.user?.name}`,
@@ -108,13 +123,13 @@ export default function UnifiedApprovalsPage() {
 
   const handleApprove = async (approval: ApprovalItem) => {
     try {
-      const endpoint = approval.type === 'VENDOR' 
+      const endpoint = approval.type === 'VENDOR'
         ? `/vendors/${approval.id}/approve`
         : approval.type === 'VENUE'
         ? `/venues/${approval.id}/approve`
         : `/kyc/admin/${approval.id}/status`;
 
-      await api.post(endpoint, approval.type === 'KYC' ? { status: 'VERIFIED' } : {});
+      await api.patch(endpoint, approval.type === 'KYC' ? { status: 'VERIFIED' } : {});
       toast.success(`${approval.type} approved successfully!`);
       loadApprovals();
       setSelectedApproval(null);
@@ -131,15 +146,15 @@ export default function UnifiedApprovalsPage() {
     }
 
     try {
-      const endpoint = approval.type === 'VENDOR' 
+      const endpoint = approval.type === 'VENDOR'
         ? `/vendors/${approval.id}/reject`
         : approval.type === 'VENUE'
         ? `/venues/${approval.id}/reject`
         : `/kyc/admin/${approval.id}/status`;
 
-      await api.post(endpoint, { 
+      await api.patch(endpoint, {
         ...(approval.type === 'KYC' ? { status: 'REJECTED' } : {}),
-        reason: rejectionReason 
+        reason: rejectionReason
       });
       toast.success(`${approval.type} rejected`);
       loadApprovals();
@@ -302,7 +317,7 @@ export default function UnifiedApprovalsPage() {
       {/* Approvals List */}
       <Card className="border-2 border-black">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="text-black">
             <Activity className="h-5 w-5" />
             Pending Approvals
           </CardTitle>
@@ -363,7 +378,7 @@ export default function UnifiedApprovalsPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <Card className="max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <CardHeader>
-              <CardTitle className="flex items-center justify-between">
+              <CardTitle className="text-black">
                 <span className="text-black">Review {selectedApproval.type}</span>
                 <Button variant="ghost" size="sm" onClick={() => setSelectedApproval(null)}>
                   <XCircle className="h-5 w-5" />
@@ -404,24 +419,109 @@ export default function UnifiedApprovalsPage() {
                     <p className="text-sm text-neutral-600 mb-2">
                       Type: {selectedApproval.docType} | Number: {selectedApproval.docNumber}
                     </p>
-                    {selectedApproval.documentUrl.match(/\.(jpg|jpeg|png|gif)$/i) ? (
-                      <img
-                        src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}${selectedApproval.documentUrl}`}
-                        alt="KYC Document"
-                        className="max-w-full h-auto max-h-64 mx-auto rounded"
-                      />
-                    ) : (
-                      <div className="text-center p-8">
-                        <FileText className="h-12 w-12 text-neutral-400 mx-auto mb-3" />
-                        <Button
-                          variant="outline"
-                          onClick={() => window.open(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}${selectedApproval.documentUrl}`, '_blank')}
-                        >
-                          <Download className="h-4 w-4 mr-2" />
-                          Open Document
-                        </Button>
-                      </div>
-                    )}
+                    {(() => {
+                      const fileUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}${selectedApproval.documentUrl}`;
+                      const isImage = selectedApproval.documentUrl.match(/\.(jpg|jpeg|png|gif|webp|bmp)$/i);
+                      const isPdf = selectedApproval.documentUrl.match(/\.pdf$/i);
+                      
+                      if (isImage) {
+                        return (
+                          <div className="border rounded-lg overflow-hidden">
+                            <img
+                              src={fileUrl}
+                              alt="KYC Document"
+                              className="max-w-full h-auto max-h-96 mx-auto"
+                            />
+                            <div className="p-2 bg-neutral-50 border-t flex gap-2 justify-center">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => window.open(fileUrl, '_blank')}
+                              >
+                                <Download className="h-4 w-4 mr-2" />
+                                View Full Size
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  const a = document.createElement('a');
+                                  a.href = fileUrl;
+                                  a.download = selectedApproval.documentUrl?.split('/').pop() || 'kyc-document';
+                                  a.click();
+                                }}
+                              >
+                                <Download className="h-4 w-4 mr-2" />
+                                Download
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      }
+                      
+                      if (isPdf) {
+                        return (
+                          <div className="border rounded-lg overflow-hidden">
+                            <iframe
+                              src={fileUrl}
+                              className="w-full h-96 border-0"
+                              title="KYC Document Preview"
+                            />
+                            <div className="p-2 bg-neutral-50 border-t flex gap-2 justify-center">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => window.open(fileUrl, '_blank')}
+                              >
+                                <Download className="h-4 w-4 mr-2" />
+                                Open in New Tab
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  const a = document.createElement('a');
+                                  a.href = fileUrl;
+                                  a.download = selectedApproval.documentUrl?.split('/').pop() || 'kyc-document';
+                                  a.click();
+                                }}
+                              >
+                                <Download className="h-4 w-4 mr-2" />
+                                Download
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      }
+                      
+                      // For any other file type
+                      return (
+                        <div className="text-center p-8">
+                          <FileText className="h-12 w-12 text-neutral-400 mx-auto mb-3" />
+                          <p className="text-sm text-neutral-600 mb-3">Preview not available for this file type</p>
+                          <div className="flex gap-2 justify-center">
+                            <Button
+                              variant="outline"
+                              onClick={() => window.open(fileUrl, '_blank')}
+                            >
+                              View File
+                            </Button>
+                            <Button
+                              variant="outline"
+                              onClick={() => {
+                                const a = document.createElement('a');
+                                a.href = fileUrl;
+                                a.download = selectedApproval.documentUrl?.split('/').pop() || 'kyc-document';
+                                a.click();
+                              }}
+                            >
+                              <Download className="h-4 w-4 mr-2" />
+                              Download File
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               )}

@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsString, IsEnum, IsOptional, IsNumber, IsNotEmpty, Min, MaxLength } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
-import { IsString, IsEnum, IsOptional, IsNumber, IsInt, Min, MaxLength, IsNotEmpty } from 'class-validator';
 import { VenueType } from '@prisma/client';
 
 export class CreateVenueDto {
@@ -79,9 +79,22 @@ export class CreateVenueDto {
     default: '',
   })
   @IsOptional()
+  @Transform(({ value }) => {
+    if (Array.isArray(value)) {
+      return value.join(', ');
+    }
+    return value;
+  })
   @IsString()
   @MaxLength(1000)
   amenities?: string = '';
+
+  @ApiPropertyOptional({
+    example: ['uploads/venue-image-123.jpg', 'uploads/venue-image-456.jpg'],
+    default: [],
+  })
+  @IsOptional()
+  venueImages?: string[] = [];
 
   @ApiPropertyOptional({
     example: 'No smoking allowed',
@@ -91,34 +104,4 @@ export class CreateVenueDto {
   @IsString()
   @MaxLength(1000)
   policies?: string = '';
-
-  @ApiPropertyOptional({
-    example: '9876543210',
-    description: 'Phone number',
-  })
-  @IsOptional()
-  @IsString()
-  @MaxLength(20)
-  phone?: string;
-
-  @ApiPropertyOptional({
-    example: 'AADHAAR',
-    description: 'KYC document type',
-  })
-  @IsOptional()
-  @IsString()
-  @MaxLength(20)
-  kycDocType?: string;
-
-  @ApiPropertyOptional({
-    example: '123456789012',
-    description: 'KYC document number (validated by regex)',
-  })
-  @IsOptional()
-  @IsString()
-  @MaxLength(50)
-  kycDocNumber?: string;
-
-  // Files - handled by interceptor
-  // venueImages, kycDocFiles, venueGovtCertificateFiles are handled via @UploadedFiles()
 }

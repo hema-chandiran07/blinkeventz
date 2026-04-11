@@ -38,6 +38,42 @@ export class VendorRegisterDto extends RegisterDto {
   @Min(1)
   serviceRadiusKm?: number;
 
+  @ApiProperty({ example: 50000, required: false })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  basePrice?: number;
+
+  @ApiProperty({ example: 'PER_EVENT', enum: ['PER_EVENT', 'PER_PERSON', 'PER_DAY', 'PACKAGE'], required: false })
+  @IsOptional()
+  @IsString()
+  pricingModel?: string;
+
+  @ApiProperty({ example: 10, required: false })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  minGuests?: number;
+
+  @ApiProperty({ example: 200, required: false })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  maxGuests?: number;
+
+  @ApiProperty({ example: 'All inclusive packages', required: false })
+  @IsOptional()
+  @IsString()
+  inclusions?: string;
+
+  @ApiProperty({ example: 'Travel charges extra', required: false })
+  @IsOptional()
+  @IsString()
+  exclusions?: string;
+
   @ApiProperty({ example: 'AADHAAR', enum: ['AADHAAR', 'PAN', 'PASSPORT', 'DRIVING_LICENSE'] })
   @IsNotEmpty()
   @IsString()

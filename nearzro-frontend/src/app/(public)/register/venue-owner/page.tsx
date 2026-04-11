@@ -686,7 +686,7 @@ export default function VenueOwnerRegisterPage() {
           </div>
         </div>
 
-        <Card className="border-0 shadow-[0_20px_50px_rgba(0,0,0,0.8)] bg-zinc-900/40 backdrop-blur-xl border border-white/10 ring-1 ring-white/5 rounded-2xl p-8">
+        <Card className="border-0 bg-zinc-900/40 backdrop-blur-xl border border-white/10 rounded-2xl p-8">
           <CardHeader className="text-center pb-2">
             <div className="inline-flex h-12 w-12 rounded-xl bg-zinc-900 border border-white/10 mx-auto mb-3 flex items-center justify-center">
               <Building className="h-6 w-6 text-zinc-200" />
@@ -841,7 +841,7 @@ export default function VenueOwnerRegisterPage() {
                 <Button
                   type="button"
                   variant="default"
-                  className="w-full h-12 text-base font-semibold text-zinc-100 bg-gradient-to-b from-zinc-700 to-zinc-900 border border-zinc-600 rounded-lg hover:from-zinc-600 hover:to-zinc-800 hover:border-zinc-400 hover:shadow-[0_0_15px_rgba(255,255,255,0.1)] transition-all duration-300 active:scale-[0.99]"
+                  className="w-full h-12 text-base font-semibold text-zinc-100 bg-gradient-to-b from-zinc-700 to-zinc-900 border border-zinc-600 rounded-lg hover:from-zinc-600 hover:to-zinc-800 hover:border-zinc-400 transition-all duration-300 active:scale-[0.99]"
                   onClick={handleNextStep}
                   disabled={isLoading}
                 >
@@ -900,7 +900,7 @@ export default function VenueOwnerRegisterPage() {
                 <Button
                   type="button"
                   variant="default"
-                  className="w-full h-12 text-base font-semibold text-zinc-100 bg-gradient-to-b from-zinc-700 to-zinc-900 border border-zinc-600 rounded-lg hover:from-zinc-600 hover:to-zinc-800 hover:border-zinc-400 hover:shadow-[0_0_15px_rgba(255,255,255,0.1)] transition-all duration-300 active:scale-[0.99]"
+                  className="w-full h-12 text-base font-semibold text-zinc-100 bg-gradient-to-b from-zinc-700 to-zinc-900 border border-zinc-600 rounded-lg hover:from-zinc-600 hover:to-zinc-800 hover:border-zinc-400 transition-all duration-300 active:scale-[0.99]"
                   onClick={handleVerifyOTP}
                   disabled={isLoading}
                 >
@@ -1188,7 +1188,7 @@ export default function VenueOwnerRegisterPage() {
                   <Button
                     type="button"
                     variant="default"
-                    className="flex-1 h-12 text-base font-semibold text-zinc-100 bg-gradient-to-b from-zinc-700 to-zinc-900 border border-zinc-600 rounded-lg hover:from-zinc-600 hover:to-zinc-800 hover:border-zinc-400 hover:shadow-[0_0_15px_rgba(255,255,255,0.1)] transition-all duration-300 active:scale-[0.99]"
+                    className="flex-1 h-12 text-base font-semibold text-zinc-100 bg-gradient-to-b from-zinc-700 to-zinc-900 border border-zinc-600 rounded-lg hover:from-zinc-600 hover:to-zinc-800 hover:border-zinc-400 transition-all duration-300 active:scale-[0.99]"
                     onClick={handleNextStep}
                     disabled={isLoading}
                   >
@@ -1280,7 +1280,7 @@ export default function VenueOwnerRegisterPage() {
                   <Button
                     type="button"
                     variant="default"
-                    className="flex-1 h-12 text-base font-semibold text-zinc-100 bg-gradient-to-b from-zinc-700 to-zinc-900 border border-zinc-600 rounded-lg hover:from-zinc-600 hover:to-zinc-800 hover:border-zinc-400 hover:shadow-[0_0_15px_rgba(255,255,255,0.1)] transition-all duration-300 active:scale-[0.99]"
+                    className="flex-1 h-12 text-base font-semibold text-zinc-100 bg-gradient-to-b from-zinc-700 to-zinc-900 border border-zinc-600 rounded-lg hover:from-zinc-600 hover:to-zinc-800 hover:border-zinc-400 transition-all duration-300 active:scale-[0.99]"
                     onClick={handleNextStep}
                     disabled={isLoading}
                   >
@@ -1604,7 +1604,7 @@ export default function VenueOwnerRegisterPage() {
                     <Button
                       type="button"
                       variant="default"
-                      className="flex-1 h-12 text-base font-semibold text-zinc-100 bg-gradient-to-b from-zinc-700 to-zinc-900 border border-zinc-600 rounded-lg hover:from-zinc-600 hover:to-zinc-800 hover:border-zinc-400 hover:shadow-[0_0_15px_rgba(255,255,255,0.1)] transition-all duration-300 active:scale-[0.99]"
+                      className="flex-1 h-12 text-base font-semibold text-zinc-100 bg-gradient-to-b from-zinc-700 to-zinc-900 border border-zinc-600 rounded-lg hover:from-zinc-600 hover:to-zinc-800 hover:border-zinc-400 transition-all duration-300 active:scale-[0.99]"
                       onClick={handleNextStep}
                       disabled={isLoading || isCompressing || !acceptedTerms}
                     >

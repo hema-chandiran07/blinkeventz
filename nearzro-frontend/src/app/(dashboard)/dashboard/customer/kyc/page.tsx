@@ -110,7 +110,7 @@ export default function CustomerKycPage() {
         {/* KYC Form */}
         <Card className="border-2 border-black">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="text-black">
               <FileText className="h-5 w-5" />
               Submit Your KYC
             </CardTitle>
@@ -218,7 +218,7 @@ export default function CustomerKycPage() {
         {/* Accepted Documents */}
         <Card className="border-2 border-neutral-200 mt-6">
           <CardHeader>
-            <CardTitle className="text-black text-lg">Accepted Documents</CardTitle>
+            <CardTitle className="text-black">Accepted Documents</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid md:grid-cols-2 gap-4">

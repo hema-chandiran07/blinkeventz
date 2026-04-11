@@ -151,7 +151,7 @@ export default function CustomerRegisterPage() {
         )}
 
         {step === 'register' ? (
-          <Card className="border-0 shadow-[0_20px_50px_rgba(0,0,0,0.8)] bg-zinc-950/60 backdrop-blur-xl border border-white/10 ring-1 ring-white/5 rounded-2xl overflow-hidden">
+          <Card className="border-0 bg-zinc-950/60 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden">
             <CardHeader className="text-center pb-2">
               <div className="inline-flex h-16 w-16 rounded-2xl bg-zinc-900 border border-white/10 items-center justify-center mx-auto mb-4">
                 <UserIcon className="h-8 w-8 text-zinc-200" />
@@ -303,7 +303,7 @@ export default function CustomerRegisterPage() {
 
                 <Button
                   type="submit"
-                  className="w-full flex items-center justify-center gap-3 py-3 rounded-xl bg-white/5 border border-white/10 text-zinc-200 font-semibold backdrop-blur-md transition-all duration-300 ease-out hover:text-white hover:bg-white/10 hover:border-white/40 hover:-translate-y-0.5 hover:shadow-[0_4px_20px_rgba(255,255,255,0.1)] active:scale-95 active:translate-y-0"
+                  className="w-full flex items-center justify-center gap-3 py-3 rounded-xl bg-white/5 border border-white/10 text-zinc-200 font-semibold backdrop-blur-md transition-all duration-300 ease-out hover:text-white hover:bg-white/10 hover:border-white/40 active:scale-95 active:translate-y-0"
                   disabled={isLoading}
                 >
                   {isLoading ? (
@@ -328,7 +328,7 @@ export default function CustomerRegisterPage() {
 
               <div className="flex justify-center">
                 <Button
-                  className="w-full flex items-center justify-center gap-3 py-3 rounded-xl bg-white/5 border border-white/10 text-zinc-200 font-semibold backdrop-blur-md transition-all duration-300 ease-out hover:text-white hover:bg-white/10 hover:border-white/40 hover:-translate-y-0.5 hover:shadow-[0_4px_20px_rgba(255,255,255,0.1)] active:scale-95 active:translate-y-0 relative group overflow-hidden"
+                  className="w-full flex items-center justify-center gap-3 py-3 rounded-xl bg-white/5 border border-white/10 text-zinc-200 font-semibold backdrop-blur-md transition-all duration-300 ease-out hover:text-white hover:bg-white/10 hover:border-white/40 active:scale-95 active:translate-y-0 relative group overflow-hidden"
                   type="button"
                   onClick={handleGoogleLogin}
                   disabled={isLoading}

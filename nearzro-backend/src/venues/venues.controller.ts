@@ -12,20 +12,26 @@ import {
   ParseIntPipe,
   UseInterceptors,
   UploadedFiles,
+  UploadedFile,
+  BadRequestException,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
+import { FileFieldsInterceptor, FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage, memoryStorage } from 'multer';
+import { extname } from 'path';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { VenuesService } from './venues.service';
+import { PrismaService } from '../prisma/prisma.service';
+import { DatabaseStorageService } from '../storage/database-storage.service';
 import { CreateVenueDto } from './dto/create-venue.dto';
 import { VenueQueryDto, VenueSearchQueryDto } from './dto/venue-query.dto';
-import { ApiBearerAuth, ApiTags, ApiParam, ApiQuery } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags, ApiParam, ApiQuery, ApiOperation, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { Public } from '../common/decorators/public.decorator';
 import { VenueOwnerGuard } from './guards/venue-owner.guard';
-import { FileFieldsInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { PhotoCategory } from '@prisma/client';
 
 // Define Role locally
 const Role = {
@@ -41,7 +47,11 @@ export type Role = typeof Role[keyof typeof Role];
 @ApiTags('Venues')
 @Controller('venues')
 export class VenuesController {
-  constructor(private readonly venuesService: VenuesService) {}
+  constructor(
+    private readonly venuesService: VenuesService,
+    private readonly prisma: PrismaService,
+    private readonly storageService: DatabaseStorageService,
+  ) {}
 
   // ============================================
   // BLOCK 1: ALL STATIC GET ROUTES (MUST BE FIRST)
@@ -122,14 +132,7 @@ export class VenuesController {
       { name: 'kycDocFiles', maxCount: 5 },
       { name: 'venueGovtCertificateFiles', maxCount: 5 },
     ], {
-      storage: diskStorage({
-        destination: './uploads',
-        filename: (req, file, callback) => {
-          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-          const ext = extname(file.originalname);
-          callback(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
-        },
-      }),
+      storage: memoryStorage(),
     }),
   )
   async updateMyVenue(
@@ -141,11 +144,795 @@ export class VenuesController {
     const venues = await this.venuesService.getVenuesByOwner(ownerId);
     if (!venues || venues.length === 0) throw new NotFoundException('No venue found for this owner');
 
-    const venueImageUrls = files?.venueImages?.map(f => `/uploads/${f.filename}`) || [];
-    const kycDocUrls = files?.kycDocFiles?.map(f => `/uploads/${f.filename}`) || [];
-    const govtCertUrls = files?.venueGovtCertificateFiles?.map(f => `/uploads/${f.filename}`) || [];
+    // Store uploaded files in database as base64 data URLs
+    const uploadedImageUrls = files?.venueImages
+      ? await Promise.all(files.venueImages.map(f => this.storageService.storeFile(f)))
+      : [];
+
+    // Parse pre-uploaded URLs - handle both string (from FormData) and array formats
+    let preUploadedUrls: string[] = [];
+    const rawVenueImages = (dto as any).venueImages;
+    if (rawVenueImages) {
+      if (Array.isArray(rawVenueImages)) {
+        preUploadedUrls = rawVenueImages;
+      } else if (typeof rawVenueImages === 'string') {
+        try {
+          preUploadedUrls = JSON.parse(rawVenueImages);
+        } catch {
+          preUploadedUrls = rawVenueImages.split(',').map((u: string) => u.trim()).filter((u: string) => u);
+        }
+      }
+    }
+
+    const venueImageUrls = [...preUploadedUrls, ...uploadedImageUrls];
+
+    // Store KYC docs in database as base64
+    const kycDocUrls = files?.kycDocFiles
+      ? await Promise.all(files.kycDocFiles.map(f => this.storageService.storeFile(f)))
+      : [];
+    const govtCertUrls = files?.venueGovtCertificateFiles
+      ? await Promise.all(files.venueGovtCertificateFiles.map(f => this.storageService.storeFile(f)))
+      : [];
 
     return this.venuesService.updateVenue(venues[0].id, dto, ownerId, venueImageUrls, kycDocUrls, govtCertUrls);
+  }
+
+  // ============================================
+  // VENUE DASHBOARD ENDPOINTS (NEW)
+  // ============================================
+
+  /// 🏢 VENUE OWNER → Upload venue images (stores as base64 in database)
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENUE_OWNER)
+  @Post('upload-images')
+  @ApiOperation({ summary: 'Upload venue images and return data URLs (stored in database)' })
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'images', maxCount: 10 },
+    ], {
+      storage: memoryStorage(),
+      fileFilter: (req, file, callback) => {
+        if (!file.originalname.match(/\.(jpg|jpeg|png|webp)$/i)) {
+          return callback(new BadRequestException('Only image files (JPG, JPEG, PNG, WEBP) are allowed!'), false);
+        }
+        callback(null, true);
+      },
+    }),
+  )
+  async uploadVenueImages(
+    @Req() req: any,
+    @UploadedFiles() files: { images?: Express.Multer.File[] },
+  ) {
+    if (!files || !files.images || files.images.length === 0) {
+      throw new BadRequestException('At least one image file is required');
+    }
+
+    // Store images in database as base64 data URLs
+    const urls = await Promise.all(
+      files.images.map(file => this.storageService.storeFile(file))
+    );
+
+    return {
+      success: true,
+      urls,
+      count: urls.length,
+      message: `${urls.length} image(s) stored in database successfully`,
+    };
+  }
+
+  /// 🏢 VENUE OWNER → Get my venue profile
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENUE_OWNER)
+  @Get('me')
+  async getMyVenue(@Req() req: any) {
+    const venues = await this.venuesService.getVenuesByOwner(req.user.userId);
+    return venues.length > 0 ? venues[0] : null;
+  }
+
+  /// 🏢 VENUE OWNER → Get my bookings
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENUE_OWNER)
+  @Get('me/bookings')
+  async getMyBookings(@Req() req: any) {
+    const venues = await this.venuesService.getVenuesByOwner(req.user.userId);
+    const venueIds = venues.map(v => v.id);
+
+    // Query bookings through AvailabilitySlot (venueId)
+    const bookings = await this.prisma.booking.findMany({
+      where: {
+        slot: {
+          venueId: { in: venueIds },
+        },
+      },
+      include: {
+        slot: {
+          include: {
+            venue: true,
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return bookings;
+  }
+
+  /// 🏢 VENUE OWNER → Update booking status
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENUE_OWNER)
+  @Patch('me/bookings/:id/status')
+  @ApiOperation({ summary: 'Update venue booking status' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['status'],
+      properties: {
+        status: { type: 'string', enum: ['PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED'] },
+        reason: { type: 'string' }
+      }
+    }
+  })
+  async updateBookingStatus(
+    @Req() req: any,
+    @Param('id', ParseIntPipe) bookingId: number,
+    @Body() body: { status: string; reason?: string },
+  ) {
+    const venues = await this.venuesService.getVenuesByOwner(req.user.userId);
+    const venueIds = venues.map(v => v.id);
+
+    // Get booking
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        slot: true,
+        user: {
+          select: { id: true, name: true, email: true, phone: true },
+        },
+      },
+    });
+
+    if (!booking) {
+      throw new NotFoundException('Booking not found');
+    }
+
+    // Verify booking belongs to this venue owner
+    if (booking.slot.entityType !== 'VENUE' || !venueIds.includes(booking.slot.venueId)) {
+      throw new ForbiddenException('This booking does not belong to your venues');
+    }
+
+    // Validate status transition
+    const validStatuses = ['PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED'];
+    if (!validStatuses.includes(body.status)) {
+      throw new BadRequestException(`Invalid status. Must be one of: ${validStatuses.join(', ')}`);
+    }
+
+    // Prevent invalid transitions
+    if (booking.status === 'CANCELLED' && body.status !== 'CANCELLED') {
+      throw new BadRequestException('Cannot change status of a cancelled booking');
+    }
+    if (booking.status === 'COMPLETED' && body.status !== 'COMPLETED') {
+      throw new BadRequestException('Cannot change status of a completed booking');
+    }
+
+    // Build update data
+    const updateData: any = { status: body.status as any };
+    if (body.status === 'COMPLETED') {
+      updateData.completedAt = new Date();
+    }
+
+    // Update booking
+    const updatedBooking = await this.prisma.booking.update({
+      where: { id: bookingId },
+      data: updateData,
+      include: {
+        slot: { include: { venue: true } },
+        user: { select: { id: true, name: true, email: true, phone: true } },
+      },
+    });
+
+    return {
+      success: true,
+      message: `Booking status updated to ${body.status}`,
+      booking: updatedBooking,
+    };
+  }
+
+  /// 🏢 VENUE OWNER → Get my availability
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENUE_OWNER)
+  @Get('me/availability')
+  async getMyAvailability(@Req() req: any) {
+    const venues = await this.venuesService.getVenuesByOwner(req.user.userId);
+    const venueIds = venues.map(v => v.id);
+
+    // Query AvailabilitySlot with venueId
+    const availability = await this.prisma.availabilitySlot.findMany({
+      where: {
+        venueId: { in: venueIds },
+      },
+      orderBy: { date: 'asc' },
+    });
+    return availability;
+  }
+
+  /// 🏢 VENUE OWNER → Get my analytics
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENUE_OWNER)
+  @Get('me/analytics')
+  async getMyAnalytics(@Req() req: any) {
+    const venues = await this.venuesService.getVenuesByOwner(req.user.userId);
+    const venueIds = venues.map(v => v.id);
+    
+    // Get booking stats through AvailabilitySlot
+    const totalBookings = await this.prisma.booking.count({
+      where: {
+        slot: {
+          venueId: { in: venueIds },
+        },
+      },
+    });
+    
+    // Get revenue from payments (through cart)
+    const revenue = await this.prisma.payment.aggregate({
+      where: {
+        cart: {
+          items: {
+            some: {
+              venueId: { in: venueIds },
+            },
+          },
+        },
+        status: 'CAPTURED',
+      },
+      _sum: { amount: true },
+    });
+
+    return {
+      totalVenues: venues.length,
+      totalBookings,
+      confirmedBookings: totalBookings, // Would need Booking.status field
+      completedBookings: 0, // Would need Booking.status field
+      totalRevenue: revenue._sum.amount || 0,
+      currency: 'INR',
+    };
+  }
+
+  // ============================================
+  // VENUE ANALYTICS (must be BEFORE :id route to avoid route conflict)
+  // These endpoints were in separate VenueAnalyticsController but route /venues/analytics
+  // was being caught by /venues/:id in the running Docker container.
+  // Moving them here ensures correct route ordering.
+  // ============================================
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENUE_OWNER)
+  @Get('analytics')
+  @ApiOperation({ summary: 'Get comprehensive venue analytics' })
+  async getVenueAnalytics(@Req() req: any) {
+    const userId = req.user.userId;
+    const venues = await this.prisma.venue.findMany({ where: { ownerId: userId } });
+    if (venues.length === 0) {
+      return {
+        totalRevenue: 0, completedRevenue: 0, totalBookings: 0, completedBookings: 0,
+        pendingBookings: 0, cancelledBookings: 0, totalVenues: 0, currency: 'INR',
+        monthlyRevenue: [], venuePerformance: [], eventTypeBreakdown: [],
+      };
+    }
+    const venueIds = venues.map(v => v.id);
+    const bookings = await this.prisma.booking.findMany({
+      where: { slot: { venueId: { in: venueIds } } },
+      include: { slot: true },
+    });
+    const totalRevenue = bookings.reduce((sum, b: any) => sum + ((b as any).totalAmount || 0), 0);
+    const completedBookings = bookings.filter(b => b.status === 'COMPLETED');
+    const completedRevenue = completedBookings.reduce((sum, b: any) => sum + ((b as any).totalAmount || 0), 0);
+    const confirmedBookings = bookings.filter(b => b.status === 'CONFIRMED');
+    const pendingBookings = bookings.filter(b => b.status === 'PENDING');
+    const cancelledBookings = bookings.filter(b => b.status === 'CANCELLED');
+
+    // Monthly revenue
+    const now = new Date();
+    const monthlyRevenue: any[] = [];
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthStart = new Date(d.getFullYear(), d.getMonth(), 1);
+      const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
+      const monthBookings = bookings.filter(b => {
+        const bd = new Date(b.createdAt);
+        return bd >= monthStart && bd <= monthEnd;
+      });
+      const monthRevenue = monthBookings.reduce((sum, b: any) => sum + ((b as any).totalAmount || 0), 0);
+      monthlyRevenue.push({
+        month: d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
+        revenue: monthRevenue,
+        bookings: monthBookings.length,
+        averageBookingValue: monthBookings.length > 0 ? Math.round(monthRevenue / monthBookings.length) : 0,
+      });
+    }
+
+    // Venue performance
+    const venuePerformance: any[] = await Promise.all(venues.map(async v => {
+      const vBookings = bookings.filter(b => (b.slot as any)?.venueId === v.id);
+      const vRevenue = vBookings.reduce((sum, b: any) => sum + ((b as any).totalAmount || 0), 0);
+      return { id: v.id, name: v.name, bookings: vBookings.length, revenue: vRevenue };
+    }));
+
+    // Event type breakdown - use venue type as fallback since slot doesn't have eventType
+    const eventTypeMap: Record<string, number> = {};
+    bookings.forEach(b => {
+      const type = (b.slot as any)?.eventType || 'VENUE_BOOKING';
+      eventTypeMap[type] = (eventTypeMap[type] || 0) + 1;
+    });
+    const eventTypeBreakdown = Object.entries(eventTypeMap).map(([type, count]) => ({ type, count }));
+
+    const totalGross = totalRevenue;
+    const platformFee = Math.round(totalGross * 0.05);
+    const netRevenue = totalGross - platformFee;
+
+    return {
+      totalRevenue: totalGross,
+      completedRevenue,
+      totalBookings: bookings.length,
+      completedBookings: completedBookings.length,
+      pendingBookings: pendingBookings.length,
+      cancelledBookings: cancelledBookings.length,
+      confirmedBookings: confirmedBookings.length,
+      totalVenues: venues.length,
+      activeVenues: venues.filter(v => v.status === 'ACTIVE').length,
+      currency: 'INR',
+      platformFee,
+      netRevenue,
+      effectiveFeeRate: totalGross > 0 ? Math.round((platformFee / totalGross) * 10000) / 100 : 0,
+      monthlyRevenue,
+      venuePerformance,
+      eventTypeBreakdown,
+    };
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENUE_OWNER)
+  @Get('analytics/revenue')
+  @ApiOperation({ summary: 'Get venue revenue analytics' })
+  async getVenueRevenueAnalytics(@Req() req: any) {
+    const userId = req.user.userId;
+    const venues = await this.prisma.venue.findMany({ where: { ownerId: userId } });
+    if (venues.length === 0) {
+      return { period: 'all', totalGrossRevenue: 0, totalPlatformFee: 0, totalNetRevenue: 0, effectiveFeeRate: 0, breakdown: [], trends: [], currency: 'INR' };
+    }
+    const venueIds = venues.map(v => v.id);
+    const bookings = await this.prisma.booking.findMany({
+      where: { slot: { venueId: { in: venueIds } }, status: { in: ['COMPLETED', 'CONFIRMED'] } },
+      include: { slot: true },
+    });
+    const totalGrossRevenue = bookings.reduce((sum, b: any) => sum + ((b as any).totalAmount || 0), 0);
+    const totalPlatformFee = Math.round(totalGrossRevenue * 0.05);
+    const totalNetRevenue = totalGrossRevenue - totalPlatformFee;
+
+    // By venue breakdown
+    const breakdown = venues.map(v => {
+      const vBookings = bookings.filter(b => (b.slot as any)?.venueId === v.id);
+      const vRevenue = vBookings.reduce((sum, b: any) => sum + ((b as any).totalAmount || 0), 0);
+      return { venueId: v.id, venueName: v.name, grossRevenue: vRevenue, platformFee: Math.round(vRevenue * 0.05), netRevenue: vRevenue - Math.round(vRevenue * 0.05), bookings: vBookings.length };
+    });
+
+    // Monthly trends
+    const now = new Date();
+    const trends: any[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthStart = new Date(d.getFullYear(), d.getMonth(), 1);
+      const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
+      const monthBookings = bookings.filter(b => { const bd = new Date(b.createdAt); return bd >= monthStart && bd <= monthEnd; });
+      const monthRevenue = monthBookings.reduce((sum, b: any) => sum + ((b as any).totalAmount || 0), 0);
+      trends.push({ month: d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }), revenue: monthRevenue, bookings: monthBookings.length });
+    }
+
+    return { period: 'all', totalGrossRevenue, totalPlatformFee, totalNetRevenue, effectiveFeeRate: totalGrossRevenue > 0 ? Math.round((totalPlatformFee / totalGrossRevenue) * 10000) / 100 : 0, breakdown, trends, currency: 'INR' };
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENUE_OWNER)
+  @Get('analytics/occupancy')
+  @ApiOperation({ summary: 'Get venue occupancy analytics' })
+  async getVenueOccupancyAnalytics(@Req() req: any) {
+    const userId = req.user.userId;
+    const venues = await this.prisma.venue.findMany({ where: { ownerId: userId } });
+    if (venues.length === 0) {
+      return { totalSlots: 0, bookedSlots: 0, blockedSlots: 0, availableSlots: 0, occupancyRate: 0, currency: 'INR' };
+    }
+    const venueIds = venues.map(v => v.id);
+    const totalSlots = venueIds.length * 3 * 30; // 3 slots/day * 30 days
+    const bookings = await this.prisma.booking.findMany({
+      where: { slot: { venueId: { in: venueIds } }, status: { in: ['COMPLETED', 'CONFIRMED'] } },
+    });
+    const bookedSlots = bookings.length;
+    const occupancyRate = totalSlots > 0 ? Math.round((bookedSlots / totalSlots) * 10000) / 100 : 0;
+    return { totalSlots, bookedSlots, blockedSlots: 0, availableSlots: totalSlots - bookedSlots, occupancyRate, currency: 'INR' };
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENUE_OWNER)
+  @Get('analytics/events')
+  @ApiOperation({ summary: 'Get event type analytics' })
+  async getVenueEventAnalytics(@Req() req: any) {
+    const userId = req.user.userId;
+    const venues = await this.prisma.venue.findMany({ where: { ownerId: userId } });
+    if (venues.length === 0) {
+      return { eventTypes: [], currency: 'INR' };
+    }
+    const venueIds = venues.map(v => v.id);
+    const bookings = await this.prisma.booking.findMany({
+      where: { slot: { venueId: { in: venueIds } } },
+      include: { slot: true },
+    });
+    const eventTypeMap: Record<string, { count: number; revenue: number }> = {};
+    bookings.forEach(b => {
+      const type = (b.slot as any)?.eventType || 'VENUE_BOOKING';
+      if (!eventTypeMap[type]) eventTypeMap[type] = { count: 0, revenue: 0 };
+      eventTypeMap[type].count++;
+      eventTypeMap[type].revenue += (b as any).totalAmount || 0;
+    });
+    const eventTypes = Object.entries(eventTypeMap).map(([type, data]) => ({ type, ...data }));
+    return { eventTypes, currency: 'INR' };
+  }
+
+  // ============================================
+  // VENUE PORTFOLIO ENDPOINTS - Advanced Portfolio Management
+  // ============================================
+
+  /// 🏢 VENUE OWNER → Get my venue portfolio (rich images with metadata)
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENUE_OWNER)
+  @Get('me/portfolio')
+  async getMyPortfolio(@Req() req: any) {
+    const venues = await this.venuesService.getVenuesByOwner(req.user.userId);
+    
+    // Get photos from all venues
+    const venueIds = venues.map(v => v.id);
+    const portfolioImages = await this.prisma.venuePhoto.findMany({
+      where: { venueId: { in: venueIds }, isActive: true },
+      orderBy: [{ order: 'asc' }, { createdAt: 'desc' }],
+    });
+
+    // Count by category
+    const categoryCounts: Record<string, number> = {};
+    portfolioImages.forEach(img => {
+      categoryCounts[img.category] = (categoryCounts[img.category] || 0) + 1;
+    });
+
+    const coverImage = portfolioImages.find(img => img.isCover);
+
+    return {
+      venues: venues.map(v => ({ id: v.id, name: v.name })),
+      totalImages: portfolioImages.length,
+      coverImage: coverImage || null,
+      images: portfolioImages.map(img => ({
+        id: img.id,
+        venueId: img.venueId,
+        url: img.url,
+        title: img.title,
+        description: img.description,
+        category: img.category,
+        order: img.order,
+        isCover: img.isCover,
+        isFeatured: img.isFeatured,
+        quality: img.quality,
+        tags: img.tags,
+        createdAt: img.createdAt,
+      })),
+      categories: categoryCounts,
+    };
+  }
+
+  /// 🏢 VENUE OWNER → Add image to venue portfolio with metadata
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENUE_OWNER)
+  @Post('me/portfolio/images')
+  @UseInterceptors(FileInterceptor('file'))
+  async addPortfolioImage(
+    @Req() req: any,
+    @UploadedFile() file: Express.Multer.File,
+    @Body() body: { venueId: string; title?: string; description?: string; category?: string; imageUrl?: string; tags?: string; isFeatured?: string },
+  ) {
+    const venues = await this.venuesService.getVenuesByOwner(req.user.userId);
+    const venue = venues.find(v => v.id === parseInt(body.venueId));
+    
+    if (!venue && venues.length > 0) {
+      throw new NotFoundException('Venue not found');
+    }
+    
+    const targetVenue = venue || venues[0];
+
+    let imageUrl: string;
+
+    if (file) {
+      imageUrl = `/uploads/${file.filename}`;
+    } else if (body.imageUrl) {
+      imageUrl = body.imageUrl;
+    } else {
+      throw new BadRequestException('Either a file or imageUrl is required');
+    }
+
+    // Check image limit (max 50 per venue)
+    const existingCount = await this.prisma.venuePhoto.count({
+      where: { venueId: targetVenue.id, isActive: true },
+    });
+
+    if (existingCount >= 50) {
+      throw new BadRequestException('Maximum 50 portfolio images allowed per venue');
+    }
+
+    // Parse tags if provided
+    let tags: string[] = [];
+    if (body.tags) {
+      try {
+        tags = JSON.parse(body.tags);
+      } catch {
+        tags = body.tags.split(',').map(t => t.trim());
+      }
+    }
+
+    // Get max order for this venue
+    const maxOrder = await this.prisma.venuePhoto.aggregate({
+      where: { venueId: targetVenue.id },
+      _max: { order: true },
+    });
+
+    const nextOrder = (maxOrder._max.order || 0) + 1;
+
+    // Create venue photo with metadata
+    const venuePhoto = await this.prisma.venuePhoto.create({
+      data: {
+        venueId: targetVenue.id,
+        url: imageUrl,
+        title: body.title || null,
+        description: body.description || null,
+        category: (body.category || 'GALLERY') as PhotoCategory,
+        quality: 'HD',
+        tags: tags,
+        isCover: false,
+        isFeatured: body.isFeatured === 'true',
+        order: nextOrder,
+      },
+    });
+
+    return {
+      id: venuePhoto.id,
+      url: venuePhoto.url,
+      title: venuePhoto.title,
+      description: venuePhoto.description,
+      category: venuePhoto.category,
+      order: venuePhoto.order,
+      isCover: venuePhoto.isCover,
+      isFeatured: venuePhoto.isFeatured,
+      quality: venuePhoto.quality,
+      tags: venuePhoto.tags,
+      createdAt: venuePhoto.createdAt,
+      message: 'Image added to venue portfolio successfully',
+    };
+  }
+
+  /// 🏢 VENUE OWNER → Update portfolio image metadata
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENUE_OWNER)
+  @Patch('me/portfolio/images/:id')
+  async updatePortfolioImage(
+    @Req() req: any,
+    @Param('id', ParseIntPipe) imageId: number,
+    @Body() body: { title?: string; description?: string; category?: string; tags?: string[]; isFeatured?: boolean },
+  ) {
+    const venues = await this.venuesService.getVenuesByOwner(req.user.userId);
+    const venueIds = venues.map(v => v.id);
+
+    const existingImage = await this.prisma.venuePhoto.findFirst({
+      where: { id: imageId, venueId: { in: venueIds } },
+    });
+
+    if (!existingImage) {
+      throw new NotFoundException('Venue photo not found');
+    }
+
+    // Validate category
+    const validCategories = ['GALLERY', 'MAIN', 'CERTIFICATE', 'BEHIND_SCENES'];
+    if (body.category && !validCategories.includes(body.category)) {
+      throw new BadRequestException('Invalid category');
+    }
+
+    // If setting as cover, unset other covers for this venue
+    if (body.category === 'MAIN') {
+      await this.prisma.venuePhoto.updateMany({
+        where: { venueId: existingImage.venueId, isCover: true, id: { not: imageId } },
+        data: { isCover: false },
+      });
+    }
+
+    const updateData: any = {};
+    if (body.title !== undefined) updateData.title = body.title;
+    if (body.description !== undefined) updateData.description = body.description;
+    if (body.category !== undefined) updateData.category = body.category;
+    if (body.tags !== undefined) updateData.tags = body.tags;
+    if (body.isFeatured !== undefined) updateData.isFeatured = body.isFeatured;
+    if (body.category === 'MAIN') updateData.isCover = true;
+
+    updateData.updatedAt = new Date();
+
+    const updatedImage = await this.prisma.venuePhoto.update({
+      where: { id: imageId },
+      data: updateData,
+    });
+
+    return {
+      ...updatedImage,
+      message: 'Venue photo updated successfully',
+    };
+  }
+
+  /// 🏢 VENUE OWNER → Set cover image
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENUE_OWNER)
+  @Post('me/portfolio/set-cover')
+  async setCoverImage(
+    @Req() req: any,
+    @Body() body: { imageId: number },
+  ) {
+    const venues = await this.venuesService.getVenuesByOwner(req.user.userId);
+    const venueIds = venues.map(v => v.id);
+
+    const image = await this.prisma.venuePhoto.findFirst({
+      where: { id: body.imageId, venueId: { in: venueIds } },
+    });
+
+    if (!image) {
+      throw new NotFoundException('Venue photo not found');
+    }
+
+    // Unset all covers for this venue
+    await this.prisma.venuePhoto.updateMany({
+      where: { venueId: image.venueId, isCover: true },
+      data: { isCover: false },
+    });
+
+    // Set new cover
+    const updatedImage = await this.prisma.venuePhoto.update({
+      where: { id: body.imageId },
+      data: { isCover: true, updatedAt: new Date() },
+    });
+
+    return {
+      success: true,
+      message: 'Cover image updated successfully',
+      coverImage: updatedImage,
+    };
+  }
+
+  /// 🏢 VENUE OWNER → Reorder portfolio images
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENUE_OWNER)
+  @Patch('me/portfolio/reorder')
+  async reorderPortfolioImages(
+    @Req() req: any,
+    @Body() body: { venueId: number; imageIds: number[] },
+  ) {
+    const venues = await this.venuesService.getVenuesByOwner(req.user.userId);
+    const venue = venues.find(v => v.id === body.venueId);
+
+    if (!venue) {
+      throw new NotFoundException('Venue not found');
+    }
+
+    // Verify all images belong to this venue
+    const images = await this.prisma.venuePhoto.findMany({
+      where: {
+        id: { in: body.imageIds },
+        venueId: venue.id,
+      },
+      select: { id: true },
+    });
+
+    if (images.length !== body.imageIds.length) {
+      throw new BadRequestException('Some images do not belong to this venue');
+    }
+
+    // Update order in transaction
+    await this.prisma.$transaction(
+      body.imageIds.map((imageId, index) =>
+        this.prisma.venuePhoto.update({
+          where: { id: imageId },
+          data: { order: index, updatedAt: new Date() },
+        }),
+      ),
+    );
+
+    return {
+      success: true,
+      message: 'Portfolio reordered successfully',
+      reorderedCount: body.imageIds.length,
+    };
+  }
+
+  /// 🏢 VENUE OWNER → Remove image from portfolio (soft delete)
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENUE_OWNER)
+  @Delete('me/portfolio/images/:id')
+  async removePortfolioImage(
+    @Req() req: any,
+    @Param('id', ParseIntPipe) imageId: number,
+  ) {
+    const venues = await this.venuesService.getVenuesByOwner(req.user.userId);
+    const venueIds = venues.map(v => v.id);
+
+    const existingImage = await this.prisma.venuePhoto.findFirst({
+      where: { id: imageId, venueId: { in: venueIds } },
+    });
+
+    if (!existingImage) {
+      throw new NotFoundException('Venue photo not found');
+    }
+
+    // Soft delete
+    await this.prisma.venuePhoto.update({
+      where: { id: imageId },
+      data: { isActive: false, updatedAt: new Date() },
+    });
+
+    return {
+      success: true,
+      message: 'Image deleted successfully',
+    };
+  }
+
+  /// 🏢 VENUE OWNER → Restore deleted portfolio image
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENUE_OWNER)
+  @Patch('me/portfolio/images/:id/restore')
+  async restorePortfolioImage(
+    @Req() req: any,
+    @Param('id', ParseIntPipe) imageId: number,
+  ) {
+    const venues = await this.venuesService.getVenuesByOwner(req.user.userId);
+    const venueIds = venues.map(v => v.id);
+
+    const existingImage = await this.prisma.venuePhoto.findFirst({
+      where: { id: imageId, venueId: { in: venueIds } },
+    });
+
+    if (!existingImage) {
+      throw new NotFoundException('Venue photo not found');
+    }
+
+    await this.prisma.venuePhoto.update({
+      where: { id: imageId },
+      data: { isActive: true, updatedAt: new Date() },
+    });
+
+    return {
+      success: true,
+      message: 'Image restored successfully',
+    };
   }
 
   // ============================================
@@ -185,18 +972,9 @@ export class VenuesController {
     }
   }
 
-  /// Update venue availability
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, VenueOwnerGuard)
-  @Patch(':id/availability')
-  @ApiParam({ name: 'id', type: Number, description: 'Venue ID' })
-  updateAvailability(
-    @Param('id', ParseIntPipe) id: number,
-    @Req() req: any,
-    @Body() body: { availability: { date: string; timeSlot: string; status: string }[] },
-  ) {
-    return this.venuesService.updateAvailability(id, req.user.userId, body.availability);
-  }
+  // ============================================
+  // DYNAMIC :id ROUTES (must be AFTER specific routes)
+  // ============================================
 
   /// 🏢 VENUE OWNER → Update venue (ownership guard) with images and KYC
   @ApiBearerAuth()
@@ -240,13 +1018,119 @@ export class VenuesController {
     return this.venuesService.deleteVenue(id, req.user.userId);
   }
 
-  // ============================================
-  // 👤 PUBLIC → Get single venue by ID (TRULY LAST)
-  // ============================================
+  /// 👤 PUBLIC → Get single venue by ID (MUST BE LAST - after all specific routes)
+  // No @ApiBearerAuth() - this is a public endpoint
   @Public()
   @Get(':id')
   @ApiParam({ name: 'id', type: Number, description: 'Venue ID' })
   getVenueById(@Param('id', ParseIntPipe) id: number) {
     return this.venuesService.findById(id);
+  }
+
+  // ============================================
+  // MISC ENDPOINTS
+  // ============================================
+
+  // ============================================
+  // ALIAS ENDPOINTS FOR FRONTEND COMPATIBILITY
+  // ============================================
+
+  /// ALIAS: Get my venues (frontend expects /venues/my)
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENUE_OWNER)
+  @Get('my')
+  getMyVenuesAlias(@Req() req: any) {
+    return this.venuesService.getVenuesByOwner(req.user.userId);
+  }
+
+  /// Update venue owner's venue availability (frontend expects /venues/me/availability)
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENUE_OWNER)
+  @Patch('me/availability')
+  @ApiOperation({ summary: 'Update availability for venue owner venues' })
+  async updateMyAvailability(
+    @Req() req: any,
+    @Body() body: { availability: { date: string; timeSlot: string; status: string }[] },
+  ) {
+    return this.venuesService.updateMyAvailability(req.user.userId, body.availability);
+  }
+
+  // ============================================
+  // VENUE BLOCKED SLOTS (Calendar Management)
+  // ============================================
+
+  /// 🏢 VENUE OWNER → Get blocked slots
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENUE_OWNER)
+  @Get('venue-owner/blocked-slots')
+  @ApiOperation({ summary: 'Get all blocked slots for venue owner venues' })
+  async getBlockedSlots(@Req() req: any) {
+    return this.venuesService.getBlockedSlots(req.user.userId);
+  }
+
+  /// 🏢 VENUE OWNER → Block a time slot
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENUE_OWNER)
+  @Post('venue-owner/blocked-slots')
+  @ApiOperation({ summary: 'Block a time slot for venue owner venues' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['date', 'timeSlot'],
+      properties: {
+        date: { type: 'string', format: 'date' },
+        timeSlot: { type: 'string', enum: ['MORNING', 'EVENING', 'FULL_DAY'] },
+        reason: { type: 'string' },
+        venueId: { type: 'number' }
+      }
+    }
+  })
+  async blockSlot(
+    @Req() req: any,
+    @Body() body: { date: string; timeSlot: string; reason?: string; venueId?: number },
+  ) {
+    return this.venuesService.blockTimeSlot(req.user.userId, body.date, body.timeSlot, body.reason);
+  }
+
+  /// 🏢 VENUE OWNER → Unblock a time slot
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENUE_OWNER)
+  @Delete('venue-owner/blocked-slots')
+  @ApiOperation({ summary: 'Unblock a time slot for venue owner venues' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['date', 'timeSlot'],
+      properties: {
+        date: { type: 'string', format: 'date' },
+        timeSlot: { type: 'string', enum: ['MORNING', 'EVENING', 'FULL_DAY'] },
+        venueId: { type: 'number' }
+      }
+    }
+  })
+  async unblockSlot(
+    @Req() req: any,
+    @Body() body: { date: string; timeSlot: string; venueId?: number },
+  ) {
+    await this.venuesService.unblockTimeSlot(req.user.userId, body.date, body.timeSlot);
+    return { success: true, message: 'Slot unblocked successfully' };
+  }
+
+  /// Update venue availability
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, VenueOwnerGuard)
+  @Patch(':id/availability')
+  @ApiParam({ name: 'id', type: Number, description: 'Venue ID' })
+  updateAvailability(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: any,
+    @Body() body: { availability: { date: string; timeSlot: string; status: string }[] },
+  ) {
+    return this.venuesService.updateAvailability(id, req.user.userId, body.availability);
   }
 }

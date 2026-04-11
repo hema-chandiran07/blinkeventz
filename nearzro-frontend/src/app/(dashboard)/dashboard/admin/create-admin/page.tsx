@@ -98,7 +98,7 @@ export default function CreateAdminPage() {
         <div className="grid gap-6 md:grid-cols-2">
           <Card className="border-2 border-red-200">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="text-black">
                 <UserPlus className="h-5 w-5 text-red-600" />
                 New Admin Details
               </CardTitle>
@@ -201,7 +201,7 @@ export default function CreateAdminPage() {
 
           <Card className="border-2 border-red-200">
             <CardHeader>
-              <CardTitle>Admin Access Information</CardTitle>
+              <CardTitle className="text-black">Admin Access Information</CardTitle>
               <CardDescription>What admins can do</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">

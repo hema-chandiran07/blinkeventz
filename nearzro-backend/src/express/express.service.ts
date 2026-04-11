@@ -1,5 +1,5 @@
 // src/express/express.service.ts
-import { Injectable, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Injectable, BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateExpressDto } from './dto/create-express.dto';
 import { ExpressStatus } from '@prisma/client';
@@ -71,6 +71,24 @@ if (!Event.area) {
         ),
         expressFee,
       },
+      include: {
+        Event: {
+          select: {
+            id: true,
+            title: true,
+            eventType: true,
+            date: true,
+            guestCount: true,
+          },
+        },
+        user: {
+          select: {
+            name: true,
+            email: true,
+            phone: true,
+          },
+        },
+      },
     });
   }
 
@@ -86,5 +104,109 @@ if (!Event.area) {
     }
 
     return express;
+  }
+
+  // ============================================
+  // ADMIN METHODS
+  // ============================================
+
+  async getAllExpressRequests() {
+    return this.prisma.expressRequest.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        Event: {
+          select: {
+            id: true,
+            title: true,
+            eventType: true,
+            date: true,
+            guestCount: true,
+          },
+        },
+        user: {
+          select: {
+            name: true,
+            email: true,
+            phone: true,
+          },
+        },
+      },
+    });
+  }
+
+  async getExpressRequestById(id: number) {
+    const express = await this.prisma.expressRequest.findUnique({
+      where: { id },
+      include: {
+        Event: {
+          select: {
+            id: true,
+            title: true,
+            eventType: true,
+            date: true,
+            guestCount: true,
+          },
+        },
+        user: {
+          select: {
+            name: true,
+            email: true,
+            phone: true,
+          },
+        },
+      },
+    });
+
+    if (!express) {
+      throw new NotFoundException('Express request not found');
+    }
+
+    return express;
+  }
+
+  async updateExpressRequest(
+    id: number,
+    body: { status?: string; rejectionReason?: string }
+  ) {
+    const express = await this.prisma.expressRequest.findUnique({
+      where: { id },
+    });
+
+    if (!express) {
+      throw new NotFoundException('Express request not found');
+    }
+
+    const updateData: any = {};
+
+    if (body.status) {
+      updateData.status = body.status as ExpressStatus;
+    }
+
+    if (body.rejectionReason) {
+      updateData.rejectionReason = body.rejectionReason;
+    }
+
+    return this.prisma.expressRequest.update({
+      where: { id },
+      data: updateData,
+      include: {
+        Event: {
+          select: {
+            id: true,
+            title: true,
+            eventType: true,
+            date: true,
+            guestCount: true,
+          },
+        },
+        user: {
+          select: {
+            name: true,
+            email: true,
+            phone: true,
+          },
+        },
+      },
+    });
   }
 }

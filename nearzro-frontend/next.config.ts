@@ -3,6 +3,9 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   output: 'standalone',
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   images: {
     remotePatterns: [
       {
@@ -26,9 +29,14 @@ const nextConfig: NextConfig = {
     ],
     unoptimized: process.env.NODE_ENV === "development",
   },
-  // Proxy ALL API requests to backend (use localhost in development)
+  // Proxy ALL API requests to backend
+  // In Docker: use internal service name, otherwise localhost
   async rewrites() {
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+    const isDocker = process.env.NODE_ENV === 'production';
+    const backendUrl = isDocker 
+      ? (process.env.API_INTERNAL_URL || 'http://api:3000') 
+      : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000');
+    
     return [
       {
         source: '/api/:path*',

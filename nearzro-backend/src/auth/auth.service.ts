@@ -11,6 +11,7 @@ import * as bcrypt from 'bcrypt';
 import { Role } from '@prisma/client';
 import * as crypto from 'crypto';
 import { OtpService } from './otp.service';
+import { EmailProvider } from '../notifications/providers/email.provider';
 
 // Constants for security configuration
 const BCRYPT_ROUNDS = 12; // Higher security
@@ -26,6 +27,7 @@ export class AuthService {
     private jwtService: JwtService,
     private otpService: OtpService,
     private configService: ConfigService,
+    private emailProvider: EmailProvider,
   ) {}
 
   // 👤 CUSTOMER registration - NO auto login, requires OTP verification
@@ -250,82 +252,85 @@ export class AuthService {
 
     // Create new user with VENUE_OWNER role
     const hashedPassword = await bcrypt.hash(dto.password, 10);
-    const user = await this.prisma.user.create({
-      data: {
-        name: dto.name,
-        email: dto.email,
-        passwordHash: hashedPassword,
-        role: Role.VENUE_OWNER,
-        isEmailVerified: false,
-      },
-    });
-
-    // Create venue profile
+    
+    // Use transaction to ensure atomicity - if venue creation fails, user creation also rolls back
     try {
-      await this.prisma.venue.create({
-        data: {
-          ownerId: user.id,
-          username: dto.name, // Store username for venue-specific login
-          name: dto.venueName,
-          type: dto.venueType as any,
-          description: dto.description,
-          city: dto.city,
-          area: dto.area,
-          address: dto.address || 'Address to be updated by owner',
-          pincode: dto.pincode || '000000',
-          capacityMin: dto.capacityMin || 100,
-          capacityMax: dto.capacityMax || 500,
-          basePriceMorning: dto.basePriceMorning || 0,
-          basePriceEvening: dto.basePriceEvening || 0,
-          basePriceFullDay: dto.basePriceFullDay || 0,
-          status: 'PENDING_APPROVAL',
-          venueImages: venueImageUrls || [], // Save venue images
-          kycDocType: kycDocType,
-          kycDocNumber: kycDocNumber,
-          kycDocFiles: kycDocUrls || [],
-          venueGovtCertificateFiles: venueGovtCertificateFiles || [], // Trade License (MANDATORY)
-        },
+      const result = await this.prisma.$transaction(async (tx) => {
+        // Create user
+        const user = await tx.user.create({
+          data: {
+            name: dto.name,
+            email: dto.email,
+            passwordHash: hashedPassword,
+            role: Role.VENUE_OWNER,
+            isEmailVerified: false,
+          },
+        });
+
+        // Create venue profile
+        await tx.venue.create({
+          data: {
+            ownerId: user.id,
+            username: dto.name, // Store username for venue-specific login
+            name: dto.venueName,
+            type: dto.venueType as any,
+            description: dto.description,
+            city: dto.city,
+            area: dto.area,
+            address: dto.address || 'Address to be updated by owner',
+            pincode: dto.pincode || '000000',
+            capacityMin: dto.capacityMin || 100,
+            capacityMax: dto.capacityMax || 500,
+            basePriceMorning: dto.basePriceMorning || 0,
+            basePriceEvening: dto.basePriceEvening || 0,
+            basePriceFullDay: dto.basePriceFullDay || 0,
+            status: 'PENDING_APPROVAL',
+            venueImages: venueImageUrls || [], // Save venue images
+            kycDocType: kycDocType,
+            kycDocNumber: kycDocNumber,
+            kycDocFiles: kycDocUrls || [],
+            venueGovtCertificateFiles: venueGovtCertificateFiles || [], // Trade License (MANDATORY)
+          },
+        });
+
+        // Create KYC documents if provided (support 1-5 images)
+        if (kycDocUrls && kycDocUrls.length > 0 && kycDocType && kycDocNumber) {
+          for (const docUrl of kycDocUrls) {
+            await tx.kycDocument.create({
+              data: {
+                userId: user.id,
+                docType: kycDocType as any,
+                docNumber: kycDocNumber,
+                docNumberHash: crypto.createHash('sha256').update(kycDocNumber).digest('hex'),
+                docFileUrl: docUrl,
+                status: 'PENDING',
+              },
+            });
+          }
+        }
+
+        return user;
       });
+
+      return {
+        user: {
+          id: result.id,
+          name: result.name,
+          email: result.email,
+          role: result.role,
+          isEmailVerified: false,
+        },
+        requiresOtp: true,
+        message: 'Registration successful. Please verify your email with OTP.',
+      };
     } catch (error: any) {
-      console.error('Venue creation error:', error.message);
-      // Continue anyway - user is created
-    }
-
-    // Create KYC documents if provided (support 1-5 images)
-    if (kycDocUrls && kycDocUrls.length > 0 && kycDocType && kycDocNumber) {
-      try {
-        // Create a KYC document record for each image
-        for (const docUrl of kycDocUrls) {
-          await this.prisma.kycDocument.create({
-            data: {
-              userId: user.id,
-              docType: kycDocType as any,
-              docNumber: kycDocNumber,
-              docNumberHash: crypto.createHash('sha256').update(kycDocNumber).digest('hex'),
-              docFileUrl: docUrl,
-              status: 'PENDING',
-            },
-          });
-        }
-      } catch (error: any) {
-        // Ignore duplicate KYC errors
-        if (error.code !== 'P2002') {
-          console.error('KYC creation error:', error.message);
-        }
+      console.error('Venue owner registration failed:', error.message);
+      // Re-throw with meaningful message
+      if (error.code === 'P2002') {
+        throw new BadRequestException('Email or username already exists');
       }
+      throw new BadRequestException(`Registration failed: ${error.message}`);
     }
-
-    return {
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        isEmailVerified: false,
-      },
-      requiresOtp: true,
-      message: 'Registration successful. Please verify your email with OTP.',
-    };
   }
 
   // 🏪 VENDOR registration - requires OTP verification
@@ -469,84 +474,97 @@ export class AuthService {
 
     // Create new user with VENDOR role
     const hashedPassword = await bcrypt.hash(dto.password, 10);
-    const user = await this.prisma.user.create({
-      data: {
-        name: dto.name,
-        email: dto.email,
-        passwordHash: hashedPassword,
-        role: Role.VENDOR,
-        isEmailVerified: false,
-      },
-    });
+    
+    // Use transaction to ensure atomicity - if any step fails, everything rolls back
+    try {
+      const result = await this.prisma.$transaction(async (tx) => {
+        // Create user
+        const user = await tx.user.create({
+          data: {
+            name: dto.name,
+            email: dto.email,
+            passwordHash: hashedPassword,
+            role: Role.VENDOR,
+            isEmailVerified: false,
+          },
+        });
 
-    // Create vendor profile
-    const vendor = await this.prisma.vendor.create({
-      data: {
-        userId: user.id,
-        username: dto.name, // Store username for vendor-specific login
-        businessName: dto.businessName,
-        businessType: dto.businessType,
-        description: dto.description,
-        city: dto.city,
-        area: dto.area,
-        phone: dto.phone,
-        serviceRadiusKm: dto.serviceRadiusKm || 50,
-        verificationStatus: 'PENDING',
-        businessImages: businessImageUrls, // Save business images
-        kycDocType: kycDocType,
-        kycDocNumber: kycDocNumber,
-        kycDocFiles: kycDocUrls || [],
-        foodLicenseFiles: dto.businessType === 'CATERING' ? foodLicenseUrls : [], // FSSAI (CONDITIONAL)
-      },
-    });
+        // Create vendor profile
+        const vendor = await tx.vendor.create({
+          data: {
+            userId: user.id,
+            username: dto.name, // Store username for vendor-specific login
+            businessName: dto.businessName,
+            businessType: dto.businessType,
+            description: dto.description,
+            city: dto.city,
+            area: dto.area,
+            phone: dto.phone,
+            serviceRadiusKm: dto.serviceRadiusKm || 50,
+            verificationStatus: 'PENDING',
+            businessImages: businessImageUrls, // Save business images
+            kycDocType: kycDocType,
+            kycDocNumber: kycDocNumber,
+            kycDocFiles: kycDocUrls || [],
+            foodLicenseFiles: dto.businessType === 'CATERING' ? foodLicenseUrls : [], // FSSAI (CONDITIONAL)
+          },
+        });
 
-    // Create KYC documents if provided (support 1-5 images)
-    if (kycDocUrls && kycDocUrls.length > 0 && kycDocType && kycDocNumber) {
-      try {
-        // Create a KYC document record for each image
-        for (const docUrl of kycDocUrls) {
-          await this.prisma.kycDocument.create({
-            data: {
-              userId: user.id,
-              docType: kycDocType as any,
-              docNumber: kycDocNumber,
-              docNumberHash: crypto.createHash('sha256').update(kycDocNumber).digest('hex'),
-              docFileUrl: docUrl,
-              status: 'PENDING',
-            },
-          });
+        // Create KYC documents if provided (support 1-5 images)
+        if (kycDocUrls && kycDocUrls.length > 0 && kycDocType && kycDocNumber) {
+          for (const docUrl of kycDocUrls) {
+            await tx.kycDocument.create({
+              data: {
+                userId: user.id,
+                docType: kycDocType as any,
+                docNumber: kycDocNumber,
+                docNumberHash: crypto.createHash('sha256').update(kycDocNumber).digest('hex'),
+                docFileUrl: docUrl,
+                status: 'PENDING',
+              },
+            });
+          }
         }
-      } catch (error: any) {
-        // Ignore duplicate KYC errors
-        if (error.code !== 'P2002') {
-          console.error('KYC creation error:', error.message);
-        }
+
+        // Create initial vendor service with registration details
+        await tx.vendorService.create({
+          data: {
+            vendorId: vendor.id,
+            name: `${dto.businessName} - ${dto.businessType}`,
+            serviceType: dto.businessType as any,
+            baseRate: dto.basePrice || 50000, // Use provided base price or default
+            pricingModel: (dto.pricingModel as any) || 'PER_EVENT',
+            minGuests: dto.minGuests || null,
+            maxGuests: dto.maxGuests || null,
+            description: dto.description || null,
+            inclusions: dto.inclusions || null,
+            exclusions: dto.exclusions || null,
+            isActive: true,
+          },
+        });
+
+        return { user, vendor };
+      });
+
+      return {
+        user: {
+          id: result.user.id,
+          name: result.user.name,
+          email: result.user.email,
+          role: result.user.role,
+          isEmailVerified: false,
+        },
+        requiresOtp: true,
+        message: 'Registration successful. Please verify your email with OTP.',
+      };
+    } catch (error: any) {
+      console.error('Vendor registration failed:', error.message);
+      // Re-throw with meaningful message
+      if (error.code === 'P2002') {
+        throw new BadRequestException('Email or username already exists');
       }
+      throw new BadRequestException(`Registration failed: ${error.message}`);
     }
-
-    // Create initial vendor service using vendor.id (not user.id)
-    await this.prisma.vendorService.create({
-      data: {
-        vendorId: vendor.id,
-        name: `${dto.businessName} - ${dto.businessType}`,
-        serviceType: dto.businessType as any,
-        baseRate: 50000,
-        pricingModel: 'PER_EVENT',
-        isActive: true,
-      },
-    });
-
-    return {
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        isEmailVerified: false,
-      },
-      requiresOtp: true,
-      message: 'Registration successful. Please verify your email with OTP.',
-    };
   }
 
 
@@ -1228,7 +1246,20 @@ export class AuthService {
 
     // Check if user is active
     if (!user!.isActive) {
-      throw new UnauthorizedException('Account is deactivated');
+      // Send email notification about deactivated account
+      try {
+        await this.emailProvider.send(
+          user!.email!,
+          'Your Account Has Been Deactivated',
+          `Dear ${user!.name},\n\nWe noticed you tried to sign in to your NearZro account. Your account has been deactivated by an administrator.\n\nIf you believe this is an error or would like to have your account reactivated, please contact our support team.\n\nBest regards,\nThe NearZro Team`,
+          `<h2>Account Deactivated</h2><p>Dear ${user!.name},</p><p>We noticed you tried to sign in to your NearZro account. <strong>Your account has been deactivated by an administrator.</strong></p><p>If you believe this is an error or would like to have your account reactivated, please contact our support team.</p><p>Best regards,<br>The NearZro Team</p>`
+        );
+        console.log('📧 Deactivation notification email sent to:', user!.email!);
+      } catch (error) {
+        console.warn('⚠️ Failed to send deactivation notification email:', error);
+      }
+
+      throw new UnauthorizedException('Your account has been deactivated. Please contact an administrator to reactivate your account.');
     }
 
     // Get vendor and venues if not loaded
@@ -1353,12 +1384,38 @@ export class AuthService {
   }
 
   /**
+   * Get user profile with fresh role from database (not from JWT token)
+   * This ensures role changes are reflected immediately without re-login
+   */
+  async getUserProfile(userId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        isEmailVerified: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    return user;
+  }
+
+  /**
    * Hash password reset token before storing (security improvement)
    */
   private hashToken(token: string): string {
     return crypto.createHash('sha256').update(token).digest('hex');
   }
 
-  // Note: Account lockout features (failedLoginAttempts, lockedUntil) 
+  // Note: Account lockout features (failedLoginAttempts, lockedUntil)
   // have been removed to match the original database schema
 }

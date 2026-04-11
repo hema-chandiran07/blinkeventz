@@ -74,14 +74,14 @@ export default function RegisterPage() {
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_80%_70%,rgba(163,163,163,0.3),transparent_50%)]" />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_50%,rgba(229,229,229,0.2),transparent_60%)]" />
         </div>
-        {/* Liquid mercury animation overlay */}
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-zinc-600/10 to-transparent animate-pulse" />
+        {/* Background overlay */}
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-zinc-600/10 to-transparent" />
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto">
         {/* Header */}
         <div className="text-center mb-12">
-          <div className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-zinc-800/50 to-zinc-700/50 backdrop-blur-md border border-white/10 text-white text-sm font-medium mb-6 shadow-lg shadow-black/20">
+          <div className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-zinc-800/50 to-zinc-700/50 backdrop-blur-md border border-white/10 text-white text-sm font-medium mb-6">
             <Sparkles className="h-4 w-4 text-zinc-300" />
             Join NearZro Today
           </div>
@@ -124,17 +124,10 @@ export default function RegisterPage() {
           {roles.map((role) => {
             const Icon = role.icon;
             return (
-              <Card 
+              <Card
                 key={role.id}
-                className="group h-full flex flex-col bg-zinc-950/80 backdrop-blur-sm border border-white/10 ring-1 ring-white/5 rounded-2xl hover:border-white/20 hover:-translate-y-1.5 hover:shadow-[0_8px_30px_rgb(0,0,0,0.5)] transition-all duration-400 ease-out relative overflow-hidden"
+                className="group h-full flex flex-col bg-zinc-950/80 backdrop-blur-sm border border-white/10 rounded-2xl hover:border-white/20 transition-all duration-400 ease-out relative overflow-hidden"
               >
-                {/* Faint glass-edge top highlight */}
-                <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent pointer-events-none" />
-                {/* Radial glow behind icon area */}
-                <div className="absolute top-0 left-0 w-36 h-36 bg-[radial-gradient(ellipse_at_top_left,_rgba(161,161,170,0.07)_0%,_transparent_65%)] pointer-events-none" />
-                {/* Hover satin sheen */}
-                <div className="absolute inset-0 bg-gradient-to-b from-white/[0.04] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-                
                 <CardHeader className="text-center pb-2 relative">
                   {/* Flat matte icon container - EXACT from WhyChooseUs.tsx */}
                   <div className="h-12 w-12 rounded-full bg-zinc-900 border border-white/10 flex items-center justify-center mx-auto mb-5 relative group-hover:border-white/20 transition-all duration-400">
@@ -156,7 +149,7 @@ export default function RegisterPage() {
                   </ul>
                   <Link href={role.href} className="block mt-6">
                     <Button 
-                      className="w-full py-3 rounded-xl bg-white/5 border border-white/10 text-white font-semibold backdrop-blur-md transition-all duration-300 hover:bg-white/10 hover:border-white/30 hover:-translate-y-0.5 hover:shadow-[0_4px_20px_rgba(255,255,255,0.08)] active:scale-95 active:translate-y-0"
+                      className="w-full py-3 rounded-xl bg-white/5 border border-white/10 text-white font-semibold backdrop-blur-md transition-all duration-300 hover:bg-white/10 hover:border-white/30 active:scale-95 active:translate-y-0"
                     >
                       {role.cta}
                       <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />

@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type, Transform } from 'class-transformer';
-import { IsString, IsOptional, IsInt, Min, Max, MaxLength, IsNotEmpty, IsEnum, IsArray, ValidateNested } from 'class-validator';
+import { IsString, IsOptional, IsInt, Min, MaxLength, IsNotEmpty } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateVendorDto {
   @ApiProperty({
@@ -13,15 +13,6 @@ export class CreateVendorDto {
   businessName: string;
 
   @ApiPropertyOptional({
-    example: 'CATERING',
-    description: 'Business type/service category',
-  })
-  @IsOptional()
-  @IsString()
-  @MaxLength(50, { message: 'businessType must not exceed 50 characters' })
-  businessType?: string;
-
-  @ApiPropertyOptional({
     example: 'We provide premium wedding catering services',
     description: 'Optional vendor description',
   })
@@ -29,6 +20,15 @@ export class CreateVendorDto {
   @IsString()
   @MaxLength(2000, { message: 'description must not exceed 2000 characters' })
   description?: string;
+
+  @ApiPropertyOptional({
+    example: 'CATERING',
+    description: 'Service category',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100, { message: 'serviceCategory must not exceed 100 characters' })
+  serviceCategory?: string;
 
   @ApiProperty({
     example: 'Chennai',
@@ -68,23 +68,70 @@ export class CreateVendorDto {
   serviceRadiusKm?: number;
 
   @ApiPropertyOptional({
+    example: 'John Doe',
+    description: 'Owner name',
+  })
+  @IsOptional()
+  @IsString()
+  ownerName?: string;
+
+  @ApiPropertyOptional({
+    example: 'vendor@example.com',
+    description: 'Email address',
+  })
+  @IsOptional()
+  @IsString()
+  email?: string;
+
+  @ApiPropertyOptional({
+    example: 'CATERING',
+    description: 'Business type',
+  })
+  @IsOptional()
+  @IsString()
+  businessType?: string;
+
+  @ApiPropertyOptional({
+    example: 5000,
+    description: 'Base price',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  basePrice?: number;
+
+  @ApiPropertyOptional({
+    example: 'PER_EVENT',
+    description: 'Pricing model',
+  })
+  @IsOptional()
+  @IsString()
+  pricingModel?: string;
+
+  @ApiPropertyOptional({
+    example: 5,
+    description: 'Years of experience',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  experience?: number;
+
+  @ApiPropertyOptional({
     example: 'AADHAAR',
     description: 'KYC document type',
   })
   @IsOptional()
   @IsString()
-  @MaxLength(20, { message: 'kycDocType must not exceed 20 characters' })
   kycDocType?: string;
 
   @ApiPropertyOptional({
     example: '123456789012',
-    description: 'KYC document number (validated by regex)',
+    description: 'KYC document number',
   })
   @IsOptional()
   @IsString()
-  @MaxLength(50, { message: 'kycDocNumber must not exceed 50 characters' })
   kycDocNumber?: string;
-
-  // Files - handled by interceptor, not validated here
-  // businessImages, kycDocFiles, foodLicenseFiles are handled via @UploadedFiles()
 }

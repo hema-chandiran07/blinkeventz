@@ -58,6 +58,7 @@ export default function VenuePayoutsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterMonth, setFilterMonth] = useState<string>("all");
+  const [currentYear] = useState(new Date().getFullYear());
 
   useEffect(() => {
     loadPayouts();
@@ -72,8 +73,12 @@ export default function VenuePayoutsPage() {
         params: { limit: 100 },
       });
 
-      if (response.data && response.data.data) {
-        setPayouts(response.data.data);
+      // Backend returns { payouts: [...], totalPayouts, pendingPayouts, ... }
+      if (response.data && response.data.payouts) {
+        setPayouts(response.data.payouts);
+      } else if (Array.isArray(response.data)) {
+        // Fallback if backend returns array directly
+        setPayouts(response.data);
       }
     } catch (error: any) {
       console.error("Failed to load payouts:", error);
@@ -114,12 +119,17 @@ export default function VenuePayoutsPage() {
     const eventName = payout.event.title || payout.event.eventType;
     const customerName = payout.event.customer?.name || "";
     const venueName = payout.venue?.name || "";
-    
+
     const matchesSearch = eventName.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          venueName.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = filterStatus === "all" || payout.status === filterStatus;
-    const matchesMonth = filterMonth === "all" || payout.createdAt.startsWith(`2026-${filterMonth.padStart(2, '0')}`);
+    // Dynamic year and month filtering
+    const payoutDate = new Date(payout.createdAt);
+    const payoutYear = payoutDate.getFullYear();
+    const payoutMonth = payoutDate.getMonth() + 1; // 1-12
+    const matchesMonth = filterMonth === "all" || 
+                        (payoutMonth === parseInt(filterMonth) && payoutYear === currentYear);
     return matchesSearch && matchesStatus && matchesMonth;
   });
 
@@ -138,26 +148,98 @@ export default function VenuePayoutsPage() {
     }
   };
 
-  const handleExportPayouts = async () => {
+  const handleExportPayouts = () => {
     try {
-      const response = await api.get("/payouts/export/csv", {
-        responseType: "blob",
+      // Check if there's data to export
+      if (filteredPayouts.length === 0) {
+        toast.warning('No payouts to export');
+        return;
+      }
+
+      // Helper to escape CSV values
+      const csvEscape = (val: string | number | undefined | null) => {
+        const str = String(val ?? '');
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
+
+      // Generate CSV from filtered payouts
+      const headers = [
+        'Payout ID',
+        'Event',
+        'Venue',
+        'Customer',
+        'Event Date',
+        'Gross Amount',
+        'Platform Fee (5%)',
+        'Payout Amount',
+        'Status',
+        'Created At',
+        'Payout Date',
+      ];
+
+      const rows = filteredPayouts.map(payout => {
+        const eventName = payout.event?.title || payout.event?.eventType || '-';
+        const venueName = payout.venue?.name || '-';
+        const customerName = payout.event?.customer?.name || '-';
+        const platformFee = Math.round(payout.amount * 0.05);
+        const payoutAmount = payout.amount - platformFee;
+        const eventDate = payout.event?.date ? new Date(payout.event.date).toLocaleDateString('en-IN') : '-';
+        const createdAt = payout.createdAt ? new Date(payout.createdAt).toLocaleDateString('en-IN') : '-';
+        const payoutDateStr = payout.approvedAt || payout.processedAt;
+        const payoutDate = payoutDateStr ? new Date(payoutDateStr).toLocaleDateString('en-IN') : '-';
+
+        return [
+          payout.id,
+          eventName,
+          venueName,
+          customerName,
+          eventDate,
+          `₹${payout.amount.toLocaleString('en-IN')}`,
+          `₹${platformFee.toLocaleString('en-IN')}`,
+          `₹${payoutAmount.toLocaleString('en-IN')}`,
+          payout.status,
+          createdAt,
+          payoutDate,
+        ];
       });
+
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(r => r.map(csvEscape).join(',')),
+      ].join('\n');
+
+      // Add BOM for proper UTF-8 encoding in Excel
+      const BOM = '\uFEFF';
+      const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
       
-      const blob = new Blob([response.data], { type: "text/csv" });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
+      const link = document.createElement('a');
       link.href = url;
-      link.download = `payouts-${new Date().toISOString().split("T")[0]}.csv`;
+      link.download = `venue-payouts-${new Date().toISOString().split('T')[0]}.csv`;
+      link.style.display = 'none';
+      document.body.appendChild(link);
       link.click();
-      window.URL.revokeObjectURL(url);
       
-      toast.success("Payout report exported");
-    } catch (error: any) {
-      console.error("Failed to export payouts:", error);
-      toast.error("Failed to export payout report");
+      // Cleanup
+      setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }, 100);
+
+      toast.success(`Exported ${filteredPayouts.length} payouts to CSV`);
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Failed to export payout report');
     }
   };
+
+  const months = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
 
   if (loading) {
     return (
@@ -233,8 +315,8 @@ export default function VenuePayoutsPage() {
       >
         <Card className="border-silver-200 bg-white">
           <CardHeader>
-            <CardTitle className="text-lg font-semibold text-black">Payout Trend (Last 6 Months)</CardTitle>
-            <CardDescription>Your monthly payout history</CardDescription>
+            <CardTitle className="text-black">Payout Trend (Last 6 Months)</CardTitle>
+            <CardDescription className="text-neutral-600">Your monthly payout history</CardDescription>
           </CardHeader>
           <CardContent>
             <BarChart
@@ -267,7 +349,7 @@ export default function VenuePayoutsPage() {
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                className="flex h-10 rounded-md border border-silver-200 bg-white px-4 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-600"
+                className="flex h-10 rounded-md border border-silver-200 bg-white px-4 py-2 text-sm text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-600"
               >
                 <option value="all">All Status</option>
                 <option value="pending">Pending</option>
@@ -278,7 +360,7 @@ export default function VenuePayoutsPage() {
               <select
                 value={filterMonth}
                 onChange={(e) => setFilterMonth(e.target.value)}
-                className="flex h-10 rounded-md border border-silver-200 bg-white px-4 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-600"
+                className="flex h-10 rounded-md border border-silver-200 bg-white px-4 py-2 text-sm text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-600"
               >
                 <option value="all">All Months</option>
                 <option value="1">January</option>
@@ -301,8 +383,8 @@ export default function VenuePayoutsPage() {
       >
         <Card className="border-silver-200 bg-white">
           <CardHeader>
-            <CardTitle className="text-lg font-semibold text-black">Payout History</CardTitle>
-            <CardDescription>Detailed breakdown of all your payouts</CardDescription>
+            <CardTitle className="text-black">Payout History</CardTitle>
+            <CardDescription className="text-neutral-600">Detailed breakdown of all your payouts</CardDescription>
           </CardHeader>
           <CardContent>
             {filteredPayouts.length === 0 ? (
@@ -326,6 +408,7 @@ export default function VenuePayoutsPage() {
                       <th className="text-left py-3 px-4 text-sm font-medium text-neutral-600">Payout Amount</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-neutral-600">Status</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-neutral-600">Payout Date</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-neutral-600">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -373,6 +456,15 @@ export default function VenuePayoutsPage() {
                               <p className="text-neutral-400">-</p>
                             )}
                           </td>
+                          <td className="py-4 px-4">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => window.location.href = `/dashboard/venue/payouts/${payout.id}`}
+                            >
+                              View Details
+                            </Button>
+                          </td>
                         </tr>
                       );
                     })}
@@ -393,7 +485,7 @@ export default function VenuePayoutsPage() {
       >
         <Card className="border-silver-200 bg-white">
           <CardHeader>
-            <CardTitle className="text-lg font-semibold text-black">How Payouts Work</CardTitle>
+            <CardTitle className="text-black">How Payouts Work</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-start gap-3">
@@ -437,7 +529,7 @@ export default function VenuePayoutsPage() {
 
         <Card className="border-silver-200 bg-white">
           <CardHeader>
-            <CardTitle className="text-lg font-semibold text-black">Payment Information</CardTitle>
+            <CardTitle className="text-black">Payment Information</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {bankDetails ? (

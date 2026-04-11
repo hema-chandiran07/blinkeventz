@@ -115,8 +115,12 @@ export default function FeaturedVenues() {
       setIsLoading(true);
       setError(null);
       const response = await venuesApi.getAll();
+      // Handle both array and object responses
+      const venuesArray = Array.isArray(response.data) 
+        ? response.data 
+        : response.data.venues || response.data.data || [];
       // Get first 3 venues as featured
-      const featuredVenues = response.data.slice(0, 3);
+      const featuredVenues = venuesArray.slice(0, 3);
       setVenues(featuredVenues);
     } catch (err) {
       console.error("Error fetching venues:", err);

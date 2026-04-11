@@ -78,12 +78,13 @@ export class VendorServicesService {
           description: dto.description,
           inclusions: dto.inclusions,
           exclusions: dto.exclusions,
+          images: dto.images || [],
           isActive: false, // default inactive
         },
       });
     } catch (error) {
-      if (error instanceof ForbiddenException || 
-          error instanceof BadRequestException || 
+      if (error instanceof ForbiddenException ||
+          error instanceof BadRequestException ||
           error instanceof NotFoundException) {
         throw error;
       }
@@ -102,6 +103,157 @@ export class VendorServicesService {
   }
 
   /**
+   * Update a vendor service with full validation
+   * Only the owner vendor or admin can update
+   */
+  async update(id: number, userId: number, dto: Partial<CreateVendorServiceDto>, isAdmin: boolean = false) {
+    try {
+      // Step 1: Validate service exists
+      const service = await this.prisma.vendorService.findUnique({
+        where: { id },
+      });
+
+      if (!service) {
+        throw new NotFoundException('Service not found');
+      }
+
+      // Step 2: Validate ownership (admin bypasses this check)
+      if (!isAdmin) {
+        const vendor = await this.prisma.vendor.findUnique({
+          where: { userId },
+        });
+
+        if (!vendor || vendor.id !== service.vendorId) {
+          throw new ForbiddenException('You can only modify your own services');
+        }
+      }
+
+      // Step 3: Validate DTO fields if provided
+      if (dto.name !== undefined) {
+        // Check for duplicate service name (excluding current service)
+        const existingService = await this.prisma.vendorService.findFirst({
+          where: {
+            vendorId: service.vendorId,
+            name: dto.name,
+            NOT: { id },
+          },
+        });
+
+        if (existingService) {
+          throw new BadRequestException('Service with this name already exists for your vendor profile');
+        }
+      }
+
+      // Validate minGuests and maxGuests
+      const minGuests = dto.minGuests ?? service.minGuests;
+      const maxGuests = dto.maxGuests ?? service.maxGuests;
+      if (minGuests !== null && maxGuests !== null && minGuests > maxGuests) {
+        throw new BadRequestException('minGuests cannot be greater than maxGuests');
+      }
+
+      // Validate baseRate is non-negative
+      if (dto.baseRate !== undefined && dto.baseRate < 0) {
+        throw new BadRequestException('baseRate must be greater than or equal to 0');
+      }
+
+      // Step 4: Update service with type-safe conversions
+      const updateData: any = {};
+      if (dto.name !== undefined) updateData.name = dto.name;
+      if (dto.serviceType !== undefined) updateData.serviceType = dto.serviceType;
+      if (dto.pricingModel !== undefined) updateData.pricingModel = dto.pricingModel;
+      if (dto.baseRate !== undefined) updateData.baseRate = Number(dto.baseRate);
+      if (dto.minGuests !== undefined) updateData.minGuests = Number(dto.minGuests);
+      if (dto.maxGuests !== undefined) updateData.maxGuests = Number(dto.maxGuests);
+      if (dto.description !== undefined) updateData.description = dto.description;
+      if (dto.inclusions !== undefined) updateData.inclusions = dto.inclusions;
+      if (dto.exclusions !== undefined) updateData.exclusions = dto.exclusions;
+      if (dto.isActive !== undefined) updateData.isActive = Boolean(dto.isActive);
+      if (dto.images !== undefined) updateData.images = dto.images;
+
+      return await this.prisma.vendorService.update({
+        where: { id },
+        data: updateData,
+      });
+    } catch (error) {
+      if (error instanceof ForbiddenException ||
+          error instanceof NotFoundException ||
+          error instanceof BadRequestException) {
+        throw error;
+      }
+      // Handle Prisma errors
+      const prismaError = error as any;
+      if (prismaError.code === 'P2003') {
+        throw new BadRequestException('Foreign key constraint violated: related record does not exist');
+      }
+      if (prismaError.code === 'P2025') {
+        throw new NotFoundException('Record not found');
+      }
+      // Preserve original Prisma error message
+      const message = error instanceof Error ? error.message : 'Failed to update vendor service';
+      throw new InternalServerErrorException(message);
+    }
+  }
+
+  /**
+   * Delete a vendor service
+   * Only the owner vendor or admin can delete
+   */
+  async delete(id: number, userId: number, isAdmin: boolean = false) {
+    try {
+      // Step 1: Validate service exists
+      const service = await this.prisma.vendorService.findUnique({
+        where: { id },
+      });
+
+      if (!service) {
+        throw new NotFoundException('Service not found');
+      }
+
+      // Step 2: Validate ownership (admin bypasses this check)
+      if (!isAdmin) {
+        const vendor = await this.prisma.vendor.findUnique({
+          where: { userId },
+        });
+
+        if (!vendor || vendor.id !== service.vendorId) {
+          throw new ForbiddenException('You can only delete your own services');
+        }
+      }
+
+      // Step 3: Check if service has any bookings (business logic)
+      const bookingCount = await this.prisma.eventService.count({
+        where: { vendorServiceId: id },
+      });
+
+      if (bookingCount > 0) {
+        throw new BadRequestException(`Cannot delete service with ${bookingCount} existing bookings. Deactivate instead.`);
+      }
+
+      // Step 4: Delete service
+      return await this.prisma.vendorService.delete({
+        where: { id },
+      });
+    } catch (error) {
+      if (error instanceof ForbiddenException ||
+          error instanceof NotFoundException ||
+          error instanceof BadRequestException) {
+        throw error;
+      }
+      // Handle Prisma errors
+      const prismaError = error as any;
+      if (prismaError.code === 'P2003') {
+        throw new BadRequestException('Foreign key constraint violated: related record does not exist');
+      }
+      if (prismaError.code === 'P2025') {
+        throw new NotFoundException('Record not found');
+      }
+      // Preserve original Prisma error message
+      const message = error instanceof Error ? error.message : 'Failed to delete vendor service';
+      throw new InternalServerErrorException(message);
+    }
+  }
+
+  /**
    * Get all services for a vendor
    */
   async findByVendor(vendorId: number) {
@@ -112,6 +264,170 @@ export class VendorServicesService {
     } catch (error) {
       // Preserve original Prisma error message
       const message = error instanceof Error ? error.message : 'Failed to fetch vendor services';
+      throw new InternalServerErrorException(message);
+    }
+  }
+
+  /**
+   * Get all services for a vendor by user ID
+   * Used by /vendors/me/services endpoint
+   */
+  async findByVendorUserId(userId: number) {
+    try {
+      const vendor = await this.prisma.vendor.findUnique({
+        where: { userId },
+      });
+
+      if (!vendor) {
+        throw new NotFoundException('Vendor profile not found');
+      }
+
+      return await this.prisma.vendorService.findMany({
+        where: { vendorId: vendor.id },
+      });
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      // Preserve original Prisma error message
+      const message = error instanceof Error ? error.message : 'Failed to fetch vendor services';
+      throw new InternalServerErrorException(message);
+    }
+  }
+
+  /**
+   * Get service by ID with vendor details
+   */
+  async findById(id: number) {
+    try {
+      const service = await this.prisma.vendorService.findUnique({
+        where: { id },
+        include: {
+          vendor: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  phone: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!service) {
+        throw new NotFoundException('Service not found');
+      }
+
+      return service;
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      // Preserve original Prisma error message
+      const message = error instanceof Error ? error.message : 'Failed to fetch service';
+      throw new InternalServerErrorException(message);
+    }
+  }
+
+  /**
+   * Get active services for a vendor (public endpoint)
+   */
+  async findActiveByVendor(vendorId: number) {
+    try {
+      return await this.prisma.vendorService.findMany({
+        where: {
+          vendorId,
+          isActive: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+    } catch (error) {
+      // Preserve original Prisma error message
+      const message = error instanceof Error ? error.message : 'Failed to fetch active services';
+      throw new InternalServerErrorException(message);
+    }
+  }
+
+  /**
+   * Search services by type (public endpoint)
+   */
+  async searchByType(serviceType: string, city?: string, limit: number = 20) {
+    try {
+      const where: any = {
+        isActive: true,
+        serviceType: serviceType as any,
+      };
+
+      if (city) {
+        where.vendor = {
+          city,
+        };
+      }
+
+      return await this.prisma.vendorService.findMany({
+        where,
+        include: {
+          vendor: {
+            select: {
+              id: true,
+              businessName: true,
+              city: true,
+              area: true,
+              verificationStatus: true,
+              user: {
+                select: {
+                  name: true,
+                  phone: true,
+                },
+              },
+            },
+          },
+        },
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+      });
+    } catch (error) {
+      // Preserve original Prisma error message
+      const message = error instanceof Error ? error.message : 'Failed to search services';
+      throw new InternalServerErrorException(message);
+    }
+  }
+
+  /**
+   * Get service statistics for a vendor
+   */
+  async getServiceStats(vendorId: number) {
+    try {
+      const [totalServices, activeServices, inactiveServices] = await Promise.all([
+        this.prisma.vendorService.count({
+          where: { vendorId },
+        }),
+        this.prisma.vendorService.count({
+          where: {
+            vendorId,
+            isActive: true,
+          },
+        }),
+        this.prisma.vendorService.count({
+          where: {
+            vendorId,
+            isActive: false,
+          },
+        }),
+      ]);
+
+      return {
+        totalServices,
+        activeServices,
+        inactiveServices,
+      };
+    } catch (error) {
+      // Preserve original Prisma error message
+      const message = error instanceof Error ? error.message : 'Failed to fetch service stats';
       throw new InternalServerErrorException(message);
     }
   }
@@ -148,8 +464,8 @@ export class VendorServicesService {
         data: { isActive: true },
       });
     } catch (error) {
-      if (error instanceof ForbiddenException || 
-          error instanceof NotFoundException || 
+      if (error instanceof ForbiddenException ||
+          error instanceof NotFoundException ||
           error instanceof BadRequestException) {
         throw error;
       }
@@ -199,8 +515,8 @@ export class VendorServicesService {
         data: { isActive: false },
       });
     } catch (error) {
-      if (error instanceof ForbiddenException || 
-          error instanceof NotFoundException || 
+      if (error instanceof ForbiddenException ||
+          error instanceof NotFoundException ||
           error instanceof BadRequestException) {
         throw error;
       }
@@ -216,5 +532,171 @@ export class VendorServicesService {
       const message = error instanceof Error ? error.message : 'Failed to deactivate service';
       throw new InternalServerErrorException(message);
     }
+  }
+
+  /**
+   * ADMIN: Approve a vendor service
+   * Sets service to active and records approval
+   */
+  async approveByAdmin(id: number, adminId: number, reason?: string) {
+    try {
+      // Validate service exists
+      const service = await this.prisma.vendorService.findUnique({
+        where: { id },
+        include: { vendor: true },
+      });
+
+      if (!service) {
+        throw new NotFoundException('Service not found');
+      }
+
+      if (service.isActive) {
+        throw new BadRequestException('Service is already active');
+      }
+
+      // Update service to active
+      const updated = await this.prisma.vendorService.update({
+        where: { id },
+        data: { 
+          isActive: true,
+          updatedAt: new Date(),
+        },
+        include: { vendor: true },
+      });
+
+      // Log approval in rejectionReason field (reuse for approval notes)
+      // In a production system, you'd add separate approval fields
+      this.logServiceAction(id, adminId, 'APPROVED', reason);
+
+      return updated;
+    } catch (error) {
+      if (error instanceof ForbiddenException ||
+          error instanceof NotFoundException ||
+          error instanceof BadRequestException) {
+        throw error;
+      }
+      const prismaError = error as any;
+      if (prismaError.code === 'P2025') {
+        throw new NotFoundException('Record not found');
+      }
+      const message = error instanceof Error ? error.message : 'Failed to approve service';
+      throw new InternalServerErrorException(message);
+    }
+  }
+
+  /**
+   * ADMIN: Reject a vendor service
+   * Keeps service inactive and records rejection reason
+   */
+  async rejectByAdmin(id: number, adminId: number, reason: string) {
+    try {
+      // Validate service exists
+      const service = await this.prisma.vendorService.findUnique({
+        where: { id },
+        include: { vendor: true },
+      });
+
+      if (!service) {
+        throw new NotFoundException('Service not found');
+      }
+
+      if (!service.isActive) {
+        throw new BadRequestException('Service is already inactive');
+      }
+
+      // Update service to inactive with rejection reason
+      const updated = await this.prisma.vendorService.update({
+        where: { id },
+        data: { 
+          isActive: false,
+          updatedAt: new Date(),
+        },
+        include: { vendor: true },
+      });
+
+      // Log rejection
+      this.logServiceAction(id, adminId, 'REJECTED', reason);
+
+      return updated;
+    } catch (error) {
+      if (error instanceof ForbiddenException ||
+          error instanceof NotFoundException ||
+          error instanceof BadRequestException) {
+        throw error;
+      }
+      const prismaError = error as any;
+      if (prismaError.code === 'P2025') {
+        throw new NotFoundException('Record not found');
+      }
+      const message = error instanceof Error ? error.message : 'Failed to reject service';
+      throw new InternalServerErrorException(message);
+    }
+  }
+
+  /**
+   * Find all services pending admin approval (inactive services)
+   */
+  async findPendingForApproval() {
+    try {
+      return await this.prisma.vendorService.findMany({
+        where: { isActive: false },
+        include: {
+          vendor: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  phone: true,
+                }
+              }
+            }
+          }
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to fetch pending services';
+      throw new InternalServerErrorException(message);
+    }
+  }
+
+  /**
+   * Find service by ID with full details for admin review
+   */
+  async findByIdWithDetails(id: number) {
+    try {
+      return await this.prisma.vendorService.findUnique({
+        where: { id },
+        include: {
+          vendor: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  phone: true,
+                }
+              }
+            }
+          }
+        },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to fetch service details';
+      throw new InternalServerErrorException(message);
+    }
+  }
+
+  /**
+   * Log service action (approval/rejection)
+   * In production, use a dedicated audit log table
+   */
+  private async logServiceAction(serviceId: number, adminId: number, action: 'APPROVED' | 'REJECTED', reason?: string) {
+    // This is a simplified logging mechanism
+    // In production, use the AuditService to log to database
+    console.log(`[VendorService ${action}] Service ID: ${serviceId}, Admin ID: ${adminId}, Reason: ${reason || 'N/A'}`);
   }
 }

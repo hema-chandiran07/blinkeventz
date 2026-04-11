@@ -72,7 +72,7 @@ export default function AdminVenuesPage() {
 
   const handleApprove = async (id: number) => {
     try {
-      await api.post(`/venues/${id}/approve`);
+      await api.patch(`/venues/${id}/approve`);
       setVenues(prev => prev.map(v => v.id === id ? { ...v, status: "ACTIVE" } : v));
       toast.success("Venue approved successfully");
     } catch (error: any) {
@@ -82,7 +82,7 @@ export default function AdminVenuesPage() {
 
   const handleReject = async (id: number) => {
     try {
-      await api.post(`/venues/${id}/reject`, { reason: "Rejected by admin" });
+      await api.patch(`/venues/${id}/reject`, { reason: "Rejected by admin" });
       setVenues(prev => prev.map(v => v.id === id ? { ...v, status: "REJECTED" } : v));
       toast.success("Venue rejected");
     } catch (error: any) {
@@ -201,7 +201,7 @@ export default function AdminVenuesPage() {
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <CardTitle className="text-lg text-black">{venue.name}</CardTitle>
+                    <CardTitle className="text-black">{venue.name}</CardTitle>
                     <p className="text-sm text-neutral-600 mt-1">{venue.type}</p>
                   </div>
                   <Badge className={`text-xs ${

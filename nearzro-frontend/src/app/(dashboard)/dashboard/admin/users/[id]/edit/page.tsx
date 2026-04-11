@@ -8,10 +8,9 @@ import { Label } from "@/components/ui/label";
 import {
   ArrowLeft, Save, X, RefreshCw, User
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { toast } from "sonner";
 import api from "@/lib/api";
-import { useApiToast } from "@/components/ui/toast-provider";
 
 interface UserEdit {
   id: number;
@@ -22,12 +21,12 @@ interface UserEdit {
   isActive: boolean;
 }
 
-export default function EditUserPage({ params }: { params: Promise<{ id: string }> }) {
+export default function EditUserPage() {
   const router = useRouter();
+  const params = useParams();
   const [user, setUser] = useState<UserEdit | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const { withLoadingToast } = useApiToast();
 
   const [formData, setFormData] = useState({
     name: "",
@@ -44,18 +43,16 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
   const loadUser = async () => {
     try {
       setLoading(true);
-      const resolvedParams = await params;
-      // Get all users and find the specific one
-      const response = await api.get('/user');
-      const allUsers = response.data.data || response.data || [];
-      const foundUser = allUsers.find((u: UserEdit) => u.id === parseInt(resolvedParams.id));
-      
+      const userId = parseInt(params.id as string);
+      const response = await api.get(`/users/${userId}`);
+      const foundUser = response.data;
+
       if (!foundUser) {
         toast.error("User not found");
         router.push("/dashboard/admin/users");
         return;
       }
-      
+
       setUser(foundUser);
       setFormData({
         name: foundUser.name || "",
@@ -81,10 +78,10 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
 
     setSaving(true);
     try {
-      const resolvedParams = await params;
-      await api.patch(`/user/${resolvedParams.id}`, formData);
+      const userId = parseInt(params.id as string);
+      await api.patch(`/users/${userId}`, formData);
       toast.success("User updated successfully");
-      router.push(`/dashboard/admin/users`);
+      router.push(`/dashboard/admin/users/${userId}`);
     } catch (error: any) {
       console.error("Update error:", error);
       toast.error(error?.response?.data?.message || "Failed to update user");
@@ -122,7 +119,7 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={handleCancel} className="border-black">
+          <Button variant="outline" onClick={handleCancel} className="border-black" disabled={saving}>
             <X className="h-4 w-4 mr-2" /> Cancel
           </Button>
           <Button onClick={handleSave} disabled={saving} className="bg-black hover:bg-neutral-800">
@@ -133,7 +130,7 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
 
       {/* Edit Form */}
       <div className="grid gap-6">
-        <Card className="border-2 border-black">
+        <Card className="border-2 border-black bg-white">
           <CardHeader>
             <CardTitle className="text-black flex items-center gap-2">
               <User className="h-5 w-5" /> User Information
@@ -142,44 +139,47 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
           <CardContent className="space-y-4">
             <div className="grid md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Name *</Label>
+                <Label htmlFor="name" className="text-black">Name *</Label>
                 <Input
                   id="name"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="Enter name"
+                  className="bg-white text-black border-neutral-300"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email *</Label>
+                <Label htmlFor="email" className="text-black">Email *</Label>
                 <Input
                   id="email"
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   placeholder="email@example.com"
+                  className="bg-white text-black border-neutral-300"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="phone">Phone</Label>
+                <Label htmlFor="phone" className="text-black">Phone</Label>
                 <Input
                   id="phone"
                   type="tel"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   placeholder="+91 XXXXXXXXXX"
+                  className="bg-white text-black border-neutral-300"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="role">Role *</Label>
+                <Label htmlFor="role" className="text-black">Role *</Label>
                 <select
                   id="role"
                   value={formData.role}
                   onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                  className="flex h-10 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm"
+                  className="flex h-10 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-black"
                 >
                   <option value="CUSTOMER">Customer</option>
                   <option value="VENDOR">Vendor</option>
@@ -191,13 +191,13 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
             </div>
 
             <div className="space-y-2">
-              <Label>Status</Label>
+              <Label className="text-black">Status</Label>
               <div className="flex items-center gap-4">
                 <Button
                   type="button"
                   variant={formData.isActive ? "default" : "outline"}
                   onClick={() => setFormData({ ...formData, isActive: true })}
-                  className={formData.isActive ? "bg-emerald-600" : "border-neutral-300"}
+                  className={formData.isActive ? "bg-emerald-600 hover:bg-emerald-700" : "border-neutral-300 text-neutral-700"}
                 >
                   Active
                 </Button>
@@ -205,7 +205,7 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
                   type="button"
                   variant={!formData.isActive ? "default" : "outline"}
                   onClick={() => setFormData({ ...formData, isActive: false })}
-                  className={!formData.isActive ? "bg-red-600" : "border-neutral-300"}
+                  className={!formData.isActive ? "bg-red-600 hover:bg-red-700" : "border-neutral-300 text-neutral-700"}
                 >
                   Inactive
                 </Button>

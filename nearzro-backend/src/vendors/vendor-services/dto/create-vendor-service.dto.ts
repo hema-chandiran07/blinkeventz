@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsInt, IsOptional, IsString, Min, MaxLength, ValidateIf } from 'class-validator';
+import { IsEnum, IsInt, IsOptional, IsString, IsBoolean, Min, MaxLength, ValidateIf, IsArray } from 'class-validator';
+import { Type, Transform } from 'class-transformer';
 import { ServiceType, VendorPricingModel } from '@prisma/client';
 
 export class CreateVendorServiceDto {
@@ -17,18 +18,21 @@ export class CreateVendorServiceDto {
   pricingModel: VendorPricingModel;
 
   @ApiProperty({ example: 50000 })
+  @Transform(({ value }) => value === '' ? undefined : (isNaN(Number(value)) ? undefined : Number(value)))
   @IsInt()
   @Min(0, { message: 'baseRate must be greater than or equal to 0' })
   baseRate: number;
 
   @ApiPropertyOptional({ example: 100 })
   @IsOptional()
+  @Transform(({ value }) => value === '' || value === undefined ? undefined : (isNaN(Number(value)) ? undefined : Number(value)))
   @IsInt()
   @Min(0, { message: 'minGuests must be greater than or equal to 0' })
   minGuests?: number;
 
   @ApiPropertyOptional({ example: 500 })
   @IsOptional()
+  @Transform(({ value }) => value === '' || value === undefined ? undefined : (isNaN(Number(value)) ? undefined : Number(value)))
   @IsInt()
   @Min(0, { message: 'maxGuests must be greater than or equal to 0' })
   maxGuests?: number;
@@ -50,6 +54,22 @@ export class CreateVendorServiceDto {
   @IsString()
   @MaxLength(1000, { message: 'exclusions must not exceed 1000 characters' })
   exclusions?: string;
+
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return value;
+  })
+  @IsBoolean()
+  isActive?: boolean;
+
+  @ApiPropertyOptional({ example: ['https://example.com/image1.jpg', 'https://example.com/image2.jpg'] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  images?: string[];
 
   // Custom validator for minGuests <= maxGuests
   // This needs to be validated at the service level since class-validator

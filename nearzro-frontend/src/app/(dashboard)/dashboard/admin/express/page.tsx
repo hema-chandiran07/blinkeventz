@@ -42,10 +42,10 @@ export default function AdminExpressPage() {
   const loadExpressRequests = async () => {
     try {
       setLoading(true);
-      // Try to fetch from backend - express requests may be under different endpoint
-      const response = await api.get("/express-requests").catch(() => ({ data: [] }));
+      // Fetch from backend - admin endpoint for all express requests
+      const response = await api.get("/express");
       const data = response.data || [];
-      
+
       // If no real data, show empty state
       setRequests(data);
     } catch (error: any) {
@@ -58,8 +58,8 @@ export default function AdminExpressPage() {
 
   const handleProcess = async (id: number) => {
     try {
-      // Try backend endpoint first
-      await api.patch(`/express-requests/${id}`, { status: "COMPLETED" }).catch(() => {});
+      // Update express request status to COMPLETED
+      await api.patch(`/express/${id}`, { status: "COMPLETED" });
       toast.success(`Express request #${id} processed successfully!`);
       setRequests(prev => prev.filter(r => r.id !== id));
     } catch (error: any) {
@@ -73,8 +73,8 @@ export default function AdminExpressPage() {
     if (!reason) return;
 
     try {
-      // Try backend endpoint first
-      await api.patch(`/express-requests/${id}`, { status: "CANCELLED", rejectionReason: reason }).catch(() => {});
+      // Update express request status to CANCELLED with reason
+      await api.patch(`/express/${id}`, { status: "CANCELLED", rejectionReason: reason });
       toast.success(`Express request #${id} rejected`);
       setRequests(prev => prev.filter(r => r.id !== id));
     } catch (error: any) {

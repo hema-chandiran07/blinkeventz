@@ -141,16 +141,17 @@ export class RazorpayWebhookController {
       }
 
       // In production, always verify signature
-      // In development, verify if secret is set, otherwise skip
-      if (this.webhookSecret || this.isProduction) {
-        this.verifyWebhookSignature(payload, signature, traceId);
-      } else {
-        this.logger.warn({
-          event: 'WEBHOOK_SIGNATURE_SKIPPED',
+      // In development, verify if secret is set, otherwise reject
+      if (!this.webhookSecret) {
+        this.logger.error({
+          event: 'WEBHOOK_SECRET_NOT_CONFIGURED',
           traceId,
-          reason: 'Development mode without secret',
+          reason: 'Webhook secret is not set. All webhooks will be rejected. Set RAZORPAY_WEBHOOK_SECRET.',
         });
+        throw new UnauthorizedException('Webhook signature verification is not configured');
       }
+
+      this.verifyWebhookSignature(payload, signature, traceId);
 
       // === 3. VERIFY REQUIRED FIELDS ===
       if (!payload.event || !payload.id) {

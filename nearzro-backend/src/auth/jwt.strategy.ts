@@ -13,9 +13,9 @@ export class JwtStrategy extends PassportStrategy(Strategy,'jwt') {
   }
 
   async validate(payload: any) {
-    // Handle null/undefined payload gracefully
-    if (!payload) {
-      return { userId: null, email: null, role: null };
+    // Fail closed: reject tokens with missing identity fields
+    if (!payload || !payload.sub) {
+      throw new UnauthorizedException('Invalid or expired token');
     }
 
     return {

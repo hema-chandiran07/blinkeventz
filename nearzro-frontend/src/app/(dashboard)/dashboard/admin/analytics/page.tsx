@@ -47,7 +47,7 @@ export default function AdminAnalyticsPage() {
     try {
       // Try to fetch from analytics endpoint, fall back to aggregating from other endpoints
       const analyticsRes = await api.get("/analytics/overview").catch(() => null);
-      
+
       if (analyticsRes && analyticsRes.data) {
         setData(analyticsRes.data);
       } else {
@@ -92,12 +92,12 @@ export default function AdminAnalyticsPage() {
       setData({
         gmv: {
           total: totalGMV,
-          growth: 15.2,
+          growth: 0,
           monthly: [],
         },
         bookings: {
           total: events.length,
-          growth: 12.5,
+          growth: 0,
           byStatus: {
             confirmed: confirmedEvents,
             pending: pendingEvents,
@@ -106,12 +106,12 @@ export default function AdminAnalyticsPage() {
         },
         revenue: {
           total: totalRevenue,
-          growth: 18.4,
+          growth: 0,
           commission: Math.round(totalRevenue * 0.1),
         },
         users: {
           total: users.length,
-          growth: 22.1,
+          growth: 0,
           byRole: {
             customers,
             vendors: vendorCount,
@@ -199,17 +199,21 @@ export default function AdminAnalyticsPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-2 text-sm">
-              {(data?.gmv.growth || 0) >= 0 ? (
-                <ArrowUpRight className="h-4 w-4 text-green-600" />
-              ) : (
-                <ArrowDownRight className="h-4 w-4 text-red-600" />
-              )}
-              <span className={(data?.gmv.growth || 0) >= 0 ? "text-green-600" : "text-red-600"}>
-                {(data?.gmv.growth || 0) >= 0 ? "+" : ""}{data?.gmv.growth || 0}%
-              </span>
-              <span className="text-neutral-600">vs last month</span>
-            </div>
+            {data?.gmv.growth !== undefined && data.gmv.growth !== 0 ? (
+              <div className="flex items-center gap-2 text-sm">
+                {(data?.gmv.growth || 0) >= 0 ? (
+                  <ArrowUpRight className="h-4 w-4 text-green-600" />
+                ) : (
+                  <ArrowDownRight className="h-4 w-4 text-red-600" />
+                )}
+                <span className={(data?.gmv.growth || 0) >= 0 ? "text-green-600" : "text-red-600"}>
+                  {(data?.gmv.growth || 0) >= 0 ? "+" : ""}{data?.gmv.growth || 0}%
+                </span>
+                <span className="text-neutral-600">vs last month</span>
+              </div>
+            ) : (
+              <p className="text-sm text-neutral-500">No historical data</p>
+            )}
           </CardContent>
         </Card>
 
@@ -226,17 +230,21 @@ export default function AdminAnalyticsPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-2 text-sm">
-              {(data?.bookings.growth || 0) >= 0 ? (
-                <ArrowUpRight className="h-4 w-4 text-green-600" />
-              ) : (
-                <ArrowDownRight className="h-4 w-4 text-red-600" />
-              )}
-              <span className={(data?.bookings.growth || 0) >= 0 ? "text-green-600" : "text-red-600"}>
-                {(data?.bookings.growth || 0) >= 0 ? "+" : ""}{data?.bookings.growth || 0}%
-              </span>
-              <span className="text-neutral-600">vs last month</span>
-            </div>
+            {data?.bookings.growth !== undefined && data.bookings.growth !== 0 ? (
+              <div className="flex items-center gap-2 text-sm">
+                {(data?.bookings.growth || 0) >= 0 ? (
+                  <ArrowUpRight className="h-4 w-4 text-green-600" />
+                ) : (
+                  <ArrowDownRight className="h-4 w-4 text-red-600" />
+                )}
+                <span className={(data?.bookings.growth || 0) >= 0 ? "text-green-600" : "text-red-600"}>
+                  {(data?.bookings.growth || 0) >= 0 ? "+" : ""}{data?.bookings.growth || 0}%
+                </span>
+                <span className="text-neutral-600">vs last month</span>
+              </div>
+            ) : (
+              <p className="text-sm text-neutral-500">No historical data</p>
+            )}
           </CardContent>
         </Card>
 
@@ -255,17 +263,21 @@ export default function AdminAnalyticsPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-2 text-sm">
-              {(data?.revenue.growth || 0) >= 0 ? (
-                <ArrowUpRight className="h-4 w-4 text-green-600" />
-              ) : (
-                <ArrowDownRight className="h-4 w-4 text-red-600" />
-              )}
-              <span className={(data?.revenue.growth || 0) >= 0 ? "text-green-600" : "text-red-600"}>
-                {(data?.revenue.growth || 0) >= 0 ? "+" : ""}{data?.revenue.growth || 0}%
-              </span>
-              <span className="text-neutral-600">vs last month</span>
-            </div>
+            {data?.revenue.growth !== undefined && data.revenue.growth !== 0 ? (
+              <div className="flex items-center gap-2 text-sm">
+                {(data?.revenue.growth || 0) >= 0 ? (
+                  <ArrowUpRight className="h-4 w-4 text-green-600" />
+                ) : (
+                  <ArrowDownRight className="h-4 w-4 text-red-600" />
+                )}
+                <span className={(data?.revenue.growth || 0) >= 0 ? "text-green-600" : "text-red-600"}>
+                  {(data?.revenue.growth || 0) >= 0 ? "+" : ""}{data?.revenue.growth || 0}%
+                </span>
+                <span className="text-neutral-600">vs last month</span>
+              </div>
+            ) : (
+              <p className="text-sm text-neutral-500">No historical data</p>
+            )}
           </CardContent>
         </Card>
 
@@ -282,17 +294,21 @@ export default function AdminAnalyticsPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-2 text-sm">
-              {(data?.users.growth || 0) >= 0 ? (
-                <ArrowUpRight className="h-4 w-4 text-green-600" />
-              ) : (
-                <ArrowDownRight className="h-4 w-4 text-red-600" />
-              )}
-              <span className={(data?.users.growth || 0) >= 0 ? "text-green-600" : "text-red-600"}>
-                {(data?.users.growth || 0) >= 0 ? "+" : ""}{data?.users.growth || 0}%
-              </span>
-              <span className="text-neutral-600">vs last month</span>
-            </div>
+            {data?.users.growth !== undefined && data.users.growth !== 0 ? (
+              <div className="flex items-center gap-2 text-sm">
+                {(data?.users.growth || 0) >= 0 ? (
+                  <ArrowUpRight className="h-4 w-4 text-green-600" />
+                ) : (
+                  <ArrowDownRight className="h-4 w-4 text-red-600" />
+                )}
+                <span className={(data?.users.growth || 0) >= 0 ? "text-green-600" : "text-red-600"}>
+                  {(data?.users.growth || 0) >= 0 ? "+" : ""}{data?.users.growth || 0}%
+                </span>
+                <span className="text-neutral-600">vs last month</span>
+              </div>
+            ) : (
+              <p className="text-sm text-neutral-500">No historical data</p>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -369,7 +385,7 @@ export default function AdminAnalyticsPage() {
         {/* Top Venues */}
         <Card className="border-2 border-black">
           <CardHeader>
-            <CardTitle className="text-black flex items-center gap-2">
+            <CardTitle className="text-black">
               <ShoppingBag className="h-5 w-5" />
               Top Venues
             </CardTitle>
@@ -404,7 +420,7 @@ export default function AdminAnalyticsPage() {
         {/* Top Vendors */}
         <Card className="border-2 border-black">
           <CardHeader>
-            <CardTitle className="text-black flex items-center gap-2">
+            <CardTitle className="text-black">
               <ShoppingBag className="h-5 w-5" />
               Top Vendors
             </CardTitle>

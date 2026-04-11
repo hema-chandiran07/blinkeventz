@@ -3,6 +3,7 @@ import { AppModule } from './app.module';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { MaintenanceGuard } from './common/guards/maintenance.guard';
 import cookieParser from 'cookie-parser';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
@@ -38,6 +39,10 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     logger: ['error', 'warn', 'log', 'debug', 'verbose'],
   });
+
+  // ✅ Increase body size limit for large payloads (e.g., venue creation with many images)
+  app.useBodyParser('json', { limit: '50mb' });
+  app.useBodyParser('urlencoded', { limit: '50mb', extended: true });
 
   // ✅ CORS Configuration for Development
   app.enableCors({

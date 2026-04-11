@@ -44,8 +44,12 @@ export default function CustomerProfilePage() {
     setLoading(true);
 
     try {
-      // Update user profile
-      await api.put("/users/profile", formData);
+      // Update user profile using PATCH /users/me
+      await api.patch("/users/me", {
+        name: formData.name,
+        phone: formData.phone,
+        city: formData.city,
+      });
       toast.success("Profile updated successfully!");
     } catch (error: any) {
       console.error("Profile update error:", error);
@@ -126,7 +130,7 @@ export default function CustomerProfilePage() {
           <div className="md:col-span-2 space-y-6">
             <Card className="border-silver-200">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="text-black">
                   <Settings className="h-5 w-5 text-neutral-800" />
                   Personal Information
                 </CardTitle>
@@ -214,7 +218,7 @@ export default function CustomerProfilePage() {
 
             <Card className="border-silver-200 bg-gradient-to-br from-neutral-50 to-white">
               <CardHeader>
-                <CardTitle>Account Security</CardTitle>
+                <CardTitle className="text-black">Account Security</CardTitle>
                 <CardDescription>Manage your account security settings</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">

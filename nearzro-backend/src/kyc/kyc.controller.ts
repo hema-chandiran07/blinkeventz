@@ -29,6 +29,17 @@ import { extname } from 'path';
 import { Audit, AUDIT_META_KEY } from '../audit/decorators/audit.decorator';
 import { AuditSeverity, AuditSource } from '@prisma/client';
 import { ThrottlerGuard, Throttle } from '@nestjs/throttler';
+import { createHash, randomUUID } from 'crypto';
+import { PrismaService } from '../prisma/prisma.service';
+
+// Simple crypto helpers
+function hash(data: string): string {
+  return createHash('sha256').update(data).digest('hex');
+}
+
+function encrypt(data: string): string {
+  return Buffer.from(data).toString('base64');
+}
 
 // File filter function for security
 const imageFileFilter = (req: any, file: any, cb: any) => {
@@ -53,7 +64,10 @@ const editFileName = (req: any, file: any, cb: any) => {
 @UseGuards(JwtAuthGuard, RolesGuard, ThrottlerGuard)
 @Controller('kyc')
 export class KycController {
-  constructor(private readonly kycService: KycService) {}
+  constructor(
+    private readonly kycService: KycService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   // Customer KYC
   @Post('customer')
@@ -133,12 +147,42 @@ export class KycController {
     @UploadedFile() file: Express.Multer.File,
   ) {
     const userId = req.user?.id || req.user?.userId;
-    
+
     if (!file) {
       throw new BadRequestException('Document file is required');
     }
 
-    return this.kycService.createVendorKyc(userId, dto, file);
+    // Create KYC document
+    const kycResult = await this.kycService.createVendorKyc(userId, dto, file);
+
+    // If bank details are provided, create bank account
+    if (dto.bankAccountNumber && dto.ifscCode && dto.bankName && dto.accountHolder) {
+      try {
+        const accountNumberHash = hash(dto.bankAccountNumber);
+        const encryptedAccountNumber = encrypt(dto.bankAccountNumber);
+
+        await this.prisma.bankAccount.create({
+          data: {
+            userId,
+            accountHolder: dto.accountHolder,
+            accountNumber: encryptedAccountNumber,
+            accountNumberHash,
+            ifsc: dto.ifscCode,
+            bankName: dto.bankName,
+            branchName: dto.branchName || null,
+            referenceId: randomUUID(),
+          },
+        });
+      } catch (error: any) {
+        // If bank account creation fails, log but don't fail the whole request
+        console.error('Failed to create bank account:', error.message);
+      }
+    }
+
+    return {
+      ...kycResult,
+      bankDetailsSubmitted: !!(dto.bankAccountNumber && dto.ifscCode && dto.bankName),
+    };
   }
 
   @Get('vendor/me')
@@ -146,6 +190,18 @@ export class KycController {
   async getVendorKyc(@Req() req: any) {
     const userId = req.user?.id || req.user?.userId;
     return this.kycService.getVendorKyc(userId);
+  }
+
+  @Get('vendor/status')
+  @ApiOperation({ summary: 'Get current vendor KYC status (simplified)' })
+  async getVendorKycStatus(@Req() req: any) {
+    const userId = req.user?.id || req.user?.userId;
+    const kyc = await this.kycService.getVendorKyc(userId);
+    return {
+      status: kyc?.status || 'NOT_SUBMITTED',
+      docType: kyc?.docType || null,
+      submittedAt: kyc?.createdAt || null,
+    };
   }
 
   // Venue Owner KYC
@@ -192,6 +248,28 @@ export class KycController {
     return this.kycService.getVenueOwnerKyc(userId);
   }
 
+  @Get('venue-owner/status')
+  @ApiOperation({ summary: 'Get current venue owner KYC status (simplified)' })
+  async getVenueOwnerKycStatus(@Req() req: any) {
+    const userId = req.user?.id || req.user?.userId;
+    try {
+      const kyc = await this.kycService.getVenueOwnerKyc(userId);
+      return {
+        status: kyc?.status || 'NOT_SUBMITTED',
+        docType: kyc?.docType || null,
+        submittedAt: kyc?.createdAt || null,
+        hasBankAccount: false, // Will be implemented when bank account relation is added
+      };
+    } catch (error) {
+      return {
+        status: 'NOT_SUBMITTED',
+        docType: null,
+        submittedAt: null,
+        hasBankAccount: false,
+      };
+    }
+  }
+
   // Admin - Get all KYC submissions with pagination
   @Roles(Role.ADMIN)
   @Get('admin/submissions')
@@ -202,11 +280,31 @@ export class KycController {
   async getAllKycSubmissions(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
-    @Query('status') status?: KycStatus,
+    @Query('status') status?: string,
   ) {
+    // Map frontend status values to Prisma enum
+    // Frontend may send: APPROVED -> VERIFIED, REJECTED -> REJECTED, PENDING -> PENDING
+    let statusEnum: KycStatus | undefined;
+    if (status) {
+      const statusUpper = status.toUpperCase();
+      if (statusUpper === 'APPROVED') {
+        statusEnum = KycStatus.VERIFIED;
+      } else if (statusUpper === 'VERIFIED') {
+        statusEnum = KycStatus.VERIFIED;
+      } else if (statusUpper === 'REJECTED') {
+        statusEnum = KycStatus.REJECTED;
+      } else if (statusUpper === 'PENDING') {
+        statusEnum = KycStatus.PENDING;
+      } else {
+        throw new BadRequestException(
+          `Invalid status filter: "${status}". Expected one of: PENDING, VERIFIED (or APPROVED), REJECTED`,
+        );
+      }
+    }
+
     // Limit max to 100
     const safeLimit = Math.min(limit, 100);
-    return this.kycService.getAllKyc(status, page, safeLimit);
+    return this.kycService.getAllKyc(statusEnum, page, safeLimit);
   }
 
   // Admin - Approve/Reject KYC

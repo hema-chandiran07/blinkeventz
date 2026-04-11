@@ -1,154 +1,756 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AvailabilityCalendar, type TimeSlot, type TimeSlotType } from "@/components/venues/availability-calendar";
+import {
+  Calendar as CalendarIcon, Clock, DollarSign, CheckCircle2, XCircle,
+  Plus, Trash2, Loader2, AlertCircle, RefreshCw, BarChart3, TrendingUp,
+  ChevronLeft, ChevronRight
+} from "lucide-react";
 import { toast } from "sonner";
-import { Calendar, Clock, DollarSign, Users } from "lucide-react";
+import api from "@/lib/api";
+import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 
+// ==================== Types ====================
+type TimeSlotType = "morning" | "evening" | "full_day" | "night";
+
+interface Booking {
+  id: number;
+  customerName: string;
+  date: string;
+  timeSlot: TimeSlotType;
+  status: "PENDING" | "CONFIRMED" | "COMPLETED" | "CANCELLED";
+  amount: number;
+  eventName: string;
+  serviceType?: string;
+}
+
+interface AvailabilitySlot {
+  id?: number;
+  date: string;
+  timeSlot: TimeSlotType;
+  status: "AVAILABLE" | "BOOKED" | "BLOCKED";
+  price?: number;
+}
+
+interface BlockedSlot {
+  id?: number;
+  date: string;
+  timeSlot: TimeSlotType;
+  reason?: string;
+  createdAt?: string;
+}
+
+interface VendorStats {
+  totalBookings: number;
+  confirmedBookings: number;
+  pendingBookings: number;
+  totalEarnings: number;
+  availabilityRate: number;
+}
+
+// ==================== Constants ====================
+const TIME_SLOT_LABELS: Record<TimeSlotType, string> = {
+  morning: "Morning (6:00 AM - 12:00 PM)",
+  evening: "Evening (4:00 PM - 10:00 PM)",
+  full_day: "Full Day (6:00 AM - 12:00 AM)",
+  night: "Night (8:00 PM - 2:00 AM)",
+};
+
+// Helper to normalize timeSlot from backend to frontend format
+const normalizeTimeSlot = (slot: string): TimeSlotType => {
+  const normalized = slot.toLowerCase();
+  if (normalized === 'morning') return 'morning';
+  if (normalized === 'evening') return 'evening';
+  if (normalized === 'full_day' || normalized === 'fullday' || normalized === 'full day') return 'full_day';
+  if (normalized === 'night') return 'night';
+  return 'evening'; // default
+};
+
+// ==================== Main Component ====================
 export default function VendorCalendarPage() {
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
+  
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [blockedSlots, setBlockedSlots] = useState<BlockedSlot[]>([]);
+  const [availability, setAvailability] = useState<AvailabilitySlot[]>([]);
+  const [stats, setStats] = useState<VendorStats | null>(null);
+  
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<TimeSlotType | null>(null);
+  const [blockDialogOpen, setBlockDialogOpen] = useState(false);
+  const [blockReason, setBlockReason] = useState("");
+  const [blockLoading, setBlockLoading] = useState(false);
 
-  const handleDateSelect = (date: Date, slot: TimeSlot) => {
-    setSelectedDate(date);
-    setSelectedSlot(slot.type);
-    toast.info(`Selected: ${slot.label} on ${date.toLocaleDateString()}`, {
-      description: `You can block this slot if needed`
-    });
+  // Load calendar data
+  const loadCalendarData = useCallback(async (showRefresh = false) => {
+    try {
+      if (showRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+
+      // Load bookings
+      const bookingsResponse = await api.get('/vendors/me/bookings');
+      const bookingsData = bookingsResponse.data || [];
+
+      // Handle both array and object responses
+      const bookingsArray = Array.isArray(bookingsData) ? bookingsData : (bookingsData.bookings || []);
+
+      const transformedBookings: Booking[] = bookingsArray.map((booking: any) => ({
+        id: booking.id,
+        customerName: booking.user?.name || 'Unknown',
+        date: booking.slot?.date || '',
+        timeSlot: normalizeTimeSlot(booking.slot?.timeSlot || 'evening'),
+        status: (booking.status || 'PENDING').toUpperCase() as any,
+        amount: booking.totalAmount || 0,
+        eventName: booking.slot?.eventTitle || booking.slot?.name || 'Service Booking',
+        serviceType: booking.slot?.entityType === 'VENDOR' ? 'VENDOR_SERVICE' : 'VENUE',
+      }));
+
+      setBookings(transformedBookings);
+
+      // Load availability
+      try {
+        const availabilityResponse = await api.get('/vendors/me/availability');
+        const availabilityData = availabilityResponse.data || [];
+        const normalizedAvailability: AvailabilitySlot[] = availabilityData.map((slot: any) => ({
+          id: slot.id,
+          date: slot.date ? new Date(slot.date).toISOString().split('T')[0] : '',
+          timeSlot: normalizeTimeSlot(slot.timeSlot || 'evening'),
+          status: slot.status || 'AVAILABLE',
+        }));
+        setAvailability(normalizedAvailability);
+      } catch (error) {
+        console.warn("Could not load availability");
+        setAvailability([]);
+      }
+
+      // Calculate stats
+      const totalBookings = transformedBookings.length;
+      const confirmedBookings = transformedBookings.filter(b => b.status === 'CONFIRMED' || b.status === 'COMPLETED').length;
+      const pendingBookings = transformedBookings.filter(b => b.status === 'PENDING').length;
+      const totalEarnings = transformedBookings
+        .filter(b => b.status === 'CONFIRMED' || b.status === 'COMPLETED')
+        .reduce((sum, b) => sum + b.amount, 0);
+
+      // Calculate availability rate (based on current month)
+      const now = new Date();
+      const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      const bookedDays = new Set(transformedBookings
+        .filter(b => {
+          const bookingDate = new Date(b.date);
+          return bookingDate.getMonth() === now.getMonth() && bookingDate.getFullYear() === now.getFullYear();
+        })
+        .map(b => b.date));
+
+      const availabilityRate = Math.round(((daysInMonth - bookedDays.size) / daysInMonth) * 100);
+
+      setStats({
+        totalBookings,
+        confirmedBookings,
+        pendingBookings,
+        totalEarnings,
+        availabilityRate,
+      });
+    } catch (error: any) {
+      console.error("Failed to load calendar data:", error);
+      toast.error("Failed to load calendar data");
+      setBookings([]);
+      setAvailability([]);
+      setStats(null);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadCalendarData();
+  }, [loadCalendarData]);
+
+  // Generate calendar days
+  const calendarDays = useMemo(() => {
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+
+    const firstDayOfMonth = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    const days: { date: Date; isCurrentMonth: boolean; isToday: boolean }[] = [];
+    const today = new Date();
+
+    // Previous month days
+    for (let i = firstDayOfMonth - 1; i >= 0; i--) {
+      const date = new Date(year, month, -i);
+      days.push({ date, isCurrentMonth: false, isToday: false });
+    }
+
+    // Current month days
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(year, month, day);
+      const isToday =
+        date.getDate() === today.getDate() &&
+        date.getMonth() === today.getMonth() &&
+        date.getFullYear() === today.getFullYear();
+      days.push({ date, isCurrentMonth: true, isToday });
+    }
+
+    // Next month days
+    const remainingDays = 42 - days.length;
+    for (let i = 1; i <= remainingDays; i++) {
+      const date = new Date(year, month + 1, i);
+      days.push({ date, isCurrentMonth: false, isToday: false });
+    }
+
+    return days;
+  }, [currentMonth]);
+
+  // Get bookings for a date
+  const getBookingsForDate = (date: Date) => {
+    const dateStr = date.toISOString().split('T')[0];
+    return bookings.filter(b => b.date === dateStr);
   };
 
-  const handleBlockSlot = () => {
-    if (!selectedDate || !selectedSlot) {
-      toast.error("Please select a date and time slot first");
+  // Check if date is blocked
+  const isBlocked = (date: Date, slot?: TimeSlotType) => {
+    const dateStr = date.toISOString().split('T')[0];
+    if (slot) {
+      return availability.some(a =>
+        a.date === dateStr &&
+        (a.status === 'BLOCKED' || a.status === 'BOOKED') &&
+        a.timeSlot === slot
+      );
+    }
+    return availability.some(a =>
+      a.date === dateStr &&
+      (a.status === 'BLOCKED' || a.status === 'BOOKED')
+    );
+  };
+
+  // Get blocked slots for a date
+  const getBlockedSlotsForDate = (date: Date) => {
+    const dateStr = date.toISOString().split('T')[0];
+    return availability.filter(a =>
+      a.date === dateStr &&
+      (a.status === 'BLOCKED' || a.status === 'BOOKED')
+    );
+  };
+
+  // Check if date is in the past
+  const isPastDate = (date: Date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return date < today;
+  };
+
+  // Handle date click
+  const handleDateClick = (date: Date) => {
+    if (isPastDate(date)) return;
+    setSelectedDate(date);
+  };
+
+  // Handle slot click
+  const handleSlotClick = (date: Date, slot: TimeSlotType) => {
+    if (isPastDate(date)) return;
+    setSelectedDate(date);
+    setSelectedSlot(slot);
+    
+    if (!isBlocked(date, slot)) {
+      setBlockDialogOpen(true);
+    }
+  };
+
+  // Handle block slot
+  const handleBlockSlot = async () => {
+    if (!selectedDate || !selectedSlot) return;
+
+    setBlockLoading(true);
+    try {
+      const dateStr = selectedDate.toISOString().split('T')[0];
+      const timeSlotUpper = selectedSlot.toUpperCase();
+
+      await api.post('/vendors/me/availability/block', {
+        date: dateStr,
+        timeSlot: timeSlotUpper,
+        reason: blockReason || undefined,
+      });
+
+      toast.success("Slot blocked successfully");
+      setBlockDialogOpen(false);
+      setBlockReason("");
+      setSelectedSlot(null);
+      
+      loadCalendarData();
+    } catch (error: any) {
+      console.error("Block error:", error);
+      toast.error(error?.response?.data?.message || "Failed to block slot");
+    } finally {
+      setBlockLoading(false);
+    }
+  };
+
+  // Handle unblock slot
+  const handleUnblockSlot = async (slotId: number) => {
+    if (!slotId || slotId <= 0) {
+      toast.error("Invalid slot ID");
       return;
     }
-    toast.success("Slot blocked successfully", {
-      description: `${selectedDate.toLocaleDateString()} - ${selectedSlot} is now blocked`
-    });
-    setSelectedDate(null);
-    setSelectedSlot(null);
+
+    try {
+      await api.delete(`/vendors/me/availability/${slotId}`);
+      toast.success("Slot unblocked successfully");
+      loadCalendarData();
+    } catch (error: any) {
+      console.error("Unblock error:", error);
+      toast.error(error?.response?.data?.message || "Failed to unblock slot");
+    }
   };
 
-  const services = [
-    { id: 1, name: "Wedding Photography Package", date: "2024-06-15", status: "confirmed" },
-    { id: 2, name: "Pre-Wedding Photoshoot", date: "2024-05-20", status: "pending" },
-    { id: 3, name: "Event Videography", date: "2024-07-10", status: "confirmed" },
+  // Navigation
+  const handlePrevMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
+  };
+
+  const handleNextMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
+  };
+
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
   ];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-neutral-400" />
+          <p className="text-neutral-600">Loading calendar...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex items-center justify-between flex-wrap gap-4"
+      >
         <div>
           <h1 className="text-3xl font-bold text-black">Service Calendar</h1>
           <p className="text-neutral-600">Manage your availability and bookings</p>
         </div>
-        <Button onClick={handleBlockSlot} disabled={!selectedDate || !selectedSlot}>
-          <Calendar className="h-4 w-4 mr-2" />
-          Block Selected Slot
-        </Button>
-      </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => loadCalendarData(true)} disabled={refreshing}>
+            <RefreshCw className={cn("h-4 w-4 mr-2", refreshing && "animate-spin")} />
+            Refresh
+          </Button>
+          <Button
+            onClick={() => setBlockDialogOpen(true)}
+            className="bg-red-600 hover:bg-red-700"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Block Date
+          </Button>
+        </div>
+      </motion.div>
 
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <motion.div
+        className="grid gap-4 md:grid-cols-5"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+      >
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-600">This Month</p>
-                <p className="text-2xl font-bold text-black mt-1">12</p>
+                <p className="text-xs font-medium text-neutral-600">This Month</p>
+                <p className="text-2xl font-bold text-black mt-1">{stats?.totalBookings || 0}</p>
               </div>
-              <div className="p-3 rounded-full bg-silver-100 text-neutral-700">
-                <Calendar className="h-5 w-5" />
+              <div className="p-3 rounded-full bg-neutral-100">
+                <CalendarIcon className="h-5 w-5 text-neutral-600" />
               </div>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-600">Pending</p>
-                <p className="text-2xl font-bold text-yellow-600 mt-1">3</p>
+                <p className="text-xs font-medium text-neutral-600">Confirmed</p>
+                <p className="text-2xl font-bold text-green-600 mt-1">{stats?.confirmedBookings || 0}</p>
               </div>
-              <div className="p-3 rounded-full bg-yellow-50 text-yellow-600">
-                <Clock className="h-5 w-5" />
+              <div className="p-3 rounded-full bg-green-100">
+                <CheckCircle2 className="h-5 w-5 text-green-600" />
               </div>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-600">Revenue</p>
-                <p className="text-2xl font-bold text-green-600 mt-1">₹2.5L</p>
+                <p className="text-xs font-medium text-neutral-600">Pending</p>
+                <p className="text-2xl font-bold text-amber-600 mt-1">{stats?.pendingBookings || 0}</p>
               </div>
-              <div className="p-3 rounded-full bg-green-50 text-green-600">
-                <DollarSign className="h-5 w-5" />
+              <div className="p-3 rounded-full bg-amber-100">
+                <Clock className="h-5 w-5 text-amber-600" />
               </div>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-600">Availability</p>
-                <p className="text-2xl font-bold text-blue-600 mt-1">85%</p>
+                <p className="text-xs font-medium text-neutral-600">Earnings</p>
+                <p className="text-2xl font-bold text-black mt-1">₹{(stats?.totalEarnings || 0).toLocaleString()}</p>
               </div>
-              <div className="p-3 rounded-full bg-blue-50 text-blue-600">
-                <Users className="h-5 w-5" />
+              <div className="p-3 rounded-full bg-green-100">
+                <DollarSign className="h-5 w-5 text-green-600" />
               </div>
             </div>
           </CardContent>
         </Card>
-      </div>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-neutral-600">Availability</p>
+                <p className="text-2xl font-bold text-blue-600 mt-1">{stats?.availabilityRate || 0}%</p>
+              </div>
+              <div className="p-3 rounded-full bg-blue-100">
+                <BarChart3 className="h-5 w-5 text-blue-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Calendar */}
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Availability Calendar</CardTitle>
-            <CardDescription>Block dates when you&apos;re not available</CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-black">Availability Calendar</CardTitle>
+                <CardDescription>Click on a slot to block or view details</CardDescription>
+              </div>
+              <div className="flex items-center gap-1">
+                <Button variant="ghost" size="icon" onClick={handlePrevMonth} className="h-8 w-8">
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="text-sm font-medium min-w-[160px] text-center">
+                  {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+                </span>
+                <Button variant="ghost" size="icon" onClick={handleNextMonth} className="h-8 w-8">
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
-            <AvailabilityCalendar
-              venueId="vendor-1"
-              basePrice={50000}
-              onDateSelect={handleDateSelect}
-              selectedDate={selectedDate}
-              selectedSlot={selectedSlot}
-            />
-          </CardContent>
-        </Card>
+            {/* Legend */}
+            <div className="flex flex-wrap gap-3 mb-4">
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded-full bg-green-500" />
+                <span className="text-xs text-neutral-600">Booked</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded-full bg-red-500" />
+                <span className="text-xs text-neutral-600">Blocked</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded-full bg-amber-500" />
+                <span className="text-xs text-neutral-600">Pending</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded-full bg-neutral-900 ring-2 ring-neutral-200" />
+                <span className="text-xs text-neutral-600">Today</span>
+              </div>
+            </div>
 
-        {/* Upcoming Services */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Upcoming Services</CardTitle>
-            <CardDescription>Your scheduled bookings</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {services.map((service) => (
-                <div key={service.id} className="p-4 border rounded-lg hover:border-silver-200 transition-colors">
-                  <div className="flex items-start justify-between mb-2">
-                    <h4 className="font-semibold text-black">{service.name}</h4>
-                    <Badge className={service.status === "confirmed" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}>
-                      {service.status}
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-neutral-600">{new Date(service.date).toLocaleDateString("en-IN", { weekday: "short", year: "numeric", month: "long", day: "numeric" })}</p>
+            {/* Calendar Grid */}
+            <div className="grid grid-cols-7 gap-1">
+              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+                <div key={day} className="text-center text-xs font-medium text-neutral-500 py-2">
+                  {day}
                 </div>
               ))}
+
+              {calendarDays.map(({ date, isCurrentMonth, isToday }) => {
+                const dateStr = date.toISOString().split('T')[0];
+                const dayBookings = getBookingsForDate(date);
+                const dayBlocked = isBlocked(date);
+                const isPast = isPastDate(date);
+                const hasConfirmed = dayBookings.some(b => b.status === "CONFIRMED" || b.status === "COMPLETED");
+                const hasPending = dayBookings.some(b => b.status === "PENDING");
+
+                let bgColor = "";
+                if (isPast) {
+                  bgColor = "bg-neutral-50";
+                } else if (dayBlocked) {
+                  bgColor = "bg-red-50 border-red-200";
+                } else if (hasConfirmed) {
+                  bgColor = "bg-green-50 border-green-200";
+                } else if (hasPending) {
+                  bgColor = "bg-amber-50 border-amber-200";
+                }
+
+                return (
+                  <button
+                    key={dateStr}
+                    onClick={() => handleDateClick(date)}
+                    disabled={isPast}
+                    className={cn(
+                      "relative h-24 rounded-lg border transition-all duration-200 p-1 flex flex-col items-start justify-start overflow-hidden",
+                      !isCurrentMonth && "bg-neutral-50 text-neutral-400",
+                      isCurrentMonth && !isPast && "hover:border-neutral-400 hover:shadow-md cursor-pointer",
+                      isPast && "opacity-50 cursor-not-allowed",
+                      isToday && !isPast && "ring-2 ring-neutral-900 border-neutral-900",
+                      bgColor
+                    )}
+                  >
+                    <span className={cn(
+                      "text-sm font-medium",
+                      isToday && "text-neutral-900 font-bold",
+                      !isToday && isCurrentMonth && "text-neutral-700"
+                    )}>
+                      {date.getDate()}
+                    </span>
+
+                    <div className="flex flex-wrap gap-1 mt-1 w-full">
+                      {dayBookings.slice(0, 3).map((booking) => (
+                        <div
+                          key={booking.id}
+                          className={cn(
+                            "w-2 h-2 rounded-full",
+                            booking.status === "CONFIRMED" || booking.status === "COMPLETED" ? "bg-green-500" :
+                            booking.status === "PENDING" ? "bg-amber-500" : "bg-red-500"
+                          )}
+                          title={`${booking.eventName} (${booking.timeSlot})`}
+                        />
+                      ))}
+                      {getBlockedSlotsForDate(date).map((slot, idx) => (
+                        <div
+                          key={`blocked-${idx}`}
+                          className="w-2 h-2 rounded-full bg-red-600 ring-2 ring-red-300"
+                          title={`Blocked: ${slot.timeSlot}`}
+                        />
+                      ))}
+                    </div>
+
+                    {dayBookings.length > 0 && (
+                      <div className="text-xs text-neutral-600 mt-1 line-clamp-2 w-full">
+                        {dayBookings.length} booking{dayBookings.length > 1 ? 's' : ''}
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
+
+        {/* Side Panel */}
+        <div className="space-y-4">
+          {/* Selected Date Details */}
+          {selectedDate && (
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+            >
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-black">
+                    {selectedDate.toLocaleDateString("en-IN", { weekday: "long", month: "long", day: "numeric" })}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {getBookingsForDate(selectedDate).length === 0 && !isBlocked(selectedDate) ? (
+                    <div className="text-center py-4">
+                      <CalendarIcon className="h-12 w-12 text-neutral-300 mx-auto mb-2" />
+                      <p className="text-sm text-neutral-600">No bookings or blocks</p>
+                      <p className="text-xs text-neutral-500">Click on a time slot below to block</p>
+                    </div>
+                  ) : (
+                    <>
+                      {getBookingsForDate(selectedDate).map((booking) => (
+                        <div key={booking.id} className="p-3 rounded-lg border border-neutral-200 bg-white">
+                          <div className="flex items-center justify-between mb-2">
+                            <Badge className={cn(
+                              "text-xs",
+                              booking.status === "CONFIRMED" ? "bg-green-100 text-green-700" :
+                              booking.status === "PENDING" ? "bg-amber-100 text-amber-700" :
+                              "bg-red-100 text-red-700"
+                            )}>
+                              {booking.status}
+                            </Badge>
+                            <span className="text-sm font-semibold text-black">₹{booking.amount.toLocaleString()}</span>
+                          </div>
+                          <p className="text-sm font-medium text-black">{booking.eventName}</p>
+                          <p className="text-xs text-neutral-600">{booking.customerName}</p>
+                          <div className="flex items-center gap-2 mt-2 text-xs text-neutral-500">
+                            <Clock className="h-3 w-3" />
+                            {TIME_SLOT_LABELS[booking.timeSlot]}
+                          </div>
+                        </div>
+                      ))}
+                      {isBlocked(selectedDate) && (
+                        <div className="p-3 rounded-lg border border-red-200 bg-red-50">
+                          <div className="flex items-center gap-2">
+                            <XCircle className="h-4 w-4 text-red-600" />
+                            <span className="text-sm font-medium text-red-800">Blocked</span>
+                          </div>
+                          {getBlockedSlotsForDate(selectedDate).map((slot) => (
+                            <div key={slot.id} className="mt-2">
+                              <p className="text-xs text-red-700">{TIME_SLOT_LABELS[slot.timeSlot]}</p>
+                              {slot.id && slot.id > 0 ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleUnblockSlot(slot.id!)}
+                                  className="mt-2 h-7 text-xs"
+                                >
+                                  <Trash2 className="h-3 w-3 mr-1" />
+                                  Unblock
+                                </Button>
+                              ) : (
+                                <p className="text-xs text-red-600 mt-1">No valid slot ID available</p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+
+          {/* Time Slots */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-black">Block Time Slot</CardTitle>
+              <CardDescription>Select a slot to block for {selectedDate ? selectedDate.toLocaleDateString("en-IN", { month: "short", day: "numeric" }) : "a date"}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {(Object.keys(TIME_SLOT_LABELS) as TimeSlotType[]).map((slot) => {
+                const isSlotBlocked = selectedDate && isBlocked(selectedDate, slot);
+                return (
+                  <Button
+                    key={slot}
+                    variant={isSlotBlocked ? "default" : "outline"}
+                    className={cn(
+                      "w-full justify-between",
+                      isSlotBlocked ? "bg-red-600 hover:bg-red-700 text-white" : "hover:bg-neutral-100"
+                    )}
+                    onClick={() => selectedDate && handleSlotClick(selectedDate, slot)}
+                    disabled={!selectedDate}
+                  >
+                    <span>{TIME_SLOT_LABELS[slot]}</span>
+                    {isSlotBlocked ? (
+                      <XCircle className="h-4 w-4" />
+                    ) : (
+                      <Plus className="h-4 w-4" />
+                    )}
+                  </Button>
+                );
+              })}
+            </CardContent>
+          </Card>
+        </div>
       </div>
+
+      {/* Block Dialog */}
+      <Dialog open={blockDialogOpen} onOpenChange={setBlockDialogOpen}>
+        <DialogContent className="bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-black">Block Time Slot</DialogTitle>
+            <DialogDescription className="text-neutral-600">
+              Block this time slot to prevent bookings
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {selectedDate && (
+              <div>
+                <p className="text-sm font-medium text-neutral-600 mb-1">Selected Date</p>
+                <p className="font-medium text-black">
+                  {selectedDate.toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
+                </p>
+              </div>
+            )}
+            <div>
+              <p className="text-sm font-medium text-neutral-600 mb-2">Time Slot</p>
+              <div className="grid grid-cols-2 gap-2">
+                {(Object.keys(TIME_SLOT_LABELS) as TimeSlotType[]).map((slot) => (
+                  <Button
+                    key={slot}
+                    variant={selectedSlot === slot ? "default" : "outline"}
+                    className={cn(
+                      "w-full",
+                      selectedSlot === slot
+                        ? "bg-black hover:bg-neutral-800 text-white"
+                        : "hover:bg-neutral-100 text-black"
+                    )}
+                    onClick={() => setSelectedSlot(slot)}
+                  >
+                    {TIME_SLOT_LABELS[slot]}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-neutral-600 mb-2">Reason (optional)</p>
+              <textarea
+                className="w-full min-h-[80px] rounded-md border border-neutral-300 px-3 py-2 text-sm text-black bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-600"
+                placeholder="e.g., Maintenance, Private event, Holiday..."
+                value={blockReason}
+                onChange={(e) => setBlockReason(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBlockDialogOpen(false)} disabled={blockLoading}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleBlockSlot}
+              disabled={blockLoading || !selectedSlot}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {blockLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Blocking...
+                </>
+              ) : (
+                <>
+                  <XCircle className="h-4 w-4 mr-2" />
+                  Block Slot
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

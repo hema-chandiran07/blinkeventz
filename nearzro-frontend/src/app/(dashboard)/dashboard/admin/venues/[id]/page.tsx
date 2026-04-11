@@ -74,9 +74,8 @@ export default function VenueDetailPage() {
   const loadVenue = async () => {
     try {
       setLoading(true);
-      const response = await api.get("/venues");
-      const found = response.data.find((v: any) => v.id === parseInt(params.id as string));
-      setVenue(found || null);
+      const response = await api.get(`/venues/${params.id}`);
+      setVenue(response.data || null);
     } catch (error: any) {
       console.error("Failed to load venue:", error);
       toast.error("Failed to load venue details");
@@ -88,7 +87,7 @@ export default function VenueDetailPage() {
   const handleApprove = async () => {
     try {
       setActionLoading(true);
-      await api.post(`/venues/${venue?.id}/approve`);
+      await api.patch(`/venues/${venue?.id}/approve`);
       toast.success("Venue approved successfully!");
       loadVenue();
     } catch (error: any) {
@@ -101,10 +100,10 @@ export default function VenueDetailPage() {
   const handleReject = async () => {
     const reason = prompt("Please enter rejection reason:");
     if (!reason) return;
-    
+
     try {
       setActionLoading(true);
-      await api.post(`/venues/${venue?.id}/reject`, { reason });
+      await api.patch(`/venues/${venue?.id}/reject`, { reason });
       toast.success("Venue rejected");
       loadVenue();
     } catch (error: any) {

@@ -364,7 +364,7 @@ export default function VendorRegisterPage() {
       formDataObj.append("serviceRadiusKm", formData.serviceRadiusKm.toString());
       formDataObj.append("kycDocType", formData.kycDocType);
       formDataObj.append("kycDocNumber", formData.kycDocNumber);
-      
+
       formData.businessImages.forEach((image) => formDataObj.append("businessImages", image));
       formData.kycDocFiles.forEach((file) => formDataObj.append("kycDocFiles", file));
       formData.foodLicenseFiles.forEach((file) => formDataObj.append("foodLicenseFiles", file));
@@ -372,11 +372,12 @@ export default function VendorRegisterPage() {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
 
       // OAUTH USER FLOW (User already logged in via Google/Facebook)
-      if (token || user?.id) {
+      if ((token || user?.id) && !formData.password) {
+        // Only use OAuth flow if there's no password (pure OAuth user)
         await api.patch("/vendors/me", formDataObj, {
           headers: { "Content-Type": "multipart/form-data" },
         });
-        
+
         toast.success("Profile completed successfully!", { description: "Redirecting to your dashboard..." });
         setTimeout(() => router.push("/dashboard/vendor"), 1000);
         return; // Exit function early
@@ -385,6 +386,8 @@ export default function VendorRegisterPage() {
       // STANDARD USER FLOW (New email/password registration)
       const response = await api.post("/auth/register-vendor", formDataObj, {
         headers: { "Content-Type": "multipart/form-data" },
+        // @ts-ignore - skipAuth is a custom property handled in interceptor
+        skipAuth: true,
       });
       setUserId(response.data.user.id);
 
@@ -542,7 +545,7 @@ export default function VendorRegisterPage() {
           </div>
         </div>
 
-        <Card className="border-0 shadow-[0_20px_50px_rgba(0,0,0,0.8)] bg-zinc-950/60 backdrop-blur-xl border border-white/10 ring-1 ring-white/5 rounded-2xl p-6">
+        <Card className="border-0 bg-zinc-950/60 backdrop-blur-xl border border-white/10 rounded-2xl p-6">
           <CardHeader className="text-center pb-2">
             <div className="inline-flex h-12 w-12 rounded-xl bg-zinc-900 border border-white/10 mx-auto mb-3 flex items-center justify-center">
               <Store className="h-6 w-6 text-zinc-200" />
@@ -759,7 +762,7 @@ export default function VendorRegisterPage() {
                 <Button
                   type="button"
                   variant="default"
-                  className="w-full h-10 text-sm font-semibold text-zinc-100 bg-gradient-to-b from-zinc-700 to-zinc-900 border border-zinc-600 rounded-lg hover:from-zinc-600 hover:to-zinc-800 hover:border-zinc-400 hover:shadow-[0_0_15px_rgba(255,255,255,0.1)] transition-all duration-300 active:scale-[0.99]"
+                  className="w-full h-10 text-sm font-semibold text-zinc-100 bg-gradient-to-b from-zinc-700 to-zinc-900 border border-zinc-600 rounded-lg hover:from-zinc-600 hover:to-zinc-800 hover:border-zinc-400 transition-all duration-300 active:scale-[0.99]"
                   onClick={handleVerifyOTP}
                   disabled={isLoading}
                 >
@@ -782,7 +785,7 @@ export default function VendorRegisterPage() {
                   <Button
                     type="button"
                     variant="outline"
-                    className="flex-1 h-10 text-sm bg-white/5 border border-white/20 text-white font-semibold backdrop-blur-md transition-all duration-300 hover:bg-white/10 hover:border-white/40 hover:-translate-y-0.5 hover:shadow-[0_4px_20px_rgba(255,255,255,0.1)] active:scale-95"
+                    className="flex-1 h-10 text-sm bg-white/5 border border-white/20 text-white font-semibold backdrop-blur-md transition-all duration-300 hover:bg-white/10 hover:border-white/40 active:scale-95"
                     onClick={() => setStep(1)}
                     disabled={isLoading}
                   >
@@ -927,7 +930,7 @@ export default function VendorRegisterPage() {
                   <Button
                     type="button"
                     variant="outline"
-                    className="flex-1 h-10 text-sm bg-white/5 border border-white/20 text-white font-semibold backdrop-blur-md transition-all duration-300 hover:bg-white/10 hover:border-white/40 hover:-translate-y-0.5 hover:shadow-[0_4px_20px_rgba(255,255,255,0.1)] active:scale-95"
+                    className="flex-1 h-10 text-sm bg-white/5 border border-white/20 text-white font-semibold backdrop-blur-md transition-all duration-300 hover:bg-white/10 hover:border-white/40 active:scale-95"
                     onClick={() => setStep(2)}
                     disabled={isLoading}
                   >
@@ -1035,7 +1038,7 @@ export default function VendorRegisterPage() {
                   <Button
                     type="button"
                     variant="outline"
-                    className="flex-1 h-10 text-sm bg-white/5 border border-white/20 text-white font-semibold backdrop-blur-md transition-all duration-300 hover:bg-white/10 hover:border-white/40 hover:-translate-y-0.5 hover:shadow-[0_4px_20px_rgba(255,255,255,0.1)] active:scale-95"
+                    className="flex-1 h-10 text-sm bg-white/5 border border-white/20 text-white font-semibold backdrop-blur-md transition-all duration-300 hover:bg-white/10 hover:border-white/40 active:scale-95"
                     onClick={() => setStep(3)}
                     disabled={isLoading}
                   >
@@ -1359,7 +1362,7 @@ export default function VendorRegisterPage() {
                     <Button
                       type="button"
                       variant="outline"
-                      className="flex-1 h-10 text-sm bg-white/5 border border-white/20 text-white font-semibold backdrop-blur-md transition-all duration-300 hover:bg-white/10 hover:border-white/40 hover:-translate-y-0.5 hover:shadow-[0_4px_20px_rgba(255,255,255,0.1)] active:scale-95"
+                      className="flex-1 h-10 text-sm bg-white/5 border border-white/20 text-white font-semibold backdrop-blur-md transition-all duration-300 hover:bg-white/10 hover:border-white/40 active:scale-95"
                       onClick={() => setStep(4)}
                       disabled={isLoading || isCompressing}
                     >

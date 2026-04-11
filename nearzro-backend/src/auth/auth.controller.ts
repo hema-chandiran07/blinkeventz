@@ -2,6 +2,23 @@ import { Body, Controller, Get, Post, Req, Res, UseGuards, UseInterceptors, Uplo
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
+import { MulterOptions } from '@nestjs/platform-express/multer/interfaces/multer-options.interface';
+
+// Secure file filter — allowlist of safe file types
+const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf'];
+const ALLOWED_MIMES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf'];
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+const secureFileFilter = (req: any, file: Express.Multer.File, callback: (error: Error | null, acceptFile: boolean) => void) => {
+  const ext = extname(file.originalname).toLowerCase();
+  if (!ALLOWED_EXTENSIONS.includes(ext) || !ALLOWED_MIMES.includes(file.mimetype)) {
+    return callback(
+      new BadRequestException(`File type not allowed: ${ext}. Allowed: ${ALLOWED_EXTENSIONS.join(', ')}`),
+      false,
+    );
+  }
+  callback(null, true);
+};
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
@@ -67,6 +84,8 @@ export class AuthController {
           callback(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
         },
       }),
+      fileFilter: secureFileFilter,
+      limits: { fileSize: MAX_FILE_SIZE },
     }),
   )
   async registerVenueOwner(
@@ -127,12 +146,14 @@ export class AuthController {
           callback(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
         },
       }),
+      fileFilter: secureFileFilter,
+      limits: { fileSize: MAX_FILE_SIZE },
     }),
   )
   registerVendor(
     @Body() dto: VendorRegisterDto,
-    @UploadedFiles() files: { 
-      businessImages?: Express.Multer.File[]; 
+    @UploadedFiles() files: {
+      businessImages?: Express.Multer.File[];
       kycDocFiles?: Express.Multer.File[];
       foodLicenseFiles?: Express.Multer.File[];
     },
@@ -157,8 +178,8 @@ export class AuthController {
       }
     }
 
-    // Pass files object directly to service - let service handle the parsing
-    return this.authService.registerVendor(dto, files || {});
+    // Pass files, kycDocType, and kycDocNumber to service so KYC records are created
+    return this.authService.registerVendor(dto, files || {}, undefined, dto.kycDocType, dto.kycDocNumber);
   }
 
   // 🔐 Login (all roles)
@@ -209,12 +230,13 @@ export class AuthController {
     return { message: 'Logged out from all devices' };
   }
 
-  // 👤 Logged-in user info
+  // 👤 Logged-in user info - fetches fresh role from DB (not stale JWT token)
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @Get('me')
-  me(@Req() req: AuthRequest) {
-    return req.user;
+  async me(@Req() req: AuthRequest) {
+    const user = await this.authService.getUserProfile(req.user.userId);
+    return user;
   }
 
   // ✉️ Check if email exists (for registration validation)

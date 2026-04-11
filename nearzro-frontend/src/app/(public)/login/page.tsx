@@ -76,8 +76,8 @@ export default function LoginPage() {
           transition={{ duration: 0.6, delay: 0.2 }}
         >
           <div className="absolute inset-0 overflow-hidden">
-            <div className="absolute -top-40 -right-40 w-80 h-80 bg-silver-700/10 rounded-full blur-3xl animate-pulse" />
-            <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-silver-600/10 rounded-full blur-3xl animate-pulse delay-1000" />
+            <div className="absolute -top-40 -right-40 w-80 h-80 bg-silver-700/5 rounded-full" />
+            <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-silver-600/5 rounded-full" />
           </div>
 
           {/* NearZro Logo - Centered Above Text */}
@@ -87,7 +87,7 @@ export default function LoginPage() {
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: 0.8, delay: 0.4 }}
           >
-            <div className="relative h-32 w-32 overflow-hidden rounded-2xl shadow-2xl shadow-silver-500/50 border-2 border-silver-300 mb-6">
+            <div className="relative h-32 w-32 overflow-hidden rounded-2xl border-2 border-silver-300 mb-6">
               <Image
                 src="/logo.jpeg"
                 alt="NearZro Logo"
@@ -146,11 +146,11 @@ export default function LoginPage() {
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.6, delay: 0.3 }}
         >
-          <Card className="w-full max-w-md bg-zinc-900/40 backdrop-blur-xl border border-white/10 shadow-2xl rounded-2xl p-8">
+          <Card className="w-full max-w-md bg-zinc-900/40 backdrop-blur-xl border border-white/10 rounded-2xl p-8">
             <CardHeader className="space-y-1 text-center pb-2">
               <div className="md:hidden">
                 <motion.div
-                  className="h-12 w-12 rounded-xl bg-gradient-to-br from-black to-silver-800 mx-auto mb-4 shadow-lg shadow-black/20 flex items-center justify-center"
+                  className="h-12 w-12 rounded-xl bg-gradient-to-br from-black to-silver-800 mx-auto mb-4 flex items-center justify-center"
                   whileHover={{ scale: 1.05 }}
                 >
                   <Sparkles className="h-6 w-6 text-white" />

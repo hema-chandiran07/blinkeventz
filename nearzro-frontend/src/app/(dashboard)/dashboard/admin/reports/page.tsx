@@ -25,15 +25,19 @@ export default function ReportsPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<ReportStats | null>(null);
+  const [venueStats, setVenueStats] = useState<string>("0 Active Venues");
+  const [vendorStats, setVendorStats] = useState<string>("0 Active Vendors");
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
-    loadStats();
+    loadAllStats();
   }, []);
 
-  const loadStats = async () => {
+  // Merged single effect: fetches all data once, derives all stats
+  const loadAllStats = async () => {
     try {
       setLoading(true);
-      // Fetch from multiple endpoints to get real data
+      // Fetch all data in a single Promise.all call
       const [usersRes, venuesRes, vendorsRes, eventsRes, paymentsRes] = await Promise.all([
         api.get("/users").catch(() => ({ data: [] })),
         api.get("/venues").catch(() => ({ data: { data: [] } })),
@@ -48,23 +52,28 @@ export default function ReportsPage() {
       const events = eventsRes.data?.data || eventsRes.data || [];
       const payments = paymentsRes.data?.payments || paymentsRes.data || [];
 
+      // Derive report stats
       const totalRevenue = payments.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
       const confirmedEvents = events.filter((e: any) => e.status === "CONFIRMED" || e.status === "COMPLETED").length;
+      const successCount = payments.filter((p: any) => p.status === "SUCCESS" || p.status === "CAPTURED").length;
 
       setStats({
         monthlyRevenue: totalRevenue,
-        revenueGrowth: 18.4,
+        revenueGrowth: 0,
         newUsers: users.length,
-        userGrowth: 22.1,
+        userGrowth: 0,
         totalBookings: confirmedEvents,
-        bookingsGrowth: 12.5,
-        successRate: payments.length > 0 
-          ? (payments.filter((p: any) => p.status === "SUCCESS").length / payments.length) * 100 
-          : 94.2,
+        bookingsGrowth: 0,
+        successRate: payments.length > 0
+          ? (successCount / payments.length) * 100
+          : 0,
       });
+
+      // Derive venue/vendor stats from the same data
+      setVenueStats(`${venues.filter((v: any) => v.status === "ACTIVE").length} Active Venues`);
+      setVendorStats(`${vendors.filter((v: any) => v.verificationStatus === "VERIFIED").length} Active Vendors`);
     } catch (error: any) {
       console.error("Failed to load report stats:", error);
-      // Set default stats on error
       setStats({
         monthlyRevenue: 0,
         revenueGrowth: 0,
@@ -74,6 +83,8 @@ export default function ReportsPage() {
         bookingsGrowth: 0,
         successRate: 0,
       });
+      setVenueStats("0 Active Venues");
+      setVendorStats("0 Active Vendors");
       toast.error("Failed to load report statistics");
     } finally {
       setLoading(false);
@@ -86,6 +97,70 @@ export default function ReportsPage() {
     return `₹${(amount / 1000).toFixed(2)}K`;
   };
 
+  const handleExportAll = async () => {
+    setExporting(true);
+    try {
+      // Fetch all data for export
+      const [usersRes, venuesRes, vendorsRes, eventsRes, paymentsRes] = await Promise.all([
+        api.get("/users").catch(() => ({ data: [] })),
+        api.get("/venues").catch(() => ({ data: { data: [] } })),
+        api.get("/vendors").catch(() => ({ data: [] })),
+        api.get("/events").catch(() => ({ data: { data: [], total: 0 } })),
+        api.get("/payments").catch(() => ({ data: { payments: [], pagination: { total: 0 } } })),
+      ]);
+
+      const users = usersRes.data || [];
+      const venues = venuesRes.data?.data || venuesRes.data || [];
+      const vendors = vendorsRes.data || [];
+      const events = eventsRes.data?.data || eventsRes.data || [];
+      const payments = paymentsRes.data?.payments || paymentsRes.data || [];
+
+      // Build CSV content
+      const csvSections = [
+        // Users
+        "=== USERS REPORT ===",
+        "ID,Name,Email,Role,Status,Created",
+        ...users.map((u: any) => `${u.id},"${u.name}","${u.email}",${u.role},${u.isActive ? 'Active' : 'Inactive'},${new Date(u.createdAt).toLocaleDateString()}`),
+        
+        // Venues
+        "\n=== VENUES REPORT ===",
+        "ID,Name,Type,City,Status,Base Price",
+        ...venues.map((v: any) => `${v.id},"${v.name}",${v.type},"${v.city}",${v.status},₹${v.basePriceEvening || 0}`),
+        
+        // Vendors
+        "\n=== VENDORS REPORT ===",
+        "ID,Business Name,Category,City,Verification,Base Price",
+        ...vendors.map((v: any) => `${v.id},"${v.businessName}",${v.serviceCategory},"${v.city}",${v.verificationStatus},₹${v.basePrice || 0}`),
+        
+        // Events/Bookings
+        "\n=== EVENTS/BOOKINGS REPORT ===",
+        "ID,Title,Status,Total Amount,Created",
+        ...events.map((e: any) => `${e.id},"${e.title || 'N/A'}",${e.status},₹${e.totalAmount || 0},${new Date(e.createdAt).toLocaleDateString()}`),
+        
+        // Payments
+        "\n=== PAYMENTS REPORT ===",
+        "ID,Amount,Status,Method,Created",
+        ...payments.map((p: any) => `${p.id},₹${p.amount},${p.status},${p.method || 'N/A'},${new Date(p.createdAt).toLocaleDateString()}`),
+      ];
+
+      const csvContent = csvSections.join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `all-reports-${new Date().toISOString().split('T')[0]}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+
+      toast.success("All reports exported successfully");
+    } catch (error: any) {
+      console.error("Export error:", error);
+      toast.error(error?.response?.data?.message || "Failed to export reports");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const reportCards = [
     {
       title: "Revenue Report",
@@ -93,7 +168,7 @@ export default function ReportsPage() {
       icon: DollarSign,
       color: "bg-emerald-600",
       href: "/dashboard/admin/reports/revenue",
-      getStats: () => stats ? formatCurrency(stats.monthlyRevenue) : "₹0",
+      stats: stats ? formatCurrency(stats.monthlyRevenue) : "₹0",
     },
     {
       title: "User Analytics",
@@ -101,7 +176,7 @@ export default function ReportsPage() {
       icon: Users,
       color: "bg-blue-600",
       href: "/dashboard/admin/reports/users",
-      getStats: () => stats ? `${stats.newUsers.toLocaleString()} Total Users` : "0 Users",
+      stats: stats ? `${stats.newUsers.toLocaleString()} Total Users` : "0 Users",
     },
     {
       title: "Venue Performance",
@@ -109,12 +184,7 @@ export default function ReportsPage() {
       icon: Building,
       color: "bg-orange-600",
       href: "/dashboard/admin/reports/venues",
-      getStats: () => {
-        return api.get("/venues").then(r => {
-          const data = r.data?.data || r.data || [];
-          return `${data.filter((v: any) => v.status === "ACTIVE").length} Active Venues`;
-        }).catch(() => "0 Active Venues");
-      },
+      stats: venueStats,
     },
     {
       title: "Vendor Analytics",
@@ -122,12 +192,7 @@ export default function ReportsPage() {
       icon: Store,
       color: "bg-purple-600",
       href: "/dashboard/admin/reports/vendors",
-      getStats: () => {
-        return api.get("/vendors").then(r => {
-          const data = r.data || [];
-          return `${data.filter((v: any) => v.verificationStatus === "VERIFIED").length} Active Vendors`;
-        }).catch(() => "0 Active Vendors");
-      },
+      stats: vendorStats,
     },
   ];
 
@@ -151,13 +216,13 @@ export default function ReportsPage() {
           <p className="text-neutral-600">Comprehensive business intelligence and insights</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="border-black" onClick={loadStats}>
+          <Button variant="outline" className="border-black" onClick={loadAllStats}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
-          <Button variant="outline" className="border-black" onClick={() => toast.info("Export feature coming soon")}>
+          <Button variant="outline" className="border-black" onClick={handleExportAll} disabled={exporting}>
             <Download className="h-4 w-4 mr-2" />
-            Export All Reports
+            {exporting ? "Exporting..." : "Export All Reports"}
           </Button>
         </div>
       </div>
@@ -170,10 +235,14 @@ export default function ReportsPage() {
               <div>
                 <p className="text-sm font-medium text-neutral-600">Monthly Revenue</p>
                 <p className="text-2xl font-bold text-emerald-600 mt-1">{formatCurrency(stats?.monthlyRevenue || 0)}</p>
-                <p className="text-xs text-emerald-600 mt-2 flex items-center gap-1">
-                  <TrendingUp className="h-3 w-3" />
-                  +{stats?.revenueGrowth || 0}% vs last month
-                </p>
+                {stats?.revenueGrowth !== undefined && stats.revenueGrowth !== 0 ? (
+                  <p className="text-xs text-emerald-600 mt-2 flex items-center gap-1">
+                    <TrendingUp className="h-3 w-3" />
+                    +{stats.revenueGrowth}% vs last month
+                  </p>
+                ) : (
+                  <p className="text-xs text-neutral-500 mt-2">No historical data</p>
+                )}
               </div>
               <div className="p-3 rounded-full bg-emerald-600">
                 <DollarSign className="h-6 w-6 text-white" />
@@ -188,10 +257,14 @@ export default function ReportsPage() {
               <div>
                 <p className="text-sm font-medium text-neutral-600">Total Users</p>
                 <p className="text-2xl font-bold text-blue-600 mt-1">{stats?.newUsers.toLocaleString() || 0}</p>
-                <p className="text-xs text-blue-600 mt-2 flex items-center gap-1">
-                  <TrendingUp className="h-3 w-3" />
-                  +{stats?.userGrowth || 0}% vs last month
-                </p>
+                {stats?.userGrowth !== undefined && stats.userGrowth !== 0 ? (
+                  <p className="text-xs text-blue-600 mt-2 flex items-center gap-1">
+                    <TrendingUp className="h-3 w-3" />
+                    +{stats.userGrowth}% vs last month
+                  </p>
+                ) : (
+                  <p className="text-xs text-neutral-500 mt-2">No historical data</p>
+                )}
               </div>
               <div className="p-3 rounded-full bg-blue-600">
                 <Users className="h-6 w-6 text-white" />
@@ -206,10 +279,14 @@ export default function ReportsPage() {
               <div>
                 <p className="text-sm font-medium text-neutral-600">Confirmed Bookings</p>
                 <p className="text-2xl font-bold text-orange-600 mt-1">{stats?.totalBookings || 0}</p>
-                <p className="text-xs text-orange-600 mt-2 flex items-center gap-1">
-                  <TrendingUp className="h-3 w-3" />
-                  +{stats?.bookingsGrowth || 0}% vs last month
-                </p>
+                {stats?.bookingsGrowth !== undefined && stats.bookingsGrowth !== 0 ? (
+                  <p className="text-xs text-orange-600 mt-2 flex items-center gap-1">
+                    <TrendingUp className="h-3 w-3" />
+                    +{stats.bookingsGrowth}% vs last month
+                  </p>
+                ) : (
+                  <p className="text-xs text-neutral-500 mt-2">No historical data</p>
+                )}
               </div>
               <div className="p-3 rounded-full bg-orange-600">
                 <Calendar className="h-6 w-6 text-white" />
@@ -256,7 +333,7 @@ export default function ReportsPage() {
                     <div>
                       <h3 className="text-lg font-bold text-black">{report.title}</h3>
                       <p className="text-sm text-neutral-600 mt-1">{report.description}</p>
-                      <p className="text-sm font-semibold text-black mt-2">{report.getStats()}</p>
+                      <p className="text-sm font-semibold text-black mt-2">{report.stats}</p>
                     </div>
                   </div>
                   <Button variant="ghost" size="sm">

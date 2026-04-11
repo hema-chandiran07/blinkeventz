@@ -1,46 +1,85 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
-  TrendingUp, TrendingDown, Search, Download, Eye,
-  Clock, CheckCircle2, AlertCircle, RefreshCw
+  TrendingUp, TrendingDown, Search, Download, Eye, CreditCard,
+  Clock, CheckCircle2, AlertCircle, RefreshCw, Loader2, Filter,
+  DollarSign, Calendar, User, Building
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
+import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
 
+// ==================== Types ====================
 interface Transaction {
   id: number;
-  type: string;
+  type: "Payment" | "Refund";
   customer?: string;
+  customerEmail?: string;
   event?: string;
   amount: number;
+  currency: string;
   status: string;
   date: string;
   method?: string;
+  userId?: number;
+  eventId?: number;
 }
 
+interface TransactionStats {
+  totalRevenue: number;
+  pendingAmount: number;
+  refundAmount: number;
+  successRate: number;
+  transactionCount: number;
+}
+
+// ==================== Constants ====================
+const STATUS_CONFIG: Record<string, { className: string; label: string; icon: any }> = {
+  SUCCESS: { className: "bg-green-100 text-green-700 border-green-300", label: "Success", icon: CheckCircle2 },
+  CAPTURED: { className: "bg-green-100 text-green-700 border-green-300", label: "Captured", icon: CheckCircle2 },
+  PENDING: { className: "bg-amber-100 text-amber-700 border-amber-300", label: "Pending", icon: Clock },
+  FAILED: { className: "bg-red-100 text-red-700 border-red-300", label: "Failed", icon: AlertCircle },
+  REFUNDED: { className: "bg-blue-100 text-blue-700 border-blue-300", label: "Refunded", icon: TrendingDown },
+};
+
+// ==================== Main Component ====================
 export default function AdminTransactionsPage() {
   const router = useRouter();
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [stats, setStats] = useState<TransactionStats | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [filterType, setFilterType] = useState("all");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const limit = 20;
 
-  useEffect(() => {
-    loadTransactions();
-  }, []);
-
-  const loadTransactions = async () => {
+  // Load transactions
+  const loadTransactions = useCallback(async (showRefresh = false) => {
     try {
-      setLoading(true);
-      setError(null);
-      const response = await api.get("/payments");
-      const payments = response.data?.payments || response.data || [];
+      if (showRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+
+      const response = await api.get("/payments", {
+        params: { page, limit },
+      });
+
+      const data = response.data;
+      const payments = data?.payments || data?.data || data || [];
 
       if (!Array.isArray(payments)) {
         console.warn("Payments data is not an array:", payments);
@@ -52,67 +91,128 @@ export default function AdminTransactionsPage() {
         id: p.id,
         type: p.refundId ? "Refund" : "Payment",
         customer: p.user?.name || "Unknown",
-        event: p.Event?.title || "N/A",
+        customerEmail: p.user?.email || "",
+        event: p.event?.title || p.Event?.title || "N/A",
         amount: p.amount,
+        currency: p.currency || "INR",
         status: p.status,
         date: p.createdAt,
         method: p.provider || "Razorpay",
+        userId: p.userId,
+        eventId: p.eventId,
       }));
 
       setTransactions(formattedTransactions);
+      setTotalPages(data?.totalPages || data?.pagination?.totalPages || 1);
+
+      // Calculate stats
+      const totalRevenue = payments
+        .filter((p: any) => p.status === "SUCCESS" || p.status === "CAPTURED")
+        .reduce((sum: number, p: any) => sum + p.amount, 0);
+      
+      const pendingAmount = payments
+        .filter((p: any) => p.status === "PENDING")
+        .reduce((sum: number, p: any) => sum + p.amount, 0);
+
+      const refundAmount = payments
+        .filter((p: any) => p.status === "REFUNDED" || p.refundId)
+        .reduce((sum: number, p: any) => sum + p.amount, 0);
+
+      setStats({
+        totalRevenue,
+        pendingAmount,
+        refundAmount,
+        successRate: payments.length > 0
+          ? (payments.filter((p: any) => p.status === "SUCCESS" || p.status === "CAPTURED").length / payments.length) * 100
+          : 0,
+        transactionCount: payments.length,
+      });
     } catch (error: any) {
       console.error("Failed to load transactions:", error);
-      const errorMessage = error?.response?.data?.message || error?.message || "Failed to load transactions";
-      setError(errorMessage);
-      toast.error("Failed to load transactions: " + errorMessage);
+      const errorMessage = error?.response?.data?.message || "Failed to load transactions";
+      toast.error(errorMessage);
       setTransactions([]);
+      setStats(null);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  };
+  }, [page]);
 
+  useEffect(() => {
+    loadTransactions();
+  }, [loadTransactions]);
+
+  // Filter transactions
   const filteredTransactions = transactions.filter(t => {
-    const matchesSearch = t.customer?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         t.event?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = 
+      t.customer?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      t.customerEmail?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      t.event?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = filterStatus === "all" || t.status === filterStatus;
-    return matchesSearch && matchesStatus;
+    const matchesType = filterType === "all" || t.type === filterType;
+    return matchesSearch && matchesStatus && matchesType;
   });
 
-  const stats = {
-    totalRevenue: transactions.filter(t => t.status === "SUCCESS").reduce((sum, t) => sum + t.amount, 0),
-    pendingAmount: transactions.filter(t => t.status === "PENDING").reduce((sum, t) => sum + t.amount, 0),
-    refundAmount: transactions.filter(t => t.type === "Refund").reduce((sum, t) => sum + t.amount, 0),
-    successRate: transactions.length > 0
-      ? (transactions.filter(t => t.status === "SUCCESS").length / transactions.length) * 100
-      : 0,
-  };
-
+  // Format currency
   const formatCurrency = (amount: number) => {
     if (amount >= 10000000) return `₹${(amount / 10000000).toFixed(2)}Cr`;
     if (amount >= 100000) return `₹${(amount / 100000).toFixed(2)}L`;
     return `₹${(amount / 1000).toFixed(2)}K`;
   };
 
+  // Format date
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  // Get status badge
+  const getStatusBadge = (status: string) => {
+    const config = STATUS_CONFIG[status] || { className: "bg-neutral-100 text-neutral-700", label: status, icon: null };
+    const Icon = config.icon;
+    return (
+      <Badge className={cn("text-xs font-medium", config.className)}>
+        {Icon && <Icon className="h-3 w-3 mr-1" />}
+        {config.label}
+      </Badge>
+    );
+  };
+
+  // Handle export
   const handleExport = async () => {
     try {
-      const response = await api.get("/payments/export");
+      const response = await api.get("/payments/export", {
+        responseType: "blob",
+      });
       const blob = new Blob([response.data], { type: "text/csv" });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
       link.download = `transactions-${new Date().toISOString().split("T")[0]}.csv`;
       link.click();
+      window.URL.revokeObjectURL(url);
       toast.success("Transactions exported successfully");
     } catch (error: any) {
       toast.error("Failed to export transactions");
     }
   };
 
+  // Handle view transaction
+  const handleViewTransaction = (transactionId: number) => {
+    router.push(`/dashboard/admin/transactions/${transactionId}`);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="h-12 w-12 rounded-full border-4 border-neutral-200 border-t-black animate-spin mx-auto mb-4" />
+          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-neutral-400" />
           <p className="text-neutral-600">Loading transactions...</p>
         </div>
       </div>
@@ -122,210 +222,305 @@ export default function AdminTransactionsPage() {
   return (
     <div className="space-y-6 bg-neutral-50 min-h-screen">
       {/* Header */}
-      <div className="bg-white border-b border-neutral-200 px-6 py-4">
-        <div className="flex items-center justify-between">
+      <motion.div 
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white border-b border-neutral-200 px-6 py-4"
+      >
+        <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <h1 className="text-2xl font-bold text-neutral-900">Transactions</h1>
             <p className="text-sm text-neutral-600 mt-1">Payment and transaction history</p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" className="border-black" onClick={loadTransactions}>
-              <RefreshCw className="h-4 w-4 mr-2" /> Refresh
+          <div className="flex items-center gap-2">
+            <Button variant="outline" className="border-neutral-300" onClick={() => loadTransactions(true)} disabled={refreshing}>
+              <RefreshCw className={cn("h-4 w-4 mr-2", refreshing && "animate-spin")} /> 
+              Refresh
             </Button>
-            <Button variant="outline" className="border-black" onClick={handleExport}>
-              <Download className="h-4 w-4 mr-2" /> Export CSV
+            <Button variant="outline" className="border-neutral-300" onClick={handleExport}>
+              <Download className="h-4 w-4 mr-2" /> 
+              Export CSV
             </Button>
           </div>
         </div>
-      </div>
+      </motion.div>
 
-      {/* Error State */}
-      {error && (
-        <Card className="border-2 border-red-200 mx-6">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <AlertCircle className="h-10 w-10 text-red-600" />
-              <div>
-                <p className="font-semibold text-red-600">Failed to Load Transactions</p>
-                <p className="text-sm text-neutral-600">{error}</p>
-                <p className="text-xs text-neutral-500 mt-1">Note: The backend /api/payments endpoint may need to be rebuilt with latest code</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-4 px-6">
-        <Card className="border-2 border-emerald-200">
+      {/* Stats Cards */}
+      <motion.div 
+        className="grid gap-4 md:grid-cols-4 px-6"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+      >
+        <Card className="border-emerald-200 bg-gradient-to-br from-emerald-50 to-white">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-600">Total Revenue</p>
-                <p className="text-2xl font-bold text-emerald-600 mt-1">{formatCurrency(stats.totalRevenue)}</p>
+                <p className="text-sm font-medium text-emerald-700">Total Revenue</p>
+                <p className="text-2xl font-bold text-emerald-900 mt-1">{formatCurrency(stats?.totalRevenue || 0)}</p>
+                <p className="text-xs text-emerald-600 mt-1">{stats?.transactionCount || 0} transactions</p>
               </div>
-              <div className="p-3 rounded-full bg-emerald-100">
-                <TrendingUp className="h-6 w-6 text-emerald-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-2 border-amber-200">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-neutral-600">Pending</p>
-                <p className="text-2xl font-bold text-amber-600 mt-1">{formatCurrency(stats.pendingAmount)}</p>
-              </div>
-              <div className="p-3 rounded-full bg-amber-100">
-                <Clock className="h-6 w-6 text-amber-600" />
+              <div className="p-3 rounded-full bg-emerald-600">
+                <DollarSign className="h-6 w-6 text-white" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-2 border-red-200">
+        <Card className="border-amber-200 bg-gradient-to-br from-amber-50 to-white">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-600">Refunds</p>
-                <p className="text-2xl font-bold text-red-600 mt-1">{formatCurrency(stats.refundAmount)}</p>
+                <p className="text-sm font-medium text-amber-700">Pending Amount</p>
+                <p className="text-2xl font-bold text-amber-900 mt-1">{formatCurrency(stats?.pendingAmount || 0)}</p>
+                <p className="text-xs text-amber-600 mt-1">Awaiting confirmation</p>
               </div>
-              <div className="p-3 rounded-full bg-red-100">
-                <TrendingDown className="h-6 w-6 text-red-600" />
+              <div className="p-3 rounded-full bg-amber-600">
+                <Clock className="h-6 w-6 text-white" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-2 border-blue-200">
+        <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-white">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-600">Success Rate</p>
-                <p className="text-2xl font-bold text-blue-600 mt-1">{stats.successRate.toFixed(1)}%</p>
+                <p className="text-sm font-medium text-blue-700">Refunds</p>
+                <p className="text-2xl font-bold text-blue-900 mt-1">{formatCurrency(stats?.refundAmount || 0)}</p>
+                <p className="text-xs text-blue-600 mt-1">Total refunded</p>
               </div>
-              <div className="p-3 rounded-full bg-blue-100">
-                <CheckCircle2 className="h-6 w-6 text-blue-600" />
+              <div className="p-3 rounded-full bg-blue-600">
+                <TrendingDown className="h-6 w-6 text-white" />
               </div>
             </div>
           </CardContent>
         </Card>
-      </div>
+
+        <Card className="border-neutral-200 bg-gradient-to-br from-neutral-50 to-white">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-neutral-700">Success Rate</p>
+                <p className="text-2xl font-bold text-neutral-900 mt-1">{(stats?.successRate || 0).toFixed(1)}%</p>
+                <p className="text-xs text-neutral-600 mt-1">Payment completion</p>
+              </div>
+              <div className="p-3 rounded-full bg-neutral-900">
+                <CheckCircle2 className="h-6 w-6 text-white" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
 
       {/* Filters */}
-      <Card className="border-2 border-neutral-200 mx-6">
-        <CardContent className="p-4">
-          <div className="flex gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
-              <input
-                type="text"
-                placeholder="Search by customer or event..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
-              />
+      <motion.div 
+        className="px-6"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+      >
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-neutral-500" />
+                <span className="text-sm font-medium text-neutral-700">Filters:</span>
+              </div>
+              <div className="flex-1 relative max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
+                <Input
+                  placeholder="Search by customer, email, or event..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="filter-status" className="text-sm whitespace-nowrap">Status:</Label>
+                <select
+                  id="filter-status"
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  className="flex h-10 rounded-md border border-neutral-200 bg-white px-4 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-600"
+                >
+                  <option value="all">All Status</option>
+                  <option value="SUCCESS">Success</option>
+                  <option value="CAPTURED">Captured</option>
+                  <option value="PENDING">Pending</option>
+                  <option value="FAILED">Failed</option>
+                  <option value="REFUNDED">Refunded</option>
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="filter-type" className="text-sm whitespace-nowrap">Type:</Label>
+                <select
+                  id="filter-type"
+                  value={filterType}
+                  onChange={(e) => setFilterType(e.target.value)}
+                  className="flex h-10 rounded-md border border-neutral-200 bg-white px-4 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-600"
+                >
+                  <option value="all">All Types</option>
+                  <option value="Payment">Payments</option>
+                  <option value="Refund">Refunds</option>
+                </select>
+              </div>
+              {(searchTerm || filterStatus !== "all" || filterType !== "all") && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setSearchTerm("");
+                    setFilterStatus("all");
+                    setFilterType("all");
+                  }}
+                  className="text-neutral-600"
+                >
+                  Clear
+                </Button>
+              )}
             </div>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
-            >
-              <option value="all">All Status</option>
-              <option value="SUCCESS">Success</option>
-              <option value="PENDING">Pending</option>
-              <option value="FAILED">Failed</option>
-              <option value="REFUNDED">Refunded</option>
-            </select>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </motion.div>
 
       {/* Transactions Table */}
-      <Card className="border-2 border-neutral-200 mx-6">
-        <CardHeader>
-          <CardTitle className="text-neutral-900">Transaction History</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {!error && filteredTransactions.length === 0 ? (
-            <div className="text-center py-12">
-              <AlertCircle className="h-12 w-12 mx-auto mb-4 text-neutral-400" />
-              <p className="text-lg font-semibold text-neutral-700">No Transactions Found</p>
-              <p className="text-sm text-neutral-500 mt-2">
-                {transactions.length === 0 
-                  ? "No payment records exist in the database yet. Transactions will appear here once customers make payments."
-                  : "No transactions match your search criteria."}
-              </p>
+      <motion.div 
+        className="px-6"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+      >
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-black">Recent Transactions</CardTitle>
+                <p className="text-sm text-neutral-600 mt-1">
+                  {filteredTransactions.length} transactions found
+                </p>
+              </div>
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="border-b border-neutral-200">
-                  <tr>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Type</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Customer/Event</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Date</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Method</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Amount</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Status</th>
-                    <th className="text-right py-3 px-4 text-sm font-semibold text-neutral-700">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredTransactions.map((t) => (
-                    <tr key={t.id} className="border-b border-neutral-100 hover:bg-neutral-50">
-                      <td className="py-3 px-4">
-                        <Badge className={`text-xs ${
-                          t.type === "Payment" ? "bg-emerald-100 text-emerald-700" :
-                          "bg-red-100 text-red-700"
-                        }`}>
-                          {t.type}
-                        </Badge>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div>
-                          <p className="text-sm font-medium text-neutral-900">{t.customer}</p>
-                          <p className="text-xs text-neutral-600">{t.event}</p>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 text-sm text-neutral-600">
-                        {new Date(t.date).toLocaleDateString("en-IN")}
-                      </td>
-                      <td className="py-3 px-4 text-sm text-neutral-600">
-                        {t.method || "N/A"}
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className="font-medium text-neutral-900">{formatCurrency(t.amount)}</span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <Badge className={`text-xs ${
-                          t.status === "SUCCESS" ? "bg-emerald-100 text-emerald-700" :
-                          t.status === "PENDING" ? "bg-amber-100 text-amber-700" :
-                          t.status === "FAILED" ? "bg-red-100 text-red-700" :
-                          "bg-blue-100 text-blue-700"
-                        }`}>
-                          {t.status}
-                        </Badge>
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => router.push(`/dashboard/admin/transactions/${t.id}`)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardHeader>
+          <CardContent>
+            {filteredTransactions.length === 0 ? (
+              <div className="text-center py-12">
+                <CreditCard className="h-16 w-16 text-neutral-300 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-neutral-900 mb-2">No transactions found</h3>
+                <p className="text-neutral-600">
+                  {searchTerm || filterStatus !== "all" || filterType !== "all"
+                    ? "Try adjusting your filters"
+                    : "No transactions available"}
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-neutral-50 border-b-2 border-neutral-200">
+                      <tr>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Transaction ID</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Customer</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Event</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Type</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Amount</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Status</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Date</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-neutral-100">
+                      {filteredTransactions.map((t) => (
+                        <tr key={t.id} className="hover:bg-neutral-50 transition-colors">
+                          <td className="py-3 px-4">
+                            <span className="text-xs font-mono text-neutral-600">#{t.id}</span>
+                          </td>
+                          <td className="py-3 px-4">
+                            <div>
+                              <p className="text-sm font-medium text-neutral-900">{t.customer}</p>
+                              <p className="text-xs text-neutral-500">{t.customerEmail}</p>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className="text-sm text-neutral-700">{t.event}</span>
+                          </td>
+                          <td className="py-3 px-4">
+                            <Badge variant={t.type === "Payment" ? "default" : "outline"} className="text-xs">
+                              {t.type}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className="text-sm font-bold text-neutral-900">{formatCurrency(t.amount)}</span>
+                          </td>
+                          <td className="py-3 px-4">
+                            {getStatusBadge(t.status)}
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className="text-sm text-neutral-600">{formatDate(t.date)}</span>
+                          </td>
+                          <td className="py-3 px-4">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleViewTransaction(t.id)}
+                              className="text-neutral-600 hover:bg-neutral-100"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between mt-6 pt-6 border-t">
+                    <p className="text-sm text-neutral-600">
+                      Page {page} of {totalPages}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPage(p => Math.max(1, p - 1))}
+                        disabled={page === 1}
+                      >
+                        Previous
+                      </Button>
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                          const pageNum = i + 1;
+                          return (
+                            <Button
+                              key={pageNum}
+                              variant={page === pageNum ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setPage(pageNum)}
+                              className={page === pageNum ? "bg-neutral-900" : ""}
+                            >
+                              {pageNum}
+                            </Button>
+                          );
+                        })}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                        disabled={page === totalPages}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </motion.div>
     </div>
   );
 }

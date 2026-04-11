@@ -165,7 +165,7 @@ export default function AdminUsersPage() {
       {/* Users Table */}
       <Card className="border-2 border-neutral-200 mx-6">
         <CardHeader>
-          <CardTitle className="text-neutral-900">Registered Users</CardTitle>
+          <CardTitle className="text-black">Registered Users</CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
