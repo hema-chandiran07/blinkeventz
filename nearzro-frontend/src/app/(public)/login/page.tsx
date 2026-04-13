@@ -17,7 +17,30 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const { login, googleLogin } = useAuth();
+
+  const setError = (field: string, error: { message: string }) => {
+    setErrors((prev) => ({ ...prev, [field]: error.message }));
+  };
+
+  const validateEmail = (value: string) => {
+    if (!value) return;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+      setError("email", { message: "Please enter a valid email address." });
+    } else {
+      setErrors((prev) => { const newErrors = { ...prev }; delete newErrors.email; return newErrors; });
+    }
+  };
+
+  const validatePassword = (value: string) => {
+    if (!value) return;
+    if (value.length < 8) {
+      setError("password", { message: "Password must be at least 8 characters." });
+    } else {
+      setErrors((prev) => { const newErrors = { ...prev }; delete newErrors.password; return newErrors; });
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,9 +55,28 @@ export default function LoginPage() {
     try {
       await login(email, password);
       toast.success("Welcome back!");
-    } catch (error: unknown) {
-      const errorMessage = (error as Error)?.message || "Login failed";
-      toast.error(errorMessage);
+    } catch (error: any) {
+      setPassword(""); // Clear password field on failed login
+      const data = error.response?.data;
+
+      if (data?.errors && Array.isArray(data.errors)) {
+        data.errors.forEach((err: { field: string; message: string }) => {
+          setError(err.field, { message: err.message });
+        });
+        return;
+      }
+
+      let message = data?.message || data?.error?.message || error.message || "Something went wrong. Please try again.";
+
+      if (message.includes("Invalid email") || message.includes("password")) {
+        message = "Invalid email or password. Please try again.";
+      } else if (message.includes("inactive")) {
+        message = "Your account is inactive. Please contact support.";
+      } else if (message.includes("locked")) {
+        message = "Your account has been locked. Please contact support.";
+      }
+
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
@@ -70,14 +112,14 @@ export default function LoginPage() {
       >
         {/* Left Side - Branding */}
         <motion.div
-          className="hidden md:flex flex-col justify-center items-center bg-zinc-950 text-white p-12 rounded-l-2xl relative overflow-hidden"
+          className="hidden md:flex flex-col justify-center items-center bg-transparent text-white p-12 rounded-l-2xl relative overflow-hidden"
           initial={{ opacity: 0, x: -50 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
         >
           <div className="absolute inset-0 overflow-hidden">
-            <div className="absolute -top-40 -right-40 w-80 h-80 bg-silver-700/5 rounded-full" />
-            <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-silver-600/5 rounded-full" />
+            <div className="absolute -top-20 -right-20 w-96 h-96 bg-silver-400/10 rounded-full blur-[100px] pointer-events-none -z-10 mix-blend-screen" />
+            <div className="absolute -bottom-32 -left-20 w-[30rem] h-[30rem] bg-white/5 rounded-full blur-[120px] pointer-events-none -z-10 mix-blend-screen" />
           </div>
 
           {/* NearZro Logo - Centered Above Text */}
@@ -176,11 +218,16 @@ export default function LoginPage() {
                       placeholder="name@example.com or username"
                       type="text"
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="pl-10 h-12 border-zinc-800 bg-zinc-900/50 text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all"
+                      onChange={(e) => {
+                        setEmail(e.target.value);
+                        if (errors.email) setErrors((prev) => { const newErrors = { ...prev }; delete newErrors.email; return newErrors; });
+                      }}
+                      onBlur={(e) => validateEmail(e.target.value)}
+                      className={`pl-10 h-12 border-zinc-800 bg-zinc-900/50 text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all ${errors.email ? 'border-red-500' : ''}`}
                       required
                     />
                   </div>
+                  {errors.email && <p className="text-red-500 text-sm">{errors.email}</p>}
                   <p className="text-xs text-zinc-500">You can use either your email address or username to login</p>
                 </div>
                 <div className="space-y-2">
@@ -198,19 +245,24 @@ export default function LoginPage() {
                       id="password"
                       type={showPassword ? "text" : "password"}
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        if (errors.password) setErrors((prev) => { const newErrors = { ...prev }; delete newErrors.password; return newErrors; });
+                      }}
+                      onBlur={(e) => validatePassword(e.target.value)}
                       placeholder="Enter your password"
-                      className="pl-10 pr-10 h-12 border-zinc-800 bg-zinc-900/50 text-white placeholder:text-zinc-500 focus:border-white/20 focus:ring-1 focus:ring-white/20 transition-all"
+                      className={`pl-10 pr-10 h-12 border-zinc-800 bg-zinc-900/50 text-white placeholder:text-zinc-500 focus:border-white/20 focus:ring-1 focus:ring-white/20 transition-all ${errors.password ? 'border-red-500' : ''}`}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white transition-colors"
                     >
-                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                    </button>
+                        {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                      </button>
+                    </div>
+                    {errors.password && <p className="text-red-500 text-sm">{errors.password}</p>}
                   </div>
-                </div>
 
                 <Button
                   type="submit"

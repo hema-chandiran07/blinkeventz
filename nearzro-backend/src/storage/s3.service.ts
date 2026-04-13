@@ -72,11 +72,13 @@ export class S3Service {
 
     // ── Upload to S3 ──
     try {
+      const fs = require('fs');
+      const buffer = file.buffer || fs.readFileSync(file.path);
       await this.s3.send(
         new PutObjectCommand({
           Bucket: this.bucket,
           Key: key,
-          Body: file.buffer,
+          Body: buffer,
           ContentType: file.mimetype,
           ServerSideEncryption: 'AES256',
           Metadata: {
@@ -85,9 +87,9 @@ export class S3Service {
           },
         }),
       );
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error('S3 upload failed', error);
-      throw new BadRequestException('File upload failed. Please try again.');
+      throw new BadRequestException(`File upload failed. Please try again. ${error.message || ''}`);
     }
 
     // ── Return public URL ──
@@ -123,11 +125,13 @@ export class S3Service {
 
     // ── Upload to S3 ──
     try {
+      const fs = require('fs');
+      const buffer = file.buffer || fs.readFileSync(file.path);
       await this.s3.send(
         new PutObjectCommand({
           Bucket: this.bucket,
           Key: key,
-          Body: file.buffer,
+          Body: buffer,
           ContentType: file.mimetype,
           ServerSideEncryption: 'AES256',
           Metadata: {
@@ -136,9 +140,9 @@ export class S3Service {
           },
         }),
       );
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error('S3 upload failed', error);
-      throw new BadRequestException('File upload failed. Please try again.');
+      throw new BadRequestException(`File upload failed. Please try again. ${error.message || ''}`);
     }
 
     // ── Return public URL ──

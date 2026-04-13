@@ -237,6 +237,13 @@ body::after {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: all 0.3s ease;
+}
+
+.glass-dark-subtle:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--silver-400);
+  color: #ffffff !important;
 }
 
 .glass-dark-card {
@@ -324,7 +331,7 @@ body::after {
 }
 
 .border-silver-hover:hover {
-  border-color: rgba(192, 192, 192, 0.25);
+  border-color: var(--silver-300);
 }
 
 /* ============================================
@@ -338,7 +345,11 @@ body::after {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.btn-premium:hover  { transform: translateY(-1px); }
+.btn-premium:hover {
+  background: linear-gradient(135deg, #ffffff 0%, #f5f5f5 100%);
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
 .btn-premium:active { transform: translateY(0); }
 
 .btn-outline-silver {

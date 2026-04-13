@@ -225,7 +225,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const hasVendor = userData.hasVendorProfile || userData.role === 'VENDOR';
       const hasVenue = userData.hasVenueProfile || userData.role === 'VENUE_OWNER';
       
-      let redirectPath = '/dashboard/customer'; // default
+      let redirectPath = userData.role === 'CUSTOMER' ? '/' : '/dashboard/customer'; // default
       
       if (userData.role === 'ADMIN') {
         redirectPath = '/dashboard/admin';
@@ -249,26 +249,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Use window.location for immediate redirect
       window.location.href = redirectPath;
 
-    } catch (error: unknown) {
-      console.error("Login failed:", error);
-
-      let errorMessage = "Invalid email or password";
-
-      // Handle network errors
-      if ((error as { code?: string })?.code === 'ERR_NETWORK' ||
-          (error as { code?: string })?.code === 'ECONNREFUSED') {
-        errorMessage = "Unable to connect to server. Please check your connection.";
-      } else if ((error as { code?: string })?.code === 'ECONNABORTED') {
-        errorMessage = "Request timed out. Please try again.";
-      } else if ((error as { response?: { status?: number } })?.response?.status === 400) {
-        // Handle bad request with specific message from backend
-        const data = (error as { response?: { data?: { message?: string } } })?.response?.data;
-        errorMessage = (data as { message?: string })?.message || "Invalid email or password";
-      } else if ((error as { response?: { status?: number } })?.response?.status === 500) {
-        errorMessage = "Server error. Please try again later.";
-      }
-
-      throw new Error(errorMessage);
+    } catch (error: any) {
+      throw error;
     } finally {
       setIsLoading(false);
     }
@@ -309,18 +291,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       window.location.href = redirectPaths[userData.role] || "/";
 
-    } catch (error: unknown) {
-      console.error("Registration failed:", error);
-
-      let errorMessage = "Registration failed";
-
-      if ((error as { code?: string })?.code === 'ERR_NETWORK') {
-        errorMessage = "Unable to connect to server. Please try again.";
-      } else if ((error as { response?: { data?: { message?: string } } })?.response?.data?.message) {
-        errorMessage = (error as { response?: { data?: { message?: string } } })?.response?.data?.message as string;
-      }
-
-      throw new Error(errorMessage);
+    } catch (error: any) {
+      throw error;
     } finally {
       setIsLoading(false);
     }

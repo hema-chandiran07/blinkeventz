@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class ReportsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   /**
    * Get reports hub - overview of all report categories
@@ -50,9 +50,6 @@ export class ReportsService {
     };
   }
 
-  /**
-   * Get revenue report
-   */
   async getRevenueReport(
     startDate?: string,
     endDate?: string,
@@ -124,9 +121,6 @@ export class ReportsService {
     };
   }
 
-  /**
-   * Get users report
-   */
   async getUsersReport(
     page: number = 1,
     limit: number = 20,
@@ -172,9 +166,6 @@ export class ReportsService {
     };
   }
 
-  /**
-   * Get venues report
-   */
   async getVenuesReport(
     page: number = 1,
     limit: number = 20,
@@ -221,9 +212,6 @@ export class ReportsService {
     };
   }
 
-  /**
-   * Get vendors report
-   */
   async getVendorsReport(
     page: number = 1,
     limit: number = 20,
@@ -232,6 +220,7 @@ export class ReportsService {
     const skip = (page - 1) * limit;
     // Note: Vendor model might not have status field, so we'll query all
     // In production, you'd add status to the Vendor model
+
 
     const [vendors, total] = await Promise.all([
       this.prisma.vendor.findMany({
@@ -267,9 +256,6 @@ export class ReportsService {
     };
   }
 
-  /**
-   * Export revenue report to CSV
-   */
   async exportRevenueReport(startDate?: string, endDate?: string) {
     const where: any = { status: 'CAPTURED' };
 
@@ -312,13 +298,9 @@ export class ReportsService {
       ]),
     ];
 
-    const csvContent = csvRows.map(row => row.join(',')).join('\n');
-    return csvContent;
+    return csvRows.map(row => row.join(',')).join('\n');
   }
 
-  /**
-   * Export users report to CSV
-   */
   async exportUsersReport() {
     const users = await this.prisma.user.findMany({
       select: {
@@ -346,7 +328,89 @@ export class ReportsService {
       ]),
     ];
 
-    const csvContent = csvRows.map(row => row.join(',')).join('\n');
-    return csvContent;
+    return csvRows.map(row => row.join(',')).join('\n');
+  }
+
+  async getSystemOverview() {
+    const [venueStatusCounts, vendorStatusCounts, totalVenues, totalVendors, recentVenues, recentVendors] = await Promise.all([
+      this.prisma.venue.groupBy({
+        by: ['status'],
+        _count: { id: true },
+      }),
+      this.prisma.vendor.groupBy({
+        by: ['verificationStatus'],
+        _count: { id: true },
+      }),
+      this.prisma.venue.count(),
+      this.prisma.vendor.count(),
+      this.prisma.venue.findMany({
+        take: 5,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          owner: { select: { name: true, email: true } },
+        },
+      }),
+      this.prisma.vendor.findMany({
+        take: 5,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          user: { select: { name: true, email: true, isActive: true } },
+        },
+      }),
+    ]);
+
+    const venueStatusBreakdown = {
+      PENDING_APPROVAL: 0,
+      ACTIVE: 0,
+      INACTIVE: 0,
+      SUSPENDED: 0,
+      DELISTED: 0,
+      REJECTED: 0,
+    };
+    venueStatusCounts.forEach((item) => {
+      if (item.status in venueStatusBreakdown) {
+        venueStatusBreakdown[item.status as keyof typeof venueStatusBreakdown] = item._count.id;
+      }
+    });
+
+    const vendorStatusBreakdown = {
+      PENDING: 0,
+      VERIFIED: 0,
+      REJECTED: 0,
+      SUSPENDED: 0,
+    };
+    vendorStatusCounts.forEach((item) => {
+      if (item.verificationStatus in vendorStatusBreakdown) {
+        vendorStatusBreakdown[item.verificationStatus as keyof typeof vendorStatusBreakdown] = item._count.id;
+      }
+    });
+
+    return {
+      summary: { totalVenues, totalVendors },
+      venuesByStatus: venueStatusBreakdown,
+      vendorsByStatus: vendorStatusBreakdown,
+      recentVenues: recentVenues.map((v) => ({
+        id: v.id,
+        name: v.name,
+        city: v.city,
+        area: v.area,
+        status: v.status,
+        ownerName: v.owner?.name || 'N/A',
+        ownerEmail: v.owner?.email || 'N/A',
+        createdAt: v.createdAt.toISOString(),
+      })),
+      recentVendors: recentVendors.map((v) => ({
+        id: v.id,
+        businessName: v.businessName,
+        businessType: v.businessType,
+        city: v.city,
+        area: v.area,
+        verificationStatus: v.verificationStatus,
+        ownerName: v.user?.name || 'N/A',
+        ownerEmail: v.user?.email || 'N/A',
+        isActive: v.user?.isActive || false,
+        createdAt: v.createdAt.toISOString(),
+      })),
+    };
   }
 }

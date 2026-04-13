@@ -71,25 +71,24 @@ export default function SplitHero() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.4 }}
-              className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-gradient-to-r from-[#1a1a1a] to-[#0a0a0a] ring-1 ring-white/10 mb-6"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-[#1a1a1a] to-[#0a0a0a] ring-1 ring-white/10 mb-6"
             >
-              <Sparkles className="h-4 w-4 text-zinc-400" />
-              <span className="text-sm font-medium text-zinc-300">Premium Event Planning</span>
+              <Sparkles className="h-5 w-5 text-zinc-400" />
+              <span className="text-sm font-medium text-silver-200">Premium Event Planning</span>
             </motion.div>
 
             {/* Main Typography */}
             <motion.h1
-              className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white mb-6"
+              className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight mb-6 text-chrome-gradient"
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, delay: 0.5 }}
             >
-              Plan Your Dream Event{" "}
-              <span className="text-zinc-400">With Confidence</span>
+              Plan Your Dream Event With Confidence
             </motion.h1>
 
             <motion.p
-              className="text-lg text-zinc-500 mb-10 max-w-md"
+              className="text-lg text-silver-300 mb-10 max-w-md"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, delay: 0.6 }}
@@ -109,7 +108,7 @@ export default function SplitHero() {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
-                  <Button size="lg" className="bg-gradient-to-r from-zinc-200 via-white to-zinc-200 text-black hover:from-zinc-100 hover:via-zinc-50 hover:to-zinc-100 font-semibold text-lg px-8 border-2 border-zinc-300 shadow-[0_0_20px_rgba(192,192,192,0.3)] hover:shadow-[0_0_30px_rgba(192,192,192,0.5)] transition-all duration-300">
+                  <Button className="flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl text-base font-bold text-black-important btn-premium shadow-[0_0_25px_rgba(255,255,255,0.15)]">
                     Start Planning
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Button>
@@ -121,9 +120,7 @@ export default function SplitHero() {
                   whileTap={{ scale: 0.95 }}
                 >
                   <Button
-                    size="lg"
-                    variant="outline"
-                    className="bg-gradient-to-r from-zinc-700 via-zinc-600 to-zinc-700 border-2 border-zinc-400 text-white hover:from-zinc-600 hover:via-zinc-500 hover:to-zinc-600 hover:border-zinc-300 text-lg px-8 shadow-[0_0_20px_rgba(192,192,192,0.2)] hover:shadow-[0_0_30px_rgba(192,192,192,0.4)] transition-all duration-300"
+                    className="flex items-center justify-center px-8 py-3.5 rounded-xl text-base font-semibold text-silver-100 border border-silver-500/30 glass-dark transition-all duration-300"
                   >
                     Browse Venues
                   </Button>

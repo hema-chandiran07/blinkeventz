@@ -69,7 +69,13 @@ export default function OtpVerification({ email, phone, onVerified, onBack }: Ot
       onVerified();
     } catch (error: any) {
       console.error("OTP verification error:", error);
-      toast.error(error?.response?.data?.message || "Invalid OTP. Please try again.");
+      const data = error.response?.data;
+      const message =
+        data?.message ||
+        data?.error?.message ||
+        error.message ||
+        "Invalid OTP. Please try again.";
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
@@ -88,7 +94,13 @@ export default function OtpVerification({ email, phone, onVerified, onBack }: Ot
       setCountdown(30); // Reset countdown
     } catch (error: any) {
       console.error("Resend OTP error:", error);
-      toast.error(error?.response?.data?.message || "Failed to resend OTP.");
+      const data = error.response?.data;
+      const message =
+        data?.message ||
+        data?.error?.message ||
+        error.message ||
+        "Failed to resend OTP.";
+      toast.error(message);
     } finally {
       setIsResending(false);
     }

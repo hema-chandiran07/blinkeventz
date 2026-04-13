@@ -11,6 +11,9 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 const secureFileFilter = (req: any, file: Express.Multer.File, callback: (error: Error | null, acceptFile: boolean) => void) => {
   const ext = extname(file.originalname).toLowerCase();
+  if (!ext || file.originalname === 'blob') {
+    return callback(null, true);
+  }
   if (!ALLOWED_EXTENSIONS.includes(ext) || !ALLOWED_MIMES.includes(file.mimetype)) {
     return callback(
       new BadRequestException(`File type not allowed: ${ext}. Allowed: ${ALLOWED_EXTENSIONS.join(', ')}`),
@@ -26,7 +29,7 @@ import { VendorRegisterDto } from './dto/vendor-register.dto';
 import { VenueOwnerRegisterDto } from './dto/venue-owner-register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
-import { ForgotPasswordDto, ResetPasswordDto } from './dto/forgot-password.dto';
+import { ForgotPasswordDto, ResetPasswordDto, VerifyResetOtpDto } from './dto/forgot-password.dto';
 import { SendOtpDto, VerifyOtpDto } from './dto/otp.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { GoogleAuthGuard } from '../common/guards/google-auth.guard';
@@ -37,6 +40,7 @@ import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Role } from '@prisma/client';
+import { ThrottlerGuard, Throttle } from '@nestjs/throttler';
 
 // Warn if OAuth not configured (only in development)
 if (process.env.NODE_ENV === 'development') {
@@ -114,19 +118,7 @@ export class AuthController {
       return Promise.reject(new BadRequestException('Original Government Certified Document (Trade License/Registration) is strictly required.'));
     }
 
-    const venueImageUrls = files.venueImages?.map(f => `/uploads/${f.filename}`) || [];
-    const kycDocUrls = files.kycDocFiles?.map(f => `/uploads/${f.filename}`) || [];
-    const govtCertUrls = files.venueGovtCertificateFiles?.map(f => `/uploads/${f.filename}`) || [];
-
-    return this.authService.registerVenueOwner(
-      dto, 
-      venueImageUrls, 
-      kycDocUrls[0], 
-      dto.kycDocType, 
-      dto.kycDocNumber, 
-      kycDocUrls,
-      govtCertUrls // Trade License URLs
-    );
+    return this.authService.registerVenueOwner(dto, files);
   }
 
   // 🏪 VENDOR registration (with images, KYC & FSSAI for Catering)
@@ -178,8 +170,7 @@ export class AuthController {
       }
     }
 
-    // Pass files, kycDocType, and kycDocNumber to service so KYC records are created
-    return this.authService.registerVendor(dto, files || {}, undefined, dto.kycDocType, dto.kycDocNumber);
+    return this.authService.registerVendor(dto, files || {});
   }
 
   // 🔐 Login (all roles)
@@ -243,7 +234,16 @@ export class AuthController {
   @Public()
   @Post('check-email')
   async checkEmail(@Body() body: { email: string }) {
-    return this.authService.checkEmailExists(body.email);
+    const exists = await this.authService.checkEmailExists(body.email);
+    return { exists };
+  }
+
+  // 📱 Check if phone exists (for registration validation)
+  @Public()
+  @Post('check-phone')
+  async checkPhone(@Body() body: { phone: string }) {
+    const exists = await this.authService.checkPhoneExists(body.phone);
+    return { exists };
   }
 // 🚀 Redirect to Google OAuth
 @Public()
@@ -278,7 +278,7 @@ googleAuth() {
       } catch (error: any) {
         console.error("🚨 GOOGLE OAUTH CALLBACK CRASHED:", error);
         const fallbackUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
-        return res.redirect(`${fallbackUrl}/login?error=oauth_backend_crash&message=${encodeURIComponent(error?.message || 'unknown')}`);
+        return res.redirect(`${fallbackUrl}/login?error=oauth_failed`);
       }
    }
 
@@ -315,15 +315,28 @@ googleAuth() {
     }
   }
 
-  // 🔑 FORGOT PASSWORD - Send reset email
+  // 🔑 FORGOT PASSWORD - Send reset OTP to email (Rate limited: 5 requests/hour)
   @Public()
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 3600000 } })
   @Post('forgot-password')
   forgotPassword(@Body() dto: ForgotPasswordDto) {
     return this.authService.forgotPassword(dto);
   }
 
-  // 🔑 RESET PASSWORD - Reset password with token
+  // 🔑 VERIFY RESET OTP - Verify the 6-digit OTP (Rate limited: 10 requests/minute)
   @Public()
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @Post('verify-reset-otp')
+  verifyResetOtp(@Body() dto: VerifyResetOtpDto) {
+    return this.authService.verifyResetOtp(dto);
+  }
+
+  // 🔑 RESET PASSWORD - Reset password with verified OTP (Rate limited: 5 requests/hour)
+  @Public()
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 3600000 } })
   @Post('reset-password')
   resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto);

@@ -11,7 +11,7 @@ import { Response } from 'express';
 @Controller('reports')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ReportsController {
-  constructor(private readonly reportsService: ReportsService) {}
+  constructor(private readonly reportsService: ReportsService) { }
 
   // Get reports hub - overview of all report categories
   @ApiBearerAuth()
@@ -118,5 +118,15 @@ export class ReportsController {
   async exportUsersReport() {
     const csvContent = await this.reportsService.exportUsersReport();
     return csvContent;
+  }
+
+  // Get system overview (Admin only)
+  @ApiBearerAuth()
+  @Roles(Role.ADMIN)
+  @Get('overview')
+  @ApiOperation({ summary: 'Get system overview report' })
+  @ApiResponse({ status: 200, description: 'System overview data' })
+  async getSystemOverview() {
+    return this.reportsService.getSystemOverview();
   }
 }

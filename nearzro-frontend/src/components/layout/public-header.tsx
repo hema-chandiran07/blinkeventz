@@ -38,7 +38,7 @@ export function PublicHeader() {
 
   return (
     <header className="sticky top-0 z-[100] w-full border-b border-white/5 bg-black/60 backdrop-blur-md">
-      <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
+      <div className="container mx-auto flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
@@ -51,7 +51,7 @@ export function PublicHeader() {
           </Button>
 
           <Link href="/" className="flex items-center space-x-2 group">
-            <div className="relative h-10 w-10 overflow-hidden rounded-lg transition-transform duration-300 group-hover:scale-110">
+            <div className="relative h-12 w-12 overflow-hidden rounded-xl transition-transform duration-300 group-hover:scale-110">
               <img
                 src="/logo.jpeg"
                 alt="NearZro Logo"
@@ -286,10 +286,10 @@ export function PublicHeader() {
             ) : (
               <>
                 <Link href="/login">
-                  <Button variant="ghost" className="text-zinc-300 hover:text-white hover:bg-white/10 border border-white/10 hover:border-white/20">Log in</Button>
+                  <Button className="px-5 py-2 rounded-xl text-sm font-semibold text-silver-200 border border-silver-500/20 glass-dark-subtle transition-all duration-300">Log in</Button>
                 </Link>
                 <Link href="/register">
-                  <Button className="bg-white text-black hover:bg-zinc-100 font-semibold shadow-[0_0_20px_rgba(255,255,255,0.15)] hover:shadow-[0_0_30px_rgba(255,255,255,0.25)] transition-all duration-300">Get Started</Button>
+                  <Button className="px-6 py-2.5 rounded-xl text-sm font-bold text-black-important btn-premium shadow-[0_0_15px_rgba(255,255,255,0.15)]">Get Started</Button>
                 </Link>
               </>
             )
@@ -297,10 +297,10 @@ export function PublicHeader() {
             // Placeholder during SSR to match client initial render
             <>
               <Link href="/login">
-                <Button variant="ghost" className="text-zinc-300 hover:text-white hover:bg-white/10 border border-white/10 hover:border-white/20">Log in</Button>
+                <Button className="px-5 py-2 rounded-xl text-sm font-semibold text-silver-200 border border-silver-500/20 glass-dark-subtle transition-all duration-300">Log in</Button>
               </Link>
               <Link href="/register">
-                <Button className="bg-white text-black hover:bg-zinc-100 font-semibold shadow-[0_0_20px_rgba(255,255,255,0.15)] hover:shadow-[0_0_30px_rgba(255,255,255,0.25)] transition-all duration-300">Get Started</Button>
+                <Button className="px-6 py-2.5 rounded-xl text-sm font-bold text-black-important btn-premium shadow-[0_0_15px_rgba(255,255,255,0.15)]">Get Started</Button>
               </Link>
             </>
           )}
@@ -353,20 +353,20 @@ export function PublicHeader() {
               ) : (
                   <>
                       <Link href="/login" className="w-full">
-                      <Button variant="ghost" className="w-full justify-start text-zinc-300 hover:text-white hover:bg-white/10 border border-white/10">Log in</Button>
+                      <Button className="w-full px-5 py-2 rounded-xl text-sm font-semibold text-silver-200 border border-silver-500/20 glass-dark-subtle transition-all duration-300">Log in</Button>
                       </Link>
                       <Link href="/register" className="w-full">
-                      <Button className="w-full bg-white text-black hover:bg-zinc-100 font-semibold">Get Started</Button>
+                      <Button className="w-full px-6 py-2.5 rounded-xl text-sm font-bold text-black-important btn-premium shadow-[0_0_15px_rgba(255,255,255,0.15)]">Get Started</Button>
                       </Link>
                   </>
               )
             ) : (
               <>
                   <Link href="/login" className="w-full">
-                  <Button variant="ghost" className="w-full justify-start text-zinc-300 hover:text-white hover:bg-white/10 border border-white/10">Log in</Button>
+                  <Button className="w-full px-5 py-2 rounded-xl text-sm font-semibold text-silver-200 border border-silver-500/20 glass-dark-subtle transition-all duration-300">Log in</Button>
                   </Link>
                   <Link href="/register" className="w-full">
-                  <Button className="w-full bg-white text-black hover:bg-zinc-100 font-semibold">Get Started</Button>
+                  <Button className="w-full px-6 py-2.5 rounded-xl text-sm font-bold text-black-important btn-premium shadow-[0_0_15px_rgba(255,255,255,0.15)]">Get Started</Button>
                   </Link>
               </>
             )}

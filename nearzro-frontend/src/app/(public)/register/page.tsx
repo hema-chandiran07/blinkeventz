@@ -119,43 +119,46 @@ export default function RegisterPage() {
           </div>
         </div>
 
-        {/* Role Cards - EXACT styling from WhyChooseUs.tsx */}
+        {/* Role Cards - CRED-style premium glass cards */}
         <div className="grid md:grid-cols-3 gap-8">
           {roles.map((role) => {
             const Icon = role.icon;
             return (
               <Card
                 key={role.id}
-                className="group h-full flex flex-col bg-zinc-950/80 backdrop-blur-sm border border-white/10 rounded-2xl hover:border-white/20 transition-all duration-400 ease-out relative overflow-hidden"
+                className="group relative flex flex-col bg-silver-950/95 backdrop-blur-xl border border-silver-800 rounded-2xl transition-all duration-500 hover:-translate-y-1.5 hover:shadow-[0_15px_30px_-10px_rgba(163,163,163,0.08)] cursor-pointer overflow-hidden"
               >
+                {/* Subtle gradient spotlight overlay */}
+                <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+
                 <CardHeader className="text-center pb-2 relative">
-                  {/* Flat matte icon container - EXACT from WhyChooseUs.tsx */}
-                  <div className="h-12 w-12 rounded-full bg-zinc-900 border border-white/10 flex items-center justify-center mx-auto mb-5 relative group-hover:border-white/20 transition-all duration-400">
-                    <Icon className="h-5 w-5 text-zinc-200 transition-colors duration-300 group-hover:text-white" />
+                  {/* Premium glass icon container with glow on hover */}
+                  <div className="h-12 w-12 rounded-full bg-silver-900/80 border border-silver-700/30 flex items-center justify-center mx-auto mb-5 relative group-hover:border-silver-600/60 group-hover:bg-silver-800/80 transition-all duration-400">
+                    <Icon className="h-5 w-5 text-silver-300 transition-colors duration-300 group-hover:text-white" />
                   </div>
-                  <CardTitle className="text-2xl font-bold text-zinc-50 mb-2 group-hover:text-white transition-colors duration-300 tracking-tight">{role.title}</CardTitle>
-                  <CardDescription className="text-zinc-400">
+                  <CardTitle className="text-2xl font-bold text-silver-100 mb-2 group-hover:text-white transition-colors duration-300 tracking-tight">{role.title}</CardTitle>
+                  <CardDescription className="text-silver-500 group-hover:text-silver-400 transition-colors duration-300">
                     {role.description}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4 relative">
                   <ul className="space-y-3">
                     {role.features.map((feature, index) => (
-                      <li key={index} className="flex items-start gap-3 text-sm text-zinc-400">
-                        <CheckCircle2 className="h-5 w-5 text-emerald-500/80 flex-shrink-0 mt-0.5" />
+                      <li key={index} className="flex items-start gap-3 text-sm text-silver-500 group-hover:text-silver-400 transition-colors duration-300">
+                        <CheckCircle2 className="h-5 w-5 text-emerald-500/60 flex-shrink-0 mt-0.5 group-hover:text-emerald-500/80 transition-colors duration-300" />
                         <span>{feature}</span>
                       </li>
                     ))}
                   </ul>
                   <Link href={role.href} className="block mt-6">
-                    <Button 
-                      className="w-full py-3 rounded-xl bg-white/5 border border-white/10 text-white font-semibold backdrop-blur-md transition-all duration-300 hover:bg-white/10 hover:border-white/30 active:scale-95 active:translate-y-0"
+                    <Button
+                      className="w-full py-3.5 rounded-xl text-silver-300 font-semibold flex items-center justify-center gap-2 border transition-all duration-300 ease-out cursor-pointer overflow-hidden bg-silver-950 border-silver-700/50 hover:bg-white/10 hover:text-white hover:border-silver-400 group/btn"
                     >
                       {role.cta}
-                      <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                      <ArrowRight className="ml-2 h-5 w-5 group-hover/btn:translate-x-1 transition-transform duration-300" />
                     </Button>
                   </Link>
-                  <p className="text-xs text-center text-zinc-500">
+                  <p className="text-xs text-center text-silver-600 group-hover:text-silver-500 transition-colors duration-300">
                     Free to get started
                   </p>
                 </CardContent>
@@ -168,7 +171,10 @@ export default function RegisterPage() {
         <div className="text-center mt-12">
           <p className="text-zinc-400">
             Already have an account?{" "}
-            <Link href="/login" className="font-medium text-white hover:underline">
+            <Link
+              href="/login"
+              className="font-semibold text-white transition-all duration-300 ease-in-out hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.4)] underline underline-offset-4 decoration-white/30 hover:decoration-white"
+            >
               Sign in here
             </Link>
           </p>

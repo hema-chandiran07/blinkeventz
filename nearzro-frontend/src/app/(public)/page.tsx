@@ -79,8 +79,7 @@ export default function LandingPage() {
                   whileTap={{ scale: 0.95 }}
                 >
                   <Button
-                    size="lg"
-                    className="bg-white text-black hover:bg-zinc-200 font-semibold text-lg px-8"
+                    className="px-8 py-4 rounded-xl text-lg font-bold text-black-important btn-premium shadow-[0_0_25px_rgba(255,255,255,0.15)]"
                   >
                     Get Started for Free
                     <Sparkles className="ml-2 h-5 w-5" />

@@ -1,5 +1,6 @@
 // src/lib/api.ts
 import axios, { InternalAxiosRequestConfig } from "axios";
+import { toast } from "sonner";
 
 // Extend Axios config interface to include custom property
 declare module 'axios' {
@@ -74,49 +75,42 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response) {
-      // Handle 401 Unauthorized - token expired or invalid
-      if (error.response.status === 401) {
-        if (typeof window !== 'undefined') {
-          // Skip redirect on auth-related pages (login, register, forgot-password, etc.)
-          const currentPath = window.location.pathname;
-          const isAuthPage = currentPath.includes('/login') || 
-                             currentPath.includes('/register') ||
-                             currentPath.includes('/forgot-password') ||
-                             currentPath.includes('/reset-password') ||
-                             currentPath.includes('/verify-otp') ||
-                             currentPath.includes('/auth/');
-          
-          localStorage.removeItem('NearZro_user');
-          
-          // Only redirect if NOT on an auth page
-          if (!isAuthPage) {
-            window.location.href = '/login';
-          }
-        }
-        return Promise.reject(error);
-      }
+    const status = error.response?.status;
+    const data = error.response?.data;
+    const message = data?.message || data?.error?.message;
 
-      // Don't log 404 errors for approve/reject endpoints (mock data)
-      const isApproveRejectEndpoint =
-        error.config?.url?.includes('/approve') ||
-        error.config?.url?.includes('/reject');
-
-      if (error.response.status !== 404 || !isApproveRejectEndpoint) {
-        console.error('API Error:', error.response.status, error.response.data);
+    if (status === 401) {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('NearZro_user');
+        toast.error(message || "Session expired. Please login again.");
+        window.location.href = '/login';
       }
-    } else if (error.code === 'ECONNREFUSED') {
-      console.error('Network Error: Cannot connect to server');
-      error.message = 'Unable to connect to server. Please ensure the backend is running.';
-    } else if (error.code === 'ERR_NETWORK') {
-      console.error('Network Error: Connection failed');
-      error.message = 'Network error. Please check your connection.';
-    } else if (error.code === 'ECONNABORTED') {
-      console.error('Timeout Error: Request timed out');
-      error.message = 'Request timed out. Please try again.';
-    } else {
-      console.error('Unknown error:', error.message);
+      return Promise.reject(error);
     }
+
+    if (status === 403) {
+      // IMPORTANT: Do NOT silently redirect for 403
+      // Extract and store the real reason so the page can display it
+      error.message = message || "Access denied. Please contact support.";
+      return Promise.reject(error);
+    }
+
+    if (status === 500) {
+      // Override BOTH error.message AND data.message so no page can leak the raw 500 body
+      error.message = "Something went wrong on our end. Please try again later.";
+      if (error.response?.data) {
+        error.response.data.message = "Something went wrong on our end. Please try again later.";
+        error.response.data.error = undefined;
+      }
+      return Promise.reject(error);
+    }
+
+    if (!error.response) {
+      // Network error — no response received at all
+      error.message = "Unable to connect to server. Please check your internet connection.";
+      return Promise.reject(error);
+    }
+
     return Promise.reject(error);
   }
 );

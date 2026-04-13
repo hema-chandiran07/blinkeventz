@@ -3,12 +3,14 @@ import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { CacheModule } from '@nestjs/cache-manager';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { ServeStaticModule } from '@nestjs/serve-static';
 import Redis from 'ioredis';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { MaintenanceGuard } from './common/guards/maintenance.guard';
 import { BullModule } from '@nestjs/bull';
+import { join } from 'path';
 import Joi from 'joi';
 // Feature Modules (UNCHANGED)
 import { PrismaModule } from './prisma/prisma.module';
@@ -75,6 +77,14 @@ import { BusinessRulesModule } from './business-rules/business-rules.module';
         allowUnknown: true,
         abortEarly: false,
       },
+    }),
+
+    // =====================================================
+    // 📁 STATIC FILES (UPLOADS)
+    // =====================================================
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'uploads'),
+      serveRoot: '/uploads',
     }),
 
     // =====================================================
