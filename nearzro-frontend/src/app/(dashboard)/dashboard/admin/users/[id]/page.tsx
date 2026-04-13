@@ -49,10 +49,8 @@ export default function UserDetailPage() {
   const loadUser = async () => {
     try {
       setLoading(true);
-      // Try to get user details - adjust endpoint as needed
-      const response = await api.get(`/users`);
-      const found = response.data.find((u: any) => u.id === parseInt(params.id as string));
-      setUser(found || null);
+      const response = await api.get(`/users/${params.id}`);
+      setUser(response.data);
     } catch (error: any) {
       console.error("Failed to load user:", error);
       toast.error("Failed to load user details");
@@ -102,7 +100,34 @@ export default function UserDetailPage() {
   };
 
   const handleSendMessage = () => {
-    toast.info("Message feature coming soon");
+    router.push(`/dashboard/admin/compose?userId=${user?.id}&email=${encodeURIComponent(user?.email || '')}&method=email`);
+  };
+
+  const handleExportCSV = () => {
+    if (!user) return;
+
+    const headers = ['Field', 'Value'];
+    const rows = [
+      ['ID', user.id],
+      ['Name', user.name],
+      ['Email', user.email],
+      ['Phone', user.phone || 'N/A'],
+      ['Role', user.role],
+      ['Status', user.isActive ? 'Active' : 'Inactive'],
+      ['Email Verified', user.isEmailVerified ? 'Yes' : 'No'],
+      ['Created At', new Date(user.createdAt).toLocaleString()],
+    ];
+
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `user-${user.name.replace(/\s+/g, '-').toLowerCase()}-${user.id}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+
+    toast.success("User data exported successfully");
   };
 
   if (loading) {
@@ -149,7 +174,7 @@ export default function UserDetailPage() {
             <MessageSquare className="h-4 w-4 mr-2" />
             Message
           </Button>
-          <Button variant="outline" className="border-black">
+          <Button variant="outline" className="border-black" onClick={handleExportCSV}>
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>

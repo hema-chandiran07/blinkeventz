@@ -72,7 +72,7 @@ export default function CreateEventPage() {
         <form onSubmit={handleSubmit} className="space-y-6">
           <Card className="border-silver-200">
             <CardHeader>
-              <CardTitle>Event Details</CardTitle>
+              <CardTitle className="text-black">Event Details</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">

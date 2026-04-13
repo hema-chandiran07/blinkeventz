@@ -91,7 +91,7 @@ export default function CustomerNotificationsPage() {
 
         <Card className="border-silver-200 mb-6">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="text-black">
               <Bell className="h-5 w-5 text-neutral-800" />
               Notification Preferences
             </CardTitle>

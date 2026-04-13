@@ -125,12 +125,16 @@ export interface Vendor {
   userId: number;
   businessName: string;
   description: string | null;
+  businessType?: string | null;
   city: string;
   area: string;
   serviceRadiusKm: number | null;
+  basePrice?: number | null;
   verificationStatus: VendorVerificationStatus;
   createdAt: string;
   updatedAt: string;
+  businessImages?: string[];
+  images?: string[];
   // Relations
   user?: User;
   services?: VendorService[];

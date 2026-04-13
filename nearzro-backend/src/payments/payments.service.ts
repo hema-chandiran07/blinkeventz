@@ -246,6 +246,7 @@ export class PaymentsService {
   async createOrderSimple(
     dto: CreateSimplePaymentDto,
     requestId?: string,
+    authenticatedUserId: number = 0,
   ): Promise<PaymentOrderResponseDto> {
     const idempotencyKey = dto.idempotencyKey || `simple_${Date.now()}`;
     const traceId = requestId || this.generateRequestId();
@@ -286,11 +287,10 @@ export class PaymentsService {
       // Create payment record
       const expiresAt = new Date(Date.now() + this.paymentExpiryMinutes * 60 * 1000);
       
-      // cartId defaults to 0 for simplified checkout (no cart)
-      // Prisma schema: cartId Int @default(0)
+      // userId is bound from JWT (no longer hardcoded to 0)
       const payment = await this.prisma.payment.create({
         data: {
-          userId: 0, // Will be updated on confirmation
+          userId: authenticatedUserId,
           cartId: 0, // Default to 0 for simplified checkout
           provider: PaymentProvider.RAZORPAY,
           providerOrderId: order.id,
@@ -753,8 +753,12 @@ export class PaymentsService {
   private async checkIdempotency(idempotencyKey: string, userId: number) {
     if (!idempotencyKey) return null;
     
-    return this.prisma.payment.findUnique({
-      where: { idempotencyKey },
+    // Include userId in query to prevent cross-user idempotency key collision
+    return this.prisma.payment.findFirst({
+      where: { 
+        idempotencyKey,
+        userId,
+      },
     });
   }
 
@@ -899,16 +903,29 @@ export class PaymentsService {
     });
   }
 
-  // ✅ Get all payments (Admin)
+  // ✅ Get all payments (Admin) - Enhanced with business logic
   async getAllPayments(page: number = 1, limit: number = 20, status?: string) {
-    const skip = (page - 1) * limit;
-    const where: any = status ? { status } : {};
+    // Business Rule: Validate pagination parameters
+    const validPage = Math.max(1, parseInt(page.toString()) || 1);
+    const validLimit = Math.min(100, Math.max(1, parseInt(limit.toString()) || 20)); // Cap at 100 for performance
+    const skip = (validPage - 1) * validLimit;
+    
+    // Build where clause with business filters
+    const where: any = {};
+    if (status) {
+      where.status = status;
+    }
+    
+    // Business Rule: Only include payments from last 2 years by default (performance)
+    const twoYearsAgo = new Date();
+    twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
+    where.createdAt = { gte: twoYearsAgo };
 
     const [payments, total] = await Promise.all([
       this.prisma.payment.findMany({
         where,
         skip,
-        take: limit,
+        take: validLimit,
         include: {
           user: {
             select: {
@@ -947,14 +964,315 @@ export class PaymentsService {
       this.prisma.payment.count({ where }),
     ]);
 
+    // Business Rule: Calculate additional metrics for admin dashboard
+    const totalAmount = payments.reduce((sum, p) => sum + p.amount, 0);
+    const successfulPayments = payments.filter(p => p.status === PaymentStatus.CAPTURED).length;
+    const pendingPayments = payments.filter(p => p.status === PaymentStatus.PENDING).length;
+    const failedPayments = payments.filter(p => p.status === PaymentStatus.FAILED).length;
+
     return {
       payments,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
+      metrics: {
+        totalAmount,
+        averageAmount: payments.length > 0 ? totalAmount / payments.length : 0,
+        successfulPayments,
+        pendingPayments,
+        failedPayments,
+        successRate: payments.length > 0 ? (successfulPayments / payments.length) * 100 : 0,
       },
+      pagination: {
+        page: validPage,
+        limit: validLimit,
+        total,
+        totalPages: Math.ceil(total / validLimit),
+        hasMore: (validPage * validLimit) < total,
+      },
+    };
+  }
+
+  // ✅ Get payment by ID (Admin) - For transaction detail page
+  async getPaymentById(id: number) {
+    const payment = await this.prisma.payment.findUnique({
+      where: { id },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            role: true,
+          },
+        },
+        event: {
+          include: {
+            venue: {
+              select: {
+                id: true,
+                name: true,
+                city: true,
+              },
+            },
+            customer: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
+        cart: {
+          include: {
+            items: {
+              include: {
+                venue: true,
+                vendorService: true,
+              },
+            },
+          },
+        },
+        paymentEvents: {
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
+
+    if (!payment) {
+      throw new NotFoundException(`Payment ${id} not found`);
+    }
+
+    // Calculate business metrics
+    const platformFeePercentage = 0.05; // 5% platform fee
+    const platformFee = Math.round(payment.amount * platformFeePercentage);
+    const netAmount = payment.amount - platformFee;
+
+    // Determine if refundable based on payment status
+    const refundable = payment.status === 'CAPTURED' || payment.status === 'REFUNDED';
+
+    // Calculate days since payment
+    const daysSincePayment = Math.floor(
+      (new Date().getTime() - new Date(payment.createdAt).getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    return {
+      ...payment,
+      platformFee,
+      netAmount,
+      refundable,
+      daysSincePayment,
+      canRefund: refundable && payment.status !== 'REFUNDED',
+    };
+  }
+
+  // ============================================
+  // REFUND PROCESSING (Admin only)
+  // ============================================
+
+  /**
+   * Process refund for a payment (Admin only)
+   * 
+   * Business Logic:
+   * 1. Validate payment exists and is captured
+   * 2. Validate refund amount (cannot exceed original amount)
+   * 3. Create refund record in database
+   * 4. Update payment status to REFUNDED (full) or PARTIALLY_REFUNDED
+   * 5. Log refund event
+   * 6. Return refund details
+   */
+  async processRefund(paymentId: number, refundAmount: number, reason: string | undefined, adminUserId: number) {
+    try {
+      // Validate refund amount
+      if (refundAmount <= 0) {
+        throw new BadRequestException('Refund amount must be greater than 0');
+      }
+
+      // Get payment with all relations
+      const payment = await this.prisma.payment.findUnique({
+        where: { id: paymentId },
+        include: {
+          user: true,
+          event: true,
+          paymentEvents: true,
+        },
+      });
+
+      if (!payment) {
+        throw new NotFoundException(`Payment ${paymentId} not found`);
+      }
+
+      // Check if payment is refundable
+      if (payment.status !== 'CAPTURED') {
+        throw new BadRequestException(
+          `Payment cannot be refunded. Current status: ${payment.status}`
+        );
+      }
+
+      // Calculate total already refunded
+      const existingRefunds = await this.prisma.paymentEvent.findMany({
+        where: {
+          paymentId,
+          eventType: 'REFUND_INITIATED',
+        },
+      });
+
+      const totalRefunded = existingRefunds.reduce((sum, event: any) => {
+        const eventData = event.eventData || {};
+        return sum + (eventData.amount || 0);
+      }, 0);
+
+      // Check if refund amount exceeds original payment
+      if (refundAmount + totalRefunded > payment.amount) {
+        throw new BadRequestException(
+          `Refund amount (${refundAmount}) plus already refunded amount (${totalRefunded}) exceeds original payment (${payment.amount})`
+        );
+      }
+
+      // Determine if this is a full or partial refund
+      const isFullRefund = refundAmount + totalRefunded >= payment.amount;
+      const newStatus = isFullRefund ? 'REFUNDED' : 'PARTIALLY_REFUNDED';
+
+      // Create refund event and update payment in a transaction
+      const [refundEvent, updatedPayment] = await this.prisma.$transaction(async (tx) => {
+        // Create refund event
+        const refundEvent = await tx.paymentEvent.create({
+          data: {
+            paymentId,
+            eventType: 'REFUND_INITIATED',
+            status: newStatus as any,
+            payload: {
+              amount: refundAmount,
+              reason: reason || 'Admin initiated refund',
+              initiatedBy: adminUserId,
+              timestamp: new Date().toISOString(),
+              isFullRefund,
+              totalRefunded: totalRefunded + refundAmount,
+            },
+          },
+        });
+
+        // Update payment status
+        const updatedPayment = await tx.payment.update({
+          where: { id: paymentId },
+          data: {
+            status: newStatus as any,
+            updatedAt: new Date(),
+          },
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        });
+
+        return [refundEvent, updatedPayment];
+      });
+
+      // Log refund
+      this.logger.log({
+        event: 'REFUND_PROCESSED',
+        paymentId,
+        refundAmount,
+        reason,
+        adminUserId,
+        isFullRefund,
+        newStatus,
+      });
+
+      // TODO: Integrate with Razorpay Refund API for actual refund processing
+      // For now, we're just marking it as refunded in our system
+      // In production, you would call:
+      // const razorpayRefund = await this.razorpay.refunds.create({
+      //   payment_id: payment.providerPaymentId,
+      //   amount: refundAmount * 100, // Razorpay uses paise
+      //   notes: { reason: reason || 'Admin initiated refund' }
+      // });
+
+      return {
+        success: true,
+        message: isFullRefund ? 'Full refund processed successfully' : 'Partial refund processed successfully',
+        refund: {
+          id: refundEvent.id,
+          amount: refundAmount,
+          reason: reason || 'Admin initiated refund',
+          initiatedBy: adminUserId,
+          timestamp: refundEvent.createdAt,
+          isFullRefund,
+        },
+        payment: {
+          id: updatedPayment.id,
+          status: updatedPayment.status,
+          totalRefunded: totalRefunded + refundAmount,
+          originalAmount: payment.amount,
+        },
+      };
+    } catch (error) {
+      if (
+        error instanceof BadRequestException ||
+        error instanceof NotFoundException
+      ) {
+        throw error;
+      }
+
+      this.logger.error({
+        event: 'REFUND_FAILED',
+        paymentId,
+        error: error.message,
+        stack: error.stack,
+      });
+
+      throw new InternalServerErrorException('Failed to process refund');
+    }
+  }
+
+  /**
+   * Get refund history for a payment
+   */
+  async getRefundHistory(paymentId: number) {
+    // Verify payment exists
+    const payment = await this.prisma.payment.findUnique({
+      where: { id: paymentId },
+    });
+
+    if (!payment) {
+      throw new NotFoundException(`Payment ${paymentId} not found`);
+    }
+
+    // Get all refund events
+    const refundEvents = await this.prisma.paymentEvent.findMany({
+      where: {
+        paymentId,
+        eventType: 'REFUND_INITIATED',
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    // Calculate total refunded
+    const totalRefunded = refundEvents.reduce((sum, event: any) => {
+      const eventData = event.eventData || {};
+      return sum + (eventData.amount || 0);
+    }, 0);
+
+    return {
+      paymentId,
+      originalAmount: payment.amount,
+      totalRefunded,
+      refundableAmount: payment.amount - totalRefunded,
+      isFullyRefunded: payment.status === 'REFUNDED',
+      refunds: refundEvents.map((event: any) => ({
+        id: event.id,
+        amount: (event.payload || {}).amount || 0,
+        reason: (event.payload || {}).reason || 'N/A',
+        initiatedBy: (event.payload || {}).initiatedBy || 'System',
+        timestamp: event.createdAt,
+        isFullRefund: (event.payload || {}).isFullRefund || false,
+      })),
     };
   }
 
@@ -986,14 +1304,25 @@ export class PaymentsService {
       orderBy: { createdAt: 'desc' },
     });
 
-    // Create CSV content
+    // Create CSV content with formula injection sanitization
+    const sanitizeCsvCell = (value: any): string => {
+      const str = String(value ?? '');
+      // Prefix cells starting with =, +, -, @ to prevent formula injection in Excel
+      if (/^[=+\-@]/.test(str)) return `'${str}`;
+      // Escape commas and quotes
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
     const csvRows = [
       ['ID', 'Customer Name', 'Customer Email', 'Event', 'Amount', 'Currency', 'Status', 'Provider', 'Created At'],
       ...payments.map((p: any) => [
         p.id,
-        p.user?.name || 'N/A',
-        p.user?.email || 'N/A',
-        p.event?.title || 'N/A',
+        sanitizeCsvCell(p.user?.name || 'N/A'),
+        sanitizeCsvCell(p.user?.email || 'N/A'),
+        sanitizeCsvCell(p.event?.title || 'N/A'),
         p.amount,
         p.currency,
         p.status,

@@ -4,13 +4,14 @@ import {
   InternalServerErrorException,
   Logger,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { SlotStatus, EntityType } from '@prisma/client';
+import { SlotStatus, EntityType, BookingStatus } from '@prisma/client';
 
 /**
  * Booking Service - Production Ready
- * 
+ *
  * Fixed race condition using Prisma transactions with optimistic locking.
  * Uses check-and-set pattern to prevent double bookings.
  */
@@ -20,118 +21,431 @@ export class BookingService {
 
   constructor(private prisma: PrismaService) {}
 
+  // ============================================================================
+  // CREATE BOOKINGS (Advanced with full business logic)
+  // ============================================================================
+
   /**
-   * Book an availability slot using atomic transaction
-   * 
-   * This prevents race conditions by:
-   * 1. Using prisma.$transaction for atomicity
-   * 2. Checking slot status within the transaction
-   * 3. Updating slot status in the same transaction
-   * 
-   * @param userId - The user making the booking
-   * @param availabilitySlotId - The slot to book
-   * @returns Created booking
+   * Create a new booking with advanced validation and business logic
+   * CORRECTED to match actual database schema:
+   * - Booking table has: id, userId, slotId, status, createdAt, updatedAt, completedAt
+   * - AvailabilitySlot has: venueId, vendorId, date, timeSlot, status
+   *
+   * Flow: Find/Create slot → Check availability → Create booking → Update slot status
    */
-  async book(userId: number, availabilitySlotId: number): Promise<any> {
-    // Validate inputs
-    if (!userId || !availabilitySlotId) {
-      throw new BadRequestException('Invalid booking request');
+  async createBooking(data: {
+    customerId: number;
+    entityType?: 'VENUE' | 'VENDOR';
+    entityId?: number;
+    venueId?: number;
+    vendorId?: number;
+    date: string;
+    timeSlot: string;
+    guestCount?: number;
+  }) {
+    const { customerId, entityType: inputEntityType, entityId: inputEntityId, venueId: inputVenueId, vendorId: inputVendorId, date, timeSlot, guestCount } = data;
+
+    // Determine entityType and IDs
+    const entityType = inputEntityType || 'VENUE';
+    const venueId = inputVenueId || inputEntityId;
+    const vendorId = inputVendorId;
+
+    if (!venueId && !vendorId) {
+      throw new BadRequestException('venueId, vendorId, or entityId is required');
     }
 
-    if (availabilitySlotId <= 0) {
-      throw new BadRequestException('Invalid slot ID');
+    // Validate date is in the future
+    const bookingDate = new Date(date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    if (bookingDate < today) {
+      throw new BadRequestException('Booking date must be in the future');
     }
 
-    try {
-      // Use Prisma transaction for atomicity
-      const result = await this.prisma.$transaction(async (tx) => {
-        // Step 1: Lock and verify the slot exists and is available
-        const slot = await tx.availabilitySlot.findUnique({
-          where: { id: availabilitySlotId },
-        });
+    // Validate time slot
+    const validTimeSlots = ['MORNING', 'EVENING', 'FULL_DAY'];
+    if (!validTimeSlots.includes(timeSlot)) {
+      throw new BadRequestException('Invalid time slot. Must be MORNING, EVENING, or FULL_DAY');
+    }
 
-        if (!slot) {
-          throw new BadRequestException('Slot not found');
-        }
-
-        // Step 2: Check if slot is available (prevent double booking)
-        if (slot.status !== SlotStatus.AVAILABLE) {
-          throw new BadRequestException(
-            `Slot is no longer available. Current status: ${slot.status}`
-          );
-        }
-
-        // Step 3: Check if user already has a booking for this slot
-        const existingBooking = await tx.booking.findFirst({
-          where: {
-            userId,
-            slotId: availabilitySlotId,
-          },
-        });
-
-        if (existingBooking) {
-          throw new BadRequestException('You already have a booking for this slot');
-        }
-
-        // Step 4: Create booking and update slot status atomically
-        // Using update with where clause ensures atomic check-and-set
-        const [booking] = await Promise.all([
-          // Create the booking
-          tx.booking.create({
-            data: {
-              userId,
-              slotId: availabilitySlotId,
-            },
-          }),
-          // Mark slot as booked (only if still AVAILABLE)
-          tx.availabilitySlot.updateMany({
-            where: {
-              id: availabilitySlotId,
-              status: SlotStatus.AVAILABLE, // Optimistic locking condition
-            },
-            data: {
-              status: SlotStatus.BOOKED,
-            },
-          }),
-        ]);
-
-        return booking;
+    return this.prisma.$transaction(async (tx) => {
+      // Step 1: Find or create AvailabilitySlot
+      let slot = await tx.availabilitySlot.findFirst({
+        where: {
+          ...(venueId ? { venueId } : { vendorId }),
+          date: bookingDate,
+          timeSlot,
+        },
       });
 
-      this.logger.log(`Booking created: User ${userId} booked slot ${availabilitySlotId}`);
-      return result;
-
-    } catch (error: any) {
-      // Re-throw known errors
-      if (
-        error instanceof BadRequestException ||
-        error instanceof NotFoundException
-      ) {
-        throw error;
+      if (!slot) {
+        // Create new slot as AVAILABLE
+        slot = await tx.availabilitySlot.create({
+          data: {
+            entityType: entityType as any,
+            ...(venueId ? { venueId } : { vendorId }),
+            date: bookingDate,
+            timeSlot,
+            status: 'AVAILABLE' as any,
+          },
+        });
       }
 
-      // Log unexpected errors
-      this.logger.error(
-        `Booking failed: ${error.message}`,
-        error.stack
+      // Step 2: Check slot is available
+      if (slot.status !== 'AVAILABLE') {
+        throw new BadRequestException(
+          `Slot is no longer available. Current status: ${slot.status}`
+        );
+      }
+
+      // Step 3: Check for existing booking (prevent double booking)
+      const existingBooking = await tx.booking.findFirst({
+        where: {
+          slotId: slot.id,
+          status: { not: 'CANCELLED' as any },
+        },
+      });
+
+      if (existingBooking) {
+        throw new BadRequestException(
+          `${entityType} is already booked for ${date} ${timeSlot}`
+        );
+      }
+
+      // Step 4: Get customer info
+      const customer = await tx.user.findUnique({
+        where: { id: customerId },
+        select: { id: true, name: true, email: true, phone: true },
+      });
+
+      if (!customer) {
+        throw new NotFoundException('Customer not found');
+      }
+
+      // Step 5: Get entity owner info for notification
+      let entityOwnerId: number;
+      let entityName: string;
+
+      if (entityType === 'VENUE') {
+        const venue = await tx.venue.findUnique({
+          where: { id: venueId },
+          select: { id: true, name: true, ownerId: true },
+        });
+
+        if (!venue) {
+          throw new NotFoundException(`Venue ID ${venueId} not found`);
+        }
+
+        entityOwnerId = venue.ownerId;
+        entityName = venue.name;
+      } else {
+        throw new BadRequestException('Only VENUE bookings are supported currently');
+      }
+
+      // Step 6: Create booking (with slotId, NOT entityType/entityId)
+      const booking = await tx.booking.create({
+        data: {
+          userId: customerId,
+          slotId: slot.id,
+          status: 'PENDING' as any,
+        },
+        include: {
+          slot: true,
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
+      });
+
+      // Step 7: Update slot status to BOOKED
+      await tx.availabilitySlot.update({
+        where: { id: slot.id },
+        data: { status: 'BOOKED' as any },
+      });
+
+      // Step 8: Create notification for entity owner
+      await tx.notification.create({
+        data: {
+          userId: entityOwnerId,
+          type: 'SYSTEM_ALERT',
+          title: 'New Booking Request',
+          message: `${customer.name} has requested to book ${entityName} for ${date} (${timeSlot})`,
+          priority: 'HIGH',
+          metadata: {
+            bookingId: booking.id,
+            entityType,
+            venueId,
+            vendorId,
+            date,
+            timeSlot,
+            guestCount,
+          },
+        },
+      });
+
+      // Step 9: Create notification for customer
+      await tx.notification.create({
+        data: {
+          userId: customerId,
+          type: 'SYSTEM_ALERT',
+          title: 'Booking Request Submitted',
+          message: `Your booking request for ${entityName} on ${date} (${timeSlot}) has been submitted. Awaiting confirmation.`,
+          priority: 'NORMAL',
+          metadata: {
+            bookingId: booking.id,
+            entityType,
+            venueId,
+            vendorId,
+          },
+        },
+      });
+
+      this.logger.log(
+        `Booking created: Customer ${customerId} booked slot ${slot.id} (${entityType} venueId:${venueId} vendorId:${vendorId}) for ${date} ${timeSlot}`
       );
 
-      throw new InternalServerErrorException(
-        'Failed to create booking. Please try again.'
-      );
-    }
+      return {
+        success: true,
+        booking,
+        slotId: slot.id,
+        message: 'Booking request submitted successfully. Awaiting confirmation.',
+      };
+    });
+  }
+
+  // ============================================================================
+  // GET BOOKINGS
+  // ============================================================================
+
+  /**
+   * Get customer bookings
+   */
+  async getCustomerBookings(userId: number) {
+    return this.prisma.booking.findMany({
+      where: { userId },
+      include: {
+        slot: {
+          include: {
+            venue: {
+              select: {
+                id: true,
+                name: true,
+                address: true,
+                city: true,
+                area: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
   }
 
   /**
-   * Cancel a booking and release the slot
-   * 
-   * @param bookingId - The booking to cancel
-   * @param userId - The user requesting cancellation
+   * Get venue owner bookings
+   */
+  async getVenueOwnerBookings(userId: number) {
+    const venues = await this.prisma.venue.findMany({
+      where: { ownerId: userId },
+      select: { id: true },
+    });
+
+    const venueIds = venues.map(v => v.id);
+
+    return this.prisma.booking.findMany({
+      where: {
+        slot: {
+          venueId: { in: venueIds },
+        },
+      },
+      include: {
+        slot: {
+          include: {
+            venue: true,
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /**
+   * Get venue bookings
+   */
+  async getVenueBookings(venueId: number, userId: number, role: string) {
+    if (role === 'VENUE_OWNER') {
+      // Verify ownership
+      const venue = await this.prisma.venue.findFirst({
+        where: { id: venueId, ownerId: userId },
+      });
+
+      if (!venue) {
+        throw new ForbiddenException('You do not own this venue');
+      }
+    }
+
+    return this.prisma.booking.findMany({
+      where: {
+        slot: {
+          venueId: venueId,
+        },
+      },
+      include: {
+        slot: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /**
+   * Get booking by ID
+   */
+  async getBookingById(bookingId: number, userId: number, role: string) {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        slot: {
+          include: {
+            venue: true,
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+          },
+        },
+      },
+    });
+
+    if (!booking) {
+      throw new NotFoundException('Booking not found');
+    }
+
+    // Check access
+    if (role !== 'ADMIN' && booking.userId !== userId) {
+      if (!booking.slot.venueId) {
+        throw new ForbiddenException('You do not have access to this booking');
+      }
+      const venue = await this.prisma.venue.findFirst({
+        where: {
+          id: booking.slot.venueId,
+          ownerId: userId,
+        },
+      });
+
+      if (!venue) {
+        throw new ForbiddenException('You do not have access to this booking');
+      }
+    }
+
+    return booking;
+  }
+
+  // ============================================================================
+  // UPDATE BOOKING STATUS
+  // ============================================================================
+
+  /**
+   * Update booking status
+   */
+  async updateBookingStatus(bookingId: number, status: string, userId: number, role: string) {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: { slot: true },
+    });
+
+    if (!booking) {
+      throw new NotFoundException('Booking not found');
+    }
+
+    // Check permission
+    if (role !== 'ADMIN') {
+      if (!booking.slot.venueId) {
+        throw new ForbiddenException('You do not have permission to update this booking');
+      }
+      const venue = await this.prisma.venue.findFirst({
+        where: {
+          id: booking.slot.venueId,
+          ownerId: userId,
+        },
+      });
+
+      if (!venue) {
+        throw new ForbiddenException('You do not have permission to update this booking');
+      }
+    }
+
+    // Validate status transition
+    const validStatuses = ['PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED'];
+    if (!validStatuses.includes(status)) {
+      throw new BadRequestException('Invalid status');
+    }
+
+    // Prevent invalid transitions
+    if (booking.status === 'CANCELLED' && status !== 'CANCELLED') {
+      throw new BadRequestException('Cannot change status of a cancelled booking');
+    }
+    if (booking.status === 'COMPLETED' && status !== 'COMPLETED') {
+      throw new BadRequestException('Cannot change status of a completed booking');
+    }
+
+    // Build update data
+    const updateData: any = { status: status as any };
+    if (status === 'COMPLETED') {
+      updateData.completedAt = new Date();
+    }
+
+    // Actually update the booking in the database
+    const updatedBooking = await this.prisma.booking.update({
+      where: { id: bookingId },
+      data: updateData,
+      include: {
+        slot: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+          },
+        },
+      },
+    });
+
+    return updatedBooking;
+  }
+
+  /**
+   * Cancel booking
    */
   async cancelBooking(bookingId: number, userId: number): Promise<void> {
     try {
       await this.prisma.$transaction(async (tx) => {
-        // Find the booking
         const booking = await tx.booking.findUnique({
           where: { id: bookingId },
         });
@@ -140,23 +454,17 @@ export class BookingService {
           throw new BadRequestException('Booking not found');
         }
 
-        // Verify ownership (allow admin to cancel any booking)
         const user = await tx.user.findUnique({
           where: { id: userId },
           select: { role: true },
         });
 
         if (booking.userId !== userId && user?.role !== 'ADMIN') {
-          throw new BadRequestException(
-            'You can only cancel your own bookings'
-          );
+          throw new BadRequestException('You can only cancel your own bookings');
         }
 
-        // Delete booking and release slot atomically
         await Promise.all([
-          tx.booking.delete({
-            where: { id: bookingId },
-          }),
+          tx.booking.delete({ where: { id: bookingId } }),
           tx.availabilitySlot.update({
             where: { id: booking.slotId },
             data: { status: SlotStatus.AVAILABLE },
@@ -169,23 +477,97 @@ export class BookingService {
       if (error instanceof BadRequestException) {
         throw error;
       }
-
-      this.logger.error(
-        `Cancel booking failed: ${error.message}`,
-        error.stack
-      );
-
-      throw new InternalServerErrorException(
-        'Failed to cancel booking. Please try again.'
-      );
+      this.logger.error(`Cancel booking failed: ${error.message}`, error.stack);
+      throw new InternalServerErrorException('Failed to cancel booking. Please try again.');
     }
   }
 
   /**
-   * Get user's bookings
-   * 
-   * @param userId - The user ID
+   * Complete booking
    */
+  async completeBooking(bookingId: number, userId: number, role: string) {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: { slot: true },
+    });
+
+    if (!booking) {
+      throw new NotFoundException('Booking not found');
+    }
+
+    // Check permission
+    if (role !== 'ADMIN') {
+      if (!booking.slot.venueId) {
+        throw new ForbiddenException('You do not have permission to complete this booking');
+      }
+      const venue = await this.prisma.venue.findFirst({
+        where: {
+          id: booking.slot.venueId,
+          ownerId: userId,
+        },
+      });
+
+      if (!venue) {
+        throw new ForbiddenException('You do not have permission to complete this booking');
+      }
+    }
+
+    return this.prisma.booking.update({
+      where: { id: bookingId },
+      data: {
+        completedAt: new Date(),
+      },
+      include: {
+        slot: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+          },
+        },
+      },
+    });
+  }
+
+  // ============================================================================
+  // DELETE BOOKING
+  // ============================================================================
+
+  /**
+   * Delete booking
+   */
+  async deleteBooking(bookingId: number, userId: number, role: string) {
+    if (role !== 'ADMIN') {
+      throw new ForbiddenException('Only admins can delete bookings');
+    }
+
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+    });
+
+    if (!booking) {
+      throw new NotFoundException('Booking not found');
+    }
+
+    await this.prisma.booking.delete({
+      where: { id: bookingId },
+    });
+
+    // Release the slot
+    await this.prisma.availabilitySlot.update({
+      where: { id: booking.slotId },
+      data: { status: SlotStatus.AVAILABLE },
+    });
+
+    return { success: true, message: 'Booking deleted successfully' };
+  }
+
+  // ============================================================================
+  // USER BOOKINGS (Legacy)
+  // ============================================================================
+
   async getUserBookings(userId: number): Promise<any[]> {
     return this.prisma.booking.findMany({
       where: { userId },
@@ -200,147 +582,6 @@ export class BookingService {
                 city: true,
               },
             },
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-  }
-
-  async createBookingWithSlot(
-    userId: number,
-    venueId: number,
-    date: Date,
-    timeSlot: string,
-  ) {
-    // Find or create availability slot
-    let slot = await this.prisma.availabilitySlot.findFirst({
-      where: {
-        entityType: EntityType.VENUE,
-        entityId: venueId,
-        date,
-        timeSlot,
-      },
-    });
-
-    if (!slot) {
-      // Create new availability slot
-      slot = await this.prisma.availabilitySlot.create({
-        data: {
-          entityType: EntityType.VENUE,
-          entityId: venueId,
-          date,
-          timeSlot,
-          status: SlotStatus.AVAILABLE,
-        },
-      });
-    }
-
-    if (slot.status !== SlotStatus.AVAILABLE) {
-      throw new BadRequestException('Slot already booked');
-    }
-
-    // Create booking
-    const booking = await this.prisma.booking.create({
-      data: {
-        userId,
-        slotId: slot.id,
-      },
-      include: {
-        slot: true,
-      },
-    });
-
-    // Mark slot as booked
-    await this.prisma.availabilitySlot.update({
-      where: { id: slot.id },
-      data: {
-        status: SlotStatus.BOOKED,
-      },
-    });
-
-    return booking;
-  }
-
-  /**
-   * Get bookings for a specific venue
-   * RBAC: VENUE_OWNER can only view bookings for their own venues, ADMIN can view all
-   */
-  async getVenueBookings(venueId: number, userId?: number, userRole?: string): Promise<any[]> {
-    // For VENUE_OWNER role, verify they own this venue
-    if (userRole === 'VENUE_OWNER' && userId) {
-      const venue = await this.prisma.venue.findFirst({
-        where: {
-          id: venueId,
-          ownerId: userId,
-        },
-        select: { id: true },
-      });
-
-      if (!venue) {
-        throw new BadRequestException('You do not have access to this venue\'s bookings');
-      }
-    }
-
-    // ADMIN can view all venue bookings, VENUE_OWNER verified above
-    return this.prisma.booking.findMany({
-      where: {
-        slot: {
-          entityType: 'VENUE',
-          entityId: venueId,
-        },
-      },
-      include: {
-        slot: true,
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-  }
-
-  /**
-   * Get bookings for venue owner
-   */
-  async getVenueOwnerBookings(ownerId: number): Promise<any[]> {
-    // First get all venues owned by this user
-    const venues = await this.prisma.venue.findMany({
-      where: { ownerId },
-      select: { id: true },
-    });
-    const venueIds = venues.map(v => v.id);
-
-    // Then get bookings for those venues
-    return this.prisma.booking.findMany({
-      where: {
-        slot: {
-          entityType: 'VENUE',
-          entityId: { in: venueIds },
-        },
-      },
-      include: {
-        slot: {
-          include: {
-            venue: {
-              select: {
-                id: true,
-                name: true,
-                address: true,
-                city: true,
-              },
-            },
-          },
-        },
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
           },
         },
       },

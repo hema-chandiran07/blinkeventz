@@ -54,6 +54,13 @@ export class ReviewsController {
     return this.service.findByVendor(+vendorId, approved);
   }
 
+  // Get Reviews for Current Vendor (Vendor only)
+  @Roles(Role.VENDOR)
+  @Get('vendors/me')
+  getMyVendorReviews(@Req() req: any) {
+    return this.service.findByVendorUser(req.user.userId);
+  }
+
   // Get My Reviews (User)
   @Get('my')
   getMyReviews(@Req() req: any) {

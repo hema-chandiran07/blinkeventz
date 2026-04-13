@@ -31,7 +31,7 @@ export class AuditController {
     const page = query.page ?? 1;
     const skip = (page - 1) * limit;
 
-    return this.prisma.auditLog.findMany({
+    const logs = await this.prisma.auditLog.findMany({
       where: {
         ...(query.entityType && { entityType: query.entityType }),
         ...(query.actorId && { actorId: query.actorId }),
@@ -41,6 +41,14 @@ export class AuditController {
       take: limit,
       skip,
     });
+
+    // Convert BigInt to string for JSON serialization
+    return logs.map(log => ({
+      ...log,
+      id: Number(log.id),
+      actorId: log.actorId ? Number(log.actorId) : null,
+      entityId: log.entityId ? Number(log.entityId) : null,
+    }));
   }
 
   /**

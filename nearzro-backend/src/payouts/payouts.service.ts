@@ -193,8 +193,11 @@ export class PayoutsService {
   async approve(id: number) {
     const payout = await this.findOne(id);
 
-    if (payout.status === PayoutStatus.APPROVED) {
-      throw new BadRequestException('Payout already approved');
+    // Enforce forward-only state machine: only PENDING can be approved
+    if (payout.status !== PayoutStatus.PENDING) {
+      throw new BadRequestException(
+        `Cannot approve payout in ${payout.status} state. Only PENDING payouts can be approved.`
+      );
     }
 
     return this.prisma.payout.update({
@@ -213,15 +216,22 @@ export class PayoutsService {
   async reject(id: number, reason: string) {
     const payout = await this.findOne(id);
 
-    if (payout.status === PayoutStatus.REJECTED) {
-      throw new BadRequestException('Payout already rejected');
+    // Enforce forward-only state machine: only PENDING can be rejected
+    if (payout.status !== PayoutStatus.PENDING) {
+      throw new BadRequestException(
+        `Cannot reject payout in ${payout.status} state. Only PENDING payouts can be rejected.`
+      );
+    }
+
+    if (!reason || reason.trim().length === 0) {
+      throw new BadRequestException('Rejection reason is required');
     }
 
     return this.prisma.payout.update({
       where: { id },
       data: {
         status: PayoutStatus.REJECTED,
-        rejectionReason: reason,
+        rejectionReason: reason.trim(),
         rejectedAt: new Date(),
       },
       include: {
@@ -257,13 +267,22 @@ export class PayoutsService {
       orderBy: { createdAt: 'desc' },
     });
 
-    // Convert to CSV format
+    // CSV formula injection sanitization
+    const sanitize = (value: any): string => {
+      const str = String(value ?? '');
+      if (/^[=+\-@]/.test(str)) return `'${str}`;
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
     const csvRows = [
       ['ID', 'Vendor', 'Venue', 'Amount', 'Status', 'Created At'],
       ...payouts.map((p) => [
         p.id,
-        p.vendor?.businessName || '',
-        p.venue?.name || '',
+        sanitize(p.vendor?.businessName || ''),
+        sanitize(p.venue?.name || ''),
         p.amount,
         p.status,
         p.createdAt.toISOString(),

@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Settings, Bell, Lock, Mail, Phone, Save, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import api from "@/lib/api";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -27,11 +28,15 @@ export default function SettingsPage() {
   const handleSaveNotifications = async () => {
     setLoading(true);
     try {
-      // Save notification preferences
-      await new Promise(resolve => setTimeout(resolve, 500));
-      toast.success("Notification settings saved!");
-    } catch {
-      toast.error("Failed to save settings");
+      await api.patch("/notifications/preferences", {
+        email: notifications.email,
+        sms: notifications.sms,
+        push: notifications.push,
+      });
+      toast.success("Notification settings saved successfully!");
+    } catch (error: any) {
+      console.error("Failed to save notification settings:", error);
+      toast.error(error?.response?.data?.message || "Failed to save settings");
     } finally {
       setLoading(false);
     }
@@ -71,7 +76,7 @@ export default function SettingsPage() {
         <div className="space-y-6">
           <Card className="border-silver-200">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="text-black">
                 <Bell className="h-5 w-5 text-neutral-800" />
                 Notification Preferences
               </CardTitle>
@@ -149,7 +154,7 @@ export default function SettingsPage() {
 
           <Card className="border-silver-200">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="text-black">
                 <Lock className="h-5 w-5 text-neutral-800" />
                 Security
               </CardTitle>
@@ -176,7 +181,7 @@ export default function SettingsPage() {
 
           <Card className="border-silver-200">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="text-black">
                 <Settings className="h-5 w-5 text-neutral-800" />
                 Account
               </CardTitle>

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth, UserRole } from "@/context/auth-context";
 import { Eye, EyeOff, Mail, Lock, User, Building, Phone, MapPin, CheckCircle2, AlertCircle, Chrome, Loader2, FileText } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -13,6 +13,43 @@ import { toast } from "sonner";
 import api from "@/lib/api";
 import { PasswordStrength } from "@/components/ui/password-strength";
 import { compressImage } from "@/lib/image-utils";
+
+const sanitizeErrorMessage = (
+  message: string,
+  setErrors: React.Dispatch<React.SetStateAction<Record<string, string>>>
+): boolean => {
+  // Last safety net — if somehow a Prisma error leaks through
+  const isPrismaError =
+    message.toLowerCase().includes('prisma') ||
+    message.toLowerCase().includes('unique constraint') ||
+    message.toLowerCase().includes('invocation') ||
+    message.toLowerCase().includes('p2002') ||
+    message.toLowerCase().includes('failed on the fields');
+
+  if (!isPrismaError) return false;
+
+  // Map to friendly message based on field mentioned
+  if (message.toLowerCase().includes('phone')) {
+    setErrors((prev: any) => ({
+      ...prev,
+      phone: "This mobile number is already registered. Please use a different number."
+    }));
+  } else if (message.toLowerCase().includes('email')) {
+    setErrors((prev: any) => ({
+      ...prev,
+      email: "This email is already registered. Please use a different email."
+    }));
+  } else if (message.toLowerCase().includes('username')) {
+    setErrors((prev: any) => ({
+      ...prev,
+      username: "This username is already taken. Please choose a different username."
+    }));
+  } else {
+    toast.error("An account with these details already exists. Please try with different information.");
+  }
+
+  return true;
+};
 
 const chennaiAreas = [
   "Adyar", "Alwarpet", "Ambattur", "Ambattur OT", "Anna Nagar", "Annanur",
@@ -30,7 +67,7 @@ const chennaiAreas = [
 
 export default function VenueOwnerRegisterPage() {
   const router = useRouter();
-  const { login, googleLogin, facebookLogin, user } = useAuth();
+  const { login, googleLogin, user } = useAuth();
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(() => {
     if (typeof window === 'undefined') return 1;
     const urlStep = new URLSearchParams(window.location.search).get('step');
@@ -62,7 +99,7 @@ export default function VenueOwnerRegisterPage() {
             localStorage.setItem("user", JSON.stringify(userData));
             if (setUserFromOAuth) setUserFromOAuth(authenticatedUser);
           }
-          
+
           if (params.get('step') === '3') setStep(3);
           window.history.replaceState(null, '', window.location.pathname);
           toast.success("Google login successful! Please complete your details.");
@@ -78,9 +115,9 @@ export default function VenueOwnerRegisterPage() {
 
   // Auto-advance to Step 3 if user is already logged in (e.g., after Google OAuth)
   useEffect(() => {
-    if (user && user.role === "VENUE_OWNER") { 
+    if (user && user.role === "VENUE_OWNER") {
       const searchString = window.location.search;
-      
+
       // If the URL contains step 2 or 3, or if they just have an ID, force them to Venue Details
       if (searchString.includes("step=3") || searchString.includes("step=2") || user.id) {
         // Pre-fill name and email from user data
@@ -89,9 +126,9 @@ export default function VenueOwnerRegisterPage() {
           name: prev.name || user.name || "",
           email: prev.email || user.email || "",
         }));
-        
+
         setStep(3); // Jump to Venue details
-        
+
         // Clean up the messy URL quietly in the browser
         window.history.replaceState(null, '', window.location.pathname + '?step=3');
       }
@@ -146,34 +183,6 @@ export default function VenueOwnerRegisterPage() {
   const [emailCheckTimeout, setEmailCheckTimeout] = useState<NodeJS.Timeout | null>(null);
 
   const { setUserFromOAuth } = useAuth();
-
-  // Hydrate from localStorage
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const savedDraft = localStorage.getItem("registration_draft_venue");
-      if (savedDraft) {
-        try {
-          const parsed = JSON.parse(savedDraft);
-          setFormData(prev => ({ ...prev, ...parsed }));
-        } catch (e) {
-          console.error("Draft hydration failed", e);
-        }
-      }
-    }
-  }, []);
-
-  // Save to localStorage whenever formData changes
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      if (typeof window !== "undefined") {
-        const { password, confirmPassword, venueImages, kycDocFiles, venueGovtCertificateFiles, ...safeData } = formData;
-        if (safeData.email || safeData.name || safeData.venueName) {
-          localStorage.setItem("registration_draft_venue", JSON.stringify(safeData));
-        }
-      }
-    }, 1000);
-    return () => clearTimeout(timeout);
-  }, [formData]);
 
   // Handle Phone Verification state for OAuth bypass
   useEffect(() => {
@@ -301,6 +310,12 @@ export default function VenueOwnerRegisterPage() {
   };
 
   const sendPhoneOTP = async () => {
+    // GUARD 1 - block if there is already a phone error showing
+    if (errors.phone) {
+      toast.error("Please fix the phone number error before verifying.");
+      return;
+    }
+
     if (!/^[6-9]\d{9}$/.test(formData.phone.replace(/\s/g, ""))) {
       setErrors(prev => ({ ...prev, phone: "Please enter a valid 10-digit Indian mobile number first" }));
       return;
@@ -313,7 +328,15 @@ export default function VenueOwnerRegisterPage() {
       toast.success("OTP sent to your phone");
     } catch (error: any) {
       console.error("Failed to send phone OTP:", error);
-      toast.error(error?.response?.data?.message || "Failed to send OTP. Please try again.");
+      const data = error.response?.data;
+      if (data?.errors && Array.isArray(data.errors)) {
+        data.errors.forEach((err: { field: string; message: string }) => {
+          setErrors(prev => ({ ...prev, [err.field]: err.message }));
+        });
+        return;
+      }
+      const message = data?.message || data?.error?.message || error.message || "Something went wrong. Please try again.";
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
@@ -323,7 +346,7 @@ export default function VenueOwnerRegisterPage() {
     setIsLoading(true);
     try {
       const response = await api.post("/otp/verify-phone", { phone: formData.phone, otp: phoneOtp });
-      
+
       // Check if the API returned a success response
       if (response.data?.success) {
         setIsPhoneVerified(true);
@@ -335,7 +358,15 @@ export default function VenueOwnerRegisterPage() {
       }
     } catch (error: any) {
       console.error("OTP verification error:", error);
-      toast.error(error?.response?.data?.message || error?.message || "Invalid OTP. Please try again.");
+      const data = error.response?.data;
+      if (data?.errors && Array.isArray(data.errors)) {
+        data.errors.forEach((err: { field: string; message: string }) => {
+          setErrors(prev => ({ ...prev, [err.field]: err.message }));
+        });
+        return;
+      }
+      const message = data?.message || data?.error?.message || error.message || "Something went wrong. Please try again.";
+      toast.error(message);
       // Do NOT set isPhoneVerified true or hide OTP input on error
     } finally {
       setIsLoading(false);
@@ -397,13 +428,29 @@ export default function VenueOwnerRegisterPage() {
         toast.success("OTP sent to your email!", { description: "Check your inbox." });
         setStep(2);
       } catch (error: any) {
-        toast.error(error?.response?.data?.message || "Failed to send OTP.");
+        const data = error.response?.data;
+        const message =
+          data?.message ||
+          data?.error?.message ||
+          error.message ||
+          "Something went wrong. Please try again.";
+        toast.error(message);
       } finally {
         setIsLoading(false);
       }
     } else if (step === 3 && validateStep2()) {
       setStep(4);
     } else if (step === 4 && validateStep3()) {
+      // GUARD - block if there is already a phone error showing
+      if (errors.phone) {
+        toast.error("Please fix the phone number error before continuing.");
+        return;
+      }
+      // GUARD - block if phone is not verified
+      if (!isPhoneVerified) {
+        toast.error("Please verify your phone number before continuing.");
+        return;
+      }
       setStep(5);
     } else if (step === 5 && validateStep4()) {
       handleRegister();
@@ -415,7 +462,7 @@ export default function VenueOwnerRegisterPage() {
 
     try {
       // Fix Hijack: Only enter OAuth flow if they actually skipped the password step
-      const isOAuthFlow = !formData.password; 
+      const isOAuthFlow = !formData.password;
       const token = localStorage.getItem('token');
 
       if (isOAuthFlow && token) {
@@ -436,10 +483,10 @@ export default function VenueOwnerRegisterPage() {
         formDataObj.append("phone", formData.phone);
         formDataObj.append("kycDocNumber", formData.kycDocNumber || '');
         formDataObj.append("kycDocType", formData.kycDocType || 'AADHAAR');
-        
-        formData.venueImages.forEach((image) => formDataObj.append("venueImages", image));
-        formData.kycDocFiles.forEach((file) => formDataObj.append("kycDocFiles", file));
-        formData.venueGovtCertificateFiles.forEach((file) => formDataObj.append("venueGovtCertificateFiles", file));
+
+        formData.venueImages.forEach((image) => { if (image.size > 0) formDataObj.append("venueImages", image); });
+        formData.kycDocFiles.forEach((file) => { if (file.size > 0) formDataObj.append("kycDocFiles", file); });
+        formData.venueGovtCertificateFiles.forEach((file) => { if (file.size > 0) formDataObj.append("venueGovtCertificateFiles", file); });
 
         // Check if they already have a venue
         const venuesResponse = await api.get("/venues/my");
@@ -453,6 +500,7 @@ export default function VenueOwnerRegisterPage() {
           await api.patch('/venues/my', formDataObj);
         }
 
+        localStorage.removeItem("registration_draft_venue");
         toast.success("Profile completed successfully!", { description: "Redirecting to dashboard..." });
         setTimeout(() => router.push("/dashboard/venue"), 500);
         return;
@@ -480,15 +528,15 @@ export default function VenueOwnerRegisterPage() {
       formDataObj.append("kycDocType", formData.kycDocType || 'AADHAAR');
 
       formData.venueImages.forEach((image) => {
-        formDataObj.append("venueImages", image);
+        if (image.size > 0) formDataObj.append("venueImages", image);
       });
 
       formData.kycDocFiles.forEach((file) => {
-        formDataObj.append("kycDocFiles", file);
+        if (file.size > 0) formDataObj.append("kycDocFiles", file);
       });
 
       formData.venueGovtCertificateFiles.forEach((file) => {
-        formDataObj.append("venueGovtCertificateFiles", file);
+        if (file.size > 0) formDataObj.append("venueGovtCertificateFiles", file);
       });
 
       const response = await api.post("/auth/register-venue-owner", formDataObj, {
@@ -517,15 +565,16 @@ export default function VenueOwnerRegisterPage() {
 
         // 2. Hydrate local storage cleanly
         localStorage.setItem("token", newToken);
-        localStorage.setItem("NearZro_user", JSON.stringify(authenticatedUser)); 
-        localStorage.setItem("user", JSON.stringify(loginRes.data.user)); 
-        
+        localStorage.setItem("NearZro_user", JSON.stringify(authenticatedUser));
+        localStorage.setItem("user", JSON.stringify(loginRes.data.user));
+
         // 3. Force-sync the live React Context immediately
         if (setUserFromOAuth) {
           setUserFromOAuth(authenticatedUser);
         }
       }
 
+      localStorage.removeItem("registration_draft_venue");
       toast.success("Account created and authenticated!", {
         description: "Preparing your dashboard...",
       });
@@ -536,7 +585,37 @@ export default function VenueOwnerRegisterPage() {
       }, 500);
     } catch (error: any) {
       console.error("Registration error:", error);
-      toast.error(error?.response?.data?.message || "Registration failed. Please try again.");
+      setFormData(prev => ({ ...prev, password: "", confirmPassword: "" }));
+      const data = error.response?.data;
+
+      if (data?.errors && Array.isArray(data.errors)) {
+        data.errors.forEach((err: { field: string; message: string }) => {
+          setErrors(prev => ({ ...prev, [err.field]: err.message }));
+        });
+        return;
+      }
+
+      const message =
+        data?.message ||
+        data?.error?.message ||
+        error.message ||
+        "Registration failed. Please try again.";
+
+      // Last safety net for any Prisma leak
+      if (sanitizeErrorMessage(message, setErrors)) return;
+
+      // Clean backend messages — route to correct field or toast
+      if (message.toLowerCase().includes('email')) {
+        setErrors(prev => ({ ...prev, email: message }));
+      } else if (message.toLowerCase().includes('phone') || message.toLowerCase().includes('mobile')) {
+        setErrors(prev => ({ ...prev, phone: message }));
+      } else if (message.toLowerCase().includes('username')) {
+        setErrors(prev => ({ ...prev, username: message }));
+      } else if (message.toLowerCase().includes('password')) {
+        setErrors(prev => ({ ...prev, password: message }));
+      } else {
+        toast.error(message);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -563,7 +642,13 @@ export default function VenueOwnerRegisterPage() {
       setStep(3); // Move to Venue Details after OTP verification
     } catch (error: any) {
       console.error("OTP verification error:", error);
-      toast.error(error?.response?.data?.message || "Invalid OTP. Please try again.");
+      const data = error.response?.data;
+      const message =
+        data?.message ||
+        data?.error?.message ||
+        error.message ||
+        "Something went wrong. Please try again.";
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
@@ -576,7 +661,13 @@ export default function VenueOwnerRegisterPage() {
         description: "Check your email for the new code.",
       });
     } catch (error: any) {
-      toast.error("Failed to resend OTP");
+      const data = error.response?.data;
+      const message =
+        data?.message ||
+        data?.error?.message ||
+        error.message ||
+        "Something went wrong. Please try again.";
+      toast.error(message);
     }
   };
 
@@ -612,27 +703,82 @@ export default function VenueOwnerRegisterPage() {
   };
 
   const checkEmailExists = async (email: string) => {
-    setIsCheckingEmail(true);
+    if (!email) return;
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setErrors(prev => ({ ...prev, email: "Please enter a valid email address." }));
+      return;
+    }
+
     try {
       const response = await api.post("/auth/check-email", { email });
-      const data = response.data;
-
-      setEmailExists({
-        exists: data.exists,
-        canRegisterAsVenue: data.canRegisterAsVenue,
-        message: data.message,
-      });
-
-      if (data.exists && !data.canRegisterAsVenue) {
-        setErrors(prev => ({
-          ...prev,
-          email: "This email is already registered. Please login or use a different email.",
+      // FIXED: now correctly reads response.data.exists
+      if (response.data.exists) {
+        setErrors(prev => ({ 
+          ...prev, 
+          email: "This email is already registered. Please use a different email or login instead." 
         }));
+      } else {
+        setErrors(prev => ({ ...prev, email: "" }));
       }
-    } catch (error) {
-      console.error("Email check error:", error);
-    } finally {
-      setIsCheckingEmail(false);
+    } catch (error: any) {
+      // Silent fail — do not confuse user with "unable to verify" message
+      console.error("Email check failed silently:", error);
+    }
+  };
+
+  const checkPhoneExists = async (phone: string) => {
+    if (!phone) return;
+
+    const digitsOnly = /^\d+$/;
+    if (!digitsOnly.test(phone)) {
+      setErrors(prev => ({ ...prev, phone: "Mobile number must contain digits only." }));
+      return;
+    }
+
+    if (phone.length < 10) {
+      setErrors(prev => ({ ...prev, phone: "Please enter a valid 10-digit mobile number." }));
+      return;
+    }
+
+    try {
+      const response = await api.post("/auth/check-phone", { phone });
+      if (response.data.exists) {
+        setErrors(prev => ({ 
+          ...prev, 
+          phone: "This mobile number is already registered. Please use a different number." 
+        }));
+      } else {
+        setErrors(prev => ({ ...prev, phone: "" }));
+      }
+    } catch (error: any) {
+      // Silent fail — do not confuse user
+      console.error("Phone check failed silently:", error);
+    }
+  };
+
+  const checkPassword = (password: string) => {
+    if (!password) return;
+    if (password.length < 8) {
+      setErrors(prev => ({ ...prev, password: "Password must be at least 8 characters." }));
+    } else if (!/[A-Z]/.test(password)) {
+      setErrors(prev => ({ ...prev, password: "Password must contain at least one uppercase letter." }));
+    } else if (!/[0-9]/.test(password)) {
+      setErrors(prev => ({ ...prev, password: "Password must contain at least one number." }));
+    } else if (!/[@$!%*?&]/.test(password)) {
+      setErrors(prev => ({ ...prev, password: "Password must contain at least one special character." }));
+    } else {
+      setErrors(prev => { const newErrors = { ...prev }; delete newErrors.password; return newErrors; });
+    }
+  };
+
+  const checkConfirmPassword = (confirmPassword: string) => {
+    if (!confirmPassword) return;
+    if (formData.password !== confirmPassword) {
+      setErrors(prev => ({ ...prev, confirmPassword: "Passwords do not match." }));
+    } else {
+      setErrors(prev => { const newErrors = { ...prev }; delete newErrors.confirmPassword; return newErrors; });
     }
   };
 
@@ -649,17 +795,16 @@ export default function VenueOwnerRegisterPage() {
 
   return (
     <div className="min-h-screen bg-zinc-950 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-lg mx-auto">
+      <div className="max-w-xl mx-auto">
         <div className="mb-6">
           <div className="flex items-center justify-center">
             {[1, 2, 3, 4, 5].map((stepNumber) => (
               <div key={stepNumber} className="flex items-center">
                 <div
-                  className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold transition-all ${
-                    step >= stepNumber
+                  className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold transition-all ${step >= stepNumber
                       ? "bg-white text-zinc-950"
                       : "bg-zinc-800 text-zinc-400"
-                  }`}
+                    }`}
                 >
                   {step > stepNumber ? (
                     <CheckCircle2 className="h-4 w-4" />
@@ -669,9 +814,8 @@ export default function VenueOwnerRegisterPage() {
                 </div>
                 {stepNumber < 5 && (
                   <div
-                    className={`w-12 sm:w-16 h-0.5 mx-1.5 ${
-                      step > stepNumber ? "bg-white" : "bg-zinc-800"
-                    }`}
+                    className={`w-12 sm:w-16 h-0.5 mx-1.5 ${step > stepNumber ? "bg-white" : "bg-zinc-800"
+                      }`}
                   />
                 )}
               </div>
@@ -686,7 +830,7 @@ export default function VenueOwnerRegisterPage() {
           </div>
         </div>
 
-        <Card className="border-0 shadow-[0_20px_50px_rgba(0,0,0,0.8)] bg-zinc-900/40 backdrop-blur-xl border border-white/10 ring-1 ring-white/5 rounded-2xl p-8">
+        <Card className="border-0 bg-zinc-900/40 backdrop-blur-xl border border-white/10 rounded-2xl p-8">
           <CardHeader className="text-center pb-2">
             <div className="inline-flex h-12 w-12 rounded-xl bg-zinc-900 border border-white/10 mx-auto mb-3 flex items-center justify-center">
               <Building className="h-6 w-6 text-zinc-200" />
@@ -723,9 +867,8 @@ export default function VenueOwnerRegisterPage() {
                       type="text"
                       value={formData.name}
                       onChange={(e) => handleInputChange("name", e.target.value)}
-                      className={`pl-10 h-12 bg-zinc-900/50 border border-zinc-800 text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all ${
-                        errors.name ? "border-red-500" : ""
-                      }`}
+                      className={`pl-9 h-10 text-sm bg-zinc-900/50 border-white/10 text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-300 focus:ring-1 focus:ring-zinc-300 transition-all ${errors.name ? "border-red-500" : ""
+                        }`}
                     />
                   </div>
                   {errors.name && <p className="text-xs text-red-400">{errors.name}</p>}
@@ -736,16 +879,16 @@ export default function VenueOwnerRegisterPage() {
                     Email Address *
                   </Label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-400" />
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
                     <Input
                       id="email"
                       placeholder="name@example.com"
                       type="email"
                       value={formData.email}
                       onChange={(e) => handleInputChange("email", e.target.value)}
-                      className={`pl-10 h-12 bg-zinc-900/50 border border-zinc-800 text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all ${
-                        errors.email ? "border-red-500" : ""
-                      }`}
+                      onBlur={(e) => checkEmailExists(e.target.value)}
+                      className={`pl-9 h-10 text-sm bg-zinc-900/50 border-white/10 text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-300 focus:ring-1 focus:ring-zinc-300 transition-all ${errors.email ? "border-red-500" : ""
+                        }`}
                       disabled={isCheckingEmail}
                     />
                     {isCheckingEmail && (
@@ -762,16 +905,16 @@ export default function VenueOwnerRegisterPage() {
                     Password *
                   </Label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-400" />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
                     <Input
                       id="password"
                       type={showPassword ? "text" : "password"}
                       value={formData.password}
                       onChange={(e) => handleInputChange("password", e.target.value)}
+                      onBlur={(e) => checkPassword(e.target.value)}
                       placeholder="Min. 8 characters"
-                      className={`pl-10 pr-10 h-12 bg-zinc-900/50 border border-zinc-800 text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all ${
-                        errors.password ? "border-red-500" : ""
-                      }`}
+                      className={`pl-10 pr-9 h-10 text-sm bg-zinc-900/50 border-white/10 text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-300 focus:ring-1 focus:ring-zinc-300 transition-all ${errors.password ? "border-red-500" : ""
+                        }`}
                     />
                     <button
                       type="button"
@@ -790,16 +933,16 @@ export default function VenueOwnerRegisterPage() {
                     Confirm Password *
                   </Label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-400" />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
                     <Input
                       id="confirmPassword"
                       type={showConfirmPassword ? "text" : "password"}
                       value={formData.confirmPassword}
                       onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
+                      onBlur={(e) => checkConfirmPassword(e.target.value)}
                       placeholder="Re-enter password"
-                      className={`pl-10 pr-10 h-12 bg-zinc-900/50 border border-zinc-800 text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all ${
-                        errors.confirmPassword ? "border-red-500" : ""
-                      }`}
+                      className={`pl-10 pr-9 h-10 text-sm bg-zinc-900/50 border-white/10 text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-300 focus:ring-1 focus:ring-zinc-300 transition-all ${errors.confirmPassword ? "border-red-500" : ""
+                        }`}
                     />
                     <button
                       type="button"
@@ -822,26 +965,26 @@ export default function VenueOwnerRegisterPage() {
                   </div>
                 </div>
 
-                <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full h-12 bg-transparent border border-zinc-800 text-zinc-300 hover:bg-zinc-900 hover:text-white transition-all flex items-center justify-center gap-3 py-2.5 rounded-lg"
-                    onClick={handleGoogleLogin}
-                    disabled={isLoading}
-                  >
-                    <svg className="h-5 w-5" viewBox="0 0 24 24">
-                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                    </svg>
-                    Google
-                  </Button>
+<Button
+                  type="button"
+                  variant="outline"
+                  className="w-full flex items-center justify-center gap-3 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white text-sm font-medium hover:bg-white/10 hover:border-white/20 transition-all"
+                  onClick={handleGoogleLogin}
+                  disabled={isLoading}
+                >
+                  <svg className="h-5 w-5" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                  </svg>
+                  Google
+                </Button>
 
                 <Button
                   type="button"
                   variant="default"
-                  className="w-full h-12 text-base font-semibold text-zinc-100 bg-gradient-to-b from-zinc-700 to-zinc-900 border border-zinc-600 rounded-lg hover:from-zinc-600 hover:to-zinc-800 hover:border-zinc-400 hover:shadow-[0_0_15px_rgba(255,255,255,0.1)] transition-all duration-300 active:scale-[0.99]"
+                  className="w-full h-10 text-sm font-semibold bg-white/10 border border-white/20 text-white backdrop-blur-md hover:bg-white/20 hover:border-white/40 transition-all duration-300"
                   onClick={handleNextStep}
                   disabled={isLoading}
                 >
@@ -893,14 +1036,14 @@ export default function VenueOwnerRegisterPage() {
                     value={otp}
                     onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     maxLength={6}
-                    className="h-12 text-center text-xl tracking-widest bg-zinc-900/50 border border-zinc-800 text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all"
+                    className="h-12 text-center text-xl tracking-widest bg-zinc-900/50 border-white/10 text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-300 focus:ring-1 focus:ring-zinc-300 transition-all"
                   />
                 </div>
 
                 <Button
                   type="button"
                   variant="default"
-                  className="w-full h-12 text-base font-semibold text-zinc-100 bg-gradient-to-b from-zinc-700 to-zinc-900 border border-zinc-600 rounded-lg hover:from-zinc-600 hover:to-zinc-800 hover:border-zinc-400 hover:shadow-[0_0_15px_rgba(255,255,255,0.1)] transition-all duration-300 active:scale-[0.99]"
+                  className="w-full h-10 text-sm font-semibold text-zinc-100 bg-gradient-to-b from-zinc-700 to-zinc-900 border border-zinc-600 rounded-lg hover:from-zinc-600 hover:to-zinc-800 hover:border-zinc-400 transition-all duration-300 active:scale-[0.99]"
                   onClick={handleVerifyOTP}
                   disabled={isLoading}
                 >
@@ -922,7 +1065,7 @@ export default function VenueOwnerRegisterPage() {
                   <Button
                     type="button"
                     variant="outline"
-                    className="flex-1 h-12 bg-zinc-800 text-white hover:bg-zinc-700 transition-all duration-300"
+                    className="flex-1 h-10 text-sm bg-white/5 border border-white/20 text-white font-semibold backdrop-blur-md transition-all duration-300 hover:bg-white/10 hover:border-white/40 active:scale-95"
                     onClick={() => setStep(4)}
                     disabled={isLoading}
                   >
@@ -944,9 +1087,8 @@ export default function VenueOwnerRegisterPage() {
                     placeholder="Grand Ballroom ITC"
                     value={formData.venueName}
                     onChange={(e) => handleInputChange("venueName", e.target.value)}
-                    className={`h-12 bg-zinc-900/50 border border-zinc-800 text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all ${
-                      errors.venueName ? "border-red-500" : ""
-                    }`}
+                    className={`h-10 text-sm bg-zinc-900/50 border-white/10 text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-300 focus:ring-1 focus:ring-zinc-300 transition-all ${errors.venueName ? "border-red-500" : ""
+                      }`}
                   />
                   {errors.venueName && <p className="text-xs text-red-400">{errors.venueName}</p>}
                 </div>
@@ -959,9 +1101,8 @@ export default function VenueOwnerRegisterPage() {
                     id="venueType"
                     value={formData.venueType}
                     onChange={(e) => handleInputChange("venueType", e.target.value)}
-                    className={`flex h-12 w-full rounded-md border border-zinc-800 bg-zinc-900/50 px-3 py-2 text-sm text-white focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all ${
-                      errors.venueType ? "border-red-500" : ""
-                    }`}
+                    className={`flex h-10 w-full text-sm rounded-md border border-white/10 bg-zinc-900/50 px-3 py-2 text-sm text-white focus:outline-none focus:border-zinc-300 focus:ring-1 focus:ring-zinc-300 transition-all ${errors.venueType ? "border-red-500" : ""
+                      }`}
                   >
                     <option value="">Select venue type</option>
                     <option value="BANQUET_HALL">Banquet Hall</option>
@@ -986,9 +1127,8 @@ export default function VenueOwnerRegisterPage() {
                     onChange={(e) => handleInputChange("description", e.target.value)}
                     placeholder="Describe your venue, amenities, capacity, and what makes it special... (min. 20 characters)"
                     rows={4}
-                    className={`flex min-h-[120px] w-full rounded-md border border-zinc-800 bg-zinc-900/50 px-3 py-2 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all ${
-                      errors.description ? "border-red-500" : ""
-                    }`}
+                    className={`flex min-h-[120px] w-full rounded-md border border-white/10 bg-zinc-900/50 px-3 py-2 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-300 focus:ring-1 focus:ring-zinc-300 transition-all ${errors.description ? "border-red-500" : ""
+                      }`}
                   />
                   {errors.description && <p className="text-xs text-red-400">{errors.description}</p>}
                 </div>
@@ -1001,7 +1141,7 @@ export default function VenueOwnerRegisterPage() {
                         City *
                       </Label>
                       <div className="relative">
-                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-400 pointer-events-none" />
+                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500 pointer-events-none" />
                         <select
                           id="city"
                           value={formData.city}
@@ -1009,12 +1149,11 @@ export default function VenueOwnerRegisterPage() {
                             handleInputChange("city", e.target.value);
                             // Auto-clear area selection if a non-Chennai city is selected
                             if (e.target.value !== "Chennai") {
-                              handleInputChange("area", ""); 
+                              handleInputChange("area", "");
                             }
                           }}
-                          className={`pl-10 h-12 w-full appearance-none bg-zinc-900/50 border border-zinc-800 text-white focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all rounded-md ${
-                            errors.city ? "border-red-500" : ""
-                          }`}
+                          className={`pl-9 h-10 text-sm w-full appearance-none bg-zinc-900/50 border-white/10 text-white focus:outline-none focus:border-zinc-300 focus:ring-1 focus:ring-zinc-300 transition-all rounded-md ${errors.city ? "border-red-500" : ""
+                            }`}
                         >
                           <option className="bg-zinc-900 text-white" value="" disabled>Select City</option>
                           <option className="bg-zinc-900 text-white" value="Chennai">Chennai</option>
@@ -1039,9 +1178,8 @@ export default function VenueOwnerRegisterPage() {
                         value={formData.area}
                         onChange={(e) => handleInputChange("area", e.target.value)}
                         disabled={formData.city !== "Chennai"}
-                        className={`h-12 w-full appearance-none px-3 bg-zinc-900/50 border border-zinc-800 text-white focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all rounded-md ${
-                          errors.area ? "border-red-500" : ""
-                        }`}
+                        className={`h-10 w-full appearance-none px-3 text-sm bg-zinc-900/50 border-white/10 text-white focus:outline-none focus:border-zinc-300 focus:ring-1 focus:ring-zinc-300 transition-all rounded-md ${errors.area ? "border-red-500" : ""
+                          }`}
                       >
                         <option className="bg-zinc-900 text-white" value="" disabled>Select Area</option>
                         {chennaiAreas.sort().map((area) => (
@@ -1074,9 +1212,8 @@ export default function VenueOwnerRegisterPage() {
                       onChange={(e) => handleInputChange("address", e.target.value)}
                       placeholder="Complete street address"
                       rows={2}
-                      className={`flex min-h-[80px] w-full rounded-md border border-zinc-800 bg-zinc-900/50 px-3 py-2 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all ${
-                        errors.address ? "border-red-500" : ""
-                      }`}
+                      className={`flex min-h-[80px] w-full rounded-md border border-white/10 bg-zinc-900/50 px-3 py-2 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-300 focus:ring-1 focus:ring-zinc-300 transition-all ${errors.address ? "border-red-500" : ""
+                        }`}
                     />
                     {errors.address && <p className="text-xs text-red-400">{errors.address}</p>}
                   </div>
@@ -1090,9 +1227,8 @@ export default function VenueOwnerRegisterPage() {
                       placeholder="e.g. 600001"
                       value={formData.pincode}
                       onChange={(e) => handleInputChange("pincode", e.target.value)}
-                      className={`h-12 bg-zinc-900/50 border border-zinc-800 text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all ${
-                        errors.pincode ? "border-red-500" : ""
-                      }`}
+                      className={`h-10 text-sm bg-zinc-900/50 border-white/10 text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-300 focus:ring-1 focus:ring-zinc-300 transition-all ${errors.pincode ? "border-red-500" : ""
+                        }`}
                     />
                     {errors.pincode && <p className="text-xs text-red-400">{errors.pincode}</p>}
                   </div>
@@ -1109,9 +1245,8 @@ export default function VenueOwnerRegisterPage() {
                       placeholder="e.g. 50"
                       value={formData.capacityMin}
                       onChange={(e) => handleInputChange("capacityMin", e.target.value)}
-                      className={`h-12 bg-zinc-900/50 border border-zinc-800 text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all ${
-                        errors.capacityMin ? "border-red-500" : ""
-                      }`}
+                      className={`h-10 text-sm bg-zinc-900/50 border-white/10 text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-300 focus:ring-1 focus:ring-zinc-300 transition-all ${errors.capacityMin ? "border-red-500" : ""
+                        }`}
                     />
                     {errors.capacityMin && <p className="text-xs text-red-400">{errors.capacityMin}</p>}
                   </div>
@@ -1125,9 +1260,8 @@ export default function VenueOwnerRegisterPage() {
                       placeholder="e.g. 500"
                       value={formData.capacityMax}
                       onChange={(e) => handleInputChange("capacityMax", e.target.value)}
-                      className={`h-12 bg-zinc-900/50 border border-zinc-800 text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all ${
-                        errors.capacityMax ? "border-red-500" : ""
-                      }`}
+                      className={`h-10 text-sm bg-zinc-900/50 border-white/10 text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-300 focus:ring-1 focus:ring-zinc-300 transition-all ${errors.capacityMax ? "border-red-500" : ""
+                        }`}
                     />
                     {errors.capacityMax && <p className="text-xs text-red-400">{errors.capacityMax}</p>}
                   </div>
@@ -1144,7 +1278,7 @@ export default function VenueOwnerRegisterPage() {
                       placeholder="e.g. 25000"
                       value={formData.basePriceMorning}
                       onChange={(e) => handleInputChange("basePriceMorning", e.target.value)}
-                      className="h-12 bg-zinc-900/50 border border-zinc-800 text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all"
+                      className="h-10 text-sm bg-zinc-900/50 border-white/10 text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-300 focus:ring-1 focus:ring-zinc-300 transition-all"
                     />
                   </div>
                   <div className="space-y-2">
@@ -1157,7 +1291,7 @@ export default function VenueOwnerRegisterPage() {
                       placeholder="e.g. 40000"
                       value={formData.basePriceEvening}
                       onChange={(e) => handleInputChange("basePriceEvening", e.target.value)}
-                      className="h-12 bg-zinc-900/50 border border-zinc-800 text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all"
+                      className="h-10 text-sm bg-zinc-900/50 border-white/10 text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-300 focus:ring-1 focus:ring-zinc-300 transition-all"
                     />
                   </div>
                   <div className="space-y-2">
@@ -1170,7 +1304,7 @@ export default function VenueOwnerRegisterPage() {
                       placeholder="e.g. 60000"
                       value={formData.basePriceFullDay}
                       onChange={(e) => handleInputChange("basePriceFullDay", e.target.value)}
-                      className="h-12 bg-zinc-900/50 border border-zinc-800 text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all"
+                      className="h-10 text-sm bg-zinc-900/50 border-white/10 text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-300 focus:ring-1 focus:ring-zinc-300 transition-all"
                     />
                   </div>
                 </div>
@@ -1188,7 +1322,7 @@ export default function VenueOwnerRegisterPage() {
                   <Button
                     type="button"
                     variant="default"
-                    className="flex-1 h-12 text-base font-semibold text-zinc-100 bg-gradient-to-b from-zinc-700 to-zinc-900 border border-zinc-600 rounded-lg hover:from-zinc-600 hover:to-zinc-800 hover:border-zinc-400 hover:shadow-[0_0_15px_rgba(255,255,255,0.1)] transition-all duration-300 active:scale-[0.99]"
+                    className="flex-1 h-12 text-base font-semibold text-zinc-100 bg-gradient-to-b from-zinc-700 to-zinc-900 border border-zinc-600 rounded-lg hover:from-zinc-600 hover:to-zinc-800 hover:border-zinc-400 transition-all duration-300 active:scale-[0.99]"
                     onClick={handleNextStep}
                     disabled={isLoading}
                   >
@@ -1207,7 +1341,7 @@ export default function VenueOwnerRegisterPage() {
                   </Label>
                   <div className="flex gap-2 relative">
                     <div className="relative flex-1">
-                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-400" />
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
                       <Input
                         id="phone"
                         placeholder="9876543210"
@@ -1216,20 +1350,20 @@ export default function VenueOwnerRegisterPage() {
                           handleInputChange("phone", e.target.value);
                           setIsPhoneVerified(false);
                         }}
+                        onBlur={(e) => checkPhoneExists(e.target.value)}
                         disabled={isPhoneVerified}
-                        className={`pl-10 h-12 bg-zinc-900/50 border border-zinc-800 text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all ${
-                          errors.phone ? "border-red-500" : ""
-                        }`}
+                        className={`pl-9 h-10 text-sm bg-zinc-900/50 border-white/10 text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-300 focus:ring-1 focus:ring-zinc-300 transition-all ${errors.phone ? "border-red-500" : ""
+                          }`}
                         maxLength={10}
                       />
                     </div>
                     {!isPhoneVerified ? (
-                      <Button 
-                        type="button" 
-                        variant="outline" 
+                      <Button
+                        type="button"
+                        variant="outline"
                         onClick={sendPhoneOTP}
-                        disabled={isLoading || formData.phone.length !== 10}
-                        className="bg-white/5 border-zinc-800 text-white h-12 shrink-0 px-6"
+                        disabled={isLoading || !!errors.phone || formData.phone.length !== 10}
+                        className="bg-white/5 border-white/10 text-white h-12 shrink-0 px-6 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Verify"}
                       </Button>
@@ -1242,7 +1376,7 @@ export default function VenueOwnerRegisterPage() {
                   {errors.phone && <p className="text-xs text-red-400">{errors.phone}</p>}
 
                   {showPhoneOTP && !isPhoneVerified && (
-                    <div className="mt-3 p-4 bg-zinc-900/50 border border-zinc-800 rounded-lg space-y-3 animate-in fade-in slide-in-from-top-2">
+                    <div className="mt-3 p-4 bg-zinc-900/50 border-white/10 rounded-lg space-y-3 animate-in fade-in slide-in-from-top-2">
                       <Label htmlFor="phoneOtp" className="text-sm font-medium text-zinc-300">Enter Phone OTP</Label>
                       <div className="flex gap-2">
                         <Input
@@ -1251,10 +1385,10 @@ export default function VenueOwnerRegisterPage() {
                           value={phoneOtp}
                           onChange={(e) => setPhoneOtp(e.target.value)}
                           maxLength={6}
-                          className="h-12 text-center tracking-widest text-lg bg-zinc-950 border-zinc-800 focus:border-zinc-600 text-white"
+                          className="h-12 text-center tracking-widest text-lg bg-zinc-950 border-white/10 focus:border-zinc-300 text-white"
                         />
-                        <Button 
-                          type="button" 
+                        <Button
+                          type="button"
                           onClick={verifyPhoneOTP}
                           disabled={isLoading || phoneOtp.length < 4}
                           className="bg-zinc-700 hover:bg-zinc-600 text-white h-12 px-6"
@@ -1264,7 +1398,6 @@ export default function VenueOwnerRegisterPage() {
                       </div>
                     </div>
                   )}
-                  {errors.phone && <p className="text-xs text-red-400">{errors.phone}</p>}
                 </div>
 
                 <div className="flex gap-3">
@@ -1280,7 +1413,7 @@ export default function VenueOwnerRegisterPage() {
                   <Button
                     type="button"
                     variant="default"
-                    className="flex-1 h-12 text-base font-semibold text-zinc-100 bg-gradient-to-b from-zinc-700 to-zinc-900 border border-zinc-600 rounded-lg hover:from-zinc-600 hover:to-zinc-800 hover:border-zinc-400 hover:shadow-[0_0_15px_rgba(255,255,255,0.1)] transition-all duration-300 active:scale-[0.99]"
+                    className="flex-1 h-12 text-base font-semibold text-zinc-100 bg-gradient-to-b from-zinc-700 to-zinc-900 border border-zinc-600 rounded-lg hover:from-zinc-600 hover:to-zinc-800 hover:border-zinc-400 transition-all duration-300 active:scale-[0.99]"
                     onClick={handleNextStep}
                     disabled={isLoading}
                   >
@@ -1382,9 +1515,8 @@ export default function VenueOwnerRegisterPage() {
                     id="kycDocType"
                     value={formData.kycDocType}
                     onChange={(e) => handleInputChange("kycDocType", e.target.value)}
-                    className={`flex h-12 w-full rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-2 text-sm text-white focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all ${
-                      errors.kycDocType ? "border-red-500" : ""
-                    }`}
+                    className={`flex h-10 w-full text-sm rounded-lg border border-white/10 bg-zinc-900/50 px-3 py-2 text-sm text-white focus:outline-none focus:border-zinc-300 focus:ring-1 focus:ring-zinc-300 transition-all ${errors.kycDocType ? "border-red-500" : ""
+                      }`}
                   >
                     <option value="AADHAAR">Aadhar Card</option>
                     <option value="PAN">PAN Card</option>
@@ -1403,9 +1535,9 @@ export default function VenueOwnerRegisterPage() {
                     id="kycDocNumber"
                     placeholder={
                       formData.kycDocType === "AADHAAR" ? "XXXX-XXXX-XXXX" :
-                      formData.kycDocType === "PAN" ? "ABCDE1234F" :
-                      formData.kycDocType === "PASSPORT" ? "A1234567" :
-                      "DL Number"
+                        formData.kycDocType === "PAN" ? "ABCDE1234F" :
+                          formData.kycDocType === "PASSPORT" ? "A1234567" :
+                            "DL Number"
                     }
                     value={formData.kycDocNumber}
                     onChange={(e) => {
@@ -1417,9 +1549,8 @@ export default function VenueOwnerRegisterPage() {
                       }
                       handleInputChange("kycDocNumber", val);
                     }}
-                    className={`h-12 bg-zinc-900/50 border border-zinc-800 text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all ${
-                      errors.kycDocNumber ? "border-red-500" : ""
-                    }`}
+                    className={`h-10 text-sm bg-zinc-900/50 border-white/10 text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-300 focus:ring-1 focus:ring-zinc-300 transition-all ${errors.kycDocNumber ? "border-red-500" : ""
+                      }`}
                   />
                   {errors.kycDocNumber && <p className="text-xs text-red-400">{errors.kycDocNumber}</p>}
                 </div>
@@ -1574,7 +1705,7 @@ export default function VenueOwnerRegisterPage() {
                   {errors.venueGovtCertificateFiles && <p className="text-xs text-red-400">{errors.venueGovtCertificateFiles}</p>}
                 </div>
 
-                <div className="pt-4 border-t border-zinc-800">
+                <div className="pt-4 border-t border-white/10">
                   <div className="flex items-start gap-3 mb-6">
                     <div className="flex items-center h-5">
                       <input
@@ -1582,7 +1713,7 @@ export default function VenueOwnerRegisterPage() {
                         type="checkbox"
                         checked={acceptedTerms}
                         onChange={(e) => setAcceptedTerms(e.target.checked)}
-                        className="w-4 h-4 rounded border-zinc-800 bg-zinc-900 text-zinc-100 focus:ring-zinc-600 focus:ring-offset-zinc-950"
+                        className="w-4 h-4 rounded border-white/10 bg-zinc-900 text-zinc-100 focus:ring-zinc-300 focus:ring-offset-zinc-950"
                       />
                     </div>
                     <Label htmlFor="terms" className="text-sm text-zinc-400 leading-snug cursor-pointer">
@@ -1590,7 +1721,7 @@ export default function VenueOwnerRegisterPage() {
                     </Label>
                   </div>
                   {errors.terms && <p className="text-xs text-red-400 mb-4">{errors.terms}</p>}
-                  
+
                   <div className="flex gap-3">
                     <Button
                       type="button"
@@ -1604,7 +1735,7 @@ export default function VenueOwnerRegisterPage() {
                     <Button
                       type="button"
                       variant="default"
-                      className="flex-1 h-12 text-base font-semibold text-zinc-100 bg-gradient-to-b from-zinc-700 to-zinc-900 border border-zinc-600 rounded-lg hover:from-zinc-600 hover:to-zinc-800 hover:border-zinc-400 hover:shadow-[0_0_15px_rgba(255,255,255,0.1)] transition-all duration-300 active:scale-[0.99]"
+                      className="flex-1 h-12 text-base font-semibold text-zinc-100 bg-gradient-to-b from-zinc-700 to-zinc-900 border border-zinc-600 rounded-lg hover:from-zinc-600 hover:to-zinc-800 hover:border-zinc-400 transition-all duration-300 active:scale-[0.99]"
                       onClick={handleNextStep}
                       disabled={isLoading || isCompressing || !acceptedTerms}
                     >

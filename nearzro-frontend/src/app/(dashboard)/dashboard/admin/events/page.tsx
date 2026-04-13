@@ -193,7 +193,7 @@ export default function AdminEventsPage() {
       {/* Events Table */}
       <Card className="border-2 border-neutral-200 mx-6">
         <CardHeader>
-          <CardTitle className="text-neutral-900">All Events</CardTitle>
+          <CardTitle className="text-black">All Events</CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (

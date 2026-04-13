@@ -34,12 +34,30 @@ export class DashboardController {
   @Roles(Role.CUSTOMER)
   @Get('customer/stats')
   async getCustomerStats(@Req() req) {
-    return this.dashboardService.getCustomerStats(req.user.id);
+    return this.dashboardService.getCustomerStats(req.user.userId);
   }
 
   @Roles(Role.VENDOR, Role.VENUE_OWNER)
   @Get('provider/stats')
   async getProviderStats(@Req() req) {
-    return this.dashboardService.getProviderStats(req.user.id, req.user.role);
+    return this.dashboardService.getProviderStats(req.user.userId, req.user.role);
+  }
+
+  // ============================================
+  // NEW: Separate Vendor and Venue Dashboard Stats
+  // ============================================
+
+  /// 🧑‍🔧 VENDOR → Get vendor dashboard stats
+  @Roles(Role.VENDOR)
+  @Get('vendor/stats')
+  async getVendorStats(@Req() req) {
+    return this.dashboardService.getVendorStats(req.user.userId);
+  }
+
+  /// 🏢 VENUE OWNER → Get venue dashboard stats
+  @Roles(Role.VENUE_OWNER)
+  @Get('venue/stats')
+  async getVenueStats(@Req() req) {
+    return this.dashboardService.getVenueStats(req.user.userId);
   }
 }

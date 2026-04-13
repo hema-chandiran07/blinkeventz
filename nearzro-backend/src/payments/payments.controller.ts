@@ -50,6 +50,55 @@ export class PaymentsController {
     return this.paymentsService.getAllPayments(page, limit, status);
   }
 
+  // ✅ Get payment by ID (Admin only) - For transaction detail page
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @Get(':id')
+  @ApiParam({ name: 'id', type: Number, description: 'Payment ID' })
+  @ApiOperation({ summary: 'Get payment by ID (Admin only)' })
+  @ApiResponse({ status: 200, description: 'Payment details retrieved' })
+  @ApiResponse({ status: 404, description: 'Payment not found' })
+  async getPaymentById(@Param('id', ParseIntPipe) id: number) {
+    return this.paymentsService.getPaymentById(id);
+  }
+
+  // ============================================
+  // REFUND ENDPOINTS (Admin only)
+  // ============================================
+
+  /// 👑 ADMIN → Process refund for a payment
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @Patch(':id/refund')
+  @ApiParam({ name: 'id', type: Number, description: 'Payment ID' })
+  @ApiOperation({ summary: 'Process refund for a payment (Admin only)' })
+  @ApiBody({ schema: { type: 'object', required: ['amount'], properties: { amount: { type: 'number', description: 'Refund amount' }, reason: { type: 'string', description: 'Reason for refund' } } } })
+  @ApiResponse({ status: 200, description: 'Refund processed successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid refund request' })
+  @ApiResponse({ status: 404, description: 'Payment not found' })
+  async processRefund(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: AuthRequest,
+    @Body() body: { amount: number; reason?: string }
+  ) {
+    return this.paymentsService.processRefund(id, body.amount, body.reason, req.user.userId);
+  }
+
+  /// 👑 ADMIN → Get refund history for a payment
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @Get(':id/refunds')
+  @ApiParam({ name: 'id', type: Number, description: 'Payment ID' })
+  @ApiOperation({ summary: 'Get refund history for a payment (Admin only)' })
+  @ApiResponse({ status: 200, description: 'Refund history retrieved' })
+  @ApiResponse({ status: 404, description: 'Payment not found' })
+  async getRefundHistory(@Param('id', ParseIntPipe) id: number) {
+    return this.paymentsService.getRefundHistory(id);
+  }
+
   // ============================================================
   // ENDPOINT 1: Create Payment Order (with cart)
   // ============================================================
@@ -82,12 +131,14 @@ export class PaymentsController {
   // ENDPOINT 2: Create Simplified Payment (no cart)
   // ============================================================
 
-  @Public()
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.CUSTOMER, Role.VENUE_OWNER, Role.VENDOR, Role.ADMIN)
   @Post('create-order-simple')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Create Razorpay payment order (simplified)',
-    description: 'Creates a payment order without a cart. For booking flows where cart is not used.'
+    description: 'Creates a payment order without a cart. For booking flows where cart is not used. Requires authentication.'
   })
   @ApiBody({ type: CreateSimplePaymentDto })
   @ApiResponse({
@@ -96,12 +147,14 @@ export class PaymentsController {
     type: PaymentOrderResponseDto
   })
   @ApiResponse({ status: 400, description: 'Invalid amount or validation error' })
+  @ApiResponse({ status: 401, description: 'Authentication required' })
   async createOrderSimple(
+    @Req() req: AuthRequest,
     @Body(new ValidationPipe({ transform: true, whitelist: true })) dto: CreateSimplePaymentDto,
     @Headers('x-request-id') rawRequestId?: string,
   ): Promise<PaymentOrderResponseDto> {
     const requestId = this.normalizeHeader(rawRequestId);
-    return this.paymentsService.createOrderSimple(dto, requestId);
+    return this.paymentsService.createOrderSimple(dto, requestId, req.user.userId);
   }
 
   /**
@@ -225,16 +278,6 @@ export class PaymentsController {
     return this.paymentsService.rejectPayment(id, body.reason);
   }
 
-  // Refund payment (admin action)
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
-  @Post(':id/refund')
-  @ApiParam({ name: 'id', type: Number, description: 'Payment ID' })
-  async refundPayment(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() body: { amount?: number; reason?: string },
-  ) {
-    return this.paymentsService.refundPayment(id, body.amount, body.reason);
-  }
+  // NOTE: Duplicate POST refund endpoint removed (HIGH-07).
+  // Use PATCH /:id/refund (processRefund) which tracks cumulative refund amounts.
 }

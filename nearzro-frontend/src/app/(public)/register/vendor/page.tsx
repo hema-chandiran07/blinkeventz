@@ -14,6 +14,43 @@ import api from "@/lib/api";
 import { PasswordStrength } from "@/components/ui/password-strength";
 import { compressImage } from "@/lib/image-utils";
 
+const sanitizeErrorMessage = (
+  message: string,
+  setErrors: Function
+): boolean => {
+  // Last safety net — if somehow a Prisma error leaks through
+  const isPrismaError =
+    message.toLowerCase().includes('prisma') ||
+    message.toLowerCase().includes('unique constraint') ||
+    message.toLowerCase().includes('invocation') ||
+    message.toLowerCase().includes('p2002') ||
+    message.toLowerCase().includes('failed on the fields');
+
+  if (!isPrismaError) return false;
+
+  // Map to friendly message based on field mentioned
+  if (message.toLowerCase().includes('phone')) {
+    setErrors((prev: any) => ({
+      ...prev,
+      phone: "This mobile number is already registered. Please use a different number."
+    }));
+  } else if (message.toLowerCase().includes('email')) {
+    setErrors((prev: any) => ({
+      ...prev,
+      email: "This email is already registered. Please use a different email."
+    }));
+  } else if (message.toLowerCase().includes('username')) {
+    setErrors((prev: any) => ({
+      ...prev,
+      username: "This username is already taken. Please choose a different username."
+    }));
+  } else {
+    toast.error("An account with these details already exists. Please try with different information.");
+  }
+
+  return true;
+};
+
 const chennaiAreas = [
   "Adyar", "Alwarpet", "Ambattur", "Ambattur OT", "Anna Nagar", "Annanur",
   "Athipattu", "Avadi", "Besant Nagar", "Chengalpattu", "Chromepet", "ECR",
@@ -38,7 +75,7 @@ export default function VendorRegisterPage() {
   const [otp, setOtp] = useState("");
   const [userId, setUserId] = useState<number | null>(null);
   const [devOtp, setDevOtp] = useState<string | null>(null); // For development only
-  
+
   const [isCompressing, setIsCompressing] = useState(false);
   const [isPhoneVerified, setIsPhoneVerified] = useState(false);
   const [showPhoneOTP, setShowPhoneOTP] = useState(false);
@@ -79,34 +116,7 @@ export default function VendorRegisterPage() {
   } | null>(null);
   const [emailCheckTimeout, setEmailCheckTimeout] = useState<NodeJS.Timeout | null>(null);
 
-  // Hydrate from localStorage
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const savedDraft = localStorage.getItem("registration_draft_vendor");
-      if (savedDraft) {
-        try {
-          const parsed = JSON.parse(savedDraft);
-          setFormData(prev => ({ ...prev, ...parsed }));
-        } catch (e) {
-          console.error("Draft hydration failed", e);
-        }
-      }
-    }
-  }, []);
-
-  // Save to localStorage whenever formData changes
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      if (typeof window !== "undefined") {
-        const { password, confirmPassword, businessImages, kycDocFiles, foodLicenseFiles, ...safeData } = formData;
-        // Only save if there's actual data to save
-        if (safeData.email || safeData.name || safeData.businessName) {
-          localStorage.setItem("registration_draft_vendor", JSON.stringify(safeData));
-        }
-      }
-    }, 1000);
-    return () => clearTimeout(timeout);
-  }, [formData]);
+  // Local storage draft tracking removed for security
 
   // Handle Phone Verification state for OAuth bypass
   useEffect(() => {
@@ -119,9 +129,9 @@ export default function VendorRegisterPage() {
 
   // Auto-advance to Step 3 if user is already logged in (e.g., after Google OAuth)
   useEffect(() => {
-    if (user && user.role === "VENDOR") { 
+    if (user && user.role === "VENDOR") {
       const searchString = window.location.search;
-      
+
       // If the URL contains step 2 or 3, or if they just have an ID, force them to Business Details
       if (searchString.includes("step=3") || searchString.includes("step=2") || user.id) {
         // Pre-fill name and email from user data
@@ -130,9 +140,9 @@ export default function VendorRegisterPage() {
           name: prev.name || user.name || "",
           email: prev.email || user.email || "",
         }));
-        
+
         setStep(3); // Jump to Business details
-        
+
         // Clean up the messy URL quietly in the browser
         window.history.replaceState(null, '', window.location.pathname + '?step=3');
       }
@@ -225,10 +235,44 @@ export default function VendorRegisterPage() {
   };
 
   const sendPhoneOTP = async () => {
-    if (!/^[6-9]\d{9}$/.test(formData.phone.replace(/\s/g, ""))) {
-      setErrors(prev => ({ ...prev, phone: "Please enter a valid 10-digit Indian mobile number first" }));
+    // GUARD 1 - block if there is already a phone error showing
+    if (errors.phone) {
+      toast.error("Please fix the phone number error before verifying.");
       return;
     }
+
+    // Check if phone already exists FIRST before sending OTP
+    if (!formData.phone) {
+      setErrors(prev => ({ ...prev, phone: "Please enter your phone number." }));
+      return;
+    }
+
+    const digitsOnly = /^\d+$/;
+    if (!digitsOnly.test(formData.phone)) {
+      setErrors(prev => ({ ...prev, phone: "Mobile number must contain digits only." }));
+      return;
+    }
+
+    if (formData.phone.length < 10) {
+      setErrors(prev => ({ ...prev, phone: "Please enter a valid 10-digit mobile number." }));
+      return;
+    }
+
+    // Check backend if phone already registered
+    try {
+      const checkResponse = await api.post("/auth/check-phone", { phone: formData.phone });
+      if (checkResponse.data.exists) {
+        setErrors(prev => ({ 
+          ...prev, 
+          phone: "This mobile number is already registered. Please use a different number." 
+        }));
+        return; // Stop here — do not send OTP
+      }
+    } catch (error: any) {
+      console.error("Phone check failed:", error);
+      // Silent fail — continue to OTP send
+    }
+
     setErrors(prev => ({ ...prev, phone: "" }));
     setIsLoading(true);
     try {
@@ -237,7 +281,15 @@ export default function VendorRegisterPage() {
       toast.success("OTP sent to your phone");
     } catch (error: any) {
       console.error("Failed to send phone OTP:", error);
-      toast.error(error?.response?.data?.message || "Failed to send OTP. Please try again.");
+      const data = error.response?.data;
+      if (data?.errors && Array.isArray(data.errors)) {
+        data.errors.forEach((err: { field: string; message: string }) => {
+          setErrors(prev => ({ ...prev, [err.field]: err.message }));
+        });
+        return;
+      }
+      const message = data?.message || data?.error?.message || error.message || "Something went wrong. Please try again.";
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
@@ -247,7 +299,7 @@ export default function VendorRegisterPage() {
     setIsLoading(true);
     try {
       const response = await api.post("/otp/verify-phone", { phone: formData.phone, otp: phoneOtp });
-      
+
       // Check if the API returned a success response
       if (response.data?.success) {
         setIsPhoneVerified(true);
@@ -259,7 +311,15 @@ export default function VendorRegisterPage() {
       }
     } catch (error: any) {
       console.error("OTP verification error:", error);
-      toast.error(error?.response?.data?.message || error?.message || "Invalid OTP. Please try again.");
+      const data = error.response?.data;
+      if (data?.errors && Array.isArray(data.errors)) {
+        data.errors.forEach((err: { field: string; message: string }) => {
+          setErrors(prev => ({ ...prev, [err.field]: err.message }));
+        });
+        return;
+      }
+      const message = data?.message || data?.error?.message || error.message || "Something went wrong. Please try again.";
+      toast.error(message);
       // Do NOT set isPhoneVerified true or hide OTP input on error
     } finally {
       setIsLoading(false);
@@ -272,7 +332,7 @@ export default function VendorRegisterPage() {
       setIsLoading(true);
       try {
         await api.post("/otp/send", { email: formData.email });
-        
+
         if (process.env.NODE_ENV === 'development') {
           try {
             const debugRes = await api.get(`/otp/debug?email=${formData.email}`);
@@ -283,13 +343,19 @@ export default function VendorRegisterPage() {
             console.log('Dev OTP fetch failed (expected in production)');
           }
         }
-        
+
         toast.success("OTP sent to your email!", {
           description: "Check your inbox to verify your email.",
         });
         setStep(2);
       } catch (error: any) {
-        toast.error(error?.response?.data?.message || "Failed to send OTP. Please try again.");
+        const data = error.response?.data;
+        const message =
+          data?.message ||
+          data?.error?.message ||
+          error.message ||
+          "Something went wrong. Please try again.";
+        toast.error(message);
         return;
       } finally {
         setIsLoading(false);
@@ -297,6 +363,16 @@ export default function VendorRegisterPage() {
     } else if (step === 3 && validateStep2()) {
       setStep(4);
     } else if (step === 4 && validateStep3()) {
+      // GUARD - block if there is already a phone error showing
+      if (errors.phone) {
+        toast.error("Please fix the phone number error before continuing.");
+        return;
+      }
+      // GUARD - block if phone is not verified
+      if (!isPhoneVerified) {
+        toast.error("Please verify your phone number before continuing.");
+        return;
+      }
       setStep(5); // Move to Images & KYC step
     } else if (step === 5 && validateStep4()) {
       handleRegister();
@@ -364,19 +440,21 @@ export default function VendorRegisterPage() {
       formDataObj.append("serviceRadiusKm", formData.serviceRadiusKm.toString());
       formDataObj.append("kycDocType", formData.kycDocType);
       formDataObj.append("kycDocNumber", formData.kycDocNumber);
-      
-      formData.businessImages.forEach((image) => formDataObj.append("businessImages", image));
-      formData.kycDocFiles.forEach((file) => formDataObj.append("kycDocFiles", file));
-      formData.foodLicenseFiles.forEach((file) => formDataObj.append("foodLicenseFiles", file));
+
+      formData.businessImages.forEach((image) => { if (image.size > 0) formDataObj.append("businessImages", image); });
+      formData.kycDocFiles.forEach((file) => { if (file.size > 0) formDataObj.append("kycDocFiles", file); });
+      formData.foodLicenseFiles.forEach((file) => { if (file.size > 0) formDataObj.append("foodLicenseFiles", file); });
 
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
 
       // OAUTH USER FLOW (User already logged in via Google/Facebook)
-      if (token || user?.id) {
+      if ((token || user?.id) && !formData.password) {
+        // Only use OAuth flow if there's no password (pure OAuth user)
         await api.patch("/vendors/me", formDataObj, {
           headers: { "Content-Type": "multipart/form-data" },
         });
-        
+
+        localStorage.removeItem("registration_draft_vendor");
         toast.success("Profile completed successfully!", { description: "Redirecting to your dashboard..." });
         setTimeout(() => router.push("/dashboard/vendor"), 1000);
         return; // Exit function early
@@ -385,14 +463,63 @@ export default function VendorRegisterPage() {
       // STANDARD USER FLOW (New email/password registration)
       const response = await api.post("/auth/register-vendor", formDataObj, {
         headers: { "Content-Type": "multipart/form-data" },
+        // @ts-ignore - skipAuth is a custom property handled in interceptor
+        skipAuth: true,
       });
-      setUserId(response.data.user.id);
 
-      toast.success("Registration completed successfully!", { description: "Logging you in..." });
-      await login(formData.email, formData.password);
+      localStorage.removeItem("registration_draft_vendor");
+
+      const tokenStr = response.data?.token || response.data?.access_token;
+      const userObj = response.data?.user;
+
+      if (tokenStr && userObj) {
+        localStorage.setItem("NearZro_user", JSON.stringify({ token: tokenStr, user: userObj }));
+        toast.success("Registration successful! Welcome to NearZro.");
+        router.push('/dashboard/vendor');
+        return;
+      }
+
+      try {
+        await login(formData.email, formData.password);
+        toast.success("Registration successful! Welcome to NearZro.");
+        router.push('/dashboard/vendor');
+      } catch (loginError: any) {
+        toast.success("Registration successful! Please login to continue.");
+        router.push('/login');
+      }
     } catch (error: any) {
       console.error("Registration error:", error);
-      toast.error(error?.response?.data?.message || "Registration failed. Please try again.");
+      setFormData(prev => ({ ...prev, password: "", confirmPassword: "" }));
+      const data = error.response?.data;
+
+      if (data?.errors && Array.isArray(data.errors)) {
+        data.errors.forEach((err: { field: string; message: string }) => {
+          setErrors(prev => ({ ...prev, [err.field]: err.message }));
+        });
+        return;
+      }
+
+      const message =
+        data?.message ||
+        data?.error?.message ||
+        error.message ||
+        "Registration failed. Please try again.";
+
+      // Last safety net for any Prisma leak
+      if (sanitizeErrorMessage(message, setErrors)) return;
+
+      // Clean backend messages — route to correct field or toast
+      if (message.toLowerCase().includes('email')) {
+        setErrors(prev => ({ ...prev, email: message }));
+      } else if (message.toLowerCase().includes('phone') || message.toLowerCase().includes('mobile')) {
+        setErrors(prev => ({ ...prev, phone: message }));
+      } else if (message.toLowerCase().includes('username')) {
+        setErrors(prev => ({ ...prev, username: message }));
+      } else if (message.toLowerCase().includes('password')) {
+        setErrors(prev => ({ ...prev, password: message }));
+      } else {
+        toast.error(message);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -422,7 +549,13 @@ export default function VendorRegisterPage() {
       setOtp("");
     } catch (error: any) {
       console.error("OTP verification error:", error);
-      toast.error(error?.response?.data?.message || "Invalid OTP. Please try again.");
+      const data = error.response?.data;
+      const message =
+        data?.message ||
+        data?.error?.message ||
+        error.message ||
+        "Something went wrong. Please try again.";
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
@@ -435,7 +568,13 @@ export default function VendorRegisterPage() {
         description: "Check your email for the new code.",
       });
     } catch (error: any) {
-      toast.error("Failed to resend OTP");
+      const data = error.response?.data;
+      const message =
+        data?.message ||
+        data?.error?.message ||
+        error.message ||
+        "Something went wrong. Please try again.";
+      toast.error(message);
     }
   };
 
@@ -455,7 +594,7 @@ export default function VendorRegisterPage() {
       if (emailCheckTimeout) {
         clearTimeout(emailCheckTimeout);
       }
-      
+
       // Reset email status
       setEmailExists(null);
       setErrors(prev => {
@@ -463,7 +602,7 @@ export default function VendorRegisterPage() {
         delete newErrors.email;
         return newErrors;
       });
-      
+
       // Only check if email looks valid
       if (value && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
         // Wait 1 second after user stops typing before checking
@@ -476,29 +615,85 @@ export default function VendorRegisterPage() {
   };
 
   const checkEmailExists = async (email: string) => {
-    setIsCheckingEmail(true);
+    if (!email) return;
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setErrors(prev => ({ ...prev, email: "Please enter a valid email address." }));
+      return;
+    }
+
     try {
       const response = await api.post("/auth/check-email", { email });
-      const data = response.data;
-      
-      setEmailExists({
-        exists: data.exists,
-        canRegisterAsVendor: data.canRegisterAsVendor,
-        canRegisterAsVenue: data.canRegisterAsVenue,
-        message: data.message,
-      });
-      
-      // If email exists and already registered as vendor, show error
-      if (data.exists && !data.canRegisterAsVendor) {
-        setErrors(prev => ({
-          ...prev,
-          email: "This email is already registered. Please login or use a different email..",
+      // FIXED: now correctly reads response.data.exists
+      if (response.data.exists) {
+        setErrors(prev => ({ 
+          ...prev, 
+          email: "This email is already registered. Please use a different email or login instead." 
         }));
+      } else {
+        setErrors(prev => ({ ...prev, email: "" }));
       }
-    } catch (error) {
-      console.error("Email check error:", error);
-    } finally {
-      setIsCheckingEmail(false);
+    } catch (error: any) {
+      // Silent fail — do not confuse user with "unable to verify" message
+      console.error("Email check failed silently:", error);
+    }
+  };
+
+  const checkPhoneExists = async (phone: string) => {
+    if (!phone) return;
+
+    const digitsOnly = /^\d+$/;
+    if (!digitsOnly.test(phone)) {
+      setErrors(prev => ({ ...prev, phone: "Mobile number must contain digits only." }));
+      return;
+    }
+
+    if (phone.length < 10) {
+      setErrors(prev => ({ ...prev, phone: "Please enter a valid 10-digit mobile number." }));
+      return;
+    }
+
+    // Clear previous phone error before checking
+    setErrors(prev => ({ ...prev, phone: "" }));
+
+    try {
+      const response = await api.post("/auth/check-phone", { phone });
+      if (response.data.exists) {
+        setErrors(prev => ({ 
+          ...prev, 
+          phone: "This mobile number is already registered. Please use a different number." 
+        }));
+      } else {
+        setErrors(prev => ({ ...prev, phone: "" }));
+      }
+    } catch (error: any) {
+      // Silent fail — do not confuse user
+      console.error("Phone check failed silently:", error);
+    }
+  };
+
+  const checkPassword = (password: string) => {
+    if (!password) return;
+    if (password.length < 8) {
+      setErrors(prev => ({ ...prev, password: "Password must be at least 8 characters." }));
+    } else if (!/[A-Z]/.test(password)) {
+      setErrors(prev => ({ ...prev, password: "Password must contain at least one uppercase letter." }));
+    } else if (!/[0-9]/.test(password)) {
+      setErrors(prev => ({ ...prev, password: "Password must contain at least one number." }));
+    } else if (!/[@$!%*?&]/.test(password)) {
+      setErrors(prev => ({ ...prev, password: "Password must contain at least one special character." }));
+    } else {
+      setErrors(prev => { const newErrors = { ...prev }; delete newErrors.password; return newErrors; });
+    }
+  };
+
+  const checkConfirmPassword = (confirmPassword: string) => {
+    if (!confirmPassword) return;
+    if (formData.password !== confirmPassword) {
+      setErrors(prev => ({ ...prev, confirmPassword: "Passwords do not match." }));
+    } else {
+      setErrors(prev => { const newErrors = { ...prev }; delete newErrors.confirmPassword; return newErrors; });
     }
   };
 
@@ -511,11 +706,10 @@ export default function VendorRegisterPage() {
             {[1, 2, 3, 4, 5].map((stepNumber) => (
               <div key={stepNumber} className="flex items-center">
                 <div
-                  className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold transition-all ${
-                    step >= stepNumber
+                  className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold transition-all ${step >= stepNumber
                       ? "bg-white text-zinc-950"
                       : "bg-zinc-800 text-zinc-500"
-                  }`}
+                    }`}
                 >
                   {step > stepNumber ? (
                     <CheckCircle2 className="h-4 w-4" />
@@ -525,9 +719,8 @@ export default function VendorRegisterPage() {
                 </div>
                 {stepNumber < 5 && (
                   <div
-                    className={`w-12 sm:w-16 h-0.5 mx-1.5 ${
-                      step > stepNumber ? "bg-white" : "bg-zinc-800"
-                    }`}
+                    className={`w-12 sm:w-16 h-0.5 mx-1.5 ${step > stepNumber ? "bg-white" : "bg-zinc-800"
+                      }`}
                   />
                 )}
               </div>
@@ -542,7 +735,7 @@ export default function VendorRegisterPage() {
           </div>
         </div>
 
-        <Card className="border-0 shadow-[0_20px_50px_rgba(0,0,0,0.8)] bg-zinc-950/60 backdrop-blur-xl border border-white/10 ring-1 ring-white/5 rounded-2xl p-6">
+        <Card className="border-0 bg-zinc-950/60 backdrop-blur-xl border border-white/10 rounded-2xl p-6">
           <CardHeader className="text-center pb-2">
             <div className="inline-flex h-12 w-12 rounded-xl bg-zinc-900 border border-white/10 mx-auto mb-3 flex items-center justify-center">
               <Store className="h-6 w-6 text-zinc-200" />
@@ -579,9 +772,8 @@ export default function VendorRegisterPage() {
                       type="text"
                       value={formData.name}
                       onChange={(e) => handleInputChange("name", e.target.value)}
-                      className={`pl-9 h-10 text-sm bg-zinc-900/50 border-white/10 text-white placeholder-zinc-500 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-300 focus:border-zinc-300 transition-all ${
-                        errors.name ? "border-red-500" : ""
-                      }`}
+                      className={`pl-9 h-10 text-sm bg-zinc-900/50 border-white/10 text-white placeholder-zinc-500 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-300 focus:border-zinc-300 transition-all ${errors.name ? "border-red-500" : ""
+                        }`}
                     />
                   </div>
                   {errors.name && <p className="text-xs text-red-400">{errors.name}</p>}
@@ -599,9 +791,9 @@ export default function VendorRegisterPage() {
                       type="email"
                       value={formData.email}
                       onChange={(e) => handleInputChange("email", e.target.value)}
-                      className={`pl-9 h-10 text-sm bg-zinc-900/50 border-white/10 text-white placeholder-zinc-500 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-300 focus:border-zinc-300 transition-all ${
-                        errors.email ? "border-red-500" : ""
-                      }`}
+                      onBlur={(e) => checkEmailExists(e.target.value)}
+                      className={`pl-9 h-10 text-sm bg-zinc-900/50 border-white/10 text-white placeholder-zinc-500 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-300 focus:border-zinc-300 transition-all ${errors.email ? "border-red-500" : ""
+                        }`}
                       disabled={isCheckingEmail}
                     />
                     {isCheckingEmail && (
@@ -624,10 +816,10 @@ export default function VendorRegisterPage() {
                       type={showPassword ? "text" : "password"}
                       value={formData.password}
                       onChange={(e) => handleInputChange("password", e.target.value)}
+                      onBlur={(e) => checkPassword(e.target.value)}
                       placeholder="Min. 8 characters"
-                      className={`pl-9 pr-9 h-10 text-sm bg-zinc-900/50 border-white/10 text-white placeholder-zinc-500 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-300 focus:border-zinc-300 transition-all ${
-                        errors.password ? "border-red-500" : ""
-                      }`}
+                      className={`pl-9 pr-9 h-10 text-sm bg-zinc-900/50 border-white/10 text-white placeholder-zinc-500 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-300 focus:border-zinc-300 transition-all ${errors.password ? "border-red-500" : ""
+                        }`}
                     />
                     <button
                       type="button"
@@ -652,10 +844,10 @@ export default function VendorRegisterPage() {
                       type={showConfirmPassword ? "text" : "password"}
                       value={formData.confirmPassword}
                       onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
+                      onBlur={(e) => checkConfirmPassword(e.target.value)}
                       placeholder="Re-enter password"
-                      className={`pl-9 pr-9 h-10 text-sm bg-zinc-900/50 border-white/10 text-white placeholder-zinc-500 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-300 focus:border-zinc-300 transition-all ${
-                        errors.confirmPassword ? "border-red-500" : ""
-                      }`}
+                      className={`pl-9 pr-9 h-10 text-sm bg-zinc-900/50 border-white/10 text-white placeholder-zinc-500 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-300 focus:border-zinc-300 transition-all ${errors.confirmPassword ? "border-red-500" : ""
+                        }`}
                     />
                     <button
                       type="button"
@@ -686,10 +878,10 @@ export default function VendorRegisterPage() {
                   disabled={isLoading}
                 >
                   <svg className="h-4 w-4" viewBox="0 0 24 24">
-                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
                   </svg>
                   Google
                 </Button>
@@ -749,9 +941,8 @@ export default function VendorRegisterPage() {
                     value={otp}
                     onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     maxLength={6}
-                    className={`h-12 text-center text-xl tracking-widest bg-zinc-900/50 border-white/10 text-white placeholder-zinc-500 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-300 focus:border-zinc-300 transition-all ${
-                      errors.otp ? "border-red-500" : ""
-                    }`}
+                    className={`h-12 text-center text-xl tracking-widest bg-zinc-900/50 border-white/10 text-white placeholder-zinc-500 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-300 focus:border-zinc-300 transition-all ${errors.otp ? "border-red-500" : ""
+                      }`}
                   />
                   {errors.otp && <p className="text-xs text-red-400">{errors.otp}</p>}
                 </div>
@@ -759,7 +950,7 @@ export default function VendorRegisterPage() {
                 <Button
                   type="button"
                   variant="default"
-                  className="w-full h-10 text-sm font-semibold text-zinc-100 bg-gradient-to-b from-zinc-700 to-zinc-900 border border-zinc-600 rounded-lg hover:from-zinc-600 hover:to-zinc-800 hover:border-zinc-400 hover:shadow-[0_0_15px_rgba(255,255,255,0.1)] transition-all duration-300 active:scale-[0.99]"
+                  className="w-full h-10 text-sm font-semibold text-zinc-100 bg-gradient-to-b from-zinc-700 to-zinc-900 border border-zinc-600 rounded-lg hover:from-zinc-600 hover:to-zinc-800 hover:border-zinc-400 transition-all duration-300 active:scale-[0.99]"
                   onClick={handleVerifyOTP}
                   disabled={isLoading}
                 >
@@ -782,7 +973,7 @@ export default function VendorRegisterPage() {
                   <Button
                     type="button"
                     variant="outline"
-                    className="flex-1 h-10 text-sm bg-white/5 border border-white/20 text-white font-semibold backdrop-blur-md transition-all duration-300 hover:bg-white/10 hover:border-white/40 hover:-translate-y-0.5 hover:shadow-[0_4px_20px_rgba(255,255,255,0.1)] active:scale-95"
+                    className="flex-1 h-10 text-sm bg-white/5 border border-white/20 text-white font-semibold backdrop-blur-md transition-all duration-300 hover:bg-white/10 hover:border-white/40 active:scale-95"
                     onClick={() => setStep(1)}
                     disabled={isLoading}
                   >
@@ -804,9 +995,8 @@ export default function VendorRegisterPage() {
                     placeholder="Elite Photography Services"
                     value={formData.businessName}
                     onChange={(e) => handleInputChange("businessName", e.target.value)}
-                    className={`h-10 text-sm bg-zinc-900/50 border-white/10 text-white placeholder-zinc-500 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-300 focus:border-zinc-300 transition-all ${
-                      errors.businessName ? "border-red-500" : ""
-                    }`}
+                    className={`h-10 text-sm bg-zinc-900/50 border-white/10 text-white placeholder-zinc-500 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-300 focus:border-zinc-300 transition-all ${errors.businessName ? "border-red-500" : ""
+                      }`}
                   />
                   {errors.businessName && <p className="text-xs text-red-400">{errors.businessName}</p>}
                 </div>
@@ -819,9 +1009,8 @@ export default function VendorRegisterPage() {
                     id="businessType"
                     value={formData.businessType}
                     onChange={(e) => handleInputChange("businessType", e.target.value)}
-                    className={`flex h-10 w-full rounded-lg border border-white/10 bg-zinc-900/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-zinc-300 focus:border-zinc-300 transition-all ${
-                      errors.businessType ? "border-red-500" : ""
-                    }`}
+                    className={`flex h-10 w-full rounded-lg border border-white/10 bg-zinc-900/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-zinc-300 focus:border-zinc-300 transition-all ${errors.businessType ? "border-red-500" : ""
+                      }`}
                   >
                     <option value="">Select business type</option>
                     <option value="PHOTOGRAPHY">Photography</option>
@@ -846,9 +1035,8 @@ export default function VendorRegisterPage() {
                     onChange={(e) => handleInputChange("description", e.target.value)}
                     placeholder="Describe your services, experience, and what makes you unique... (min. 20 characters)"
                     rows={3}
-                    className={`flex min-h-[80px] w-full rounded-lg border border-white/10 bg-zinc-900/50 px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-300 focus:border-zinc-300 transition-all ${
-                      errors.description ? "border-red-500" : ""
-                    }`}
+                    className={`flex min-h-[80px] w-full rounded-lg border border-white/10 bg-zinc-900/50 px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-300 focus:border-zinc-300 transition-all ${errors.description ? "border-red-500" : ""
+                      }`}
                   />
                   {errors.description && <p className="text-xs text-red-400">{errors.description}</p>}
                 </div>
@@ -869,12 +1057,11 @@ export default function VendorRegisterPage() {
                             handleInputChange("city", e.target.value);
                             // Auto-clear area selection if a non-Chennai city is selected
                             if (e.target.value !== "Chennai") {
-                              handleInputChange("area", ""); 
+                              handleInputChange("area", "");
                             }
                           }}
-                          className={`pl-9 h-10 w-full appearance-none bg-zinc-900/50 border border-white/10 text-white focus:outline-none focus:border-zinc-300 focus:ring-1 focus:ring-zinc-300 transition-all rounded-lg text-sm ${
-                            errors.city ? "border-red-500" : ""
-                          }`}
+                          className={`pl-9 h-10 w-full appearance-none bg-zinc-900/50 border border-white/10 text-white focus:outline-none focus:border-zinc-300 focus:ring-1 focus:ring-zinc-300 transition-all rounded-lg text-sm ${errors.city ? "border-red-500" : ""
+                            }`}
                         >
                           <option className="bg-zinc-900 text-white" value="" disabled>Select City</option>
                           <option className="bg-zinc-900 text-white" value="Chennai">Chennai</option>
@@ -899,9 +1086,8 @@ export default function VendorRegisterPage() {
                         value={formData.area}
                         onChange={(e) => handleInputChange("area", e.target.value)}
                         disabled={formData.city !== "Chennai"}
-                        className={`h-10 w-full appearance-none px-3 bg-zinc-900/50 border border-white/10 text-white focus:outline-none focus:border-zinc-300 focus:ring-1 focus:ring-zinc-300 transition-all rounded-lg text-sm ${
-                          errors.area ? "border-red-500" : ""
-                        }`}
+                        className={`h-10 w-full appearance-none px-3 bg-zinc-900/50 border border-white/10 text-white focus:outline-none focus:border-zinc-300 focus:ring-1 focus:ring-zinc-300 transition-all rounded-lg text-sm ${errors.area ? "border-red-500" : ""
+                          }`}
                       >
                         <option className="bg-zinc-900 text-white" value="" disabled>Select Area</option>
                         {chennaiAreas.sort().map((area) => (
@@ -927,7 +1113,7 @@ export default function VendorRegisterPage() {
                   <Button
                     type="button"
                     variant="outline"
-                    className="flex-1 h-10 text-sm bg-white/5 border border-white/20 text-white font-semibold backdrop-blur-md transition-all duration-300 hover:bg-white/10 hover:border-white/40 hover:-translate-y-0.5 hover:shadow-[0_4px_20px_rgba(255,255,255,0.1)] active:scale-95"
+                    className="flex-1 h-10 text-sm bg-white/5 border border-white/20 text-white font-semibold backdrop-blur-md transition-all duration-300 hover:bg-white/10 hover:border-white/40 active:scale-95"
                     onClick={() => setStep(2)}
                     disabled={isLoading}
                   >
@@ -964,23 +1150,24 @@ export default function VendorRegisterPage() {
                         type="tel"
                         value={formData.phone}
                         onChange={(e) => {
-                          handleInputChange("phone", e.target.value);
+                          setFormData(prev => ({ ...prev, phone: e.target.value }));
                           setIsPhoneVerified(false);
+                          // Do NOT clear error on typing - only clear on valid verification
                         }}
+                        onBlur={(e) => checkPhoneExists(e.target.value)}
                         disabled={isPhoneVerified}
-                        className={`pl-9 h-10 text-sm bg-zinc-900/50 border-white/10 text-white placeholder-zinc-500 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-300 focus:border-zinc-300 transition-all ${
-                          errors.phone ? "border-red-500" : ""
-                        }`}
+                        className={`pl-9 h-10 text-sm bg-zinc-900/50 border-white/10 text-white placeholder-zinc-500 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-300 focus:border-zinc-300 transition-all ${errors.phone ? "border-red-500" : ""
+                          }`}
                         maxLength={10}
                       />
                     </div>
                     {!isPhoneVerified ? (
-                      <Button 
-                        type="button" 
-                        variant="outline" 
+                      <Button
+                        type="button"
+                        variant="outline"
                         onClick={sendPhoneOTP}
-                        disabled={isLoading || formData.phone.length !== 10}
-                        className="bg-white/5 border-white/20 text-white h-10 shrink-0"
+                        disabled={isLoading || !!errors.phone || formData.phone.length !== 10}
+                        className="bg-white/5 border-white/20 text-white h-10 shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Verify"}
                       </Button>
@@ -991,7 +1178,7 @@ export default function VendorRegisterPage() {
                     )}
                   </div>
                   {errors.phone && <p className="text-xs text-red-400">{errors.phone}</p>}
-                  
+
                   {showPhoneOTP && !isPhoneVerified && (
                     <div className="mt-3 p-4 bg-zinc-900/50 border border-white/10 rounded-lg space-y-3 animate-in fade-in slide-in-from-top-2">
                       <Label htmlFor="phoneOtp" className="text-sm font-medium text-zinc-300">Enter Phone OTP</Label>
@@ -1004,8 +1191,8 @@ export default function VendorRegisterPage() {
                           maxLength={6}
                           className="h-10 text-center tracking-widest text-lg bg-zinc-950 border-white/20 focus:border-emerald-500 text-white"
                         />
-                        <Button 
-                          type="button" 
+                        <Button
+                          type="button"
                           onClick={verifyPhoneOTP}
                           disabled={isLoading || phoneOtp.length < 4}
                           className="bg-emerald-600 hover:bg-emerald-500 text-white h-10"
@@ -1035,7 +1222,7 @@ export default function VendorRegisterPage() {
                   <Button
                     type="button"
                     variant="outline"
-                    className="flex-1 h-10 text-sm bg-white/5 border border-white/20 text-white font-semibold backdrop-blur-md transition-all duration-300 hover:bg-white/10 hover:border-white/40 hover:-translate-y-0.5 hover:shadow-[0_4px_20px_rgba(255,255,255,0.1)] active:scale-95"
+                    className="flex-1 h-10 text-sm bg-white/5 border border-white/20 text-white font-semibold backdrop-blur-md transition-all duration-300 hover:bg-white/10 hover:border-white/40 active:scale-95"
                     onClick={() => setStep(3)}
                     disabled={isLoading}
                   >
@@ -1044,9 +1231,9 @@ export default function VendorRegisterPage() {
                   <Button
                     type="button"
                     variant="default"
-                    className="flex-1 h-10 text-sm font-semibold bg-white/10 border border-white/20 text-white backdrop-blur-md hover:bg-white/20 hover:border-white/40 transition-all duration-300"
+                    className="flex-1 h-10 text-sm font-semibold bg-white/10 border border-white/20 text-white backdrop-blur-md hover:bg-white/20 hover:border-white/40 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={handleNextStep}
-                    disabled={isLoading}
+                    disabled={isLoading || !!errors.phone || !isPhoneVerified}
                   >
                     {isLoading ? "Saving..." : "Continue to Images & KYC"}
                   </Button>
@@ -1146,9 +1333,8 @@ export default function VendorRegisterPage() {
                     id="kycDocType"
                     value={formData.kycDocType}
                     onChange={(e) => handleInputChange("kycDocType", e.target.value)}
-                    className={`flex h-10 w-full rounded-lg border border-white/10 bg-zinc-900/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-zinc-300 focus:border-zinc-300 transition-all ${
-                      errors.kycDocType ? "border-red-500" : ""
-                    }`}
+                    className={`flex h-10 w-full rounded-lg border border-white/10 bg-zinc-900/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-zinc-300 focus:border-zinc-300 transition-all ${errors.kycDocType ? "border-red-500" : ""
+                      }`}
                   >
                     <option value="AADHAAR">Aadhar Card</option>
                     <option value="PAN">PAN Card</option>
@@ -1167,9 +1353,9 @@ export default function VendorRegisterPage() {
                     id="kycDocNumber"
                     placeholder={
                       formData.kycDocType === "AADHAAR" ? "XXXX-XXXX-XXXX" :
-                      formData.kycDocType === "PAN" ? "ABCDE1234F" :
-                      formData.kycDocType === "PASSPORT" ? "A1234567" :
-                      "DL Number"
+                        formData.kycDocType === "PAN" ? "ABCDE1234F" :
+                          formData.kycDocType === "PASSPORT" ? "A1234567" :
+                            "DL Number"
                     }
                     value={formData.kycDocNumber}
                     onChange={(e) => {
@@ -1181,9 +1367,8 @@ export default function VendorRegisterPage() {
                       }
                       handleInputChange("kycDocNumber", val);
                     }}
-                    className={`h-10 text-sm bg-zinc-900/50 border-white/10 text-white placeholder-zinc-500 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-300 focus:border-zinc-300 transition-all ${
-                      errors.kycDocNumber ? "border-red-500" : ""
-                    }`}
+                    className={`h-10 text-sm bg-zinc-900/50 border-white/10 text-white placeholder-zinc-500 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-300 focus:border-zinc-300 transition-all ${errors.kycDocNumber ? "border-red-500" : ""
+                      }`}
                   />
                   {errors.kycDocNumber && <p className="text-xs text-red-400">{errors.kycDocNumber}</p>}
                 </div>
@@ -1354,12 +1539,12 @@ export default function VendorRegisterPage() {
                       I agree to the <Link href="/terms" className="underline hover:text-white transition-colors">Terms of Service</Link> and <Link href="/privacy" className="underline hover:text-white transition-colors">DPDP Privacy Policy</Link>.
                     </Label>
                   </div>
-                  
+
                   <div className="flex gap-3">
                     <Button
                       type="button"
                       variant="outline"
-                      className="flex-1 h-10 text-sm bg-white/5 border border-white/20 text-white font-semibold backdrop-blur-md transition-all duration-300 hover:bg-white/10 hover:border-white/40 hover:-translate-y-0.5 hover:shadow-[0_4px_20px_rgba(255,255,255,0.1)] active:scale-95"
+                      className="flex-1 h-10 text-sm bg-white/5 border border-white/20 text-white font-semibold backdrop-blur-md transition-all duration-300 hover:bg-white/10 hover:border-white/40 active:scale-95"
                       onClick={() => setStep(4)}
                       disabled={isLoading || isCompressing}
                     >

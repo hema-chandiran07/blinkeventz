@@ -3,11 +3,14 @@ import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { CacheModule } from '@nestjs/cache-manager';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { ServeStaticModule } from '@nestjs/serve-static';
 import Redis from 'ioredis';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
+import { MaintenanceGuard } from './common/guards/maintenance.guard';
 import { BullModule } from '@nestjs/bull';
+import { join } from 'path';
 import Joi from 'joi';
 // Feature Modules (UNCHANGED)
 import { PrismaModule } from './prisma/prisma.module';
@@ -35,6 +38,7 @@ import { ApprovalsModule } from './approvals/approvals.module';
 import { AIChatModule } from './ai-chatbot/ai-chat.module';
 import { SettingsModule } from './settings/settings.module';
 import { ReportsModule } from './reports/reports.module';
+import { BusinessRulesModule } from './business-rules/business-rules.module';
 
 @Module({
   imports: [
@@ -73,6 +77,14 @@ import { ReportsModule } from './reports/reports.module';
         allowUnknown: true,
         abortEarly: false,
       },
+    }),
+
+    // =====================================================
+    // 📁 STATIC FILES (UPLOADS)
+    // =====================================================
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'uploads'),
+      serveRoot: '/uploads',
     }),
 
     // =====================================================
@@ -193,10 +205,16 @@ import { ReportsModule } from './reports/reports.module';
     AnalyticsModule,
     ApprovalsModule,
     SettingsModule,
-    ReportsModule
+    ReportsModule,
+    BusinessRulesModule,
   ],
   // 🔐 GLOBAL SECURITY LAYER
   providers: [
+    // MaintenanceGuard temporarily disabled for debugging
+    // {
+    //   provide: APP_GUARD,
+    //   useClass: MaintenanceGuard,
+    // },
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,

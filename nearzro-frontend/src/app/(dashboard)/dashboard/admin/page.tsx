@@ -174,7 +174,7 @@ export default function AdminDashboardPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => router.push("/dashboard/admin/settings")}
+            onClick={() => router.push("/dashboard/admin/system-settings")}
             className="border-neutral-300"
           >
             <Settings className="h-4 w-4 mr-2" />
@@ -235,7 +235,7 @@ export default function AdminDashboardPage() {
               <CardHeader className="border-b border-neutral-100">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-neutral-900">Revenue Trend</CardTitle>
+                    <CardTitle className="text-black">Revenue Trend</CardTitle>
                     <p className="text-sm text-neutral-600 mt-1">6-month performance analysis</p>
                   </div>
                   <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
@@ -291,7 +291,7 @@ export default function AdminDashboardPage() {
               <CardHeader className="border-b border-neutral-100">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-neutral-900">Event Distribution</CardTitle>
+                    <CardTitle className="text-black">Event Distribution</CardTitle>
                     <p className="text-sm text-neutral-600 mt-1">By event type and revenue</p>
                   </div>
                   <PieChart className="h-5 w-5 text-neutral-400" />
@@ -343,7 +343,7 @@ export default function AdminDashboardPage() {
               <CardHeader className="border-b border-neutral-100">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-neutral-900">Location Performance</CardTitle>
+                    <CardTitle className="text-black">Location Performance</CardTitle>
                     <p className="text-sm text-neutral-600 mt-1">City-wise breakdown</p>
                   </div>
                   <MapPin className="h-5 w-5 text-neutral-400" />
@@ -388,7 +388,7 @@ export default function AdminDashboardPage() {
               <CardHeader className="border-b border-neutral-100">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-neutral-900">Recent Transactions</CardTitle>
+                    <CardTitle className="text-black">Recent Transactions</CardTitle>
                     <p className="text-sm text-neutral-600 mt-1">Latest payment activity</p>
                   </div>
                   <Button variant="ghost" size="sm" onClick={() => router.push("/dashboard/admin/transactions")}>

@@ -87,9 +87,19 @@ export default function ResetPasswordPage() {
       }, 2000);
     } catch (error: any) {
       console.error("Reset password error:", error);
-      const errorMessage = error?.response?.data?.message || "Failed to reset password. The link may have expired.";
+      setFormData({ newPassword: "", confirmPassword: "" });
       
-      if (errorMessage.includes("expired")) {
+      const data = error.response?.data;
+      if (data?.errors && Array.isArray(data.errors)) {
+        data.errors.forEach((err: { field: string; message: string }) => {
+          setErrors(prev => ({ ...prev, [err.field]: err.message }));
+        });
+        return;
+      }
+      
+      const errorMessage = data?.message || data?.error?.message || error.message || "Failed to reset password. The link may have expired.";
+      
+      if (errorMessage.toLowerCase().includes("expired")) {
         setIsValidToken(false);
       }
       

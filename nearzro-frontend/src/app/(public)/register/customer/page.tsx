@@ -14,6 +14,42 @@ import api from "@/lib/api";
 import OtpVerification from "@/components/ui/otp-verification";
 import { PasswordStrength } from "@/components/ui/password-strength";
 
+const sanitizeErrorMessage = (
+  message: string,
+  setErrors: Function
+): boolean => {
+  // Last safety net — if somehow a Prisma error leaks through
+  const isPrismaError =
+    message.toLowerCase().includes('prisma') ||
+    message.toLowerCase().includes('unique constraint') ||
+    message.toLowerCase().includes('invocation') ||
+    message.toLowerCase().includes('p2002') ||
+    message.toLowerCase().includes('failed on the fields');
+
+  if (!isPrismaError) return false;
+
+  // Map to friendly message based on field mentioned
+  if (message.toLowerCase().includes('phone')) {
+    setErrors((prev: any) => ({
+      ...prev,
+      phone: "This mobile number is already registered. Please use a different number."
+    }));
+  } else if (message.toLowerCase().includes('email')) {
+    setErrors((prev: any) => ({
+      ...prev,
+      email: "This email is already registered. Please use a different email."
+    }));
+  } else if (message.toLowerCase().includes('username')) {
+    setErrors((prev: any) => ({
+      ...prev,
+      username: "This username is already taken. Please choose a different username."
+    }));
+  } else {
+    toast.error("An account with these details already exists. Please try with different information.");
+  }
+
+  return true;
+};
 export default function CustomerRegisterPage() {
   const router = useRouter();
   const { login, googleLogin } = useAuth();
@@ -79,8 +115,94 @@ export default function CustomerRegisterPage() {
     return Object.keys(newErrors).length === 0;
   };
 
+  const checkEmail = async (email: string) => {
+    if (!email) return;
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setErrors(prev => ({ ...prev, email: "Please enter a valid email address." }));
+      return;
+    }
+
+    try {
+      const response = await api.post("/auth/check-email", { email });
+      // FIXED: now correctly reads response.data.exists
+      if (response.data.exists) {
+        setErrors(prev => ({ 
+          ...prev, 
+          email: "This email is already registered. Please use a different email or login instead." 
+        }));
+      } else {
+        setErrors(prev => ({ ...prev, email: "" }));
+      }
+    } catch (error: any) {
+      // Silent fail — do not confuse user with "unable to verify" message
+      console.error("Email check failed silently:", error);
+    }
+  };
+
+  const checkPhone = async (phone: string) => {
+    if (!phone) return;
+
+    const digitsOnly = /^\d+$/;
+    if (!digitsOnly.test(phone)) {
+      setErrors(prev => ({ ...prev, phone: "Mobile number must contain digits only." }));
+      return;
+    }
+
+    if (phone.length < 10) {
+      setErrors(prev => ({ ...prev, phone: "Please enter a valid 10-digit mobile number." }));
+      return;
+    }
+
+    try {
+      const response = await api.post("/auth/check-phone", { phone });
+      if (response.data.exists) {
+        setErrors(prev => ({ 
+          ...prev, 
+          phone: "This mobile number is already registered. Please use a different number." 
+        }));
+      } else {
+        setErrors(prev => ({ ...prev, phone: "" }));
+      }
+    } catch (error: any) {
+      // Silent fail — do not confuse user
+      console.error("Phone check failed silently:", error);
+    }
+  };
+
+  const checkPassword = (password: string) => {
+    if (!password) return;
+    if (password.length < 8) {
+      setErrors(prev => ({ ...prev, password: "Password must be at least 8 characters." }));
+    } else if (!/[A-Z]/.test(password)) {
+      setErrors(prev => ({ ...prev, password: "Password must contain at least one uppercase letter." }));
+    } else if (!/[0-9]/.test(password)) {
+      setErrors(prev => ({ ...prev, password: "Password must contain at least one number." }));
+    } else if (!/[@$!%*?&]/.test(password)) {
+      setErrors(prev => ({ ...prev, password: "Password must contain at least one special character." }));
+    } else {
+      setErrors(prev => { const newErrors = { ...prev }; delete newErrors.password; return newErrors; });
+    }
+  };
+
+  const checkConfirmPassword = (confirmPassword: string) => {
+    if (!confirmPassword) return;
+    if (formData.password !== confirmPassword) {
+      setErrors(prev => ({ ...prev, confirmPassword: "Passwords do not match." }));
+    } else {
+      setErrors(prev => { const newErrors = { ...prev }; delete newErrors.confirmPassword; return newErrors; });
+    }
+  };
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // GUARD - block if there is already a phone error showing
+    if (errors.phone) {
+      toast.error("Please fix the phone number error before submitting.");
+      return;
+    }
 
     if (!validateForm()) {
       return;
@@ -90,12 +212,12 @@ export default function CustomerRegisterPage() {
 
     try {
       // Step 1: Register user (creates account, requires OTP verification)
-      await api.post("/auth/register", { 
-        name: formData.name, 
+      await api.post("/auth/register", {
+        name: formData.name,
         email: formData.email,
         phone: formData.phone,
         preferredCity: formData.preferredCity,
-        password: formData.password 
+        password: formData.password
       });
 
       // Step 2: Send OTP to email
@@ -111,9 +233,38 @@ export default function CustomerRegisterPage() {
       // Log OTP to console for testing (remove in production)
       console.log('📧 Check backend logs for OTP code');
     } catch (error: any) {
-      const errorMessage = error?.response?.data?.message || error?.message || "Registration failed";
-      setErrors({ submit: errorMessage });
-      toast.error(errorMessage);
+      setFormData(prev => ({ ...prev, password: "", confirmPassword: "" })); // Clear password field on failed registration
+      const data = error.response?.data;
+
+      // FIRST: Check if backend returned field-level validation errors as an array
+      if (data?.errors && Array.isArray(data.errors)) {
+        data.errors.forEach((err: { field: string; message: string }) => {
+          setErrors(prev => ({ ...prev, [err.field]: err.message }));
+        });
+        return;
+      }
+
+      const message =
+        data?.message ||
+        data?.error?.message ||
+        error.message ||
+        "Registration failed. Please try again.";
+
+      // Last safety net for any Prisma leak
+      if (sanitizeErrorMessage(message, setErrors)) return;
+
+      // Clean backend messages — route to correct field or toast
+      if (message.toLowerCase().includes('email')) {
+        setErrors(prev => ({ ...prev, email: message }));
+      } else if (message.toLowerCase().includes('phone') || message.toLowerCase().includes('mobile')) {
+        setErrors(prev => ({ ...prev, phone: message }));
+      } else if (message.toLowerCase().includes('username')) {
+        setErrors(prev => ({ ...prev, username: message }));
+      } else if (message.toLowerCase().includes('password')) {
+        setErrors(prev => ({ ...prev, password: message }));
+      } else {
+        toast.error(message);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -127,7 +278,7 @@ export default function CustomerRegisterPage() {
 
       // Login with the credentials
       await login(formData.email, formData.password);
-      
+
       // Redirect to home page with timeout
       setTimeout(() => {
         router.push("/");
@@ -151,7 +302,7 @@ export default function CustomerRegisterPage() {
         )}
 
         {step === 'register' ? (
-          <Card className="border-0 shadow-[0_20px_50px_rgba(0,0,0,0.8)] bg-zinc-950/60 backdrop-blur-xl border border-white/10 ring-1 ring-white/5 rounded-2xl overflow-hidden">
+          <Card className="border-0 bg-zinc-950/60 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden">
             <CardHeader className="text-center pb-2">
               <div className="inline-flex h-16 w-16 rounded-2xl bg-zinc-900 border border-white/10 items-center justify-center mx-auto mb-4">
                 <UserIcon className="h-8 w-8 text-zinc-200" />
@@ -194,11 +345,15 @@ export default function CustomerRegisterPage() {
                       placeholder="name@example.com"
                       type="email"
                       value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      onChange={(e) => {
+                        setFormData({ ...formData, email: e.target.value });
+                        if (errors.email) setErrors((prev) => { const newErrors = { ...prev }; delete newErrors.email; return newErrors; });
+                      }}
+                      onBlur={(e) => checkEmail(e.target.value)}
                       className={`pl-10 h-12 bg-zinc-900/50 border border-zinc-800 text-white placeholder:text-zinc-500 rounded-xl focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all ${errors.email ? 'border-red-500' : ''}`}
                     />
                   </div>
-                  {errors.email && <p className="text-xs text-red-400">{errors.email}</p>}
+                  {errors.email && <p className="text-xs text-red-500">{errors.email}</p>}
                 </div>
 
                 <div className="space-y-2">
@@ -212,12 +367,16 @@ export default function CustomerRegisterPage() {
                       placeholder="9876543210"
                       type="tel"
                       value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      onChange={(e) => {
+                        setFormData({ ...formData, phone: e.target.value });
+                        if (errors.phone) setErrors((prev) => { const newErrors = { ...prev }; delete newErrors.phone; return newErrors; });
+                      }}
+                      onBlur={(e) => checkPhone(e.target.value)}
                       className={`pl-10 h-12 bg-zinc-900/50 border border-zinc-800 text-white placeholder:text-zinc-500 rounded-xl focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all ${errors.phone ? 'border-red-500' : ''}`}
                       maxLength={10}
                     />
                   </div>
-                  {errors.phone && <p className="text-xs text-red-400">{errors.phone}</p>}
+                  {errors.phone && <p className="text-xs text-red-500">{errors.phone}</p>}
                 </div>
 
                 <div className="space-y-2">
@@ -253,7 +412,11 @@ export default function CustomerRegisterPage() {
                       id="password"
                       type={showPassword ? "text" : "password"}
                       value={formData.password}
-                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      onChange={(e) => {
+                        setFormData({ ...formData, password: e.target.value });
+                        if (errors.password) setErrors((prev) => { const newErrors = { ...prev }; delete newErrors.password; return newErrors; });
+                      }}
+                      onBlur={(e) => checkPassword(e.target.value)}
                       placeholder="Min. 8 characters"
                       className={`pl-10 pr-10 h-12 bg-zinc-900/50 border border-zinc-800 text-white placeholder:text-zinc-500 rounded-xl focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all ${errors.password ? 'border-red-500' : ''}`}
                     />
@@ -265,7 +428,7 @@ export default function CustomerRegisterPage() {
                       {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
                   </div>
-                  {errors.password && <p className="text-xs text-red-400">{errors.password}</p>}
+                  {errors.password && <p className="text-xs text-red-500">{errors.password}</p>}
                   {/* Password Strength Indicator */}
                   <PasswordStrength password={formData.password} />
                 </div>
@@ -280,7 +443,11 @@ export default function CustomerRegisterPage() {
                       id="confirmPassword"
                       type={showConfirmPassword ? "text" : "password"}
                       value={formData.confirmPassword}
-                      onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                      onChange={(e) => {
+                        setFormData({ ...formData, confirmPassword: e.target.value });
+                        if (errors.confirmPassword) setErrors((prev) => { const newErrors = { ...prev }; delete newErrors.confirmPassword; return newErrors; });
+                      }}
+                      onBlur={(e) => checkConfirmPassword(e.target.value)}
                       placeholder="Re-enter password"
                       className={`pl-10 pr-10 h-12 bg-zinc-900/50 border border-zinc-800 text-white placeholder:text-zinc-500 rounded-xl focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all ${errors.confirmPassword ? 'border-red-500' : ''}`}
                     />
@@ -292,7 +459,7 @@ export default function CustomerRegisterPage() {
                       {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
                   </div>
-                  {errors.confirmPassword && <p className="text-xs text-red-400">{errors.confirmPassword}</p>}
+                  {errors.confirmPassword && <p className="text-xs text-red-500">{errors.confirmPassword}</p>}
                 </div>
 
                 {errors.submit && (
@@ -303,7 +470,7 @@ export default function CustomerRegisterPage() {
 
                 <Button
                   type="submit"
-                  className="w-full flex items-center justify-center gap-3 py-3 rounded-xl bg-white/5 border border-white/10 text-zinc-200 font-semibold backdrop-blur-md transition-all duration-300 ease-out hover:text-white hover:bg-white/10 hover:border-white/40 hover:-translate-y-0.5 hover:shadow-[0_4px_20px_rgba(255,255,255,0.1)] active:scale-95 active:translate-y-0"
+                  className="w-full flex items-center justify-center gap-3 py-3 rounded-xl bg-white/5 border border-white/10 text-zinc-200 font-semibold backdrop-blur-md transition-all duration-300 ease-out hover:text-white hover:bg-white/10 hover:border-white/40 active:scale-95 active:translate-y-0"
                   disabled={isLoading}
                 >
                   {isLoading ? (
@@ -328,7 +495,7 @@ export default function CustomerRegisterPage() {
 
               <div className="flex justify-center">
                 <Button
-                  className="w-full flex items-center justify-center gap-3 py-3 rounded-xl bg-white/5 border border-white/10 text-zinc-200 font-semibold backdrop-blur-md transition-all duration-300 ease-out hover:text-white hover:bg-white/10 hover:border-white/40 hover:-translate-y-0.5 hover:shadow-[0_4px_20px_rgba(255,255,255,0.1)] active:scale-95 active:translate-y-0 relative group overflow-hidden"
+                  className="w-full flex items-center justify-center gap-3 py-3 rounded-xl bg-white/5 border border-white/10 text-zinc-200 font-semibold backdrop-blur-md transition-all duration-300 ease-out hover:text-white hover:bg-white/10 hover:border-white/40 active:scale-95 active:translate-y-0 relative group overflow-hidden"
                   type="button"
                   onClick={handleGoogleLogin}
                   disabled={isLoading}
@@ -339,10 +506,10 @@ export default function CustomerRegisterPage() {
                   </div>
                   {/* Multi-colored Google G logo */}
                   <svg className="mr-2 h-5 w-5 relative z-10" viewBox="0 0 24 24">
-                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
                   </svg>
                   <span className="relative z-10">Google</span>
                 </Button>

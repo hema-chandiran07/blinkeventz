@@ -85,6 +85,35 @@ export class ReviewsService {
     });
   }
 
+  async findByVendorUser(userId: number, approvedOnly: boolean = true) {
+    // Get vendor profile for this user
+    const vendor = await this.prisma.vendor.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+
+    if (!vendor) {
+      return [];
+    }
+
+    const where: any = { vendorId: vendor.id };
+    if (approvedOnly) where.status = 'APPROVED';
+
+    return this.prisma.review.findMany({
+      where,
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   async findByUser(userId: number) {
     return this.prisma.review.findMany({
       where: { userId },

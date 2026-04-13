@@ -211,7 +211,7 @@ export default function CustomerDashboardPage() {
           <motion.div key={index} variants={itemVariants}>
             <Card className="border-silver-800 bg-gradient-to-br from-silver-900/50 to-silver-950/50 hover:shadow-xl hover:shadow-black/30 transition-all duration-300">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-silver-400">
+                <CardTitle className="text-black">
                   {stat.title}
                 </CardTitle>
                 <stat.icon className="h-5 w-5 text-silver-300" />
@@ -265,7 +265,7 @@ export default function CustomerDashboardPage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-2xl text-white">Your Events</CardTitle>
+                <CardTitle className="text-black">Your Events</CardTitle>
                 <CardDescription>
                   Manage and track all your events
                 </CardDescription>
@@ -372,7 +372,7 @@ export default function CustomerDashboardPage() {
       <motion.div variants={itemVariants}>
         <Card className="border-silver-800 bg-gradient-to-br from-silver-900/30 to-silver-950/30">
           <CardHeader>
-            <CardTitle className="text-2xl text-white">Quick Tips</CardTitle>
+            <CardTitle className="text-black">Quick Tips</CardTitle>
             <CardDescription>Make the most of NearZro</CardDescription>
           </CardHeader>
           <CardContent>

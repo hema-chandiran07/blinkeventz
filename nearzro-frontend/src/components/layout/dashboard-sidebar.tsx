@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link";
-import Image from "next/image";
+import NextImage from "next/image";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/auth-context";
@@ -19,7 +19,9 @@ import {
   BarChart3,
   DollarSign,
   Bell,
-  Shield
+  Shield,
+  Image as ImageIcon,
+  Star
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
@@ -43,16 +45,22 @@ const SIDEBAR_ITEMS: Record<string, SidebarItem[]> = {
     { name: 'Dashboard', href: '/dashboard/vendor', icon: LayoutDashboard },
     { name: 'Services', href: '/dashboard/vendor/services', icon: ShoppingBag },
     { name: 'Bookings', href: '/dashboard/vendor/bookings', icon: Calendar },
+    { name: 'Calendar', href: '/dashboard/vendor/calendar', icon: Calendar },
+    { name: 'Earnings', href: '/dashboard/vendor/earnings', icon: DollarSign },
+    { name: 'Analytics', href: '/dashboard/vendor/analytics', icon: BarChart3 },
+    { name: 'Portfolio', href: '/dashboard/vendor/portfolio', icon: ImageIcon },
+    { name: 'Reviews', href: '/dashboard/vendor/reviews', icon: Star },
     { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
     { name: 'KYC & Bank', href: '/dashboard/vendor/kyc', icon: CheckSquare },
     { name: 'Profile', href: '/dashboard/vendor/profile', icon: Store },
   ],
   VENUE_OWNER: [
     { name: 'Dashboard', href: '/dashboard/venue', icon: LayoutDashboard },
-    { name: 'My Venues', href: '/dashboard/venue#venues', icon: Building2 },
+    { name: 'My Venues', href: '/dashboard/venue/details', icon: Building2 },
     { name: 'Bookings', href: '/dashboard/venue/bookings', icon: Calendar },
     { name: 'Calendar', href: '/dashboard/venue/calendar', icon: Calendar },
     { name: 'Analytics', href: '/dashboard/venue/analytics', icon: BarChart3 },
+    { name: 'Reviews', href: '/dashboard/venue/reviews', icon: Star },
     { name: 'Payouts', href: '/dashboard/venue/payouts', icon: DollarSign },
     { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
     { name: 'KYC & Bank', href: '/dashboard/venue/kyc', icon: CheckSquare },
@@ -160,7 +168,7 @@ export function DashboardSidebar() {
               whileHover={{ scale: 1.1, rotate: 5 }}
               transition={{ type: "spring", stiffness: 400, damping: 10 }}
             >
-              <Image
+              <NextImage
                 src="/logo.jpeg"
                 alt="NearZro Logo"
                 fill

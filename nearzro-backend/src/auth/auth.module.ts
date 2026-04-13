@@ -11,12 +11,16 @@ import { FacebookStrategy } from './strategies/facebook.strategy';
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './jwt.strategy';
 import { OtpModule } from './otp.module';
+import { StorageModule } from '../storage/storage.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
     ConfigModule,
     PrismaModule,
     OtpModule,
+    StorageModule,
+    NotificationsModule,
     PassportModule.register({ defaultStrategy: 'jwt', session: false }),
     // Rate limiting configuration
     ThrottlerModule.forRoot([

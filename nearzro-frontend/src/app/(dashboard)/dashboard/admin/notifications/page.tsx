@@ -59,7 +59,10 @@ export default function NotificationsPage() {
   const loadNotifications = async () => {
     try {
       const response = await api.get("/notifications?admin=true");
-      setNotifications(response.data.notifications || response.data || []);
+      const data = response.data;
+      // Backend may return { data: [...], pagination: {...} } or just [...]
+      const notifications = Array.isArray(data) ? data : (data?.data || data?.notifications || []);
+      setNotifications(notifications);
     } catch (error: any) {
       console.error("Failed to load notifications:", error);
       toast.error("Failed to load notifications");

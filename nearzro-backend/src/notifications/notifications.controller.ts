@@ -2,6 +2,8 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
+  Delete,
   Body,
   Req,
   Param,
@@ -15,8 +17,9 @@ import {
 } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 import { SendNotificationDto } from './dto/send-notification.dto';
+import { ComposeMessageDto } from './dto/compose-message.dto';
 import { DebugLiveDto } from './dto/debug-live.dto';
-import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Role } from '../common/enums/role.enum';
@@ -42,6 +45,10 @@ export class NotificationsController {
     private readonly whatsappProvider: WhatsappProvider,
     private readonly queue: NotificationQueue,
   ) {}
+
+  // ============================================================================
+  // HEALTH CHECK
+  // ============================================================================
 
   // ✅ Health check endpoint (public, no auth required)
   @Public()
@@ -100,6 +107,10 @@ export class NotificationsController {
       timestamp: new Date().toISOString(),
     };
   }
+
+  // ============================================================================
+  // DEBUG ENDPOINT
+  // ============================================================================
 
   // ✅ Debug-live endpoint - sends real notifications
   @Public()
@@ -184,6 +195,10 @@ export class NotificationsController {
     };
   }
 
+  // ============================================================================
+  // GET NOTIFICATIONS
+  // ============================================================================
+
   // ✅ Get all notifications for admin (using query param for admin flag)
   @ApiBearerAuth()
   @Get()
@@ -200,12 +215,12 @@ export class NotificationsController {
     const pageNum = typeof page === 'string' ? parseInt(page, 10) || 1 : page;
     const limitNum = typeof limit === 'string' ? parseInt(limit, 10) || 20 : limit;
     const readBool = read === 'true' ? true : read === 'false' ? false : undefined;
-    
+
     // If admin query param is present and user is admin, return all notifications
     if (admin === 'true' && req.user.role === 'ADMIN') {
       return this.service.getAllNotifications(pageNum, limitNum);
     }
-    
+
     // Otherwise return user-specific notifications
     return this.service.getUserNotifications(req.user.id, pageNum, limitNum, readBool);
   }
@@ -230,7 +245,11 @@ export class NotificationsController {
     return this.service.getUnreadCount(req.user.id);
   }
 
-  // ✅ Mark notification as read
+  // ============================================================================
+  // MARK AS READ
+  // ============================================================================
+
+  // ✅ Mark notification as read (POST - as per existing implementation)
   @ApiBearerAuth()
   @Post(':id/read')
   @UseGuards(ThrottlerGuard)
@@ -240,7 +259,17 @@ export class NotificationsController {
     return this.service.markAsRead(id, req.user.id);
   }
 
-  // ✅ Mark all as read
+  // ✅ ALIAS: Mark notification as read (PATCH - for frontend compatibility)
+  @ApiBearerAuth()
+  @Patch(':id/read')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 50, ttl: 60000 } })
+  @ApiOperation({ summary: 'Mark notification as read (PATCH alias)' })
+  async markAsReadPatch(@Req() req: any, @Param('id') id: number) {
+    return this.service.markAsRead(id, req.user.id);
+  }
+
+  // ✅ Mark all as read (POST - as per existing implementation)
   @ApiBearerAuth()
   @Post('read-all')
   @UseGuards(ThrottlerGuard)
@@ -249,6 +278,81 @@ export class NotificationsController {
   async markAllAsRead(@Req() req: any) {
     return this.service.markAllAsRead(req.user.id);
   }
+
+  // ✅ ALIAS: Mark all as read (PATCH - for frontend compatibility)
+  @ApiBearerAuth()
+  @Patch('read-all')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @ApiOperation({ summary: 'Mark all notifications as read (PATCH alias)' })
+  async markAllAsReadPatch(@Req() req: any) {
+    return this.service.markAllAsRead(req.user.id);
+  }
+
+  // ============================================================================
+  // DELETE NOTIFICATIONS
+  // ============================================================================
+
+  // ✅ Delete single notification
+  @ApiBearerAuth()
+  @Delete(':id')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 50, ttl: 60000 } })
+  @ApiOperation({ summary: 'Delete a notification' })
+  async deleteNotification(@Req() req: any, @Param('id', ParseIntPipe) id: number) {
+    return this.service.deleteNotification(id, req.user.id);
+  }
+
+  // ✅ Delete all notifications (clear all)
+  @ApiBearerAuth()
+  @Delete()
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @ApiOperation({ summary: 'Delete all notifications (clear all)' })
+  async deleteAllNotifications(@Req() req: any) {
+    return this.service.deleteAllNotifications(req.user.id);
+  }
+
+  // ============================================================================
+  // NOTIFICATION PREFERENCES
+  // ============================================================================
+
+  // ✅ Get notification preferences
+  @ApiBearerAuth()
+  @Get('preferences')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 100, ttl: 60000 } })
+  @ApiOperation({ summary: 'Get notification preferences' })
+  async getPreferences(@Req() req: any) {
+    return this.service.getPreferences(req.user.id);
+  }
+
+  // ✅ Update notification preferences
+  @ApiBearerAuth()
+  @Patch('preferences')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 50, ttl: 60000 } })
+  @ApiOperation({ summary: 'Update notification preferences' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        type: { type: 'string', example: 'BOOKING_CONFIRMED' },
+        channel: { type: 'string', enum: ['IN_APP', 'EMAIL', 'SMS', 'WHATSAPP', 'PUSH'] },
+        enabled: { type: 'boolean', example: true },
+      },
+    },
+  })
+  async updatePreferences(
+    @Req() req: any,
+    @Body() dto: { type: string; channel: string; enabled: boolean },
+  ) {
+    return this.service.updatePreference(req.user.id, dto.type, dto.channel, dto.enabled);
+  }
+
+  // ============================================================================
+  // SEND NOTIFICATIONS (ADMIN ONLY)
+  // ============================================================================
 
   @ApiBearerAuth()
   @Post('send')
@@ -276,5 +380,21 @@ export class NotificationsController {
   async action(@Req() req, @Body() dto: NotificationActionDto) {
     await this.service.handleAction(req.user.id, dto);
     return { success: true };
+  }
+
+  // ============================================================================
+  // COMPOSE MESSAGE (ADMIN, EVENT_MANAGER, SUPPORT)
+  // ============================================================================
+
+  @ApiBearerAuth()
+  @Post('compose')
+  @Roles(Role.ADMIN, Role.EVENT_MANAGER, Role.SUPPORT)
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 20, ttl: 60000 } }) // 20 requests per minute
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Compose and send a message to a specific user via email + notification' })
+  @ApiBody({ type: ComposeMessageDto })
+  async composeMessage(@Req() req: any, @Body() dto: ComposeMessageDto) {
+    return this.service.composeAndSendMessage(dto, req.user.id);
   }
 }
