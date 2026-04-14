@@ -70,6 +70,7 @@ export enum ConversationIntent {
   REJECT_PLAN = 'REJECT_PLAN',
   GET_STATUS = 'GET_STATUS',
   GENERAL = 'GENERAL',
+  SERVICE_UNAVAILABLE = 'SERVICE_UNAVAILABLE',
 }
 
 /**

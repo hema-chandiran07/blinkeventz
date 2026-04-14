@@ -173,6 +173,16 @@ export class AIChatService {
     // Step 1: Extract entities from message
     const extraction = await this.extractEntities(message, conversation.state);
 
+    // Check if service is unavailable
+    if (extraction.intent === ConversationIntent.SERVICE_UNAVAILABLE) {
+      return {
+        conversationId: conversation.id,
+        reply: 'Currently the service is unavailable. Please try again later.',
+        status: 'COLLECTING',
+        state: conversation.state,
+      };
+    }
+
     // Step 2: Merge extracted entities into state
     const newState: ConversationState = {
       ...conversation.state,
@@ -397,6 +407,23 @@ export class AIChatService {
       return result;
     } catch (error) {
       this.logger.error(`Entity extraction failed: ${error}`);
+      
+      // Check if it's a quota/service unavailable error
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      if (
+        errorMsg.includes('quota') ||
+        errorMsg.includes('billing') ||
+        errorMsg.includes('insufficient') ||
+        errorMsg.includes('SERVICE_UNAVAILABLE') ||
+        errorMsg.includes('Currently the service is unavailable')
+      ) {
+        // Return a special result that triggers fallback in the chat
+        return {
+          intent: ConversationIntent.SERVICE_UNAVAILABLE,
+          confidence: 0,
+        };
+      }
+      
       // Return default on failure
       return {
         intent: ConversationIntent.COLLECT_INFO,
@@ -417,6 +444,11 @@ export class AIChatService {
     planId?: number;
     errorMessage?: string;
   }): Promise<string> {
+    // Check if service is unavailable
+    if (input.intent === ConversationIntent.SERVICE_UNAVAILABLE) {
+      return "Currently the service is unavailable. Please try again later.";
+    }
+    
     const prompt = buildResponseGenerationPrompt(input);
 
     try {
@@ -424,6 +456,18 @@ export class AIChatService {
       return response.trim();
     } catch (error) {
       this.logger.error(`Response generation failed: ${error}`);
+      
+      // Check if it's a quota/service unavailable error
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      if (
+        errorMsg.includes('quota') ||
+        errorMsg.includes('billing') ||
+        errorMsg.includes('insufficient') ||
+        errorMsg.includes('SERVICE_UNAVAILABLE') ||
+        errorMsg.includes('Currently the service is unavailable')
+      ) {
+        return "Currently the service is unavailable. Please try again later.";
+      }
       
       // Fallback responses
       const fieldQuestions: Record<string, string> = {
@@ -575,6 +619,17 @@ export class AIChatService {
 
     // Extract entities from message
     const extraction = await this.extractEntities(message, currentState);
+
+    // Check if service is unavailable
+    if (extraction.intent === ConversationIntent.SERVICE_UNAVAILABLE) {
+      return {
+        conversationId: 'guest-session',
+        reply: 'Currently the service is unavailable. Please try again later.',
+        status: 'COLLECTING',
+        requiresAuth: true,
+        tempState: currentState,
+      };
+    }
 
     // Merge extracted entities into state (but don't persist)
     currentState = {

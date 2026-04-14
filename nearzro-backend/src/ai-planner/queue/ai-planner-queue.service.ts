@@ -186,10 +186,42 @@ export class AIPlannerQueueService {
 
       // Step 6: Call OpenAI with circuit breaker protection if available
       let aiRaw: string;
-      if ('generateWithCircuitBreaker' in this.ai) {
-        aiRaw = await (this.ai as any).generateWithCircuitBreaker(prompt);
-      } else {
-        aiRaw = await this.ai.generate(prompt);
+      try {
+        if ('generateWithCircuitBreaker' in this.ai) {
+          aiRaw = await (this.ai as any).generateWithCircuitBreaker(prompt);
+        } else {
+          aiRaw = await this.ai.generate(prompt);
+        }
+      } catch (aiError) {
+        const errorMsg = aiError instanceof Error ? aiError.message : String(aiError);
+        
+        // Check for quota/billing errors - these should NOT retry
+        if (
+          errorMsg.includes('quota') || 
+          errorMsg.includes('billing') || 
+          errorMsg.includes('insufficient') ||
+          errorMsg.includes('AI_QUOTA_EXCEEDED') ||
+          errorMsg.includes('Currently the service is unavailable')
+        ) {
+          this.logger.error(`[${traceId}] OpenAI quota exceeded - not retrying`);
+          
+          // Update conversation status to failed
+          if (conversationId) {
+            await this.prisma.aIConversation.update({
+              where: { id: conversationId },
+              data: { status: 'FAILED' },
+            }).catch(() => {});
+          }
+          
+          return {
+            planId: 0,
+            status: 'failed',
+            error: 'SERVICE_UNAVAILABLE',
+          };
+        }
+        
+        // Re-throw other errors to be handled by the catch block
+        throw aiError;
       }
 
       // Step 7: Parse AI response

@@ -189,6 +189,31 @@ export class OpenAIProvider implements AICircuitBreakerProvider, OnModuleInit {
 
       return content;
     } catch (error) {
+      // Check for OpenAI specific errors
+      if (error instanceof OpenAI.APIError) {
+        const status = error.status;
+        const code = error.code;
+        
+        // Handle quota/insufficient credits errors (429)
+        if (status === 429 || code === 'insufficient_quota' || code === 'billing_quota_exceeded') {
+          this.logger.error('OpenAI quota exceeded - insufficient credits');
+          throw new Error(ERROR_MESSAGES.AI_QUOTA_EXCEEDED);
+        }
+        
+        // Handle rate limiting
+        if (status === 429 || code === 'rate_limit_exceeded') {
+          this.logger.warn('OpenAI rate limit exceeded');
+          throw new Error(ERROR_MESSAGES.AI_RATE_LIMIT);
+        }
+        
+        // Handle authentication issues
+        if (status === 401 || code === 'invalid_api_key') {
+          this.logger.error('OpenAI API key is incorrect');
+          throw new Error(ERROR_MESSAGES.AI_INVALID_KEY);
+        }
+      }
+      
+      // Check for regular Error objects that might contain OpenAI error info
       if (error instanceof Error) {
         if (error.message.includes('Incorrect API key')) {
           this.logger.error('OpenAI API key is incorrect');
@@ -198,7 +223,12 @@ export class OpenAIProvider implements AICircuitBreakerProvider, OnModuleInit {
           this.logger.warn('OpenAI rate limit exceeded');
           throw new Error(ERROR_MESSAGES.AI_RATE_LIMIT);
         }
+        if (error.message.includes('quota') || error.message.includes('billing') || error.message.includes('Insufficient credits')) {
+          this.logger.error('OpenAI quota exceeded');
+          throw new Error(ERROR_MESSAGES.AI_QUOTA_EXCEEDED);
+        }
       }
+      
       throw error;
     }
   }
