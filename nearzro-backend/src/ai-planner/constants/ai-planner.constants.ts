@@ -155,7 +155,7 @@ export const CIRCUIT_BREAKER_CONFIG = {
 
 // Error Messages
 export const ERROR_MESSAGES = {
-  AI_SERVICE_UNAVAILABLE: 'AI planning service temporarily unavailable. Please try again later.',
+  AI_SERVICE_UNAVAILABLE: 'Currently the service is unavailable. Please try again later.',
   BUDGET_ALLOCATION_MISMATCH: 'AI generated budget allocation does not match total budget.',
   PLAN_NOT_FOUND: 'AI Plan not found or access denied.',
   UNAUTHORIZED_ACCESS: 'You do not have access to this resource.',
@@ -169,6 +169,7 @@ export const ERROR_MESSAGES = {
   AI_RESPONSE_EMPTY: 'AI service returned an empty response.',
   AI_INVALID_KEY: 'Invalid OpenAI API key.',
   AI_RATE_LIMIT: 'OpenAI rate limit exceeded. Please try again later.',
+  AI_QUOTA_EXCEEDED: 'Currently the service is unavailable. Please try again later.',
 } as const;
 
 // System Prompt

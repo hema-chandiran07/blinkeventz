@@ -39,6 +39,7 @@ import { AIChatModule } from './ai-chatbot/ai-chat.module';
 import { SettingsModule } from './settings/settings.module';
 import { ReportsModule } from './reports/reports.module';
 import { BusinessRulesModule } from './business-rules/business-rules.module';
+import { ContactModule } from './contact/contact.module';
 
 @Module({
   imports: [
@@ -207,6 +208,7 @@ import { BusinessRulesModule } from './business-rules/business-rules.module';
     SettingsModule,
     ReportsModule,
     BusinessRulesModule,
+    ContactModule,
   ],
   // 🔐 GLOBAL SECURITY LAYER
   providers: [
