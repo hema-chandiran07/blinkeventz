@@ -336,14 +336,6 @@ export default function UserDetailPage() {
               Delete User
             </Button>
 
-            <Button
-              variant="outline"
-              className="border-black"
-              onClick={() => router.push(`/dashboard/admin/users/${user.id}/edit`)}
-            >
-              <Edit className="h-4 w-4 mr-2" />
-              Edit User
-            </Button>
           </div>
         </CardContent>
       </Card>

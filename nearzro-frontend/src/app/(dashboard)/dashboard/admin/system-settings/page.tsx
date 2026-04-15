@@ -267,7 +267,7 @@ export default function AdminSystemSettingsPage() {
 
   // ==================== Main Render ====================
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 p-6 bg-[#0a0a0b] text-white selection:bg-blue-500/30 min-h-screen">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
@@ -275,8 +275,10 @@ export default function AdminSystemSettingsPage() {
         className="flex items-center justify-between flex-wrap gap-4"
       >
         <div>
-          <h1 className="text-3xl font-bold text-black">System Settings</h1>
-          <p className="text-neutral-600">Configure platform features, integrations, and security</p>
+          <h1 className="text-4xl font-black text-white tracking-tight">
+            Node <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-600">Infrastructure</span>
+          </h1>
+          <p className="text-zinc-500 font-medium">Core system protocols and integration matrix</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={initializeDefaults} disabled={saving}>
@@ -298,28 +300,28 @@ export default function AdminSystemSettingsPage() {
           transition={{ delay: 0.1 }}
           className="grid gap-4 md:grid-cols-4"
         >
-          <Card>
+          <Card className="bg-zinc-900/50 border-zinc-800 shadow-xl">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-neutral-600">Total Users</p>
-                  <p className="text-3xl font-bold text-black mt-1">{systemStats.totalUsers || 0}</p>
+                  <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Total Nodes</p>
+                  <p className="text-3xl font-black text-white mt-1">{systemStats.totalUsers || 0}</p>
                 </div>
-                <div className="p-3 rounded-full bg-blue-100 text-blue-600">
+                <div className="p-3 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
                   <Users className="h-6 w-6" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-zinc-900/50 border-zinc-800 shadow-xl">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-neutral-600">Active Users</p>
-                  <p className="text-3xl font-bold text-green-600 mt-1">{systemStats.activeUsers || 0}</p>
+                  <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Active Threads</p>
+                  <p className="text-3xl font-black text-emerald-400 mt-1">{systemStats.activeUsers || 0}</p>
                 </div>
-                <div className="p-3 rounded-full bg-green-100 text-green-600">
+                <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                   <Activity className="h-6 w-6" />
                 </div>
               </div>
@@ -340,14 +342,14 @@ export default function AdminSystemSettingsPage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-zinc-900/50 border-zinc-800 shadow-xl">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-neutral-600">System Uptime</p>
-                  <p className="text-3xl font-bold text-black mt-1">{systemStats.systemUptime || "99.9%"}</p>
+                  <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">System Availability</p>
+                  <p className="text-3xl font-black text-white mt-1">{systemStats.systemUptime || "99.9%"}</p>
                 </div>
-                <div className="p-3 rounded-full bg-purple-100 text-purple-600">
+                <div className="p-3 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
                   <Zap className="h-6 w-6" />
                 </div>
               </div>
@@ -357,23 +359,23 @@ export default function AdminSystemSettingsPage() {
       )}
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="features" className="flex items-center gap-2">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
+        <TabsList className="grid w-full grid-cols-4 bg-zinc-900/50 border border-zinc-800 p-1 h-14 rounded-2xl">
+          <TabsTrigger value="features" className="flex items-center gap-2 rounded-xl data-[state=active]:bg-zinc-800 data-[state=active]:text-blue-400 text-zinc-500 transition-all font-bold uppercase tracking-tighter text-[10px]">
             <Zap className="h-4 w-4" />
-            Features
+            Protocols
           </TabsTrigger>
-          <TabsTrigger value="integrations" className="flex items-center gap-2">
+          <TabsTrigger value="integrations" className="flex items-center gap-2 rounded-xl data-[state=active]:bg-zinc-800 data-[state=active]:text-blue-400 text-zinc-500 transition-all font-bold uppercase tracking-tighter text-[10px]">
             <Cloud className="h-4 w-4" />
-            Integrations
+            Uplinks
           </TabsTrigger>
-          <TabsTrigger value="security" className="flex items-center gap-2">
+          <TabsTrigger value="security" className="flex items-center gap-2 rounded-xl data-[state=active]:bg-zinc-800 data-[state=active]:text-blue-400 text-zinc-500 transition-all font-bold uppercase tracking-tighter text-[10px]">
             <Shield className="h-4 w-4" />
             Security
           </TabsTrigger>
-          <TabsTrigger value="system" className="flex items-center gap-2">
+          <TabsTrigger value="system" className="flex items-center gap-2 rounded-xl data-[state=active]:bg-zinc-800 data-[state=active]:text-blue-400 text-zinc-500 transition-all font-bold uppercase tracking-tighter text-[10px]">
             <Database className="h-4 w-4" />
-            System
+            Kernel
           </TabsTrigger>
         </TabsList>
       </Tabs>
@@ -384,23 +386,23 @@ export default function AdminSystemSettingsPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <Card>
+          <Card className="bg-zinc-900/40 border-zinc-800 shadow-2xl backdrop-blur-xl">
             <CardHeader>
-              <CardTitle className="text-black">
-                <Zap className="h-5 w-5" />
-                Feature Flags
+              <CardTitle className="text-white flex items-center gap-2">
+                <Zap className="h-5 w-5 text-blue-400" />
+                Operational Protocols
               </CardTitle>
-              <CardDescription className="text-neutral-600">Enable or disable platform features</CardDescription>
+              <CardDescription className="text-zinc-500 font-medium">Enable or disable platform functional modules</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid gap-4">
                 {Object.entries(featureFlags).map(([key, value]) => (
-                  <div key={key} className="flex items-center justify-between p-4 rounded-lg border border-neutral-200">
+                  <div key={key} className="flex items-center justify-between p-4 rounded-2xl bg-zinc-900 border border-zinc-800 hover:border-zinc-700 transition-all group">
                     <div>
-                      <p className="font-medium text-black capitalize">
+                      <p className="font-bold text-zinc-200 capitalize tracking-tight group-hover:text-white">
                         {key.replace(/_/g, ' ').toLowerCase()}
                       </p>
-                      <p className="text-sm text-neutral-600">
+                      <p className="text-xs text-zinc-500 font-medium mt-1">
                         {key === 'MAINTENANCE_MODE' ? 'Put the entire platform in maintenance mode' :
                          key === 'AI_PLANNING' ? 'Enable AI-powered event planning assistant' :
                          key === 'EXPRESS_BOOKING' ? 'Allow quick booking without full registration' :
@@ -411,6 +413,7 @@ export default function AdminSystemSettingsPage() {
                     </div>
                     <Switch
                       checked={value}
+                      className="data-[state=checked]:bg-blue-600"
                       onCheckedChange={(checked) =>
                         setFeatureFlags(prev => ({ ...prev, [key]: checked }))
                       }
@@ -420,29 +423,33 @@ export default function AdminSystemSettingsPage() {
               </div>
 
               {featureFlags.MAINTENANCE_MODE && (
-                <div className="p-4 rounded-lg bg-amber-50 border border-amber-200">
+                <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20">
                   <div className="flex items-start gap-3">
-                    <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
+                    <AlertCircle className="h-5 w-5 text-red-500 mt-0.5" />
                     <div>
-                      <p className="font-medium text-amber-900">Maintenance Mode Active</p>
-                      <p className="text-sm text-amber-700 mt-1">
-                        Users will see a maintenance page. Only admins can access the platform.
+                      <p className="font-bold text-red-400 uppercase tracking-tighter text-xs">MAINTENANCE_MODE_ACTIVE</p>
+                      <p className="text-xs text-zinc-500 mt-1">
+                        Users will see a maintenance page. Only identities with administrative clearance can access the platform.
                       </p>
                     </div>
                   </div>
                 </div>
               )}
 
-              <Button onClick={saveFeatureFlags} disabled={saving} className="w-full h-12 text-white">
+              <Button 
+                onClick={saveFeatureFlags} 
+                disabled={saving} 
+                className="w-full h-12 bg-white text-black font-black hover:bg-zinc-200 shadow-xl shadow-white/5 transition-all rounded-xl"
+              >
                 {saving ? (
                   <>
                     <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                    Saving...
+                    Synchronizing...
                   </>
                 ) : (
                   <>
                     <Save className="h-5 w-5 mr-2" />
-                    Save Feature Flags
+                    Commit Protocol Changes
                   </>
                 )}
               </Button>

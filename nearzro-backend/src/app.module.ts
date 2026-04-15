@@ -40,6 +40,7 @@ import { SettingsModule } from './settings/settings.module';
 import { ReportsModule } from './reports/reports.module';
 import { BusinessRulesModule } from './business-rules/business-rules.module';
 import { ContactModule } from './contact/contact.module';
+import { SearchModule } from './search/search.module';
 
 @Module({
   imports: [
@@ -84,8 +85,12 @@ import { ContactModule } from './contact/contact.module';
     // 📁 STATIC FILES (UPLOADS)
     // =====================================================
     ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', 'uploads'),
+      rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/uploads',
+      renderPath: '/uploads', // Restrict rendering to avoid hijacking other routes
+      serveStaticOptions: {
+        index: false, // CRITICAL: Disable index.html fallback for missing files
+      },
     }),
 
     // =====================================================
@@ -209,6 +214,7 @@ import { ContactModule } from './contact/contact.module';
     ReportsModule,
     BusinessRulesModule,
     ContactModule,
+    SearchModule,
   ],
   // 🔐 GLOBAL SECURITY LAYER
   providers: [

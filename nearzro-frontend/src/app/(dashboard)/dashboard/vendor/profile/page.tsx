@@ -18,6 +18,8 @@ import {
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
+import { getImageUrl } from "@/lib/utils";
+
 // ==================== Types ====================
 interface VendorProfile {
   id?: number;
@@ -38,6 +40,7 @@ interface VendorProfile {
   verificationStatus: "PENDING" | "VERIFIED" | "REJECTED" | "NOT_SUBMITTED";
   createdAt?: string;
   updatedAt?: string;
+  businessImages?: string[];
 }
 
 // ==================== Constants ====================
@@ -64,11 +67,12 @@ const PRICING_MODELS = [
 
 // ==================== Main Component ====================
 export default function VendorProfilePage() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [profile, setProfile] = useState<VendorProfile | null>(null);
 
   // Form state with string values for easy editing
@@ -87,6 +91,7 @@ export default function VendorProfilePage() {
     experience: 0,
     verified: false,
     verificationStatus: "NOT_SUBMITTED",
+    businessImages: [],
   });
 
   // Separate string state for number fields to allow empty input
@@ -118,6 +123,7 @@ export default function VendorProfilePage() {
           experience: vendorData.experience || 0,
           verified: vendorData.verified || false,
           verificationStatus: vendorData.verificationStatus || "NOT_SUBMITTED",
+          businessImages: vendorData.businessImages || [],
         });
         // Set string values for number fields
         setExperienceStr(vendorData.experience?.toString() || "");
@@ -215,6 +221,51 @@ export default function VendorProfilePage() {
     }
   };
 
+  // Handle avatar upload
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Image must be less than 2MB for database storage");
+      return;
+    }
+
+    try {
+      setUploadingAvatar(true);
+      
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = async () => {
+        const base64String = reader.result as string;
+        try {
+          // Update user profile picture (stored in database as Base64)
+          await api.patch('/users/me', { image: base64String });
+          toast.success("Profile picture updated!");
+          
+          // Refresh user in auth context to update avatar across the app
+          await refreshUser();
+          await loadProfile();
+        } catch (error: any) {
+          console.error("Failed to update profile picture:", error);
+          toast.error("Failed to update profile picture");
+        } finally {
+          setUploadingAvatar(false);
+          if (e.target) e.target.value = '';
+        }
+      };
+      
+      reader.onerror = () => {
+        toast.error("Failed to read image file");
+        setUploadingAvatar(false);
+      };
+    } catch (error: any) {
+      console.error("Avatar upload error:", error);
+      toast.error("Failed to process image");
+      setUploadingAvatar(false);
+    }
+  };
+
   // Handle cancel
   const handleCancel = () => {
     // Reset form to loaded profile data
@@ -234,6 +285,7 @@ export default function VendorProfilePage() {
         experience: profile.experience || 0,
         verified: profile.verified || false,
         verificationStatus: profile.verificationStatus || "NOT_SUBMITTED",
+        businessImages: profile.businessImages || [],
       });
       setExperienceStr(profile.experience?.toString() || "");
       setServiceRadiusStr(profile.serviceRadiusKm?.toString() || "10");
@@ -302,9 +354,43 @@ export default function VendorProfilePage() {
     >
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-black">Vendor Profile</h1>
-          <p className="text-neutral-600">Create and manage your business identity</p>
+        <div className="flex items-center gap-6">
+          {/* Avatar Widget */}
+          <div className="relative group">
+            <div className="h-24 w-24 rounded-full border-4 border-white shadow-lg overflow-hidden bg-neutral-100 flex items-center justify-center relative">
+              {uploadingAvatar ? (
+                <Loader2 className="h-8 w-8 animate-spin text-neutral-400" />
+              ) : user?.image ? (
+                <img 
+                  src={getImageUrl(user.image)} 
+                  alt="Profile" 
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <Store className="h-8 w-8 text-neutral-400" />
+              )}
+              
+              <Label 
+                htmlFor="avatar-upload" 
+                className="absolute inset-0 bg-black/50 text-white flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity"
+              >
+                <Camera className="h-6 w-6 mb-1" />
+                <span className="text-[10px] font-medium uppercase tracking-wider">Update</span>
+              </Label>
+              <input 
+                type="file" 
+                id="avatar-upload" 
+                accept="image/jpeg,image/png,image/webp" 
+                className="hidden" 
+                onChange={handleAvatarUpload}
+                disabled={uploadingAvatar}
+              />
+            </div>
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold text-black">Vendor Profile</h1>
+            <p className="text-neutral-600">Create and manage your business identity</p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           {getVerificationBadge()}

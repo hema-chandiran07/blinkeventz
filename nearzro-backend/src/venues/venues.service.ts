@@ -74,7 +74,13 @@ export class VenuesService {
   /**
    * Create a new venue
    */
-  async createVenue(dto: CreateVenueDto, ownerId: number): Promise<VenueResponseDto> {
+  async createVenue(
+    dto: CreateVenueDto, 
+    ownerId: number, 
+    venueImageUrls: string[] = [],
+    kycDocUrls: string[] = [],
+    govtCertUrls: string[] = []
+  ): Promise<VenueResponseDto> {
     const venue = await this.prisma.venue.create({
       data: {
         name: dto.name,
@@ -89,12 +95,23 @@ export class VenuesService {
         basePriceMorning: dto.basePriceMorning ? Number(dto.basePriceMorning) : 0,
         basePriceEvening: dto.basePriceEvening ? Number(dto.basePriceEvening) : 0,
         basePriceFullDay: dto.basePriceFullDay ? Number(dto.basePriceFullDay) : 0,
-        amenities: dto.amenities,
+        amenities: Array.isArray(dto.amenities) ? dto.amenities.join(', ') : dto.amenities,
         policies: dto.policies,
+        venueImages: venueImageUrls,
+        kycDocFiles: kycDocUrls,
+        venueGovtCertificateFiles: govtCertUrls,
         owner: {
           connect: {
             id: ownerId,
           },
+        },
+        // Create initial photos
+        photos: {
+          create: venueImageUrls.map((url, index) => ({
+            url,
+            isCover: index === 0,
+            category: 'MAIN' as any,
+          })),
         },
       },
       include: {
@@ -399,7 +416,7 @@ export class VenuesService {
       pincode: dto.pincode,
       // Convert amenities array to JSON string if it's an array
       amenities: Array.isArray(dto.amenities) 
-        ? JSON.stringify(dto.amenities) 
+        ? dto.amenities.join(', ') 
         : dto.amenities,
       policies: dto.policies,
     };
@@ -426,18 +443,14 @@ export class VenuesService {
       updateData.venueImages = venueImageUrls;
     }
 
-    // Add KYC document files if provided
+    // Set KYC document files if provided (replacement, not append)
     if (kycDocUrls && kycDocUrls.length > 0) {
-      updateData.kycDocFiles = {
-        push: kycDocUrls,
-      };
+      updateData.kycDocFiles = kycDocUrls;
     }
 
-    // Add government certificate files if provided
+    // Set government certificate files if provided (replacement, not append)
     if (govtCertUrls && govtCertUrls.length > 0) {
-      updateData.venueGovtCertificateFiles = {
-        push: govtCertUrls,
-      };
+      updateData.venueGovtCertificateFiles = govtCertUrls;
     }
 
     // Remove undefined values
@@ -449,8 +462,21 @@ export class VenuesService {
 
     const updated = await this.prisma.venue.update({
       where: { id },
-      data: updateData,
-      include: { photos: true },
+      data: {
+        ...updateData,
+        // Synchronize VenuePhoto relation
+        photos: venueImageUrls !== undefined ? {
+          deleteMany: {}, // Clear existing
+          create: venueImageUrls.map((url, index) => ({
+            url,
+            isCover: index === 0,
+            category: 'GALLERY' as any,
+          })),
+        } : undefined,
+      },
+      include: {
+        photos: true,
+      },
     });
 
     // Invalidate caches

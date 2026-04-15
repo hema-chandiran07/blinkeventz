@@ -84,7 +84,7 @@ export default function VenueCalendarPage() {
 
       // Load blocked slots from correct endpoint
       try {
-        const blockedResponse = await api.get('/availability/venue-owner/blocked-slots');
+        const blockedResponse = await api.get('/venues/venue-owner/blocked-slots');
         setBlockedSlots(blockedResponse.data || []);
       } catch (error) {
         console.warn("Could not fetch blocked slots:", error);
@@ -207,8 +207,8 @@ export default function VenueCalendarPage() {
     try {
       // Get the first venue ID to pass as query param
       const venueId = venues.length > 0 ? venues[0].id : null;
-      // Use the correct endpoint under /availability/ not /venues/
-      await api.delete(`/availability/venue-owner/blocked-slots?date=${date}&slot=${slot}${venueId ? `&venueId=${venueId}` : ''}`);
+      // Use the correct endpoint under /venues/
+      await api.delete(`/venues/venue-owner/blocked-slots?date=${date}&slot=${slot}${venueId ? `&venueId=${venueId}` : ''}`);
       setBlockedSlots(blockedSlots.filter(s => !(s.date === date && s.timeSlot === slot)));
       toast.success("Slot unblocked successfully");
     } catch (error: any) {

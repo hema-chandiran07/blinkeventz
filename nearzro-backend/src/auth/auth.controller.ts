@@ -1,7 +1,8 @@
 import { Body, Controller, Get, Post, Req, Res, UseGuards, UseInterceptors, UploadedFiles, BadRequestException, HttpStatus, UnauthorizedException, ForbiddenException } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
+import { memoryStorage } from 'multer';
 import { extname } from 'path';
+import { DatabaseStorageService } from '../storage/database-storage.service';
 import { MulterOptions } from '@nestjs/platform-express/multer/interfaces/multer-options.interface';
 
 // Secure file filter — allowlist of safe file types
@@ -55,7 +56,10 @@ if (process.env.NODE_ENV === 'development') {
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly storageService: DatabaseStorageService,
+  ) { }
 
   // 👤 Normal USER registration
   @Public()
@@ -80,22 +84,15 @@ export class AuthController {
       { name: 'kycDocFiles', maxCount: 5 },
       { name: 'venueGovtCertificateFiles', maxCount: 5 }, // Trade License (MANDATORY)
     ], {
-      storage: diskStorage({
-        destination: './uploads',
-        filename: (req, file, callback) => {
-          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-          const ext = extname(file.originalname);
-          callback(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
-        },
-      }),
+      storage: memoryStorage(),
       fileFilter: secureFileFilter,
       limits: { fileSize: MAX_FILE_SIZE },
     }),
   )
   async registerVenueOwner(
     @Body() dto: VenueOwnerRegisterDto,
-    @UploadedFiles() files: { 
-      venueImages?: Express.Multer.File[]; 
+    @UploadedFiles() files: {
+      venueImages?: Express.Multer.File[];
       kycDocFiles?: Express.Multer.File[];
       venueGovtCertificateFiles?: Express.Multer.File[];
     },
@@ -130,19 +127,12 @@ export class AuthController {
       { name: 'kycDocFiles', maxCount: 5 },
       { name: 'foodLicenseFiles', maxCount: 5 }, // FSSAI (CONDITIONAL - only for CATERING)
     ], {
-      storage: diskStorage({
-        destination: './uploads',
-        filename: (req, file, callback) => {
-          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-          const ext = extname(file.originalname);
-          callback(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
-        },
-      }),
+      storage: memoryStorage(),
       fileFilter: secureFileFilter,
       limits: { fileSize: MAX_FILE_SIZE },
     }),
   )
-  registerVendor(
+  async registerVendor(
     @Body() dto: VendorRegisterDto,
     @UploadedFiles() files: {
       businessImages?: Express.Multer.File[];
@@ -174,7 +164,7 @@ export class AuthController {
   }
 
   // 🔐 Login (all roles)
-   @Public()
+  @Public()
   @Post('login')
   @ApiOperation({ summary: 'User login with email/username and password' })
   @ApiResponse({ status: 200, description: 'Returns access token, refresh token, and user data' })
@@ -245,42 +235,42 @@ export class AuthController {
     const exists = await this.authService.checkPhoneExists(body.phone);
     return { exists };
   }
-// 🚀 Redirect to Google OAuth
-@Public()
-@Get('google')
-@UseGuards(GoogleAuthGuard)
-@ApiOperation({ summary: 'Initiate Google OAuth flow' })
-googleAuth() {
-  // Guard redirects to Google with state parameter forwarded
-}
+  // 🚀 Redirect to Google OAuth
+  @Public()
+  @Get('google')
+  @UseGuards(GoogleAuthGuard)
+  @ApiOperation({ summary: 'Initiate Google OAuth flow' })
+  googleAuth() {
+    // Guard redirects to Google with state parameter forwarded
+  }
 
-// 🎯 Google callback - returns tokens to frontend
-   @Public()
-   @Get('google/callback')
-   @UseGuards(AuthGuard('google'))
-   @ApiOperation({ summary: 'Google OAuth callback' })
-   @ApiResponse({ status: 302, description: 'Redirects to frontend with tokens' })
-   async googleAuthCallback(@Req() req: any, @Res() res: Response) {
-     try {
-       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
-       if (!req.user) return res.redirect(`${frontendUrl}/login?error=no_user_data`);
-       
-       // Extract state data parsed by the strategy
-        const { intendedRole = 'CUSTOMER', callbackUrl = '/' } = req.user || {};
-       
-       const result = await this.authService.handleOAuthLogin(req.user, 'google', intendedRole);
-       const userData = { id: result.user.id, email: result.user.email, name: result.user.name, role: result.user.role };
-       
-       // Dynamically route back to the correct registration page at step 2
-       const redirectUrl = `${frontendUrl}${callbackUrl}?step=2&token=${result.accessToken}&user=${encodeURIComponent(JSON.stringify(userData))}`;
-       
-       return res.redirect(redirectUrl);
-      } catch (error: any) {
-        console.error("🚨 GOOGLE OAUTH CALLBACK CRASHED:", error);
-        const fallbackUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
-        return res.redirect(`${fallbackUrl}/login?error=oauth_failed`);
-      }
-   }
+  // 🎯 Google callback - returns tokens to frontend
+  @Public()
+  @Get('google/callback')
+  @UseGuards(AuthGuard('google'))
+  @ApiOperation({ summary: 'Google OAuth callback' })
+  @ApiResponse({ status: 302, description: 'Redirects to frontend with tokens' })
+  async googleAuthCallback(@Req() req: any, @Res() res: Response) {
+    try {
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
+      if (!req.user) return res.redirect(`${frontendUrl}/login?error=no_user_data`);
+
+      // Extract state data parsed by the strategy
+      const { intendedRole = 'CUSTOMER', callbackUrl = '/' } = req.user || {};
+
+      const result = await this.authService.handleOAuthLogin(req.user, 'google', intendedRole);
+      const userData = { id: result.user.id, email: result.user.email, name: result.user.name, role: result.user.role };
+
+      // Dynamically route back to the correct registration page at step 2
+      const redirectUrl = `${frontendUrl}${callbackUrl}?step=2&token=${result.accessToken}&user=${encodeURIComponent(JSON.stringify(userData))}`;
+
+      return res.redirect(redirectUrl);
+    } catch (error: any) {
+      console.error("🚨 GOOGLE OAUTH CALLBACK CRASHED:", error);
+      const fallbackUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
+      return res.redirect(`${fallbackUrl}/login?error=oauth_failed`);
+    }
+  }
 
   // 📘 Redirect to Facebook
   @Public()
@@ -300,13 +290,13 @@ googleAuth() {
   async facebookAuthCallback(@Req() req: Request & { user?: { facebookId: string; email: string; name: string; picture?: string } }, @Res() res: Response) {
     try {
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
-      
+
       if (!req.user) {
         return res.redirect(`${frontendUrl}/login?error=no_user_data`);
       }
-      
+
       const tokens = await this.authService.handleOAuthLogin(req.user, 'facebook');
-      
+
       const tempCode = Buffer.from(JSON.stringify(tokens)).toString('base64');
       res.redirect(`${frontendUrl}/auth/callback?code=${tempCode}`);
     } catch (error) {

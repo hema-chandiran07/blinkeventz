@@ -4,7 +4,7 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { Role } from '../../common/enums/role.enum';
+import { Role } from '@prisma/client';
 
 @Injectable()
 export class AuditRbacGuard implements CanActivate {

@@ -15,7 +15,7 @@ import {
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { motion } from "framer-motion";
-import { cn } from "@/lib/utils";
+import { cn, getImageUrl } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 
 // ==================== Types ====================
@@ -71,6 +71,31 @@ const DOC_TYPE_LABELS: Record<string, string> = {
   DRIVING_LICENSE: "Driving License",
 };
 
+// Helper to reliably serve large Base64 Data URLs by converting them to Blob URLs
+function getSafeFileUrl(dataUrl: string): string {
+  if (!dataUrl || !dataUrl.startsWith("data:")) return dataUrl;
+  try {
+    const parts = dataUrl.split(",");
+    if (parts.length < 2) return dataUrl;
+    
+    const mimeMatch = parts[0].match(/:(.*?);/);
+    const mime = mimeMatch ? mimeMatch[1] : "application/octet-stream";
+    
+    // Use window.atob and handle potential padding issues
+    const byteCharacters = atob(parts[1]);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: mime });
+    return URL.createObjectURL(blob);
+  } catch (e) {
+    console.error("Could not parse data URL to Blob URL", e);
+    return dataUrl;
+  }
+}
+
 // ==================== Main Component ====================
 export default function AdminKycApprovalsPage() {
   const [loading, setLoading] = useState(true);
@@ -85,11 +110,13 @@ export default function AdminKycApprovalsPage() {
   const limit = 15;
 
   const [selectedSubmission, setSelectedSubmission] = useState<KycSubmission | null>(null);
+  const [safeDocUrl, setSafeDocUrl] = useState<string | null>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [actionDialogOpen, setActionDialogOpen] = useState(false);
   const [actionType, setActionType] = useState<"approve" | "reject">("approve");
   const [rejectionReason, setRejectionReason] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
+  const [previewError, setPreviewError] = useState(false);
 
   // Load KYC submissions
   const loadSubmissions = useCallback(async (showRefresh = false) => {
@@ -221,9 +248,20 @@ export default function AdminKycApprovalsPage() {
     return labels[type] || type;
   };
 
+  // Handle close view
+  const handleCloseView = () => {
+    setViewDialogOpen(false);
+    if (safeDocUrl && safeDocUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(safeDocUrl);
+    }
+    setSafeDocUrl(null);
+  };
+
   // Handle view
   const handleView = (submission: KycSubmission) => {
     setSelectedSubmission(submission);
+    setPreviewError(false);
+    setSafeDocUrl(submission.documentUrl ? getSafeFileUrl(submission.documentUrl) : null);
     setViewDialogOpen(true);
   };
 
@@ -631,7 +669,7 @@ export default function AdminKycApprovalsPage() {
 
       {/* View Dialog */}
       {selectedSubmission && (
-        <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
+        <Dialog open={viewDialogOpen} onOpenChange={(open) => { if (!open) handleCloseView(); }}>
           <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
             <DialogHeader className="shrink-0">
               <DialogTitle>KYC Submission Details</DialogTitle>
@@ -689,16 +727,26 @@ export default function AdminKycApprovalsPage() {
                       size="sm"
                       className="h-7 text-xs gap-1"
                       onClick={() => {
-                        // Download the document
-                        const link = document.createElement('a');
-                        link.href = selectedSubmission.documentUrl;
-                        const ext = selectedSubmission.documentUrl.includes('pdf') ? 'pdf' : 
-                                   selectedSubmission.documentUrl.includes('png') ? 'png' : 
-                                   selectedSubmission.documentUrl.includes('jpeg') || selectedSubmission.documentUrl.includes('jpg') ? 'jpg' : 'file';
-                        link.download = `kyc-${DOC_TYPE_LABELS[selectedSubmission.docType] || 'doc'}-${selectedSubmission.docNumber}.${ext}`;
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
+                        // Download the document using the blob URL if available
+                        const downloadUrl = getImageUrl(safeDocUrl || selectedSubmission.documentUrl);
+                        
+                        if (downloadUrl.startsWith('data:')) {
+                           const link = document.createElement('a');
+                           link.href = downloadUrl;
+                           // Determine extension from MIME type
+                           let ext = 'file';
+                           if (downloadUrl.includes('application/pdf')) ext = 'pdf';
+                           else if (downloadUrl.includes('image/png')) ext = 'png';
+                           else if (downloadUrl.includes('image/jpeg')) ext = 'jpg';
+                           
+                           link.download = `kyc-${DOC_TYPE_LABELS[selectedSubmission.docType] || 'doc'}-${selectedSubmission.docNumber || selectedSubmission.id}.${ext}`;
+                           document.body.appendChild(link);
+                           link.click();
+                           document.body.removeChild(link);
+                        } else {
+                          // For external/legacy files, open in new tab for download/view
+                          window.open(downloadUrl, '_blank');
+                        }
                       }}
                     >
                       <Download className="h-3 w-3" />
@@ -707,34 +755,54 @@ export default function AdminKycApprovalsPage() {
                   </div>
                   <div className="rounded-lg border overflow-hidden bg-white">
                     {(() => {
-                      const docUrl = selectedSubmission.documentUrl;
-                      // Detect file type from data URL
-                      const isPdf = docUrl.includes('application/pdf');
-                      const isImage = docUrl.includes('image/');
+                      const originalDataUrl = selectedSubmission.documentUrl;
+                      const docUrlToUse = safeDocUrl || originalDataUrl;
+                      
+                      // Detect file type from original data URL
+                      // Detect file type from original data URL or file extension
+                      const isPdf = originalDataUrl.includes('application/pdf') || originalDataUrl.endsWith('.pdf');
+                      const isImage = originalDataUrl.includes('image/') || 
+                                     originalDataUrl.endsWith('.jpg') || 
+                                     originalDataUrl.endsWith('.jpeg') || 
+                                     originalDataUrl.endsWith('.png');
 
-                      if (isPdf) {
+                      if (isPdf && !previewError) {
                         return (
                           <div className="relative">
                             <iframe
-                              src={docUrl}
-                              className="w-full h-96 border-0"
+                              src={getImageUrl(docUrlToUse)}
+                              className="w-full h-96 border-0 bg-neutral-100"
                               title="Document Preview"
+                              onLoad={() => {
+                                // Basic check if content is meaningful
+                              }}
                             />
-                            <div className="bg-neutral-50 px-4 py-2 border-t flex items-center gap-2">
-                              <FileText className="h-4 w-4 text-neutral-500" />
-                              <span className="text-xs text-neutral-600">PDF Document — Use browser controls to zoom/print</span>
+                            <div className="bg-neutral-50 px-4 py-2 border-t flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <FileText className="h-4 w-4 text-neutral-500" />
+                                <span className="text-xs text-neutral-600">PDF Document — Interactive Preview</span>
+                              </div>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-6 text-[10px] text-red-600 hover:text-red-700 hover:bg-red-50"
+                                onClick={() => setPreviewError(true)}
+                              >
+                                Preview not loading?
+                              </Button>
                             </div>
                           </div>
                         );
                       }
 
-                      if (isImage) {
+                      if (isImage && !previewError && docUrlToUse) {
                         return (
                           <div className="relative">
                             <img
-                              src={docUrl}
+                              src={getImageUrl(docUrlToUse)}
                               alt="KYC Document"
                               className="w-full h-auto max-h-96 object-contain mx-auto"
+                              onError={() => setPreviewError(true)}
                             />
                             <div className="bg-neutral-50 px-4 py-2 border-t flex items-center gap-2">
                               <FileText className="h-4 w-4 text-neutral-500" />
@@ -744,26 +812,42 @@ export default function AdminKycApprovalsPage() {
                         );
                       }
 
-                      // Fallback: unsupported file type
+                      // Fallback: unsupported file type, empty URL, or Error
+                      const isMissing = !docUrlToUse || docUrlToUse === '';
                       return (
-                        <div className="p-8 text-center">
-                          <FileText className="h-12 w-12 text-neutral-400 mx-auto mb-3" />
-                          <p className="text-sm text-neutral-600 mb-2">Preview not available for this file type</p>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              const link = document.createElement('a');
-                              link.href = docUrl;
-                              link.download = `kyc-${selectedSubmission.id}.file`;
-                              document.body.appendChild(link);
-                              link.click();
-                              document.body.removeChild(link);
-                            }}
-                          >
-                            <Download className="h-3 w-3 mr-1" />
-                            Download File
-                          </Button>
+                        <div className="flex flex-col items-center justify-center p-12 bg-neutral-50 rounded-lg border border-dashed border-neutral-300">
+                           <div className="p-4 bg-white rounded-2xl shadow-sm mb-4">
+                              <AlertCircle className="h-8 w-8 text-red-500" />
+                           </div>
+                           <h4 className="text-lg font-bold text-neutral-900">
+                             {isMissing ? "Document Required" : "Document Unavailable"}
+                           </h4>
+                           <p className="text-sm text-neutral-500 text-center max-w-xs mt-2">
+                             {isMissing 
+                               ? "No document file was found for this submission. The record might have been created without a valid upload."
+                               : "The original file could not be retrieved from the storage server. It may have been relocated or corrupted."
+                             }
+                           </p>
+                           <div className="flex gap-3 mt-6">
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => window.open(getImageUrl(docUrlToUse), '_blank')}
+                              >
+                                Try Direct Link
+                              </Button>
+                              <Button 
+                                variant="destructive" 
+                                size="sm"
+                                onClick={() => {
+                                  setActionType("reject");
+                                  setRejectionReason("The submitted document file is missing or corrupted. Please re-upload a clear copy of your KYC document.");
+                                  setActionDialogOpen(true);
+                                }}
+                              >
+                                Request Re-upload
+                              </Button>
+                           </div>
                         </div>
                       );
                     })()}
@@ -789,13 +873,13 @@ export default function AdminKycApprovalsPage() {
               )}
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setViewDialogOpen(false)}>Close</Button>
+              <Button variant="outline" onClick={handleCloseView}>Close</Button>
               {selectedSubmission.status === "PENDING" && (
                 <>
                   <Button
                     variant="outline"
                     onClick={() => {
-                      setViewDialogOpen(false);
+                      handleCloseView();
                       openActionDialog("reject");
                     }}
                     className="text-red-600 hover:text-red-700"
@@ -805,7 +889,7 @@ export default function AdminKycApprovalsPage() {
                   </Button>
                   <Button
                     onClick={() => {
-                      setViewDialogOpen(false);
+                      handleCloseView();
                       openActionDialog("approve");
                     }}
                     className="bg-green-600 hover:bg-green-700"

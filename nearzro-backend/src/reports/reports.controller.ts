@@ -4,7 +4,7 @@ import { ReportsService } from './reports.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
-import { Role } from '../common/enums/role.enum';
+import { Role } from '@prisma/client';
 import { Response } from 'express';
 
 @ApiTags('Reports')
@@ -130,3 +130,4 @@ export class ReportsController {
     return this.reportsService.getSystemOverview();
   }
 }
+

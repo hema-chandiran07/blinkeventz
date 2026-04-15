@@ -18,6 +18,7 @@ model User {
   googleId     String?  @unique
   role         Role     @default(CUSTOMER)
   isActive     Boolean  @default(true)
+  image        String?  // Base64 profile picture
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -52,12 +53,30 @@ model User {
   vendor                  Vendor?
   venues                  Venue[]
   refreshTokens           RefreshToken[]
+  searchAudits            SearchAudit[]
 
   // Indexes for authentication queries
   @@index([email])
   @@index([googleId])
   @@index([facebookId])
   @@index([passwordResetToken])
+}
+
+/// Search Audit Model - Track query performance and intent
+model SearchAudit {
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  query     String
+  filters   Json?
+  resultsCount Int
+  durationMs Int
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([query])
 }
 
 /// Refresh Token Model for JWT refresh mechanism
@@ -1037,6 +1056,8 @@ enum ItemTypeForEvent {
 enum EventServiceStatus {
   PENDING
   CONFIRMED
+  IN_PROGRESS
+  COMPLETED
   CANCELLED
 }
 
@@ -1053,6 +1074,8 @@ enum NotificationType {
   SERVICE_REJECTED
   EVENT_REMINDER
   EVENT_CANCELLED
+  KYC_APPROVED
+  KYC_REJECTED
   SYSTEM_ALERT
   OTHER
 }

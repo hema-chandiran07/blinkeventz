@@ -14,6 +14,7 @@ export class UsersService {
         email: true,
         role: true,
         createdAt: true,
+        image: true,
       },
     });
   }
@@ -36,6 +37,7 @@ export class UsersService {
         isEmailVerified: true,
         phone: true,
         isActive: true,
+        image: true,
       },
     });
   }
@@ -49,6 +51,7 @@ export class UsersService {
         role: true,
         createdAt: true,
         isEmailVerified: true,
+        image: true,
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -58,11 +61,12 @@ export class UsersService {
   // UPDATE USER PROFILE
   // ============================================================================
 
-  async updateProfile(userId: number, data: { name?: string; phone?: string; city?: string; area?: string }) {
+  async updateProfile(userId: number, data: { name?: string; phone?: string; city?: string; area?: string; image?: string }) {
     const updateData: any = {};
     
     if (data.name) updateData.name = data.name;
     if (data.phone) updateData.phone = data.phone;
+    if (data.image) updateData.image = data.image; // Store Base64 image
     
     // Update vendor profile if exists
     if (data.city || data.area) {
@@ -105,6 +109,7 @@ export class UsersService {
         name: true,
         phone: true,
         role: true,
+        image: true,
       },
     });
   }

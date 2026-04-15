@@ -3,7 +3,7 @@ import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiBody } from '@nes
 import { SettingsService } from './settings.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../common/decorators/roles.decorator';
-import { Role } from '../common/enums/role.enum';
+import { Role } from '@prisma/client';
 import { RolesGuard } from '../common/guards/roles.guard';
 
 @ApiTags('Settings')
@@ -131,3 +131,4 @@ export class SettingsController {
     return { message: 'Default settings initialized successfully' };
   }
 }
+

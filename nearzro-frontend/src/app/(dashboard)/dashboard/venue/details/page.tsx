@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,27 +10,15 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Building, Calendar, DollarSign, Plus, Search, CheckCircle2, Clock, Star,
-  MapPin, Edit2, Save, X, Upload, RefreshCw, Loader2, AlertCircle, Image
+  MapPin, Edit2, Save, X, Upload, RefreshCw, Loader2, AlertCircle, Image, Users,
+  ArrowLeft, ArrowRight, Settings2, ShieldCheck, ChevronRight
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 
-// Helper to get full image URL (handles both file paths and base64 data URLs)
-const getImageUrl = (path: string): string => {
-  if (!path) return '';
-  // Base64 data URLs from database - use directly
-  if (path.startsWith('data:')) return path;
-  // External URLs
-  if (path.startsWith('http://') || path.startsWith('https://')) return path;
-  // Blob URLs for new uploads
-  if (path.startsWith('blob:')) return path;
-  // File paths - prepend API base URL
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-  return `${baseUrl}${normalizedPath}`;
-};
+import { getImageUrl } from "@/lib/utils";
 
 // ==================== Types ====================
 interface Venue {
@@ -74,8 +62,7 @@ const AMENITIES_OPTIONS = [
   "Power Backup", "Security", "Changing Rooms", "Outdoor Space",
 ];
 
-// ==================== Main Component ====================
-export default function VenueDetailsPage() {
+function VenueDetailsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -106,7 +93,6 @@ export default function VenueDetailsPage() {
     verified: false,
   });
 
-  // Load venues
   const loadVenues = useCallback(async () => {
     try {
       setLoading(true);
@@ -114,92 +100,75 @@ export default function VenueDetailsPage() {
       const venueList = response.data || [];
       setVenues(venueList);
 
-      // Check if there's a venue ID or 'new' in the URL query params
       const venueId = searchParams?.get('id');
       const isNew = searchParams?.get('new') === 'true';
 
-      console.log('Loading venues, venueList:', venueList);
-
       if (isNew) {
-        // Explicitly adding a new venue - clear selection
         setSelectedVenue(null);
         setFormData({
-          name: "",
-          type: "BANQUET_HALL",
-          description: "",
-          city: "",
-          area: "",
-          address: "",
-          pincode: "",
-          capacityMin: 50,
-          capacityMax: 200,
-          basePriceMorning: 0,
-          basePriceEvening: 0,
-          basePriceFullDay: 0,
-          images: [],
-          amenities: [],
-          status: "PENDING_APPROVAL",
-          verified: false,
+            name: "", type: "BANQUET_HALL", description: "", city: "", area: "",
+            address: "", pincode: "", capacityMin: 50, capacityMax: 200,
+            basePriceMorning: 0, basePriceEvening: 0, basePriceFullDay: 0,
+            images: [], amenities: [], status: "PENDING_APPROVAL", verified: false
         });
         setImagePreviews([]);
         setImageFiles([]);
         setIsEditing(true);
-      } else if (venueList.length > 0) {
-        let venueToSelect: Venue;
-
-        if (venueId) {
-          // Find the venue with the matching ID from query params
-          venueToSelect = venueList.find((v: any) => v.id === parseInt(venueId)) || venueList[0];
-        } else {
-          // Default to first venue
-          venueToSelect = venueList[0];
-        }
-
-        setSelectedVenue(venueToSelect);
-        // Parse amenities from backend (could be string or array)
-        let parsedAmenities: string[] = [];
-        const rawAmenities = (venueToSelect as any).amenities;
-        if (rawAmenities) {
-          if (Array.isArray(rawAmenities)) {
-            parsedAmenities = rawAmenities;
-          } else if (typeof rawAmenities === 'string') {
-            // Split comma-separated string into array
-            parsedAmenities = rawAmenities.split(',').map((a: string) => a.trim()).filter((a: string) => a);
-          }
-        }
+      } else if (venueId) {
+        const id = parseInt(venueId);
+        const venueToSelect = venueList.find((v: any) => v.id === id);
         
-        const rawImages = venueToSelect.images || (venueToSelect as any).venueImages || [];
-        console.log('=== VENUE DEBUG ===');
-        console.log('Raw images from backend:', JSON.stringify(rawImages, null, 2));
-        console.log('Full venue data keys:', Object.keys(venueToSelect));
-        console.log('===================');
-
-        setFormData({
-          name: venueToSelect.name || "",
-          type: venueToSelect.type || "BANQUET_HALL",
-          description: venueToSelect.description || "",
-          city: venueToSelect.city || "",
-          area: venueToSelect.area || "",
-          address: venueToSelect.address || "",
-          pincode: venueToSelect.pincode || "",
-          capacityMin: venueToSelect.capacityMin || 50,
-          capacityMax: venueToSelect.capacityMax || 200,
-          basePriceMorning: venueToSelect.basePriceMorning || 0,
-          basePriceEvening: venueToSelect.basePriceEvening || 0,
-          basePriceFullDay: venueToSelect.basePriceFullDay || 0,
-          images: rawImages,
-          amenities: parsedAmenities,
-          status: venueToSelect.status || "PENDING_APPROVAL",
-          verified: venueToSelect.verified || false,
-          ownerId: venueToSelect.ownerId,
-          id: venueToSelect.id,
-        });
-        setImagePreviews(rawImages);
+        if (venueToSelect) {
+          setSelectedVenue(venueToSelect);
+          let parsedAmenities: string[] = [];
+          const rawAmenities = (venueToSelect as any).amenities;
+          if (rawAmenities) {
+            if (Array.isArray(rawAmenities)) parsedAmenities = rawAmenities;
+            else if (typeof rawAmenities === 'string') {
+              parsedAmenities = rawAmenities.split(',').map((a: string) => a.trim()).filter((a: string) => a);
+            }
+          }
+          
+          const rawImages = venueToSelect.images || 
+                            (venueToSelect as any).venueImages || 
+                            (venueToSelect as any).photos || [];
+          setFormData({
+            name: venueToSelect.name || "",
+            type: venueToSelect.type || "BANQUET_HALL",
+            description: venueToSelect.description || "",
+            city: venueToSelect.city || "",
+            area: venueToSelect.area || "",
+            address: venueToSelect.address || "",
+            pincode: venueToSelect.pincode || "",
+            capacityMin: venueToSelect.capacityMin || 50,
+            capacityMax: venueToSelect.capacityMax || 200,
+            basePriceMorning: venueToSelect.basePriceMorning || 0,
+            basePriceEvening: venueToSelect.basePriceEvening || 0,
+            basePriceFullDay: venueToSelect.basePriceFullDay || 0,
+            images: rawImages.map((img: any) => typeof img === 'string' ? img : img.url).filter(Boolean),
+            amenities: parsedAmenities,
+            status: venueToSelect.status || "PENDING_APPROVAL",
+            verified: venueToSelect.verified || false,
+            ownerId: venueToSelect.ownerId,
+            id: venueToSelect.id,
+          });
+          setImagePreviews(rawImages.map((img: any) => typeof img === 'string' ? img : img.url).filter(Boolean));
+          setIsEditing(true); // FIX: Entering edit mode when ID is found
+        }
+      } else {
+        setSelectedVenue(null);
+        setIsEditing(false);
+        
+        // UX Optimization: If only ONE venue exists and no ID is specified, 
+        // automatically select it for immediate reconfiguration
+        if (venueList.length === 1 && !venueId && !isNew) {
+           router.push(`/dashboard/venue/details?id=${venueList[0].id}`);
+        }
       }
     } catch (error: any) {
       console.error("Failed to load venues:", error);
       if (error?.response?.status !== 404) {
-        toast.error("Failed to load venues");
+        toast.error("Failed to load property data");
       }
     } finally {
       setLoading(false);
@@ -210,207 +179,86 @@ export default function VenueDetailsPage() {
     loadVenues();
   }, [loadVenues]);
 
-  // Validation
   const validateForm = (): boolean => {
-    if (!formData.name.trim()) {
-      toast.error("Venue name is required");
-      return false;
-    }
-    if (!formData.description.trim()) {
-      toast.error("Description is required");
-      return false;
-    }
-    if (!formData.city.trim()) {
-      toast.error("City is required");
-      return false;
-    }
-    if (!formData.area.trim()) {
-      toast.error("Area is required");
-      return false;
-    }
-    if (!formData.address.trim()) {
-      toast.error("Address is required");
-      return false;
-    }
-    if (formData.capacityMin >= formData.capacityMax) {
-      toast.error("Minimum capacity must be less than maximum capacity");
-      return false;
-    }
-    if (formData.basePriceEvening <= 0 && formData.basePriceFullDay <= 0) {
-      toast.error("At least one price (evening or full day) must be set");
-      return false;
-    }
+    if (!formData.name.trim()) { toast.error("Venue name is required"); return false; }
+    if (!formData.description.trim()) { toast.error("Provide a property description"); return false; }
+    if (!formData.city.trim() || !formData.area.trim()) { toast.error("Location details are required"); return false; }
+    if (formData.capacityMin >= formData.capacityMax) { toast.error("Invalid capacity range"); return false; }
     return true;
   };
 
-  // Handle save
   const handleSave = async () => {
     if (!validateForm()) return;
-
     setSaving(true);
-
     try {
-      // If there are new image files, upload them first
-      let uploadedImageUrls: string[] = [...(formData.images || [])];
-
+      let finalImageUrls = [...(formData.images || [])];
+      
       if (imageFiles.length > 0) {
-        const formDataObj = new FormData();
-        imageFiles.forEach(file => {
-          formDataObj.append('images', file);
-        });
-
-        // Upload images to backend
-        const uploadResponse = await api.post('/venues/upload-images', formDataObj, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
-
-        uploadedImageUrls = [...uploadedImageUrls, ...(uploadResponse.data.urls || [])];
+        const base64Images = await Promise.all(
+          imageFiles.map(file => new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+          }))
+        );
+        finalImageUrls = [...finalImageUrls, ...base64Images];
       }
 
-      // Convert amenities array to comma-separated string for backend
-      const amenitiesString = Array.isArray(formData.amenities) 
-        ? formData.amenities.join(', ') 
-        : (formData.amenities || '');
+      // Omit non-whitelisted frontend-only or backend-readonly properties
+      const { 
+        images, status, verified, id, ownerId, createdAt, updatedAt, ...cleanFormData 
+      } : any = formData;
 
-      // Only send fields that the backend DTO accepts
-      const venueData: any = {
-        name: formData.name,
-        type: formData.type,
-        description: formData.description,
-        city: formData.city,
-        area: formData.area,
-        address: formData.address,
-        pincode: formData.pincode,
-        capacityMin: formData.capacityMin,
-        capacityMax: formData.capacityMax,
-        basePriceMorning: formData.basePriceMorning,
-        basePriceEvening: formData.basePriceEvening,
-        basePriceFullDay: formData.basePriceFullDay,
-        amenities: amenitiesString,
+      const venueData = {
+        ...cleanFormData,
+        amenities: formData.amenities.join(', '),
+        venueImages: finalImageUrls,
       };
 
-      // Add venueImages if we have any
-      if (uploadedImageUrls.length > 0) {
-        venueData.venueImages = uploadedImageUrls;
-      }
-
-      console.log('Saving venue data:', venueData);
-      console.log('Image URLs being sent:', uploadedImageUrls);
-
       if (selectedVenue?.id) {
-        // Update existing venue - use /venues/my endpoint (uses JWT, no ID param)
-        await api.patch('/venues/my', venueData);
-        toast.success("Venue updated successfully!");
+        await api.patch(`/venues/${selectedVenue.id}`, venueData);
+        toast.success("Venue profile synchronized successfully");
       } else {
-        // Create new venue
         await api.post("/venues", venueData);
-        toast.success("Venue created successfully!");
+        toast.success("New venue provisioned successfully");
       }
 
-      await loadVenues();
-      setIsEditing(false);
-      setImageFiles([]);
+      router.push('/dashboard/venue/details');
+      loadVenues();
     } catch (error: any) {
-      console.error("Failed to save venue:", error);
-      toast.error(error?.response?.data?.message || "Failed to save venue");
+      toast.error(error?.response?.data?.message || "Operational failure during save");
     } finally {
       setSaving(false);
     }
   };
 
-  // Handle cancel
   const handleCancel = () => {
-    if (selectedVenue) {
-      // Parse amenities from backend (could be string or array)
-      let parsedAmenities: string[] = [];
-      const rawAmenities = (selectedVenue as any).amenities;
-      if (rawAmenities) {
-        if (Array.isArray(rawAmenities)) {
-          parsedAmenities = rawAmenities;
-        } else if (typeof rawAmenities === 'string') {
-          parsedAmenities = rawAmenities.split(',').map((a: string) => a.trim()).filter((a: string) => a);
-        }
-      }
-      
-      setFormData({
-        name: selectedVenue.name || "",
-        type: selectedVenue.type || "BANQUET_HALL",
-        description: selectedVenue.description || "",
-        city: selectedVenue.city || "",
-        area: selectedVenue.area || "",
-        address: selectedVenue.address || "",
-        pincode: selectedVenue.pincode || "",
-        capacityMin: selectedVenue.capacityMin || 50,
-        capacityMax: selectedVenue.capacityMax || 200,
-        basePriceMorning: selectedVenue.basePriceMorning || 0,
-        basePriceEvening: selectedVenue.basePriceEvening || 0,
-        basePriceFullDay: selectedVenue.basePriceFullDay || 0,
-        images: selectedVenue.images || (selectedVenue as any).venueImages || [],
-        amenities: parsedAmenities,
-        status: selectedVenue.status || "PENDING_APPROVAL",
-        verified: selectedVenue.verified || false,
-        ownerId: selectedVenue.ownerId,
-        id: selectedVenue.id,
-      });
-      setImagePreviews(selectedVenue.images || (selectedVenue as any).venueImages || []);
-    }
-    setIsEditing(false);
-    setImageFiles([]);
-    setImagePreviews([]);
+    router.push('/dashboard/venue/details');
   };
 
-  // Handle image upload
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
+    if (e.target.files) {
       const files = Array.from(e.target.files);
-
-      // Validate files
-      const validFiles = files.filter(file => {
-        const validTypes = ["image/jpeg", "image/png", "image/jpg"];
-        if (!validTypes.includes(file.type)) {
-          toast.error(`Invalid file type: ${file.name}. Only JPG/PNG allowed.`);
-          return false;
-        }
-        if (file.size > 5 * 1024 * 1024) {
-          toast.error(`File too large: ${file.name}. Max 5MB.`);
-          return false;
-        }
-        return true;
-      });
-
-      // Append new files to existing ones
-      setImageFiles(prev => [...prev, ...validFiles]);
-      
-      // Create previews and append to existing ones
-      const newPreviews = validFiles.map(file => URL.createObjectURL(file));
+      setImageFiles(prev => [...prev, ...files]);
+      const newPreviews = files.map(file => URL.createObjectURL(file));
       setImagePreviews(prev => [...prev, ...newPreviews]);
     }
   };
 
-  // Remove image
   const removeImage = (index: number) => {
-    // Get current existing images from formData (source of truth)
-    const existingImages = formData.images || [];
-    
-    // Remove from imagePreviews
     setImagePreviews(prev => prev.filter((_, i) => i !== index));
+    const newImages = [...(formData.images || [])];
+    const existingCount = newImages.length;
     
-    // Remove from formData.images (this tracks what goes to DB)
-    setFormData(prev => ({
-      ...prev,
-      images: prev.images.filter((_, i) => i !== index)
-    }));
-    
-    // If it's a newly selected file (not yet uploaded), remove from imageFiles
-    if (index >= existingImages.length) {
-      const fileIndex = index - existingImages.length;
-      setImageFiles(prev => prev.filter((_, i) => i !== fileIndex));
+    if (index < existingCount) {
+        newImages.splice(index, 1);
+        setFormData(prev => ({ ...prev, images: newImages }));
+    } else {
+        setImageFiles(prev => prev.filter((_, i) => i !== (index - existingCount)));
     }
-    
-    toast.success("Image removed. Click Save to apply changes.");
   };
 
-  // Toggle amenity
   const toggleAmenity = (amenity: string) => {
     setFormData(prev => ({
       ...prev,
@@ -420,406 +268,390 @@ export default function VenueDetailsPage() {
     }));
   };
 
-  // Get status badge
   const getStatusBadge = (status: string) => {
-    const config: Record<string, { className: string; label: string }> = {
-      PENDING_APPROVAL: { className: "bg-yellow-100 text-yellow-700", label: "Pending Approval" },
-      ACTIVE: { className: "bg-green-100 text-green-700", label: "Active" },
-      INACTIVE: { className: "bg-neutral-100 text-neutral-700", label: "Inactive" },
-      SUSPENDED: { className: "bg-red-100 text-red-700", label: "Suspended" },
-      DELISTED: { className: "bg-neutral-100 text-neutral-700", label: "Delisted" },
+    const config: any = {
+      PENDING_APPROVAL: { className: "bg-amber-100 text-amber-700 border-amber-200", label: "Verification Pending" },
+      ACTIVE: { className: "bg-emerald-100 text-emerald-700 border-emerald-200 shadow-sm", label: "Live & Active" },
+      INACTIVE: { className: "bg-neutral-100 text-neutral-500", label: "Offline" },
+      REJECTED: { className: "bg-red-100 text-red-700 border-red-200", label: "Rejected" },
     };
-    const { className, label } = config[status] || { className: "bg-neutral-100 text-neutral-700", label: status };
-    return <Badge className={className}>{label}</Badge>;
+    const { className, label } = config[status] || { className: "bg-neutral-100", label: status };
+    return <Badge className={cn("px-3 py-1 font-bold tracking-tighter uppercase text-[10px] rounded-full", className)}>{label}</Badge>;
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-neutral-400" />
-          <p className="text-neutral-600">Loading venues...</p>
-        </div>
+      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
+        <div className="h-12 w-12 rounded-full border-4 border-silver-800 border-t-black animate-spin" />
+        <p className="text-neutral-500 font-bold uppercase tracking-widest text-xs">Authenticating Profile...</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 p-6 bg-[#0a0a0b] text-white selection:bg-blue-500/30 min-h-screen">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-between flex-wrap gap-4"
+        className="flex items-center justify-between"
       >
         <div>
-          <h1 className="text-3xl font-bold text-black">Venue Details</h1>
-          <p className="text-neutral-600">Manage your venue listings</p>
+          <h1 className="text-4xl font-black text-white tracking-tight">
+            Inventory <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-600">Assets</span>
+          </h1>
+          <p className="text-zinc-500 font-medium mt-1">
+            {isEditing ? (selectedVenue ? `Reconfiguring ${selectedVenue.name}` : "Strategic Asset Provisioning") : "Manage industrial real estate portfolio"}
+          </p>
         </div>
-        <div className="flex items-center gap-2">
-          {selectedVenue && getStatusBadge(selectedVenue.status)}
-          {!isEditing ? (
-            <Button onClick={() => setIsEditing(true)} className="gap-2">
-              <Edit2 className="h-4 w-4" />
-              {venues.length === 0 ? "Add Venue" : "Edit Venue"}
+        
+        {!isEditing ? (
+          <Button 
+            onClick={() => router.push("/dashboard/venue/details?new=true")}
+            className="bg-black hover:bg-neutral-800 text-white font-bold h-12 px-6 shadow-xl shadow-black/10 transition-all rounded-full"
+          >
+            <Plus className="h-5 w-5 mr-2" /> Add New Asset
+          </Button>
+        ) : (
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" onClick={handleCancel} className="hover:bg-white shadow-sm transition-all rounded-full">
+               <ArrowLeft className="h-4 w-4 mr-2" /> Back to Assets
             </Button>
-          ) : (
-            <>
-              <Button
-                onClick={handleSave}
-                className="bg-green-600 hover:bg-green-700 gap-2"
-                disabled={saving}
-              >
-                {saving ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4" />
-                    Save
-                  </>
-                )}
-              </Button>
-              <Button variant="outline" onClick={handleCancel} className="gap-2">
-                <X className="h-4 w-4" />
-                Cancel
-              </Button>
-            </>
-          )}
-        </div>
+            <Button 
+              onClick={handleSave} 
+              disabled={saving}
+              className="bg-white text-black hover:bg-zinc-200 font-black h-12 px-8 shadow-xl shadow-white/5 transition-all rounded-full"
+            >
+              {saving ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <ShieldCheck className="mr-2 h-4 w-4" />} Synchronize Asset
+            </Button>
+          </div>
+        )}
       </motion.div>
 
-      {/* No Venues Info */}
-      {venues.length === 0 && !isEditing && (
-        <Card className="border-blue-200 bg-blue-50">
-          <CardContent className="py-6">
-            <div className="flex items-start gap-4">
-              <AlertCircle className="h-8 w-8 text-blue-600 mt-0.5" />
-              <div>
-                <h3 className="font-semibold text-blue-900">No Venues Added</h3>
-                <p className="text-sm text-blue-700 mt-1">
-                  Add your first venue to start receiving bookings
-                </p>
-                <Button onClick={() => setIsEditing(true)} className="mt-3 gap-2">
-                  <Plus className="h-4 w-4" />
-                  Add Venue
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Main Form */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Basic Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-black">Basic Information</CardTitle>
-              <CardDescription className="text-neutral-600">Essential details about your venue</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name" className="text-black font-medium">Venue Name *</Label>
-                <div className="flex items-center gap-2">
-                  <Building className="h-4 w-4 text-neutral-400" />
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    disabled={!isEditing}
-                    placeholder="e.g., Grand Palace Banquet Hall"
-                    className="border border-neutral-300 bg-white text-black placeholder:text-neutral-400 focus-visible:ring-neutral-600 focus-visible:border-neutral-500"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="type" className="text-black font-medium">Venue Type</Label>
-                <select
-                  id="type"
-                  value={formData.type}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                  disabled={!isEditing}
-                  className="flex h-10 w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm text-black"
+      <AnimatePresence mode="wait">
+        {!isEditing ? (
+          <motion.div
+            key="list"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+          >
+            {venues.length === 0 ? (
+              <Card className="col-span-full border-none shadow-2xl bg-white/50 backdrop-blur-xl py-24 border-dashed border-2 border-silver-300">
+                <CardContent className="flex flex-col items-center">
+                  <div className="p-6 bg-white rounded-3xl shadow-xl mb-6">
+                    <Building className="h-12 w-12 text-neutral-300" />
+                  </div>
+                  <h3 className="text-2xl font-black text-black mb-2">Portfolio Empty</h3>
+                  <p className="text-neutral-500 font-medium mb-8">Establish your first commercial venue listing</p>
+                  <Button 
+                    onClick={() => router.push("/dashboard/venue/details?new=true")}
+                    className="bg-black hover:bg-neutral-800 text-white px-8 h-12 font-bold transition-all rounded-full"
+                  >
+                    Initialize First Asset
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              venues.map((venue, i) => (
+                <motion.div
+                  key={venue.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.1 }}
                 >
-                  {VENUE_TYPES.map(type => (
-                    <option key={type.value} value={type.value}>{type.label}</option>
-                  ))}
-                </select>
-              </div>
+                  <Card className="border-none shadow-2xl shadow-silver-200/50 bg-white/80 backdrop-blur-xl overflow-hidden group hover:-translate-y-2 transition-all duration-500">
+                    <div className="aspect-[16/10] relative bg-neutral-100 overflow-hidden">
+                      {venue.images?.[0] ? (
+                        <img 
+                          src={getImageUrl(venue.images[0])} 
+                          alt={venue.name} 
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?q=80&w=1000&auto=format&fit=crop";
+                            (e.target as HTMLImageElement).className = "w-full h-full object-cover grayscale opacity-50";
+                          }}
+                        />
+                      ) : (
+                        <div className="flex flex-col items-center justify-center h-full bg-gradient-to-br from-neutral-50 to-neutral-200 p-6 text-center">
+                          <Building className="h-10 w-10 text-neutral-400 mb-2" />
+                          <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-tighter">Photo Required</p>
+                          <p className="text-[8px] text-neutral-400 mt-1">Visit details to upload images</p>
+                        </div>
+                      )}
+                      <div className="absolute top-4 right-4 z-10">{getStatusBadge(venue.status)}</div>
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-6">
+                         <p className="text-white text-xs font-bold uppercase tracking-widest">Property ID: #PRO-00{venue.id}</p>
+                      </div>
+                    </div>
+                    <CardContent className="p-6 space-y-4">
+                      <div>
+                        <h3 className="text-xl font-black text-black group-hover:text-silver-600 transition-colors">{venue.name}</h3>
+                        <p className="text-sm font-medium text-neutral-500 flex items-center gap-1 mt-1">
+                          <MapPin className="h-3 w-3" /> {venue.area}, {venue.city}
+                        </p>
+                      </div>
+                      
+                      <div className="flex gap-4 p-3 bg-neutral-50 rounded-2xl border border-neutral-100">
+                        <div className="flex-1 text-center">
+                          <p className="text-[10px] uppercase font-bold text-neutral-400">Capacity</p>
+                          <p className="text-sm font-black text-black">{venue.capacityMax}</p>
+                        </div>
+                        <div className="w-px h-8 bg-neutral-200" />
+                        <div className="flex-1 text-center">
+                          <p className="text-[10px] uppercase font-bold text-neutral-400">Base Price</p>
+                          <p className="text-sm font-black text-black">₹{Math.min(venue.basePriceEvening || 0, venue.basePriceFullDay || 99999).toLocaleString()}</p>
+                        </div>
+                      </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="description" className="text-black font-medium">Description *</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  disabled={!isEditing}
-                  placeholder="Describe your venue's features, ambiance, and what makes it special..."
-                  rows={5}
-                  className="border border-neutral-300 bg-white text-black placeholder:text-neutral-400 resize-none focus-visible:ring-neutral-600 focus-visible:border-neutral-500"
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Location */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-black">Location</CardTitle>
-              <CardDescription className="text-neutral-600">Where your venue is located</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="city" className="text-black font-medium">City *</Label>
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4 text-neutral-400" />
-                    <Input
-                      id="city"
-                      value={formData.city}
-                      onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                      disabled={!isEditing}
-                      placeholder="Chennai"
-                      className="border border-neutral-300 bg-white text-black placeholder:text-neutral-400 focus-visible:ring-neutral-600 focus-visible:border-neutral-500"
+                      <div className="flex gap-2 pt-2">
+                        <Button 
+                          className="flex-1 bg-black hover:bg-neutral-800 text-white font-bold rounded-xl h-11 transition-all"
+                          onClick={() => router.push(`/dashboard/venue/details?id=${venue.id}`)}
+                        >
+                          Manage Asset
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          className="border-neutral-200 hover:bg-white p-0 w-11 h-11 rounded-xl shadow-sm transition-all"
+                          onClick={() => router.push(`/dashboard/venue/calendar?venueId=${venue.id}`)}
+                        >
+                          <Calendar className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))
+            )}
+            
+            {venues.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                whileHover={{ scale: 1.02 }}
+                onClick={() => router.push("/dashboard/venue/details?new=true")}
+                className="border-2 border-dashed border-silver-300 rounded-[2rem] bg-white/30 flex flex-col items-center justify-center cursor-pointer hover:bg-white hover:border-black transition-all duration-300 min-h-[400px]"
+              >
+                  <div className="p-4 bg-white rounded-2xl shadow-lg mb-4">
+                    <Plus className="h-8 w-8 text-black" />
+                  </div>
+                  <span className="font-black text-neutral-400 uppercase tracking-widest text-xs">Provision New Asset</span>
+              </motion.div>
+            )}
+          </motion.div>
+        ) : (
+          <motion.div
+            key="edit"
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.98 }}
+            className="grid grid-cols-1 lg:grid-cols-3 gap-8"
+          >
+            {/* Main Form Fields */}
+            <div className="lg:col-span-2 space-y-8">
+              <Card className="border-none shadow-2xl shadow-silver-200/50 bg-white/80 backdrop-blur-xl overflow-hidden relative">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-silver-400 via-black to-silver-400" />
+                <CardHeader className="pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-xl bg-black shadow-lg">
+                       <Building className="h-5 w-5 text-white" />
+                    </div>
+                    <CardTitle className="text-2xl font-black text-black">Core Specifications</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-6 pt-6">
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                        <Label className="text-[10px] uppercase tracking-widest font-bold text-neutral-400">Asset Title *</Label>
+                        <Input 
+                          value={formData.name} 
+                          onChange={(e) => setFormData({...formData, name: e.target.value})} 
+                          placeholder="e.g. Royal Imperial Ballroom" 
+                          className="h-12 bg-white/50 border-neutral-200 focus:border-black focus:ring-black transition-all"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label className="text-[10px] uppercase tracking-widest font-bold text-neutral-400">Category</Label>
+                        <select 
+                          className="flex h-12 w-full rounded-md border border-neutral-200 bg-white/50 px-3 py-2 text-sm focus:border-black focus:ring-black outline-none transition-all" 
+                          value={formData.type} 
+                          onChange={(e) => setFormData({...formData, type: e.target.value})}
+                        >
+                            {VENUE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                        </select>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[10px] uppercase tracking-widest font-bold text-neutral-400">Professional Description *</Label>
+                    <Textarea 
+                      value={formData.description} 
+                      onChange={(e) => setFormData({...formData, description: e.target.value})} 
+                      rows={5} 
+                      placeholder="Detail the property features, history, and USPs..."
+                      className="bg-white/50 border-neutral-200 focus:border-black focus:ring-black transition-all resize-none"
                     />
                   </div>
-                </div>
+                </CardContent>
+              </Card>
 
-                <div className="space-y-2">
-                  <Label htmlFor="area" className="text-black font-medium">Area *</Label>
-                  <Input
-                    id="area"
-                    value={formData.area}
-                    onChange={(e) => setFormData({ ...formData, area: e.target.value })}
-                    disabled={!isEditing}
-                    placeholder="e.g., Adyar, T Nagar"
-                    className="border border-neutral-300 bg-white text-black placeholder:text-neutral-400 focus-visible:ring-neutral-600 focus-visible:border-neutral-500"
-                  />
-                </div>
-              </div>
+              <Card className="border-none shadow-2xl shadow-silver-200/50 bg-white/80 backdrop-blur-xl overflow-hidden relative">
+                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-silver-400 via-black to-silver-400" />
+                 <CardHeader className="pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-xl bg-black shadow-lg">
+                       <MapPin className="h-5 w-5 text-white" />
+                    </div>
+                    <CardTitle className="text-2xl font-black text-black">Geographic Location</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent className="grid md:grid-cols-2 gap-6 pt-6">
+                    <div className="space-y-2">
+                      <Label className="text-[10px] uppercase tracking-widest font-bold text-neutral-400">City *</Label>
+                      <Input value={formData.city} onChange={(e) => setFormData({...formData, city: e.target.value})} className="h-12 bg-white/50" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[10px] uppercase tracking-widest font-bold text-neutral-400">Regional Area *</Label>
+                      <Input value={formData.area} onChange={(e) => setFormData({...formData, area: e.target.value})} className="h-12 bg-white/50" />
+                    </div>
+                    <div className="col-span-full space-y-2">
+                      <Label className="text-[10px] uppercase tracking-widest font-bold text-neutral-400">Full Operational Address *</Label>
+                      <Input value={formData.address} onChange={(e) => setFormData({...formData, address: e.target.value})} className="h-12 bg-white/50" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[10px] uppercase tracking-widest font-bold text-neutral-400">Postal Code</Label>
+                      <Input value={formData.pincode} onChange={(e) => setFormData({...formData, pincode: e.target.value})} className="h-12 bg-white/50" />
+                    </div>
+                </CardContent>
+              </Card>
 
-              <div className="space-y-2">
-                <Label htmlFor="address" className="text-black font-medium">Address *</Label>
-                <Input
-                  id="address"
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  disabled={!isEditing}
-                  placeholder="Street address, landmark"
-                  className="border border-neutral-300 bg-white text-black placeholder:text-neutral-400 focus-visible:ring-neutral-600 focus-visible:border-neutral-500"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="pincode" className="text-black font-medium">Pincode</Label>
-                <Input
-                  id="pincode"
-                  value={formData.pincode}
-                  onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
-                  disabled={!isEditing}
-                  placeholder="600001"
-                  maxLength={6}
-                  className="border border-neutral-300 bg-white text-black placeholder:text-neutral-400 focus-visible:ring-neutral-600 focus-visible:border-neutral-500"
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Images */}
-          {isEditing && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-black">Venue Images</CardTitle>
-                <CardDescription className="text-neutral-600">Upload photos of your venue (JPG/PNG, max 5MB each)</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="border-2 border-dashed border-neutral-200 rounded-lg p-6 text-center">
-                  <input
-                    type="file"
-                    id="images"
-                    accept="image/jpeg,image/png,image/jpg"
-                    multiple
-                    onChange={handleImageChange}
-                    className="hidden"
-                  />
-                  <label htmlFor="images" className="cursor-pointer">
-                    <Image className="h-10 w-10 text-neutral-400 mx-auto mb-3" />
-                    <p className="text-sm font-medium text-black mb-1">
-                      {imageFiles.length > 0 ? `${imageFiles.length} new files selected` : "Click to upload images"}
-                    </p>
-                    <p className="text-xs text-neutral-600">Multiple images allowed</p>
-                  </label>
-                </div>
-                {imagePreviews.length > 0 && (
-                  <div className="grid grid-cols-3 gap-4 mt-4">
-                    {imagePreviews.map((preview, index) => {
-                      const imageUrl = getImageUrl(preview);
-                      return (
-                        <div key={index} className="relative aspect-square rounded-lg overflow-hidden border bg-neutral-100">
-                          <img
-                            src={imageUrl}
-                            alt={`Venue preview ${index + 1}`}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              const img = e.target as HTMLImageElement;
-                              console.error(`Failed to load image: ${imageUrl} (original: ${preview})`);
-                              // Show placeholder instead of hiding
-                              img.style.display = 'none';
-                              const placeholder = document.createElement('div');
-                              placeholder.className = 'w-full h-full flex items-center justify-center bg-neutral-200 text-neutral-500 text-xs';
-                              placeholder.textContent = 'Image unavailable';
-                              img.parentElement?.appendChild(placeholder);
-                            }}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => removeImage(index)}
-                            className="absolute top-2 right-2 bg-red-600 text-white rounded-full p-1 hover:bg-red-700"
+              <Card className="border-none shadow-2xl shadow-silver-200/50 bg-white/80 backdrop-blur-xl overflow-hidden relative">
+                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-silver-400 via-black to-silver-400" />
+                 <CardHeader className="pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-xl bg-black shadow-lg">
+                       <Image className="h-5 w-5 text-white" />
+                    </div>
+                    <CardTitle className="text-2xl font-black text-black">Visual Media</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-6">
+                  <div 
+                    className="border-2 border-dashed border-neutral-200 rounded-3xl p-12 text-center bg-neutral-50/50 cursor-pointer hover:bg-white hover:border-black transition-all group"
+                    onClick={() => document.getElementById('image-input')?.click()}
+                  >
+                    <input id="image-input" type="file" multiple accept="image/*" className="hidden" onChange={handleImageChange} />
+                    <div className="p-4 bg-white rounded-2xl shadow-lg w-fit mx-auto mb-4 group-hover:scale-110 transition-transform">
+                        <Upload className="h-8 w-8 text-black" />
+                    </div>
+                    <p className="text-sm font-black text-black">Upload High-Definition Asset Photos</p>
+                    <p className="text-xs text-neutral-400 mt-2 font-medium">Recommended resolution: 1920x1080px (Max 10 images)</p>
+                  </div>
+                  
+                  {imagePreviews.length > 0 && (
+                    <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 mt-8">
+                      {imagePreviews.map((p, i) => (
+                        <div key={i} className="relative aspect-square rounded-2xl overflow-hidden group border border-neutral-100 shadow-lg">
+                          <img src={getImageUrl(p)} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                          <button 
+                            onClick={() => removeImage(i)} 
+                            className="absolute top-2 right-2 h-7 w-7 bg-black text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
                           >
                             <X className="h-4 w-4" />
                           </button>
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
 
-        {/* Capacity & Pricing */}
-        <div className="space-y-6">
-          {/* Capacity */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-black">Capacity</CardTitle>
-              <CardDescription className="text-neutral-600">Guest capacity range</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="capacityMin" className="text-black font-medium">Minimum Capacity *</Label>
-                <Input
-                  id="capacityMin"
-                  type="number"
-                  value={formData.capacityMin === 0 ? "" : formData.capacityMin}
-                  onChange={(e) => setFormData({ ...formData, capacityMin: e.target.value === "" ? 0 : parseInt(e.target.value) || 0 })}
-                  disabled={!isEditing}
-                  min="1"
-                  className="border border-neutral-300 bg-white text-black focus-visible:ring-neutral-600 focus-visible:border-neutral-500"
-                />
-              </div>
+            {/* Sidebar Controls */}
+            <div className="space-y-8">
+              <Card className="border-none shadow-2xl bg-white/80 backdrop-blur-xl overflow-hidden relative">
+                 <div className="absolute top-0 left-0 w-full h-1 bg-black" />
+                 <CardHeader className="pb-4"><CardTitle className="text-xl font-black text-black">Operational Load</CardTitle></CardHeader>
+                 <CardContent className="space-y-6 pt-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-[10px] uppercase tracking-widest font-bold text-neutral-400">Min Capacity</Label>
+                        <Input type="number" value={formData.capacityMin} onChange={(e) => setFormData({...formData, capacityMin: parseInt(e.target.value) || 0})} className="h-11 bg-white/50" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-[10px] uppercase tracking-widest font-bold text-neutral-400">Max Capacity</Label>
+                        <Input type="number" value={formData.capacityMax} onChange={(e) => setFormData({...formData, capacityMax: parseInt(e.target.value) || 0})} className="h-11 bg-white/50" />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 p-3 bg-blue-50/50 rounded-xl border border-blue-100">
+                        <Users className="h-4 w-4 text-blue-600" />
+                        <p className="text-[10px] font-bold text-blue-800 uppercase italic">Capacity optimization recommended</p>
+                    </div>
+                 </CardContent>
+              </Card>
 
-              <div className="space-y-2">
-                <Label htmlFor="capacityMax" className="text-black font-medium">Maximum Capacity *</Label>
-                <Input
-                  id="capacityMax"
-                  type="number"
-                  value={formData.capacityMax === 0 ? "" : formData.capacityMax}
-                  onChange={(e) => setFormData({ ...formData, capacityMax: e.target.value === "" ? 0 : parseInt(e.target.value) || 0 })}
-                  disabled={!isEditing}
-                  min="1"
-                  className="border border-neutral-300 bg-white text-black focus-visible:ring-neutral-600 focus-visible:border-neutral-500"
-                />
-              </div>
-            </CardContent>
-          </Card>
+              <Card className="border-none shadow-2xl bg-white/80 backdrop-blur-xl overflow-hidden relative">
+                 <div className="absolute top-0 left-0 w-full h-1 bg-emerald-600" />
+                 <CardHeader className="pb-4"><CardTitle className="text-xl font-black text-black">Revenue Structure (₹)</CardTitle></CardHeader>
+                 <CardContent className="space-y-4 pt-4">
+                    <div className="space-y-2">
+                      <Label className="text-[10px] uppercase tracking-widest font-bold text-neutral-400">Morning Slot (06:00 - 12:00)</Label>
+                      <Input type="number" value={formData.basePriceMorning} onChange={(e) => setFormData({...formData, basePriceMorning: parseInt(e.target.value) || 0})} className="h-11 bg-white/50" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[10px] uppercase tracking-widest font-bold text-neutral-400">Evening Slot (18:00 - 23:00)</Label>
+                      <Input type="number" value={formData.basePriceEvening} onChange={(e) => setFormData({...formData, basePriceEvening: parseInt(e.target.value) || 0})} className="h-11 bg-white/50" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[10px] uppercase tracking-widest font-bold text-neutral-400">Full Day Utilization</Label>
+                      <Input type="number" value={formData.basePriceFullDay} onChange={(e) => setFormData({...formData, basePriceFullDay: parseInt(e.target.value) || 0})} className="h-11 bg-white/50" />
+                    </div>
+                 </CardContent>
+              </Card>
 
-          {/* Pricing */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-black">Pricing</CardTitle>
-              <CardDescription className="text-neutral-600">Base prices for different time slots</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="basePriceMorning" className="text-black font-medium">Morning Price (₹)</Label>
-                <div className="flex items-center gap-2">
-                  <DollarSign className="h-4 w-4 text-neutral-400" />
-                  <Input
-                    id="basePriceMorning"
-                    type="number"
-                    value={formData.basePriceMorning === 0 ? "" : formData.basePriceMorning}
-                    onChange={(e) => setFormData({ ...formData, basePriceMorning: e.target.value === "" ? 0 : parseInt(e.target.value) || 0 })}
-                    disabled={!isEditing}
-                    placeholder="25000"
-                    className="border border-neutral-300 bg-white text-black placeholder:text-neutral-400 focus-visible:ring-neutral-600 focus-visible:border-neutral-500"
-                  />
-                </div>
-                <p className="text-xs text-neutral-500">6:00 AM - 12:00 PM</p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="basePriceEvening" className="text-black font-medium">Evening Price (₹) *</Label>
-                <div className="flex items-center gap-2">
-                  <DollarSign className="h-4 w-4 text-neutral-400" />
-                  <Input
-                    id="basePriceEvening"
-                    type="number"
-                    value={formData.basePriceEvening === 0 ? "" : formData.basePriceEvening}
-                    onChange={(e) => setFormData({ ...formData, basePriceEvening: e.target.value === "" ? 0 : parseInt(e.target.value) || 0 })}
-                    disabled={!isEditing}
-                    placeholder="50000"
-                    className="border border-neutral-300 bg-white text-black placeholder:text-neutral-400 focus-visible:ring-neutral-600 focus-visible:border-neutral-500"
-                  />
-                </div>
-                <p className="text-xs text-neutral-500">4:00 PM - 10:00 PM</p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="basePriceFullDay" className="text-black font-medium">Full Day Price (₹) *</Label>
-                <div className="flex items-center gap-2">
-                  <DollarSign className="h-4 w-4 text-neutral-400" />
-                  <Input
-                    id="basePriceFullDay"
-                    type="number"
-                    value={formData.basePriceFullDay === 0 ? "" : formData.basePriceFullDay}
-                    onChange={(e) => setFormData({ ...formData, basePriceFullDay: e.target.value === "" ? 0 : parseInt(e.target.value) || 0 })}
-                    disabled={!isEditing}
-                    placeholder="75000"
-                    className="border border-neutral-300 bg-white text-black placeholder:text-neutral-400 focus-visible:ring-neutral-600 focus-visible:border-neutral-500"
-                  />
-                </div>
-                <p className="text-xs text-neutral-500">6:00 AM - 12:00 AM</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Amenities */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-black">Amenities</CardTitle>
-              <CardDescription className="text-neutral-600">Features your venue offers</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-2">
-                {AMENITIES_OPTIONS.map((amenity) => (
-                  <Button
-                    key={amenity}
-                    variant={formData.amenities.includes(amenity) ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => isEditing && toggleAmenity(amenity)}
-                    disabled={!isEditing}
-                    className={cn(
-                      "text-xs transition-colors",
-                      formData.amenities.includes(amenity)
-                        ? "bg-black text-white hover:bg-neutral-800"
-                        : "border-neutral-300 bg-white text-black hover:bg-neutral-100"
-                    )}
-                  >
-                    {amenity}
-                  </Button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+              <Card className="border-none shadow-2xl bg-white/80 backdrop-blur-xl overflow-hidden relative">
+                 <div className="absolute top-0 left-0 w-full h-1 bg-black" />
+                 <CardHeader className="pb-4">
+                    <div className="flex items-center gap-2">
+                        <Settings2 className="h-4 w-4 text-black" />
+                        <CardTitle className="text-xl font-black text-black">Premium Amenities</CardTitle>
+                    </div>
+                 </CardHeader>
+                 <CardContent className="pt-4">
+                    <div className="flex flex-wrap gap-2">
+                      {AMENITIES_OPTIONS.map(a => (
+                        <Badge 
+                          key={a}
+                          variant={formData.amenities.includes(a) ? "default" : "outline"}
+                          className={cn(
+                            "cursor-pointer py-1.5 px-3 rounded-lg transition-all text-[10px] font-bold uppercase tracking-tighter",
+                            formData.amenities.includes(a) ? "bg-black text-white hover:bg-neutral-800 shadow-md" : "border-neutral-200 hover:border-black text-neutral-500"
+                          )}
+                          onClick={() => toggleAmenity(a)}
+                        >
+                          {a}
+                        </Badge>
+                      ))}
+                    </div>
+                 </CardContent>
+              </Card>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
+  );
+}
+
+export default function VenueDetailsPage() {
+  return (
+    <Suspense fallback={
+        <div className="flex items-center justify-center min-h-[60vh]">
+            <Loader2 className="animate-spin h-8 w-8 text-neutral-400" />
+        </div>
+    }>
+      <VenueDetailsContent />
+    </Suspense>
   );
 }

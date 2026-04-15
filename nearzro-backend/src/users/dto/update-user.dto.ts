@@ -31,4 +31,9 @@ export class UpdateUserDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiPropertyOptional({ description: 'User role' })
+  @IsOptional()
+  @IsString()
+  role?: string;
 }

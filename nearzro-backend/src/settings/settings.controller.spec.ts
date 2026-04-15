@@ -4,7 +4,7 @@ import { SettingsService } from './settings.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
-import { Role } from '../common/enums/role.enum';
+import { Role } from '@prisma/client';
 import { UnauthorizedException, ForbiddenException } from '@nestjs/common';
 
 describe('SettingsController', () => {
@@ -273,3 +273,4 @@ describe('SettingsService', () => {
     });
   });
 });
+

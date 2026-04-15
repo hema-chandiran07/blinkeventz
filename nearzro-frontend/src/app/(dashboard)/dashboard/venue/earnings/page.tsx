@@ -8,12 +8,16 @@ import { Badge } from "@/components/ui/badge";
 import {
   DollarSign, TrendingUp, TrendingDown, Clock, CheckCircle2, AlertCircle,
   ArrowLeft, Download, Calendar, BarChart3, RefreshCw, IndianRupee,
-  ArrowUpRight, ArrowDownRight, Loader2, Building2
+  ArrowUpRight, ArrowDownRight, Loader2, Building2, Activity, PieChart as PieChartIcon
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
+  Cell, PieChart, Pie, AreaChart, Area, LineChart, Line
+} from 'recharts';
 
 // ==================== Types ====================
 interface EarningsStats {
@@ -87,27 +91,27 @@ export default function VenueEarningsPage() {
         api.get('/venues/analytics/revenue').catch(() => ({ data: null })),
       ]);
 
-      const analyticsData = analyticsRes.data || {};
-      const revenueData = revenueRes.data || {};
+      const analyticsData = analyticsRes?.data || {};
+      const revenueData = revenueRes?.data || {};
 
       setStats({
-        totalRevenue: analyticsData.totalRevenue || 0,
-        completedRevenue: analyticsData.completedRevenue || 0,
-        pendingRevenue: 0,
-        totalBookings: analyticsData.totalBookings || 0,
-        completedBookings: analyticsData.completedBookings || 0,
-        pendingBookings: analyticsData.pendingBookings || 0,
-        cancelledBookings: analyticsData.cancelledBookings || 0,
-        platformFees: Math.round((analyticsData.totalRevenue || 0) * (PLATFORM_FEE_PERCENTAGE / 100)),
-        netEarnings: Math.round((analyticsData.totalRevenue || 0) * (1 - PLATFORM_FEE_PERCENTAGE / 100)),
-        currency: analyticsData.currency || 'INR',
-        revenueGrowth: analyticsData.revenueGrowth || 0,
-        bookingsGrowth: analyticsData.bookingsGrowth || 0,
+        totalRevenue: analyticsData?.totalRevenue || 0,
+        completedRevenue: analyticsData?.completedRevenue || 0,
+        pendingRevenue: analyticsData?.pendingRevenue || 0,
+        totalBookings: analyticsData?.totalBookings || 0,
+        completedBookings: analyticsData?.completedBookings || 0,
+        pendingBookings: analyticsData?.pendingBookings || 0,
+        cancelledBookings: analyticsData?.cancelledBookings || 0,
+        platformFees: Math.round((analyticsData?.totalRevenue || 0) * (PLATFORM_FEE_PERCENTAGE / 100)),
+        netEarnings: Math.round((analyticsData?.totalRevenue || 0) * (1 - PLATFORM_FEE_PERCENTAGE / 100)),
+        currency: analyticsData?.currency || 'INR',
+        revenueGrowth: analyticsData?.revenueGrowth || 0,
+        bookingsGrowth: analyticsData?.bookingsGrowth || 0,
       });
 
-      setMonthlyData(analyticsData.monthlyRevenue || []);
-      setVenuePerformance(analyticsData.venuePerformance || []);
-      setEventTypeBreakdown(analyticsData.eventTypeBreakdown || []);
+      setMonthlyData(Array.isArray(analyticsData?.monthlyRevenue) ? analyticsData.monthlyRevenue : []);
+      setVenuePerformance(Array.isArray(analyticsData?.venuePerformance) ? analyticsData.venuePerformance : []);
+      setEventTypeBreakdown(Array.isArray(analyticsData?.eventTypeBreakdown) ? analyticsData.eventTypeBreakdown : []);
 
       if (showRefreshToast) toast.success("Earnings data refreshed");
     } catch (error) {
@@ -134,11 +138,11 @@ export default function VenueEarningsPage() {
         v.name,
         v.city,
         v.bookings,
-        `Rs.${v.revenue.toLocaleString()}`,
-        `Rs.${Math.round(v.revenue * PLATFORM_FEE_PERCENTAGE / 100).toLocaleString()}`,
-        `Rs.${Math.round(v.revenue * (1 - PLATFORM_FEE_PERCENTAGE / 100)).toLocaleString()}`,
-        `${v.occupancyRate.toFixed(1)}%`,
-        v.rating.toFixed(1),
+        `Rs.${(v.revenue || 0).toLocaleString()}`,
+        `Rs.${Math.round((v.revenue || 0) * PLATFORM_FEE_PERCENTAGE / 100).toLocaleString()}`,
+        `Rs.${Math.round((v.revenue || 0) * (1 - PLATFORM_FEE_PERCENTAGE / 100)).toLocaleString()}`,
+        `${(v.occupancyRate || 0).toFixed(1)}%`,
+        (v.rating || 0).toFixed(1),
       ]);
 
       const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
@@ -162,18 +166,31 @@ export default function VenueEarningsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-neutral-400" />
-          <p className="text-neutral-600">Loading earnings data...</p>
+      <div className="space-y-8 p-6 bg-[#0a0a0b] min-h-screen">
+        <div className="flex items-center justify-between">
+           <div className="flex items-center gap-4">
+              <div className="p-3 rounded-2xl bg-zinc-900 animate-pulse">
+                <Building2 className="h-8 w-8 text-zinc-700" />
+              </div>
+              <div>
+                <div className="h-8 w-48 bg-zinc-900 animate-pulse rounded-lg" />
+                <div className="h-4 w-64 bg-zinc-900 animate-pulse rounded-lg mt-2" />
+              </div>
+           </div>
         </div>
+        <Card className="bg-zinc-900 border-zinc-800 shadow-2xl">
+          <CardContent className="py-24 text-center">
+            <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-blue-500" />
+            <p className="text-zinc-500 font-black uppercase tracking-widest text-xs">Synchronizing Financial Ledger</p>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
-    <motion.div
-      className="space-y-6"
+    <motion.div 
+      className="space-y-8 p-6 bg-[#0a0a0b] text-white selection:bg-emerald-500/30 min-h-screen"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
@@ -185,215 +202,207 @@ export default function VenueEarningsPage() {
         animate={{ opacity: 1, y: 0 }}
       >
         <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={() => router.push("/dashboard/venue")} className="gap-2">
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </Button>
+          <div className="p-3 rounded-2xl bg-gradient-to-br from-zinc-800 to-zinc-900 shadow-2xl border border-zinc-700/50">
+            <DollarSign className="h-8 w-8 text-emerald-400" />
+          </div>
           <div>
-            <h1 className="text-3xl font-bold text-black">Earnings & Revenue</h1>
-            <p className="text-neutral-600">Track your venue revenue and performance</p>
+            <h1 className="text-4xl font-black text-white tracking-tight">
+              Revenue <span className="text-emerald-500">Analytics</span>
+            </h1>
+            <p className="text-zinc-500 font-medium font-mono text-xs uppercase tracking-widest">Financial Performance Monitoring</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={handleRefresh} disabled={refreshing} className="gap-2">
-            <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
-            Refresh
+        <div className="flex items-center gap-3">
+          <Button 
+            variant="outline" 
+            onClick={handleRefresh} 
+            disabled={refreshing} 
+            className="border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 text-zinc-400 hover:text-white transition-all rounded-full"
+          >
+            <RefreshCw className={cn("h-4 w-4 mr-2", refreshing && "animate-spin")} />
+            Sync Ledger
           </Button>
-          <Button variant="outline" onClick={handleExport} className="gap-2">
-            <Download className="h-4 w-4" />
-            Export
+          <Button 
+            onClick={handleExport} 
+            className="bg-white text-black hover:bg-zinc-200 shadow-xl shadow-white/5 transition-all font-bold rounded-full h-11 px-8"
+          >
+            <Download className="h-4 w-4 mr-2" /> Export Report
           </Button>
         </div>
       </motion.div>
 
-      {/* ==================== Stats Cards ==================== */}
+      {/* ==================== Stats Overlays ==================== */}
       <motion.div
-        className="grid gap-4 md:grid-cols-2 lg:grid-cols-5"
+        className="grid gap-6 md:grid-cols-2 lg:grid-cols-5"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
       >
-        {/* Total Revenue */}
-        <Card className="border-green-200 bg-gradient-to-br from-green-50 to-white">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-green-700">Total Revenue</p>
-                <p className="text-2xl font-bold text-green-900 mt-1">
-                  Rs.{(stats?.totalRevenue || 0).toLocaleString()}
-                </p>
-                {stats?.revenueGrowth !== undefined && stats.revenueGrowth !== 0 && (
-                  <div className="flex items-center gap-1 mt-1">
-                    {stats.revenueGrowth > 0 ? (
-                      <ArrowUpRight className="h-3 w-3 text-green-600" />
-                    ) : (
-                      <ArrowDownRight className="h-3 w-3 text-red-600" />
-                    )}
-                    <span className={cn(
-                      "text-xs",
-                      stats.revenueGrowth > 0 ? "text-green-600" : "text-red-600"
-                    )}>
-                      {Math.abs(stats.revenueGrowth)}% vs last month
-                    </span>
-                  </div>
-                )}
+        {[
+          { label: "Gross Yield", value: `₹${(stats?.totalRevenue || 0).toLocaleString()}`, growth: stats?.revenueGrowth, icon: IndianRupee, color: "text-emerald-400", bg: "bg-emerald-500/10" },
+          { label: "Net Earnings", value: `₹${(stats?.netEarnings || 0).toLocaleString()}`, subtext: "Post Gateway Fee", icon: TrendingUp, color: "text-blue-400", bg: "bg-blue-500/10" },
+          { label: "Platform Fee", value: `₹${(stats?.platformFees || 0).toLocaleString()}`, subtext: "Service Charge", icon: BarChart3, color: "text-zinc-400", bg: "bg-zinc-500/10" },
+          { label: "Bookings", value: stats?.completedBookings || 0, subtext: "Completed Units", icon: CheckCircle2, color: "text-indigo-400", bg: "bg-indigo-500/10" },
+          { label: "Pipeline", value: stats?.pendingBookings || 0, subtext: "Awaiting Clearance", icon: Clock, color: "text-amber-400", bg: "bg-amber-500/10" }
+        ].map((item, i) => (
+          <Card key={i} className="bg-zinc-900/50 border-zinc-800 shadow-xl backdrop-blur-md overflow-hidden relative">
+            <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500 opacity-20" />
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest font-black text-zinc-500 mb-1">{item.label}</p>
+                  <p className="text-2xl font-black text-white">{item.value}</p>
+                  {item.growth !== undefined && item.growth !== 0 ? (
+                    <p className={cn("text-[10px] mt-2 flex items-center gap-1 font-bold", item.growth > 0 ? "text-emerald-400" : "text-red-400")}>
+                      {item.growth > 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                      {Math.abs(item.growth)}% Growth
+                    </p>
+                  ) : (
+                    <p className="text-[10px] text-zinc-500 mt-2 font-bold uppercase tracking-tighter">{item.subtext}</p>
+                  )}
+                </div>
+                <div className={cn("p-2.5 rounded-xl border border-white/5 shadow-2xl", item.bg, item.color)}>
+                  <item.icon className="h-5 w-5" />
+                </div>
               </div>
-              <div className="p-3 rounded-full bg-green-600 text-white">
-                <IndianRupee className="h-5 w-5" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Net Earnings */}
-        <Card className="border-emerald-200 bg-gradient-to-br from-emerald-50 to-white">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-emerald-700">Net Earnings</p>
-                <p className="text-2xl font-bold text-emerald-900 mt-1">
-                  Rs.{(stats?.netEarnings || 0).toLocaleString()}
-                </p>
-                <p className="text-xs text-emerald-600 mt-1">
-                  After {PLATFORM_FEE_PERCENTAGE}% platform fee
-                </p>
-              </div>
-              <div className="p-3 rounded-full bg-emerald-600 text-white">
-                <TrendingUp className="h-5 w-5" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Platform Fees */}
-        <Card className="border-indigo-200 bg-gradient-to-br from-indigo-50 to-white">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-indigo-700">Platform Fees</p>
-                <p className="text-2xl font-bold text-indigo-900 mt-1">
-                  Rs.{(stats?.platformFees || 0).toLocaleString()}
-                </p>
-                <p className="text-xs text-indigo-600 mt-1">
-                  {PLATFORM_FEE_PERCENTAGE}% of revenue
-                </p>
-              </div>
-              <div className="p-3 rounded-full bg-indigo-600 text-white">
-                <BarChart3 className="h-5 w-5" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Completed Bookings */}
-        <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-white">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-blue-700">Completed</p>
-                <p className="text-2xl font-bold text-blue-900 mt-1">
-                  {stats?.completedBookings || 0}
-                </p>
-                <p className="text-xs text-blue-600 mt-1">
-                  of {stats?.totalBookings || 0} total bookings
-                </p>
-              </div>
-              <div className="p-3 rounded-full bg-blue-600 text-white">
-                <CheckCircle2 className="h-5 w-5" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Pending Bookings */}
-        <Card className="border-amber-200 bg-gradient-to-br from-amber-50 to-white">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-amber-700">Pending</p>
-                <p className="text-2xl font-bold text-amber-900 mt-1">
-                  {stats?.pendingBookings || 0}
-                </p>
-                <p className="text-xs text-amber-600 mt-1">
-                  {stats?.cancelledBookings || 0} cancelled
-                </p>
-              </div>
-              <div className="p-3 rounded-full bg-amber-600 text-white">
-                <Clock className="h-5 w-5" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        ))}
       </motion.div>
 
       {/* ==================== Info Card ==================== */}
-      <Card className="border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+      <Card className="bg-blue-900/20 border-blue-500/30 shadow-xl backdrop-blur-md">
         <CardContent className="p-4">
           <div className="flex items-start gap-3">
-            <TrendingUp className="h-5 w-5 text-blue-600 mt-0.5" />
+            <div className="p-2 rounded-lg bg-blue-500/20">
+              <TrendingUp className="h-5 w-5 text-blue-400" />
+            </div>
             <div className="flex-1">
-              <p className="font-semibold text-blue-900">How Venue Earnings Work</p>
-              <div className="text-sm text-blue-700 mt-1 space-y-1">
-                <p><strong>Booking Confirmed:</strong> Revenue is tracked when a customer books your venue</p>
-                <p><strong>Event Completed:</strong> After the event date passes, earnings become eligible for payout</p>
-                <p><strong>Platform Fee:</strong> A {PLATFORM_FEE_PERCENTAGE}% fee is deducted from each booking</p>
-                <p><strong>Net Earnings:</strong> The remaining amount after platform fees is your net revenue</p>
+              <p className="font-bold text-blue-100 tracking-tight">Financial Protocol Overview</p>
+              <div className="grid md:grid-cols-2 gap-4 mt-3">
+                <div className="space-y-1">
+                  <p className="text-[10px] text-blue-400 font-black uppercase tracking-widest">Booking Lifecycle</p>
+                  <p className="text-xs text-zinc-300">Revenue is indexed upon confirmation and finalized after event completion.</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] text-blue-400 font-black uppercase tracking-widest">Platform Commissions</p>
+                  <p className="text-xs text-zinc-300">A fixed {PLATFORM_FEE_PERCENTAGE}% infrastructure fee is applied to all processed yields.</p>
+                </div>
               </div>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* ==================== Monthly Revenue Chart ==================== */}
-      {monthlyData.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-        >
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-black">Monthly Revenue Trend</CardTitle>
-              <CardDescription>Your venue revenue over the last 12 months</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                {monthlyData.map((month, index) => (
-                  <div key={index} className="text-center p-3 rounded-lg bg-neutral-50 border border-neutral-100">
-                    <p className="text-xs font-medium text-neutral-600 mb-1">{month.month}</p>
-                    <p className="text-lg font-bold text-black">Rs.{month.revenue > 0 ? `${(month.revenue / 1000).toFixed(1)}K` : '0'}</p>
-                    <p className="text-xs text-neutral-500">{month.bookings} bookings</p>
-                  </div>
-                ))}
+      {/* ==================== Trend Analysis ==================== */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Card className="lg:col-span-2 bg-zinc-900 shadow-2xl border-zinc-800">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-emerald-400" />
+              Revenue Projection
+            </CardTitle>
+            <CardDescription className="text-zinc-500 font-medium font-mono text-[10px] uppercase tracking-widest">Temporal Fiscal Velocity</CardDescription>
+          </CardHeader>
+          <CardContent className="h-[300px] w-full pt-4">
+            {monthlyData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={monthlyData}>
+                  <defs>
+                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                  <XAxis dataKey="month" stroke="#52525b" fontSize={10} tickLine={false} axisLine={false} />
+                  <YAxis stroke="#52525b" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(val) => `₹${val/1000}K`} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#09090b', border: '1px solid #27272a', borderRadius: '8px', fontSize: '10px' }}
+                    itemStyle={{ color: '#fff' }}
+                  />
+                  <Area type="monotone" dataKey="revenue" stroke="#10b981" fillOpacity={1} fill="url(#colorRevenue)" strokeWidth={2} />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center text-zinc-700 gap-2">
+                <BarChart3 className="h-12 w-12 opacity-20" />
+                <p className="text-[10px] font-black uppercase tracking-widest">Awaiting Transaction Data</p>
               </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      )}
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="bg-zinc-900 shadow-2xl border-zinc-800">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center gap-2">
+              <Activity className="h-5 w-5 text-blue-400" />
+              Sector Performance
+            </CardTitle>
+            <CardDescription className="text-zinc-500 font-medium font-mono text-[10px] uppercase tracking-widest">Event Type Distribution</CardDescription>
+          </CardHeader>
+          <CardContent className="h-[300px] w-full">
+            {eventTypeBreakdown.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={eventTypeBreakdown}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="revenue"
+                    nameKey="type"
+                  >
+                    {eventTypeBreakdown.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6', '#ef4444'][index % 5]} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#09090b', border: '1px solid #27272a', borderRadius: '8px', fontSize: '10px' }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center text-zinc-700 gap-2">
+                <PieChartIcon className="h-12 w-12 opacity-20" />
+                <p className="text-[10px] font-black uppercase tracking-widest">Indexing Categories</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       {/* ==================== Event Type Breakdown ==================== */}
       {eventTypeBreakdown.length > 0 && (
-        <Card>
+        <Card className="bg-zinc-900/50 border-zinc-800 shadow-xl backdrop-blur-md">
           <CardHeader>
-            <CardTitle className="text-black">Revenue by Event Type</CardTitle>
-            <CardDescription>Breakdown of your earnings by event category</CardDescription>
+            <CardTitle className="text-white flex items-center gap-2">
+              <PieChartIcon className="h-5 w-5 text-zinc-400" />
+              Segmentation Matrix
+            </CardTitle>
+            <CardDescription className="text-zinc-500 font-medium font-mono text-[10px] uppercase tracking-widest">Yield distribution by event category</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {eventTypeBreakdown.map((event, index) => (
-                <div key={index} className="p-4 rounded-xl border border-neutral-200 bg-gradient-to-br from-neutral-50 to-white">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-semibold text-black">{event.type}</h4>
-                    <Badge variant="outline">{event.percentage.toFixed(0)}%</Badge>
+                <div key={index} className="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/80 hover:border-zinc-700 transition-all group">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-bold text-zinc-100">{event.type}</h4>
+                    <Badge variant="outline" className="text-[10px] border-zinc-700 text-zinc-400">
+                      {((event.percentage || 0)).toFixed(0)}% Allocation
+                    </Badge>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-sm text-neutral-600">{event.count} events</p>
-                    <p className="text-lg font-bold text-black">Rs.{event.revenue.toLocaleString()}</p>
+                    <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">{event.count || 0} Transactions</p>
+                    <p className="text-xl font-black text-white">₹{(event.revenue || 0).toLocaleString()}</p>
                   </div>
-                  <div className="mt-2 h-2 bg-neutral-200 rounded-full overflow-hidden">
-                    <div
-                      className={cn("h-full bg-gradient-to-r", EVENT_TYPE_COLORS[event.type] || EVENT_TYPE_COLORS.Other)}
-                      style={{ width: `${event.percentage}%` }}
+                  <div className="mt-4 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${event.percentage}%` }}
+                      className={cn("h-full bg-gradient-to-r shadow-[0_0_10px_rgba(0,0,0,0.5)]", EVENT_TYPE_COLORS[event.type] || EVENT_TYPE_COLORS.Other)}
                     />
                   </div>
                 </div>
@@ -404,20 +413,23 @@ export default function VenueEarningsPage() {
       )}
 
       {/* ==================== Venue Performance ==================== */}
-      <Card>
+      <Card className="bg-zinc-900/50 border-zinc-800 shadow-xl backdrop-blur-md">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="text-black">Venue Performance</CardTitle>
-              <CardDescription>Revenue and occupancy metrics for each venue</CardDescription>
+              <CardTitle className="text-white flex items-center gap-2">
+                <Building2 className="h-5 w-5 text-zinc-400" />
+                Infrastructure Analytics
+              </CardTitle>
+              <CardDescription className="text-zinc-500 font-medium font-mono text-[10px] uppercase tracking-widest">Occupancy and yield efficiency per unit</CardDescription>
             </div>
             {venuePerformance.length > 1 && (
               <select
                 value={filterMonth}
                 onChange={(e) => setFilterMonth(e.target.value)}
-                className="flex h-9 rounded-md border border-neutral-200 bg-white px-3 py-1 text-sm text-black"
+                className="flex h-9 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-1 text-xs font-bold text-zinc-400 outline-none focus:ring-1 focus:ring-zinc-700"
               >
-                <option value="all">All Time</option>
+                <option value="all">Full Timeline</option>
                 {monthlyData.map((m, i) => (
                   <option key={i} value={m.month}>{m.month}</option>
                 ))}
@@ -427,46 +439,46 @@ export default function VenueEarningsPage() {
         </CardHeader>
         <CardContent>
           {filteredVenues.length === 0 ? (
-            <div className="text-center py-12">
-              <Building2 className="h-16 w-16 text-neutral-300 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-black mb-2">No venue data found</h3>
-              <p className="text-neutral-600">Venue performance data will appear once you start receiving bookings</p>
+            <div className="text-center py-24 border-2 border-dashed border-zinc-800 rounded-3xl">
+              <Building2 className="h-16 w-16 text-zinc-800 mx-auto mb-4" />
+              <h3 className="text-lg font-black text-zinc-600 mb-2 uppercase tracking-widest">No Active Units</h3>
+              <p className="text-zinc-500 text-xs">Infrastructure yields will populate upon validated transaction finalization.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full text-left whitespace-nowrap">
                 <thead>
-                  <tr className="border-b border-neutral-200">
-                    <th className="text-left py-3 px-4 text-sm font-medium text-neutral-600">Venue</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-neutral-600">City</th>
-                    <th className="text-right py-3 px-4 text-sm font-medium text-neutral-600">Bookings</th>
-                    <th className="text-right py-3 px-4 text-sm font-medium text-neutral-600">Revenue</th>
-                    <th className="text-right py-3 px-4 text-sm font-medium text-neutral-600">Net Earnings</th>
-                    <th className="text-right py-3 px-4 text-sm font-medium text-neutral-600">Occupancy</th>
-                    <th className="text-right py-3 px-4 text-sm font-medium text-neutral-600">Rating</th>
+                  <tr className="border-b border-zinc-800 shadow-sm">
+                    <th className="py-4 px-4 text-[10px] font-black text-zinc-500 uppercase tracking-widest">Venue Entity</th>
+                    <th className="py-4 px-4 text-[10px] font-black text-zinc-500 uppercase tracking-widest">Registry</th>
+                    <th className="py-4 px-4 text-[10px] font-black text-zinc-500 uppercase tracking-widest text-right">Volume</th>
+                    <th className="py-4 px-4 text-[10px] font-black text-zinc-500 uppercase tracking-widest text-right">Gross</th>
+                    <th className="py-4 px-4 text-[10px] font-black text-zinc-500 uppercase tracking-widest text-right">Net Cleared</th>
+                    <th className="py-4 px-4 text-[10px] font-black text-zinc-500 uppercase tracking-widest text-right">Load %</th>
+                    <th className="py-4 px-4 text-[10px] font-black text-zinc-500 uppercase tracking-widest text-right">Rating</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-zinc-800/50">
                   {filteredVenues.map((venue) => (
-                    <tr key={venue.id} className="border-b border-neutral-100 hover:bg-neutral-50">
-                      <td className="py-3 px-4">
+                    <tr key={venue.id} className="hover:bg-zinc-800/30 transition-all group">
+                      <td className="py-4 px-4">
                         <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-neutral-100 to-neutral-200 flex items-center justify-center">
-                            <Building2 className="h-5 w-5 text-neutral-600" />
+                          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-zinc-800 to-zinc-900 border border-zinc-700 flex items-center justify-center shadow-lg">
+                            <Building2 className="h-5 w-5 text-zinc-400 group-hover:text-emerald-400 transition-colors" />
                           </div>
-                          <span className="font-medium text-black">{venue.name}</span>
+                          <span className="font-bold text-zinc-200 group-hover:text-white transition-colors">{venue.name}</span>
                         </div>
                       </td>
-                      <td className="py-3 px-4 text-sm text-neutral-600">{venue.city}</td>
-                      <td className="py-3 px-4 text-sm text-black text-right">{venue.bookings}</td>
-                      <td className="py-3 px-4 text-sm text-black text-right font-medium">Rs.{venue.revenue.toLocaleString()}</td>
-                      <td className="py-3 px-4 text-sm text-green-700 text-right font-medium">
-                        Rs.{Math.round(venue.revenue * (1 - PLATFORM_FEE_PERCENTAGE / 100)).toLocaleString()}
+                      <td className="py-4 px-4 text-xs font-medium text-zinc-500">{venue.city}</td>
+                      <td className="py-4 px-4 text-xs font-mono text-zinc-300 text-right">{venue.bookings || 0}</td>
+                      <td className="py-4 px-4 text-xs font-bold text-white text-right">₹{(venue.revenue || 0).toLocaleString()}</td>
+                      <td className="py-4 px-4 text-xs font-black text-emerald-400 text-right">
+                        ₹{Math.round((venue.revenue || 0) * (1 - PLATFORM_FEE_PERCENTAGE / 100)).toLocaleString()}
                       </td>
-                      <td className="py-3 px-4 text-sm text-black text-right">{venue.occupancyRate.toFixed(1)}%</td>
-                      <td className="py-3 px-4 text-right">
-                        <Badge className="bg-amber-100 text-amber-700 border-amber-300">
-                          {venue.rating.toFixed(1)}
+                      <td className="py-4 px-4 text-xs font-mono text-zinc-400 text-right">{(venue.occupancyRate || 0).toFixed(1)}%</td>
+                      <td className="py-4 px-4 text-right">
+                        <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/30 font-black text-[10px]">
+                          { (venue.rating || 0).toFixed(1) }
                         </Badge>
                       </td>
                     </tr>
@@ -480,56 +492,29 @@ export default function VenueEarningsPage() {
 
       {/* ==================== Quick Links ==================== */}
       <div className="grid gap-4 md:grid-cols-3">
-        <Card
-          className="cursor-pointer hover:shadow-lg transition-shadow"
-          onClick={() => router.push("/dashboard/venue/payouts")}
-        >
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-green-100 to-green-200 flex items-center justify-center">
-                <DollarSign className="h-6 w-6 text-green-700" />
+        {[
+          { label: "Internal Payouts", desc: "Track fiscal clearance cycles", path: "/dashboard/venue/payouts", icon: DollarSign, color: "text-emerald-400", bg: "bg-emerald-500/10" },
+          { label: "Deep Analytics", desc: "Granular infrastructure insights", path: "/dashboard/venue/analytics", icon: BarChart3, color: "text-blue-400", bg: "bg-blue-500/10" },
+          { label: "Unit Manifest", desc: "Global reservation ledger", path: "/dashboard/venue/bookings", icon: Calendar, color: "text-purple-400", bg: "bg-purple-500/10" }
+        ].map((link, i) => (
+          <Card
+            key={i}
+            className="cursor-pointer bg-zinc-900/50 border-zinc-800 hover:border-zinc-600 hover:bg-zinc-800/50 transition-all shadow-xl backdrop-blur-md group"
+            onClick={() => router.push(link.path)}
+          >
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <div className={cn("h-12 w-12 rounded-2xl flex items-center justify-center border border-white/5 shadow-2xl transition-all group-hover:scale-110", link.bg, link.color)}>
+                  <link.icon className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="font-black text-white tracking-tight">{link.label}</p>
+                  <p className="text-[10px] text-zinc-500 font-medium uppercase tracking-widest">{link.desc}</p>
+                </div>
               </div>
-              <div>
-                <p className="font-semibold text-black">View Payouts</p>
-                <p className="text-sm text-neutral-600">Track payout history and status</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card
-          className="cursor-pointer hover:shadow-lg transition-shadow"
-          onClick={() => router.push("/dashboard/venue/analytics")}
-        >
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center">
-                <BarChart3 className="h-6 w-6 text-blue-700" />
-              </div>
-              <div>
-                <p className="font-semibold text-black">Full Analytics</p>
-                <p className="text-sm text-neutral-600">Detailed venue analytics and insights</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card
-          className="cursor-pointer hover:shadow-lg transition-shadow"
-          onClick={() => router.push("/dashboard/venue/bookings")}
-        >
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-purple-100 to-purple-200 flex items-center justify-center">
-                <Calendar className="h-6 w-6 text-purple-700" />
-              </div>
-              <div>
-                <p className="font-semibold text-black">Manage Bookings</p>
-                <p className="text-sm text-neutral-600">View and manage all bookings</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        ))}
       </div>
     </motion.div>
   );

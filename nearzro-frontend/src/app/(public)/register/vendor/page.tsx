@@ -473,7 +473,7 @@ export default function VendorRegisterPage() {
       const userObj = response.data?.user;
 
       if (tokenStr && userObj) {
-        localStorage.setItem("NearZro_user", JSON.stringify({ token: tokenStr, user: userObj }));
+        localStorage.setItem("NearZro_user", JSON.stringify({ ...userObj, token: tokenStr }));
         toast.success("Registration successful! Welcome to NearZro.");
         router.push('/dashboard/vendor');
         return;

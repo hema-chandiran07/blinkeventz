@@ -12,6 +12,7 @@ import {
   Clock, CheckCircle2, AlertCircle, RefreshCw, Loader2, Filter,
   DollarSign, Calendar, User, Building
 } from "lucide-react";
+import Link from "next/link";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -61,6 +62,7 @@ export default function AdminTransactionsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterType, setFilterType] = useState("all");
+  const [dateRange, setDateRange] = useState<"all" | "7days" | "30days">("all");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const limit = 20;
@@ -74,8 +76,21 @@ export default function AdminTransactionsPage() {
         setLoading(true);
       }
 
+      const now = new Date();
+      let start: string | undefined;
+      
+      if (dateRange === "7days") {
+        const d = new Date(now);
+        d.setDate(d.getDate() - 7);
+        start = d.toISOString().split('T')[0];
+      } else if (dateRange === "30days") {
+        const d = new Date(now);
+        d.setDate(d.getDate() - 30);
+        start = d.toISOString().split('T')[0];
+      }
+
       const response = await api.get("/payments", {
-        params: { page, limit },
+        params: { page, limit, startDate: start },
       });
 
       const data = response.data;
@@ -89,7 +104,7 @@ export default function AdminTransactionsPage() {
 
       const formattedTransactions: Transaction[] = payments.map((p: any) => ({
         id: p.id,
-        type: p.refundId ? "Refund" : "Payment",
+        type: (p.status === "REFUNDED" || p.refundId) ? "Refund" : "Payment",
         customer: p.user?.name || "Unknown",
         customerEmail: p.user?.email || "",
         event: p.event?.title || p.Event?.title || "N/A",
@@ -137,7 +152,7 @@ export default function AdminTransactionsPage() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [page]);
+  }, [page, dateRange]);
 
   useEffect(() => {
     loadTransactions();
@@ -220,97 +235,69 @@ export default function AdminTransactionsPage() {
   }
 
   return (
-    <div className="space-y-6 bg-neutral-50 min-h-screen">
+    <div className="space-y-8 p-6 bg-gradient-to-br from-white via-silver-50 to-white min-h-screen">
       {/* Header */}
       <motion.div 
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white border-b border-neutral-200 px-6 py-4"
+        className="flex items-center justify-between flex-wrap gap-4"
       >
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-neutral-900">Transactions</h1>
-            <p className="text-sm text-neutral-600 mt-1">Payment and transaction history</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" className="border-neutral-300" onClick={() => loadTransactions(true)} disabled={refreshing}>
-              <RefreshCw className={cn("h-4 w-4 mr-2", refreshing && "animate-spin")} /> 
-              Refresh
-            </Button>
-            <Button variant="outline" className="border-neutral-300" onClick={handleExport}>
-              <Download className="h-4 w-4 mr-2" /> 
-              Export CSV
-            </Button>
-          </div>
+        <div>
+          <h1 className="text-4xl font-extrabold text-black tracking-tight">
+            Financial <span className="text-silver-600">Ledger</span>
+          </h1>
+          <p className="text-neutral-500 font-medium">Real-time payment tracking and reconciliation</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button 
+            variant="outline" 
+            className="border-neutral-200 hover:bg-white shadow-sm transition-all" 
+            onClick={() => loadTransactions(true)} 
+            disabled={refreshing}
+          >
+            <RefreshCw className={cn("h-4 w-4 mr-2", refreshing && "animate-spin")} /> 
+            Refresh
+          </Button>
+          <Button 
+            className="bg-black hover:bg-neutral-800 text-white shadow-lg shadow-black/10 transition-all font-semibold" 
+            onClick={handleExport}
+          >
+            <Download className="h-4 w-4 mr-2" /> Export CSV
+          </Button>
         </div>
       </motion.div>
 
       {/* Stats Cards */}
       <motion.div 
-        className="grid gap-4 md:grid-cols-4 px-6"
+        className="grid gap-6 md:grid-cols-2 lg:grid-cols-4"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
       >
-        <Card className="border-emerald-200 bg-gradient-to-br from-emerald-50 to-white">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-emerald-700">Total Revenue</p>
-                <p className="text-2xl font-bold text-emerald-900 mt-1">{formatCurrency(stats?.totalRevenue || 0)}</p>
-                <p className="text-xs text-emerald-600 mt-1">{stats?.transactionCount || 0} transactions</p>
+        {[
+          { label: "Total Revenue", value: stats?.totalRevenue, icon: DollarSign, color: "text-emerald-600", bg: "bg-emerald-50", sub: `${stats?.transactionCount} successful` },
+          { label: "Pending Buffer", value: stats?.pendingAmount, icon: Clock, color: "text-amber-600", bg: "bg-amber-50", sub: "Awaiting confirmation" },
+          { label: "Refund Volume", value: stats?.refundAmount, icon: TrendingDown, color: "text-blue-600", bg: "bg-blue-50", sub: "Total volume" },
+          { label: "Efficiency Rate", value: `${(stats?.successRate || 0).toFixed(1)}%`, icon: CheckCircle2, color: "text-neutral-900", bg: "bg-neutral-100", sub: "Payment integrity" }
+        ].map((item, i) => (
+          <Card key={item.label} className="border-none shadow-xl shadow-silver-200/50 bg-white/80 backdrop-blur-md overflow-hidden relative">
+            <div className="absolute top-0 left-0 w-1 h-full bg-black opacity-10" />
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest font-bold text-neutral-400 mb-1">{item.label}</p>
+                  <p className="text-2xl font-black text-black">
+                    {typeof item.value === 'number' ? formatCurrency(item.value) : item.value}
+                  </p>
+                  <p className="text-[10px] text-neutral-400 mt-1 font-medium">{item.sub}</p>
+                </div>
+                <div className={cn("p-3 rounded-2xl shadow-inner", item.bg, item.color)}>
+                  <item.icon className="h-6 w-6" />
+                </div>
               </div>
-              <div className="p-3 rounded-full bg-emerald-600">
-                <DollarSign className="h-6 w-6 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-amber-200 bg-gradient-to-br from-amber-50 to-white">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-amber-700">Pending Amount</p>
-                <p className="text-2xl font-bold text-amber-900 mt-1">{formatCurrency(stats?.pendingAmount || 0)}</p>
-                <p className="text-xs text-amber-600 mt-1">Awaiting confirmation</p>
-              </div>
-              <div className="p-3 rounded-full bg-amber-600">
-                <Clock className="h-6 w-6 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-white">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-blue-700">Refunds</p>
-                <p className="text-2xl font-bold text-blue-900 mt-1">{formatCurrency(stats?.refundAmount || 0)}</p>
-                <p className="text-xs text-blue-600 mt-1">Total refunded</p>
-              </div>
-              <div className="p-3 rounded-full bg-blue-600">
-                <TrendingDown className="h-6 w-6 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-neutral-200 bg-gradient-to-br from-neutral-50 to-white">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-neutral-700">Success Rate</p>
-                <p className="text-2xl font-bold text-neutral-900 mt-1">{(stats?.successRate || 0).toFixed(1)}%</p>
-                <p className="text-xs text-neutral-600 mt-1">Payment completion</p>
-              </div>
-              <div className="p-3 rounded-full bg-neutral-900">
-                <CheckCircle2 className="h-6 w-6 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        ))}
       </motion.div>
 
       {/* Filters */}
@@ -335,6 +322,19 @@ export default function AdminTransactionsPage() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
                 />
+              </div>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="date-range" className="text-sm whitespace-nowrap">Date:</Label>
+                <select
+                  id="date-range"
+                  value={dateRange}
+                  onChange={(e) => { setDateRange(e.target.value as any); setPage(1); }}
+                  className="flex h-10 rounded-md border border-neutral-200 bg-white px-4 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-600"
+                >
+                  <option value="all">All Time</option>
+                  <option value="7days">Last 7 Days</option>
+                  <option value="30days">Last 30 Days</option>
+                </select>
               </div>
               <div className="flex items-center gap-2">
                 <Label htmlFor="filter-status" className="text-sm whitespace-nowrap">Status:</Label>
@@ -365,7 +365,7 @@ export default function AdminTransactionsPage() {
                   <option value="Refund">Refunds</option>
                 </select>
               </div>
-              {(searchTerm || filterStatus !== "all" || filterType !== "all") && (
+              {(searchTerm || filterStatus !== "all" || filterType !== "all" || dateRange !== "all") && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -373,6 +373,7 @@ export default function AdminTransactionsPage() {
                     setSearchTerm("");
                     setFilterStatus("all");
                     setFilterType("all");
+                    setDateRange("all");
                   }}
                   className="text-neutral-600"
                 >
@@ -408,7 +409,7 @@ export default function AdminTransactionsPage() {
                 <CreditCard className="h-16 w-16 text-neutral-300 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-neutral-900 mb-2">No transactions found</h3>
                 <p className="text-neutral-600">
-                  {searchTerm || filterStatus !== "all" || filterType !== "all"
+                  {searchTerm || filterStatus !== "all" || filterType !== "all" || dateRange !== "all"
                     ? "Try adjusting your filters"
                     : "No transactions available"}
                 </p>
@@ -441,8 +442,13 @@ export default function AdminTransactionsPage() {
                               <p className="text-xs text-neutral-500">{t.customerEmail}</p>
                             </div>
                           </td>
-                          <td className="py-3 px-4">
-                            <span className="text-sm text-neutral-700">{t.event}</span>
+                          <td className="py-4 px-4">
+                            <Link 
+                              href={`/dashboard/admin/events/${t.eventId}`}
+                              className="text-sm font-bold text-black hover:text-silver-600 transition-colors underline decoration-silver-200 underline-offset-4"
+                            >
+                              {t.event}
+                            </Link>
                           </td>
                           <td className="py-3 px-4">
                             <Badge variant={t.type === "Payment" ? "default" : "outline"} className="text-xs">

@@ -24,7 +24,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Role, KycStatus } from '@prisma/client';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
+import { memoryStorage } from 'multer';
 import { extname } from 'path';
 import { Audit, AUDIT_META_KEY } from '../audit/decorators/audit.decorator';
 import { AuditSeverity, AuditSource } from '@prisma/client';
@@ -82,10 +82,7 @@ export class KycController {
   @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 requests per minute
   @UseInterceptors(
     FileInterceptor('document', {
-      storage: diskStorage({
-        destination: './uploads/kyc',
-        filename: editFileName,
-      }),
+      storage: memoryStorage(),
       fileFilter: imageFileFilter,
       limits: {
         fileSize: 5 * 1024 * 1024, // 5MB limit
@@ -131,10 +128,7 @@ export class KycController {
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @UseInterceptors(
     FileInterceptor('document', {
-      storage: diskStorage({
-        destination: './uploads/kyc',
-        filename: editFileName,
-      }),
+      storage: memoryStorage(),
       fileFilter: imageFileFilter,
       limits: {
         fileSize: 5 * 1024 * 1024,
@@ -217,10 +211,7 @@ export class KycController {
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @UseInterceptors(
     FileInterceptor('document', {
-      storage: diskStorage({
-        destination: './uploads/kyc',
-        filename: editFileName,
-      }),
+      storage: memoryStorage(),
       fileFilter: imageFileFilter,
       limits: {
         fileSize: 5 * 1024 * 1024,

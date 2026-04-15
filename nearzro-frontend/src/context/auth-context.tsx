@@ -13,7 +13,7 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
-  avatar?: string;
+  image?: string; // Base64 profile picture
   token?: string;
 }
 
@@ -28,6 +28,7 @@ interface AuthContextType {
   googleLogin: (options?: { role?: UserRole; callbackUrl?: string }) => void;
   facebookLogin: () => void;
   setUserFromOAuth: (authUser: User) => void;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -52,6 +53,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             name: response.data.name || parsed.name,
             email: response.data.email || parsed.email,
             role: response.data.role || parsed.role,
+            image: response.data.image || null,
             token: parsed.token,
           };
           setUser(updatedUser);
@@ -130,6 +132,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 name: response.data.name || parsed.name,
                 email: response.data.email || parsed.email,
                 role: response.data.role || parsed.role,
+                image: response.data.image || null,
                 token: parsed.token,
               });
             } catch (error: unknown) {
@@ -200,10 +203,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      if (!process.env.NEXT_PUBLIC_API_URL) {
-        throw new Error("API configuration missing. Please contact support.");
-      }
-
       const response = await api.post('/auth/login', { email, password });
       const { user: userData, token } = response.data;
 
@@ -212,43 +211,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         name: userData.name,
         email: userData.email,
         role: userData.role as UserRole,
+        image: userData.image,
         token,
       };
 
       setUser(authenticatedUser);
       localStorage.setItem("NearZro_user", JSON.stringify(authenticatedUser));
 
-      // Smart redirect based on what profiles user has
-      // If user has BOTH profiles, use their stored role
-      // If user has only vendor profile → vendor dashboard
-      // If user has only venue profile → venue dashboard
+      // Smart redirect logic
       const hasVendor = userData.hasVendorProfile || userData.role === 'VENDOR';
       const hasVenue = userData.hasVenueProfile || userData.role === 'VENUE_OWNER';
       
-      let redirectPath = userData.role === 'CUSTOMER' ? '/' : '/dashboard/customer'; // default
+      let redirectPath = '/';
       
       if (userData.role === 'ADMIN') {
         redirectPath = '/dashboard/admin';
       } else if (hasVenue && !hasVendor) {
-        // Only venue owner
         redirectPath = '/dashboard/venue';
       } else if (hasVendor && !hasVenue) {
-        // Only vendor
         redirectPath = '/dashboard/vendor';
-      } else if (hasVendor && hasVenue) {
-        // Has both - use stored role
-        const redirectPaths: Record<string, string> = {
-          "ADMIN": "/dashboard/admin",
-          "VENDOR": "/dashboard/vendor",
-          "VENUE_OWNER": "/dashboard/venue",
-          "CUSTOMER": "/",
-        };
-        redirectPath = redirectPaths[userData.role] || '/';
+      } else if (userData.role === 'CUSTOMER') {
+        redirectPath = '/dashboard/customer';
       }
 
-      // Use window.location for immediate redirect
       window.location.href = redirectPath;
-
     } catch (error: any) {
       throw error;
     } finally {
@@ -259,13 +245,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const register = async (name: string, email: string, password: string, role: UserRole) => {
     setIsLoading(true);
     try {
-      if (!process.env.NEXT_PUBLIC_API_URL) {
-        throw new Error("API configuration missing. Please contact support.");
-      }
-
-      const endpoint = role === 'VENDOR' ? '/api/auth/register-vendor'
-        : role === 'VENUE_OWNER' ? '/api/auth/register-venue-owner'
-        : '/api/auth/register';
+      // endpoints are relative to /api baseURL
+      const endpoint = role === 'VENDOR' ? '/auth/register-vendor'
+        : role === 'VENUE_OWNER' ? '/auth/register-venue-owner'
+        : '/auth/register';
 
       const response = await api.post(endpoint, { name, email, password });
       const { user: userData, token } = response.data;
@@ -281,16 +264,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(authenticatedUser);
       localStorage.setItem("NearZro_user", JSON.stringify(authenticatedUser));
 
-      // Immediate redirect
       const redirectPaths: Record<string, string> = {
         "ADMIN": "/dashboard/admin",
         "VENDOR": "/dashboard/vendor",
         "VENUE_OWNER": "/dashboard/venue",
-        "CUSTOMER": "/",
+        "CUSTOMER": "/dashboard/customer",
       };
 
       window.location.href = redirectPaths[userData.role] || "/";
-
     } catch (error: any) {
       throw error;
     } finally {
@@ -414,7 +395,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isLoading,
       googleLogin,
       facebookLogin,
-      setUserFromOAuth
+      setUserFromOAuth,
+      refreshUser
     }}>
       {children}
     </AuthContext.Provider>
