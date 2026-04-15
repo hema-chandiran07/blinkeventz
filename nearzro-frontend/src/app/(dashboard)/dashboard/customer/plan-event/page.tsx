@@ -206,11 +206,16 @@ function ConversationHistoryDrawer({ open, onClose, onResume }: {
 
   useEffect(() => {
     if (!open) return;
+    const controller = new AbortController();
     setLoading(true);
     aiChatbotApi.getConversations()
       .then(setConversations)
-      .catch(() => setConversations([]))
+      .catch((err) => {
+        if (err.name === 'AbortError' || err.code === 'ERR_CANCELED') return;
+        setConversations([]);
+      })
       .finally(() => setLoading(false));
+    return () => controller.abort();
   }, [open]);
 
   const STATUS_COLORS: Record<string, string> = {
@@ -315,7 +320,9 @@ function PlanEventContent() {
   // Start conversation on mount
   useEffect(() => {
     if (!conversationId && uiState === "COLLECTING") {
+      const controller = new AbortController();
       startConversation();
+      return () => controller.abort();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

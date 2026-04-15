@@ -39,16 +39,18 @@ export default function UnifiedApprovalsPage() {
   const [showRejectModal, setShowRejectModal] = useState(false);
 
   useEffect(() => {
-    loadApprovals();
+    const controller = new AbortController();
+    loadApprovals(controller.signal);
+    return () => controller.abort();
   }, []);
 
-  const loadApprovals = async () => {
+  const loadApprovals = async (signal?: AbortSignal) => {
     try {
       setLoading(true);
       const [vendors, venues, kyc] = await Promise.all([
-        api.get("/vendors"),
-        api.get("/venues"),
-        api.get("/kyc/admin/submissions"),
+        api.get("/vendors", { signal }),
+        api.get("/venues", { signal }),
+        api.get("/kyc/admin/submissions", { signal }),
       ]);
 
       // Filter pending vendors
@@ -103,6 +105,9 @@ export default function UnifiedApprovalsPage() {
 
       setApprovals(items);
     } catch (error: any) {
+      if (error.name === 'AbortError' || error.code === 'ERR_CANCELED') {
+        return;
+      }
       console.error("Failed to load approvals:", error);
       toast.error("Failed to load approvals");
     } finally {
@@ -194,8 +199,8 @@ export default function UnifiedApprovalsPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
-          <div className="h-12 w-12 rounded-full border-4 border-neutral-200 border-t-black animate-spin mx-auto mb-4" />
-          <p className="text-black">Loading approvals...</p>
+          <div className="h-12 w-12 rounded-full border-4 border-zinc-800 border-t-zinc-400 animate-spin mx-auto mb-4" />
+          <p className="text-zinc-400">Loading approvals...</p>
         </div>
       </div>
     );
@@ -206,10 +211,10 @@ export default function UnifiedApprovalsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-black">Approvals Dashboard</h1>
-          <p className="text-neutral-600">Manage vendor, venue, and KYC approvals</p>
+          <h1 className="text-3xl font-bold text-zinc-100">Approvals Dashboard</h1>
+          <p className="text-zinc-400">Manage vendor, venue, and KYC approvals</p>
         </div>
-        <Button onClick={handleExport} variant="outline" className="border-black">
+        <Button onClick={handleExport} variant="outline" className="border-zinc-700 text-zinc-300 hover:bg-zinc-800">
           <Download className="h-4 w-4 mr-2" />
           Export CSV
         </Button>
@@ -217,54 +222,54 @@ export default function UnifiedApprovalsPage() {
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card className="border-2 border-amber-600">
+        <Card className="border-amber-800 bg-amber-950/20">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-600">Total Pending</p>
-                <p className="text-3xl font-bold text-amber-600">{stats.total}</p>
+                <p className="text-sm font-medium text-zinc-400">Total Pending</p>
+                <p className="text-3xl font-bold text-amber-400">{stats.total}</p>
               </div>
-              <div className="p-3 rounded-full bg-amber-600">
-                <Clock className="h-6 w-6 text-white" />
+              <div className="p-3 rounded-full bg-amber-950/30">
+                <Clock className="h-6 w-6 text-amber-400" />
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card className="border-2 border-blue-600">
+        <Card className="border-blue-800 bg-blue-950/20">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-600">Vendors</p>
-                <p className="text-3xl font-bold text-blue-600">{stats.vendors}</p>
+                <p className="text-sm font-medium text-zinc-400">Vendors</p>
+                <p className="text-3xl font-bold text-blue-400">{stats.vendors}</p>
               </div>
-              <div className="p-3 rounded-full bg-blue-600">
-                <Store className="h-6 w-6 text-white" />
+              <div className="p-3 rounded-full bg-blue-950/30">
+                <Store className="h-6 w-6 text-blue-400" />
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card className="border-2 border-purple-600">
+        <Card className="border-purple-800 bg-purple-950/20">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-600">Venues</p>
-                <p className="text-3xl font-bold text-purple-600">{stats.venues}</p>
+                <p className="text-sm font-medium text-zinc-400">Venues</p>
+                <p className="text-3xl font-bold text-purple-400">{stats.venues}</p>
               </div>
-              <div className="p-3 rounded-full bg-purple-600">
-                <Building className="h-6 w-6 text-white" />
+              <div className="p-3 rounded-full bg-purple-950/30">
+                <Building className="h-6 w-6 text-purple-400" />
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card className="border-2 border-green-600">
+        <Card className="border-emerald-800 bg-emerald-950/20">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-600">KYC Documents</p>
-                <p className="text-3xl font-bold text-green-600">{stats.kyc}</p>
+                <p className="text-sm font-medium text-zinc-400">KYC Documents</p>
+                <p className="text-3xl font-bold text-emerald-400">{stats.kyc}</p>
               </div>
-              <div className="p-3 rounded-full bg-green-600">
-                <FileText className="h-6 w-6 text-white" />
+              <div className="p-3 rounded-full bg-emerald-950/30">
+                <FileText className="h-6 w-6 text-emerald-400" />
               </div>
             </div>
           </CardContent>
@@ -272,14 +277,14 @@ export default function UnifiedApprovalsPage() {
       </div>
 
       {/* Tabs */}
-      <Card className="border-2 border-black">
+      <Card className="border-zinc-800 bg-zinc-900/50">
         <CardContent className="p-4">
           <div className="flex gap-2">
             <Button
               variant={activeTab === 'ALL' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setActiveTab('ALL')}
-              className={activeTab === 'ALL' ? 'bg-black' : 'border-black'}
+              className={activeTab === 'ALL' ? 'bg-zinc-100 text-zinc-900' : 'border-zinc-700 text-zinc-300'}
             >
               All ({stats.total})
             </Button>
@@ -287,7 +292,7 @@ export default function UnifiedApprovalsPage() {
               variant={activeTab === 'VENDOR' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setActiveTab('VENDOR')}
-              className={activeTab === 'VENDOR' ? 'bg-black' : 'border-black'}
+              className={activeTab === 'VENDOR' ? 'bg-zinc-100 text-zinc-900' : 'border-zinc-700 text-zinc-300'}
             >
               <Store className="h-4 w-4 mr-2" />
               Vendors ({stats.vendors})
@@ -296,7 +301,7 @@ export default function UnifiedApprovalsPage() {
               variant={activeTab === 'VENUE' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setActiveTab('VENUE')}
-              className={activeTab === 'VENUE' ? 'bg-black' : 'border-black'}
+              className={activeTab === 'VENUE' ? 'bg-zinc-100 text-zinc-900' : 'border-zinc-700 text-zinc-300'}
             >
               <Building className="h-4 w-4 mr-2" />
               Venues ({stats.venues})
@@ -305,7 +310,7 @@ export default function UnifiedApprovalsPage() {
               variant={activeTab === 'KYC' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setActiveTab('KYC')}
-              className={activeTab === 'KYC' ? 'bg-black' : 'border-black'}
+              className={activeTab === 'KYC' ? 'bg-zinc-100 text-zinc-900' : 'border-zinc-700 text-zinc-300'}
             >
               <FileText className="h-4 w-4 mr-2" />
               KYC ({stats.kyc})
@@ -315,9 +320,9 @@ export default function UnifiedApprovalsPage() {
       </Card>
 
       {/* Approvals List */}
-      <Card className="border-2 border-black">
+      <Card className="border-zinc-800 bg-zinc-900/50">
         <CardHeader>
-          <CardTitle className="text-black">
+          <CardTitle className="text-zinc-100 flex items-center gap-2">
             <Activity className="h-5 w-5" />
             Pending Approvals
           </CardTitle>
@@ -325,32 +330,32 @@ export default function UnifiedApprovalsPage() {
         <CardContent>
           {filteredApprovals.length === 0 ? (
             <div className="text-center py-12">
-              <CheckCircle2 className="h-16 w-16 mx-auto mb-4 text-green-600" />
-              <h3 className="text-lg font-bold text-black mb-2">All Caught Up!</h3>
-              <p className="text-neutral-600">No pending approvals in this category</p>
+              <CheckCircle2 className="h-16 w-16 mx-auto mb-4 text-emerald-400" />
+              <h3 className="text-lg font-bold text-zinc-100 mb-2">All Caught Up!</h3>
+              <p className="text-zinc-400">No pending approvals in this category</p>
             </div>
           ) : (
             <div className="space-y-3">
               {filteredApprovals.map((approval) => (
                 <div
                   key={approval.id}
-                  className="flex items-center justify-between p-4 rounded-lg border border-neutral-200 hover:border-black transition-colors"
+                  className="flex items-center justify-between p-4 rounded-lg border border-zinc-800 hover:border-zinc-700 transition-colors"
                 >
                   <div className="flex items-center gap-4 flex-1">
-                    <div className="h-12 w-12 rounded-full bg-neutral-100 flex items-center justify-center">
-                      {approval.type === 'VENDOR' && <Store className="h-6 w-6" />}
-                      {approval.type === 'VENUE' && <Building className="h-6 w-6" />}
-                      {approval.type === 'KYC' && <FileText className="h-6 w-6" />}
+                    <div className="h-12 w-12 rounded-full bg-zinc-800 flex items-center justify-center">
+                      {approval.type === 'VENDOR' && <Store className="h-6 w-6 text-zinc-400" />}
+                      {approval.type === 'VENUE' && <Building className="h-6 w-6 text-zinc-400" />}
+                      {approval.type === 'KYC' && <FileText className="h-6 w-6 text-zinc-400" />}
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-bold text-black">{approval.title}</h3>
-                        <Badge className="bg-neutral-100 text-black border-neutral-300">
+                        <h3 className="font-bold text-zinc-100">{approval.title}</h3>
+                        <Badge className="bg-zinc-800 text-zinc-300 border-zinc-700">
                           {approval.type}
                         </Badge>
                       </div>
-                      <p className="text-sm text-neutral-600">{approval.subtitle}</p>
-                      <p className="text-xs text-neutral-500 mt-1">
+                      <p className="text-sm text-zinc-400">{approval.subtitle}</p>
+                      <p className="text-xs text-zinc-500 mt-1">
                         {approval.user.name} • {new Date(approval.submittedAt).toLocaleDateString()}
                       </p>
                     </div>
@@ -360,7 +365,7 @@ export default function UnifiedApprovalsPage() {
                       variant="outline"
                       size="sm"
                       onClick={() => setSelectedApproval(approval)}
-                      className="border-black"
+                      className="border-zinc-700 text-zinc-300 hover:bg-zinc-800"
                     >
                       <Eye className="h-4 w-4 mr-2" />
                       Review
@@ -376,10 +381,10 @@ export default function UnifiedApprovalsPage() {
       {/* Review Modal */}
       {selectedApproval && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <Card className="max-w-2xl w-full max-h-[90vh] overflow-y-auto border-zinc-800 bg-zinc-900">
             <CardHeader>
-              <CardTitle className="text-black">
-                <span className="text-black">Review {selectedApproval.type}</span>
+              <CardTitle className="text-zinc-100 flex items-center justify-between">
+                <span>Review {selectedApproval.type}</span>
                 <Button variant="ghost" size="sm" onClick={() => setSelectedApproval(null)}>
                   <XCircle className="h-5 w-5" />
                 </Button>
@@ -388,23 +393,23 @@ export default function UnifiedApprovalsPage() {
             <CardContent className="space-y-6">
               {/* Details */}
               <div>
-                <h3 className="font-bold text-black mb-3">Details</h3>
-                <div className="grid grid-cols-2 gap-4 p-4 bg-neutral-50 rounded-lg">
+                <h3 className="font-bold text-zinc-100 mb-3">Details</h3>
+                <div className="grid grid-cols-2 gap-4 p-4 bg-zinc-800/50 rounded-lg">
                   <div>
-                    <p className="text-xs text-neutral-600">Name</p>
-                    <p className="font-medium text-black">{selectedApproval.title}</p>
+                    <p className="text-xs text-zinc-500">Name</p>
+                    <p className="font-medium text-zinc-100">{selectedApproval.title}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-neutral-600">User</p>
-                    <p className="font-medium text-black">{selectedApproval.user.name}</p>
+                    <p className="text-xs text-zinc-500">User</p>
+                    <p className="font-medium text-zinc-100">{selectedApproval.user.name}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-neutral-600">Email</p>
-                    <p className="font-medium text-black">{selectedApproval.user.email}</p>
+                    <p className="text-xs text-zinc-500">Email</p>
+                    <p className="font-medium text-zinc-100">{selectedApproval.user.email}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-neutral-600">Submitted</p>
-                    <p className="font-medium text-black">
+                    <p className="text-xs text-zinc-500">Submitted</p>
+                    <p className="font-medium text-zinc-100">
                       {new Date(selectedApproval.submittedAt).toLocaleDateString()}
                     </p>
                   </div>
@@ -414,9 +419,9 @@ export default function UnifiedApprovalsPage() {
               {/* Document Preview for KYC */}
               {selectedApproval.type === 'KYC' && selectedApproval.documentUrl && (
                 <div>
-                  <h3 className="font-bold text-black mb-3">KYC Document</h3>
-                  <div className="border-2 border-neutral-200 rounded-lg p-4">
-                    <p className="text-sm text-neutral-600 mb-2">
+                  <h3 className="font-bold text-zinc-100 mb-3">KYC Document</h3>
+                  <div className="border-2 border-zinc-700 rounded-lg p-4">
+                    <p className="text-sm text-zinc-400 mb-2">
                       Type: {selectedApproval.docType} | Number: {selectedApproval.docNumber}
                     </p>
                     {(() => {
@@ -432,7 +437,7 @@ export default function UnifiedApprovalsPage() {
                               alt="KYC Document"
                               className="max-w-full h-auto max-h-96 mx-auto"
                             />
-                            <div className="p-2 bg-neutral-50 border-t flex gap-2 justify-center">
+                            <div className="p-2 bg-zinc-800 border-t flex gap-2 justify-center">
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -467,7 +472,7 @@ export default function UnifiedApprovalsPage() {
                               className="w-full h-96 border-0"
                               title="KYC Document Preview"
                             />
-                            <div className="p-2 bg-neutral-50 border-t flex gap-2 justify-center">
+                            <div className="p-2 bg-zinc-800 border-t flex gap-2 justify-center">
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -494,11 +499,10 @@ export default function UnifiedApprovalsPage() {
                         );
                       }
                       
-                      // For any other file type
                       return (
                         <div className="text-center p-8">
-                          <FileText className="h-12 w-12 text-neutral-400 mx-auto mb-3" />
-                          <p className="text-sm text-neutral-600 mb-3">Preview not available for this file type</p>
+                          <FileText className="h-12 w-12 text-zinc-600 mx-auto mb-3" />
+                          <p className="text-sm text-zinc-400 mb-3">Preview not available for this file type</p>
                           <div className="flex gap-2 justify-center">
                             <Button
                               variant="outline"
@@ -527,9 +531,9 @@ export default function UnifiedApprovalsPage() {
               )}
 
               {/* Actions */}
-              <div className="flex gap-3 pt-4 border-t">
+              <div className="flex gap-3 pt-4 border-t border-zinc-800">
                 <Button
-                  className="flex-1 bg-green-600 hover:bg-green-700"
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700"
                   onClick={() => handleApprove(selectedApproval)}
                 >
                   <CheckCircle2 className="h-5 w-5 mr-2" />
@@ -537,7 +541,7 @@ export default function UnifiedApprovalsPage() {
                 </Button>
                 <Button
                   variant="outline"
-                  className="flex-1 border-red-300 text-red-600 hover:bg-red-50"
+                  className="flex-1 border-red-800 text-red-400 hover:bg-red-950/30"
                   onClick={() => setShowRejectModal(true)}
                 >
                   <XCircle className="h-5 w-5 mr-2" />
@@ -552,19 +556,19 @@ export default function UnifiedApprovalsPage() {
       {/* Reject Modal */}
       {showRejectModal && selectedApproval && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="max-w-md w-full">
+          <Card className="max-w-md w-full border-zinc-800 bg-zinc-900">
             <CardHeader>
-              <CardTitle className="text-black">Reject {selectedApproval.type}</CardTitle>
+              <CardTitle className="text-zinc-100">Reject {selectedApproval.type}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-black">Rejection Reason *</label>
+                <label className="text-sm font-medium text-zinc-300">Rejection Reason *</label>
                 <textarea
                   rows={4}
                   placeholder="Please specify why this is being rejected..."
                   value={rejectionReason}
                   onChange={(e) => setRejectionReason(e.target.value)}
-                  className="flex min-h-[100px] w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm"
+                  className="flex min-h-[100px] w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100"
                 />
               </div>
               <div className="flex gap-3">

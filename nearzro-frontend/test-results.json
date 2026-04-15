@@ -1,0 +1,391 @@
+{
+  "config": {
+    "configFile": "C:\\Users\\ab311\\Intership\\blinkeventz\\nearzro-frontend\\playwright.config.ts",
+    "rootDir": "C:/Users/ab311/Intership/blinkeventz/nearzro-frontend/tests",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "C:/Users/ab311/Intership/blinkeventz/nearzro-frontend/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "C:/Users/ab311/Intership/blinkeventz/nearzro-frontend/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "html",
+        {
+          "outputFolder": "playwright-report"
+        }
+      ],
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "test-results.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "runAgents": "none",
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.58.2",
+    "workers": 4,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "customer-manual-flow.spec.ts",
+      "file": "customer-manual-flow.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Customer Dashboard Manual Flow",
+          "file": "customer-manual-flow.spec.ts",
+          "line": 3,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should render with CRED premium dark theme",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 1700,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m\"rgb\u001b[7m(9, 9, 11\u001b[27m)\"\u001b[39m\nReceived: \u001b[31m\"rgb\u001b[7ma(0, 0, 0, 0\u001b[27m)\"\u001b[39m",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m\"rgb\u001b[7m(9, 9, 11\u001b[27m)\"\u001b[39m\nReceived: \u001b[31m\"rgb\u001b[7ma(0, 0, 0, 0\u001b[27m)\"\u001b[39m\n    at C:\\Users\\ab311\\Intership\\blinkeventz\\nearzro-frontend\\tests\\customer-manual-flow.spec.ts:34:28",
+                        "location": {
+                          "file": "C:\\Users\\ab311\\Intership\\blinkeventz\\nearzro-frontend\\tests\\customer-manual-flow.spec.ts",
+                          "column": 28,
+                          "line": 34
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 32 |\u001b[39m\n \u001b[90m 33 |\u001b[39m     \u001b[90m// Assert background is dark (rgb(9, 9, 11) = bg-zinc-950)\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 34 |\u001b[39m     expect(bodyBackground)\u001b[33m.\u001b[39mtoBe(\u001b[32m'rgb(9, 9, 11)'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                            \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 35 |\u001b[39m\n \u001b[90m 36 |\u001b[39m     \u001b[90m/**\u001b[39m\n \u001b[90m 37 |\u001b[39m \u001b[90m     * HUMAN ACTION: Visual inspection of text color\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "C:\\Users\\ab311\\Intership\\blinkeventz\\nearzro-frontend\\tests\\customer-manual-flow.spec.ts",
+                            "column": 28,
+                            "line": 34
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m\"rgb\u001b[7m(9, 9, 11\u001b[27m)\"\u001b[39m\nReceived: \u001b[31m\"rgb\u001b[7ma(0, 0, 0, 0\u001b[27m)\"\u001b[39m\n\n\u001b[0m \u001b[90m 32 |\u001b[39m\n \u001b[90m 33 |\u001b[39m     \u001b[90m// Assert background is dark (rgb(9, 9, 11) = bg-zinc-950)\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 34 |\u001b[39m     expect(bodyBackground)\u001b[33m.\u001b[39mtoBe(\u001b[32m'rgb(9, 9, 11)'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                            \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 35 |\u001b[39m\n \u001b[90m 36 |\u001b[39m     \u001b[90m/**\u001b[39m\n \u001b[90m 37 |\u001b[39m \u001b[90m     * HUMAN ACTION: Visual inspection of text color\u001b[39m\u001b[0m\n\u001b[2m    at C:\\Users\\ab311\\Intership\\blinkeventz\\nearzro-frontend\\tests\\customer-manual-flow.spec.ts:34:28\u001b[22m"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-04-13T16:36:59.204Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\Users\\ab311\\Intership\\blinkeventz\\nearzro-frontend\\test-results\\customer-manual-flow-Custo-dd79e-ith-CRED-premium-dark-theme-chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "C:\\Users\\ab311\\Intership\\blinkeventz\\nearzro-frontend\\test-results\\customer-manual-flow-Custo-dd79e-ith-CRED-premium-dark-theme-chromium\\video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "C:\\Users\\ab311\\Intership\\blinkeventz\\nearzro-frontend\\test-results\\customer-manual-flow-Custo-dd79e-ith-CRED-premium-dark-theme-chromium\\error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\Users\\ab311\\Intership\\blinkeventz\\nearzro-frontend\\tests\\customer-manual-flow.spec.ts",
+                        "column": 28,
+                        "line": 34
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "7149484f8d4ba14fe7a1-e55b78c5f260f22969c3",
+              "file": "customer-manual-flow.spec.ts",
+              "line": 15,
+              "column": 7
+            },
+            {
+              "title": "should prevent form double-click spam",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 15855,
+                      "error": {
+                        "message": "TimeoutError: page.fill: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('#title')\u001b[22m\n",
+                        "stack": "TimeoutError: page.fill: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('#title')\u001b[22m\n\n    at C:\\Users\\ab311\\Intership\\blinkeventz\\nearzro-frontend\\tests\\customer-manual-flow.spec.ts:77:16",
+                        "location": {
+                          "file": "C:\\Users\\ab311\\Intership\\blinkeventz\\nearzro-frontend\\tests\\customer-manual-flow.spec.ts",
+                          "column": 16,
+                          "line": 77
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 75 |\u001b[39m \u001b[90m     */\u001b[39m\n \u001b[90m 76 |\u001b[39m     \u001b[90m// Fill event title\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 77 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'#title'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'Test Wedding Event'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 78 |\u001b[39m\n \u001b[90m 79 |\u001b[39m     \u001b[90m// Fill date (must be future date)\u001b[39m\n \u001b[90m 80 |\u001b[39m     \u001b[36mconst\u001b[39m futureDate \u001b[33m=\u001b[39m \u001b[36mnew\u001b[39m \u001b[33mDate\u001b[39m()\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "C:\\Users\\ab311\\Intership\\blinkeventz\\nearzro-frontend\\tests\\customer-manual-flow.spec.ts",
+                            "column": 16,
+                            "line": 77
+                          },
+                          "message": "TimeoutError: page.fill: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('#title')\u001b[22m\n\n\n\u001b[0m \u001b[90m 75 |\u001b[39m \u001b[90m     */\u001b[39m\n \u001b[90m 76 |\u001b[39m     \u001b[90m// Fill event title\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 77 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'#title'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'Test Wedding Event'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 78 |\u001b[39m\n \u001b[90m 79 |\u001b[39m     \u001b[90m// Fill date (must be future date)\u001b[39m\n \u001b[90m 80 |\u001b[39m     \u001b[36mconst\u001b[39m futureDate \u001b[33m=\u001b[39m \u001b[36mnew\u001b[39m \u001b[33mDate\u001b[39m()\u001b[33m;\u001b[39m\u001b[0m\n\u001b[2m    at C:\\Users\\ab311\\Intership\\blinkeventz\\nearzro-frontend\\tests\\customer-manual-flow.spec.ts:77:16\u001b[22m"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-04-13T16:37:07.157Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\Users\\ab311\\Intership\\blinkeventz\\nearzro-frontend\\test-results\\customer-manual-flow-Custo-3542d-vent-form-double-click-spam-chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "C:\\Users\\ab311\\Intership\\blinkeventz\\nearzro-frontend\\test-results\\customer-manual-flow-Custo-3542d-vent-form-double-click-spam-chromium\\video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "C:\\Users\\ab311\\Intership\\blinkeventz\\nearzro-frontend\\test-results\\customer-manual-flow-Custo-3542d-vent-form-double-click-spam-chromium\\error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\Users\\ab311\\Intership\\blinkeventz\\nearzro-frontend\\tests\\customer-manual-flow.spec.ts",
+                        "column": 16,
+                        "line": 77
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "7149484f8d4ba14fe7a1-b33794400e36696d3d05",
+              "file": "customer-manual-flow.spec.ts",
+              "line": 65,
+              "column": 7
+            },
+            {
+              "title": "should have disabled dead-end buttons",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 2,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 10641,
+                      "error": {
+                        "message": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[class*=\"border-zinc-800\"]') to be visible\u001b[22m\n",
+                        "stack": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[class*=\"border-zinc-800\"]') to be visible\u001b[22m\n\n    at C:\\Users\\ab311\\Intership\\blinkeventz\\nearzro-frontend\\tests\\customer-manual-flow.spec.ts:150:16",
+                        "location": {
+                          "file": "C:\\Users\\ab311\\Intership\\blinkeventz\\nearzro-frontend\\tests\\customer-manual-flow.spec.ts",
+                          "column": 16,
+                          "line": 150
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 148 |\u001b[39m\n \u001b[90m 149 |\u001b[39m     \u001b[90m// Wait for events list to load (or empty state)\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 150 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mwaitForSelector(\u001b[32m'[class*=\"border-zinc-800\"]'\u001b[39m\u001b[33m,\u001b[39m { timeout\u001b[33m:\u001b[39m \u001b[35m10000\u001b[39m })\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 151 |\u001b[39m\n \u001b[90m 152 |\u001b[39m     \u001b[90m/**\u001b[39m\n \u001b[90m 153 |\u001b[39m \u001b[90m     * HUMAN ACTION: Look for the \"Invoice\" or \"Cancel\" buttons\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "C:\\Users\\ab311\\Intership\\blinkeventz\\nearzro-frontend\\tests\\customer-manual-flow.spec.ts",
+                            "column": 16,
+                            "line": 150
+                          },
+                          "message": "TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[class*=\"border-zinc-800\"]') to be visible\u001b[22m\n\n\n\u001b[0m \u001b[90m 148 |\u001b[39m\n \u001b[90m 149 |\u001b[39m     \u001b[90m// Wait for events list to load (or empty state)\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 150 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mwaitForSelector(\u001b[32m'[class*=\"border-zinc-800\"]'\u001b[39m\u001b[33m,\u001b[39m { timeout\u001b[33m:\u001b[39m \u001b[35m10000\u001b[39m })\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 151 |\u001b[39m\n \u001b[90m 152 |\u001b[39m     \u001b[90m/**\u001b[39m\n \u001b[90m 153 |\u001b[39m \u001b[90m     * HUMAN ACTION: Look for the \"Invoice\" or \"Cancel\" buttons\u001b[39m\u001b[0m\n\u001b[2m    at C:\\Users\\ab311\\Intership\\blinkeventz\\nearzro-frontend\\tests\\customer-manual-flow.spec.ts:150:16\u001b[22m"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-04-13T16:37:24.891Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\Users\\ab311\\Intership\\blinkeventz\\nearzro-frontend\\test-results\\customer-manual-flow-Custo-5d1cb-e-disabled-dead-end-buttons-chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "C:\\Users\\ab311\\Intership\\blinkeventz\\nearzro-frontend\\test-results\\customer-manual-flow-Custo-5d1cb-e-disabled-dead-end-buttons-chromium\\video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "C:\\Users\\ab311\\Intership\\blinkeventz\\nearzro-frontend\\test-results\\customer-manual-flow-Custo-5d1cb-e-disabled-dead-end-buttons-chromium\\error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\Users\\ab311\\Intership\\blinkeventz\\nearzro-frontend\\tests\\customer-manual-flow.spec.ts",
+                        "column": 16,
+                        "line": 150
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "7149484f8d4ba14fe7a1-b3baf830156530a00438",
+              "file": "customer-manual-flow.spec.ts",
+              "line": 145,
+              "column": 7
+            },
+            {
+              "title": "should maintain dark theme across navigation",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 3,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 1970,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m\"rgb\u001b[7m(9, 9, 11\u001b[27m)\"\u001b[39m\nReceived: \u001b[31m\"rgb\u001b[7ma(0, 0, 0, 0\u001b[27m)\"\u001b[39m",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m\"rgb\u001b[7m(9, 9, 11\u001b[27m)\"\u001b[39m\nReceived: \u001b[31m\"rgb\u001b[7ma(0, 0, 0, 0\u001b[27m)\"\u001b[39m\n    at C:\\Users\\ab311\\Intership\\blinkeventz\\nearzro-frontend\\tests\\customer-manual-flow.spec.ts:213:20",
+                        "location": {
+                          "file": "C:\\Users\\ab311\\Intership\\blinkeventz\\nearzro-frontend\\tests\\customer-manual-flow.spec.ts",
+                          "column": 20,
+                          "line": 213
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 211 |\u001b[39m       \u001b[36mreturn\u001b[39m el \u001b[33m?\u001b[39m window\u001b[33m.\u001b[39mgetComputedStyle(el)\u001b[33m.\u001b[39mbackgroundColor \u001b[33m:\u001b[39m \u001b[36mnull\u001b[39m\u001b[33m;\u001b[39m\n \u001b[90m 212 |\u001b[39m     })\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 213 |\u001b[39m     expect(dashBg)\u001b[33m.\u001b[39mtoBe(\u001b[32m'rgb(9, 9, 11)'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m                    \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 214 |\u001b[39m\n \u001b[90m 215 |\u001b[39m     \u001b[90m// Navigate to events page\u001b[39m\n \u001b[90m 216 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mclick(\u001b[32m'text=My Events'\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "C:\\Users\\ab311\\Intership\\blinkeventz\\nearzro-frontend\\tests\\customer-manual-flow.spec.ts",
+                            "column": 20,
+                            "line": 213
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m\"rgb\u001b[7m(9, 9, 11\u001b[27m)\"\u001b[39m\nReceived: \u001b[31m\"rgb\u001b[7ma(0, 0, 0, 0\u001b[27m)\"\u001b[39m\n\n\u001b[0m \u001b[90m 211 |\u001b[39m       \u001b[36mreturn\u001b[39m el \u001b[33m?\u001b[39m window\u001b[33m.\u001b[39mgetComputedStyle(el)\u001b[33m.\u001b[39mbackgroundColor \u001b[33m:\u001b[39m \u001b[36mnull\u001b[39m\u001b[33m;\u001b[39m\n \u001b[90m 212 |\u001b[39m     })\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 213 |\u001b[39m     expect(dashBg)\u001b[33m.\u001b[39mtoBe(\u001b[32m'rgb(9, 9, 11)'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m                    \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 214 |\u001b[39m\n \u001b[90m 215 |\u001b[39m     \u001b[90m// Navigate to events page\u001b[39m\n \u001b[90m 216 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mclick(\u001b[32m'text=My Events'\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m\n\u001b[2m    at C:\\Users\\ab311\\Intership\\blinkeventz\\nearzro-frontend\\tests\\customer-manual-flow.spec.ts:213:20\u001b[22m"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-04-13T16:37:37.425Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\Users\\ab311\\Intership\\blinkeventz\\nearzro-frontend\\test-results\\customer-manual-flow-Custo-6f915-ark-theme-across-navigation-chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "C:\\Users\\ab311\\Intership\\blinkeventz\\nearzro-frontend\\test-results\\customer-manual-flow-Custo-6f915-ark-theme-across-navigation-chromium\\video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "C:\\Users\\ab311\\Intership\\blinkeventz\\nearzro-frontend\\test-results\\customer-manual-flow-Custo-6f915-ark-theme-across-navigation-chromium\\error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\Users\\ab311\\Intership\\blinkeventz\\nearzro-frontend\\tests\\customer-manual-flow.spec.ts",
+                        "column": 20,
+                        "line": 213
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "7149484f8d4ba14fe7a1-01d712363e30c973902a",
+              "file": "customer-manual-flow.spec.ts",
+              "line": 203,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-04-13T16:36:57.500Z",
+    "duration": 42201.958,
+    "expected": 0,
+    "skipped": 0,
+    "unexpected": 4,
+    "flaky": 0
+  }
+}

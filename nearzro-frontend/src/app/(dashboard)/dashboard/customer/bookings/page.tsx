@@ -18,12 +18,17 @@ import { motion } from "framer-motion";
 
 interface Booking {
   id: number;
-  eventId: number;
-  venueName?: string;
-  vendorName?: string;
-  serviceName?: string;
-  date: string;
-  timeSlot: string;
+  eventId?: number;
+  slot?: {
+    venue?: {
+      name?: string;
+    };
+    vendor?: {
+      name?: string;
+    };
+    date: string;
+    timeSlot: string;
+  };
   status: "PENDING" | "CONFIRMED" | "COMPLETED" | "CANCELLED";
   totalAmount: number;
   createdAt: string;
@@ -42,16 +47,21 @@ export default function CustomerBookingsPage() {
       router.push("/login");
       return;
     }
-    loadBookings();
+    const controller = new AbortController();
+    loadBookings(controller.signal);
+    return () => controller.abort();
   }, [isAuthenticated, router]);
 
-  const loadBookings = async () => {
+  const loadBookings = async (signal?: AbortSignal) => {
     try {
       setLoading(true);
-      const response = await api.get("/bookings/my");
+      const response = await api.get("/booking/my", { signal });
       const bookingsData = extractArray<Booking>(response);
       setBookings(bookingsData);
     } catch (error: any) {
+      if (error.name === 'AbortError' || error.code === 'ERR_CANCELED') {
+        return;
+      }
       console.error("Error loading bookings:", error);
       toast.error(error?.response?.data?.message || "Failed to load bookings");
       setBookings([]);
@@ -61,20 +71,21 @@ export default function CustomerBookingsPage() {
   };
 
   const filteredBookings = bookings.filter(booking => {
-    const matchesSearch = booking.venueName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         booking.vendorName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         booking.serviceName?.toLowerCase().includes(searchQuery.toLowerCase());
+    const venueName = booking.slot?.venue?.name;
+    const vendorName = booking.slot?.vendor?.name;
+    const matchesSearch = venueName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         vendorName?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = filterStatus === "all" || booking.status === filterStatus;
     return matchesSearch && matchesStatus;
   });
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "PENDING": return "bg-yellow-100 text-yellow-800 border-yellow-200";
-      case "CONFIRMED": return "bg-green-100 text-green-800 border-green-200";
-      case "COMPLETED": return "bg-blue-100 text-blue-800 border-blue-200";
-      case "CANCELLED": return "bg-red-100 text-red-800 border-red-200";
-      default: return "bg-gray-100 text-gray-800 border-gray-200";
+      case "PENDING": return "bg-yellow-950/30 text-yellow-400 border-yellow-700";
+      case "CONFIRMED": return "bg-emerald-950/30 text-emerald-400 border-emerald-700";
+      case "COMPLETED": return "bg-blue-950/30 text-blue-400 border-blue-700";
+      case "CANCELLED": return "bg-red-950/30 text-red-400 border-red-700";
+      default: return "bg-zinc-800/50 text-zinc-400 border-zinc-700";
     }
   };
 
@@ -90,32 +101,32 @@ export default function CustomerBookingsPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Back Button */}
-      <Button variant="ghost" onClick={() => router.push("/dashboard/customer")} className="mb-6 gap-2">
+      <Button variant="ghost" onClick={() => router.push("/dashboard/customer")} className="mb-6 gap-2 text-zinc-300 hover:text-zinc-100">
         <ArrowLeft className="h-4 w-4" />
         Back to Dashboard
       </Button>
 
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-black mb-2">My Bookings</h1>
-          <p className="text-neutral-600">View and manage all your venue and vendor bookings</p>
+          <h1 className="text-3xl font-bold text-zinc-100 mb-2">My Bookings</h1>
+          <p className="text-zinc-400">View and manage all your venue and vendor bookings</p>
         </div>
 
         {/* Search and Filter */}
-        <Card className="mb-6 border-silver-200">
+        <Card className="mb-6 border-zinc-800 bg-zinc-900/50">
           <CardContent className="pt-6">
             <div className="flex flex-col md:flex-row gap-4">
               <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
                 <Input
                   placeholder="Search bookings..."
-                  className="pl-9"
+                  className="pl-9 bg-zinc-900 border-zinc-700 text-zinc-100"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
               <select
-                className="h-10 px-4 rounded-lg border border-neutral-200 bg-white text-sm"
+                className="h-10 px-4 rounded-lg border border-zinc-700 bg-zinc-900 text-sm text-zinc-100"
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
               >
@@ -132,15 +143,15 @@ export default function CustomerBookingsPage() {
         {/* Bookings List */}
         {loading ? (
           <div className="text-center py-12">
-            <div className="h-12 w-12 rounded-full border-4 border-silver-800 border-t-silver-400 animate-spin mx-auto mb-4" />
-            <p className="text-neutral-600">Loading your bookings...</p>
+            <div className="h-12 w-12 rounded-full border-4 border-zinc-800 border-t-zinc-400 animate-spin mx-auto mb-4" />
+            <p className="text-zinc-400">Loading your bookings...</p>
           </div>
         ) : filteredBookings.length === 0 ? (
-          <Card className="border-silver-200">
+          <Card className="border-zinc-800 bg-zinc-900/50">
             <CardContent className="text-center py-12">
-              <Calendar className="h-16 w-16 text-neutral-400 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-black mb-2">No bookings found</h3>
-              <p className="text-neutral-600 mb-6">
+              <Calendar className="h-16 w-16 text-zinc-600 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-zinc-100 mb-2">No bookings found</h3>
+              <p className="text-zinc-400 mb-6">
                 {searchQuery || filterStatus !== "all"
                   ? "Try adjusting your search or filters"
                   : "Start by booking venues and vendors for your events"}
@@ -159,29 +170,29 @@ export default function CustomerBookingsPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
               >
-                <Card className="border-silver-200 hover:shadow-lg transition-shadow">
+                <Card className="border-zinc-800 bg-zinc-900/50 hover:border-zinc-700 transition-colors">
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-4">
-                        <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center text-white font-bold">
+                        <div className="h-12 w-12 rounded-xl bg-zinc-800 flex items-center justify-center text-zinc-300 font-bold">
                           <Package className="h-6 w-6" />
                         </div>
                         <div>
-                          <h3 className="font-semibold text-black text-lg">
-                            {booking.venueName || booking.vendorName || booking.serviceName || "Booking"}
+                          <h3 className="font-semibold text-zinc-100 text-lg">
+                            {booking.slot?.venue?.name || booking.slot?.vendor?.name || "Booking TBA"}
                           </h3>
-                          <div className="flex items-center gap-4 text-sm text-neutral-600 mt-1">
+                          <div className="flex items-center gap-4 text-sm text-zinc-400 mt-1">
                             <span className="flex items-center gap-1">
                               <Calendar className="h-4 w-4" />
-                              {new Date(booking.date).toLocaleDateString("en-IN", {
+                              {booking.slot?.date ? new Date(booking.slot.date).toLocaleDateString("en-IN", {
                                 day: "numeric",
                                 month: "short",
                                 year: "numeric"
-                              })}
+                              }) : "Date TBA"}
                             </span>
                             <span className="flex items-center gap-1">
                               <Clock className="h-4 w-4" />
-                              {booking.timeSlot.replace("_", " ")}
+                              {booking.slot?.timeSlot?.replace("_", " ") || "Time TBA"}
                             </span>
                           </div>
                         </div>
@@ -192,22 +203,23 @@ export default function CustomerBookingsPage() {
                       </Badge>
                     </div>
 
-                    <div className="flex items-center justify-between pt-4 border-t">
-                      <div className="flex items-center gap-6 text-sm text-neutral-600">
+                    <div className="flex items-center justify-between pt-4 border-t border-zinc-800">
+                      <div className="flex items-center gap-6 text-sm text-zinc-400">
                         <span className="flex items-center gap-1">
                           <DollarSign className="h-4 w-4" />
-                          ₹{booking.totalAmount.toLocaleString("en-IN")}
+                          ₹{(booking.totalAmount || 0).toLocaleString("en-IN")}
                         </span>
                         <span className="flex items-center gap-1">
                           <Calendar className="h-4 w-4" />
-                          Booked on {new Date(booking.createdAt).toLocaleDateString("en-IN")}
+                          Booked on {booking.createdAt ? new Date(booking.createdAt).toLocaleDateString("en-IN") : "N/A"}
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
                         <Button
                           variant="silver"
                           size="sm"
-                          onClick={() => toast.info("Booking details coming soon")}
+                          disabled
+                          className="opacity-50 cursor-not-allowed"
                         >
                           View Details
                         </Button>
@@ -215,8 +227,8 @@ export default function CustomerBookingsPage() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="text-red-600 hover:text-red-700"
-                            onClick={() => toast.info("Cancellation coming soon")}
+                            disabled
+                            className="text-red-400 opacity-50 cursor-not-allowed"
                           >
                             Cancel
                           </Button>

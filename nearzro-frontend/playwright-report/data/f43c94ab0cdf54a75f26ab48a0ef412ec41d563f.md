@@ -1,0 +1,164 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - alert [ref=e2]
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - button "Go back" [ref=e7]:
+            - img [ref=e8]
+          - link "NearZro Logo NearZro" [ref=e10] [cursor=pointer]:
+            - /url: /
+            - img "NearZro Logo" [ref=e12]
+            - generic [ref=e13]: NearZro
+        - navigation [ref=e14]:
+          - link "Home" [ref=e15] [cursor=pointer]:
+            - /url: /
+          - generic [ref=e17]:
+            - link "Venues" [ref=e18] [cursor=pointer]:
+              - /url: /venues
+            - button [ref=e19]:
+              - img [ref=e20]
+          - generic [ref=e23]:
+            - link "Vendors" [ref=e24] [cursor=pointer]:
+              - /url: /vendors
+            - button [ref=e25]:
+              - img [ref=e26]
+          - link "Plan Event" [ref=e28] [cursor=pointer]:
+            - /url: /plan-event
+        - generic [ref=e29]:
+          - link [ref=e30] [cursor=pointer]:
+            - /url: /cart
+            - button [ref=e31]:
+              - img [ref=e32]
+          - link "Log in" [ref=e36] [cursor=pointer]:
+            - /url: /login
+            - button "Log in" [ref=e37]
+          - link "Get Started" [ref=e38] [cursor=pointer]:
+            - /url: /register
+            - button "Get Started" [ref=e39]
+    - main [ref=e40]:
+      - generic [ref=e42]:
+        - generic [ref=e43]:
+          - generic [ref=e47]:
+            - img "NearZro Logo" [ref=e49]
+            - heading "Welcome to NearZro" [level=2] [ref=e50]
+          - paragraph [ref=e51]: Your trusted event management platform
+          - generic [ref=e52]:
+            - generic [ref=e53]:
+              - generic [ref=e54]: ✨ Premium Event Planning
+              - generic [ref=e55]: •
+              - generic [ref=e56]: 🎯 Trusted by 1000+
+            - generic [ref=e57]:
+              - generic [ref=e58]:
+                - img [ref=e60]
+                - generic [ref=e63]: support@NearZro.com
+              - generic [ref=e64]:
+                - img [ref=e66]
+                - generic [ref=e69]: Secure & Encrypted
+        - generic [ref=e71]:
+          - generic [ref=e72]:
+            - heading "Welcome Back" [level=3] [ref=e73]
+            - paragraph [ref=e74]: Sign in to your NearZro account
+          - generic [ref=e75]:
+            - generic [ref=e76]:
+              - generic [ref=e77]:
+                - text: Email or Username
+                - generic [ref=e78]:
+                  - img [ref=e79]
+                  - textbox "Email or Username" [ref=e82]:
+                    - /placeholder: name@example.com or username
+                - paragraph [ref=e83]: You can use either your email address or username to login
+              - generic [ref=e84]:
+                - generic [ref=e85]:
+                  - generic [ref=e86]: Password
+                  - link "Forgot password?" [ref=e87] [cursor=pointer]:
+                    - /url: /forgot-password
+                - generic [ref=e88]:
+                  - img [ref=e89]
+                  - textbox "Password" [ref=e92]:
+                    - /placeholder: Enter your password
+                  - button [ref=e93]:
+                    - img [ref=e94]
+              - button "Sign In" [ref=e97]
+            - generic [ref=e102]: Or continue with
+            - generic [ref=e103]:
+              - button "Google" [ref=e104]:
+                - img [ref=e105]
+                - text: Google
+              - button "Facebook" [ref=e110]:
+                - img [ref=e111]
+                - text: Facebook
+            - generic [ref=e114]:
+              - img [ref=e115]
+              - generic [ref=e117]:
+                - paragraph [ref=e118]: Demo Credentials
+                - paragraph [ref=e119]:
+                  - strong [ref=e120]: "Admin:"
+                  - text: admin@NearZro.com / admin123
+                - paragraph [ref=e121]:
+                  - strong [ref=e122]: "Customer:"
+                  - text: customer@NearZro.com / customer123
+          - generic [ref=e123]:
+            - generic [ref=e124]:
+              - text: Don't have an account?
+              - link "Create Account" [ref=e125] [cursor=pointer]:
+                - /url: /register
+            - generic [ref=e126]:
+              - text: Are you an admin?
+              - link "Admin Login" [ref=e127] [cursor=pointer]:
+                - /url: /admin-login
+            - generic [ref=e128]:
+              - text: By signing in, you agree to our
+              - link "Terms of Service" [ref=e129] [cursor=pointer]:
+                - /url: /terms
+              - text: and
+              - link "Privacy Policy" [ref=e130] [cursor=pointer]:
+                - /url: /privacy
+    - contentinfo [ref=e131]:
+      - generic [ref=e132]:
+        - generic [ref=e133]:
+          - generic [ref=e134]:
+            - link "NearZro Logo NearZro" [ref=e135] [cursor=pointer]:
+              - /url: /
+              - img "NearZro Logo" [ref=e137]
+              - generic [ref=e138]: NearZro
+            - paragraph [ref=e139]: Making event planning seamless and memorable.
+          - generic [ref=e140]:
+            - heading "Platform" [level=3] [ref=e141]
+            - list [ref=e142]:
+              - listitem [ref=e143]:
+                - link "Browse Venues" [ref=e144] [cursor=pointer]:
+                  - /url: /venues
+              - listitem [ref=e145]:
+                - link "Find Vendors" [ref=e146] [cursor=pointer]:
+                  - /url: /vendors
+              - listitem [ref=e147]:
+                - link "Plan Event" [ref=e148] [cursor=pointer]:
+                  - /url: /plan-event
+          - generic [ref=e149]:
+            - heading "Company" [level=3] [ref=e150]
+            - list [ref=e151]:
+              - listitem [ref=e152]:
+                - link "About Us" [ref=e153] [cursor=pointer]:
+                  - /url: /about
+              - listitem [ref=e154]:
+                - link "Careers" [ref=e155] [cursor=pointer]:
+                  - /url: /careers
+              - listitem [ref=e156]:
+                - link "Contact" [ref=e157] [cursor=pointer]:
+                  - /url: /contact
+          - generic [ref=e158]:
+            - heading "Legal" [level=3] [ref=e159]
+            - list [ref=e160]:
+              - listitem [ref=e161]:
+                - link "Privacy Policy" [ref=e162] [cursor=pointer]:
+                  - /url: /privacy
+              - listitem [ref=e163]:
+                - link "Terms of Service" [ref=e164] [cursor=pointer]:
+                  - /url: /terms
+        - generic [ref=e165]: © 2026 NearZro. All rights reserved.
+  - region "Notifications alt+T"
+```

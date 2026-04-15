@@ -70,10 +70,15 @@ export default function PlanDetailPage() {
 
   useEffect(() => {
     if (!planId || isNaN(planId)) { setError("Invalid plan ID"); setLoading(false); return; }
+    const controller = new AbortController();
     aiPlannerApi.getPlan(planId)
       .then(setPlan)
-      .catch(() => setError("Plan not found or access denied"))
+      .catch((err) => {
+        if (err.name === 'AbortError' || err.code === 'ERR_CANCELED') return;
+        setError("Plan not found or access denied");
+      })
       .finally(() => setLoading(false));
+    return () => controller.abort();
   }, [planId]);
 
   const handleAccept = useCallback(async () => {

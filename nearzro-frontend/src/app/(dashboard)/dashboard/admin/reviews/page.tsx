@@ -89,13 +89,13 @@ export default function AdminReviewsPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "PENDING":
-        return "bg-amber-100 text-amber-800 border-amber-200";
+        return "bg-amber-950/30 text-amber-400 border-amber-700";
       case "APPROVED":
-        return "bg-green-100 text-green-800 border-green-200";
+        return "bg-emerald-950/30 text-emerald-400 border-emerald-700";
       case "REJECTED":
-        return "bg-red-100 text-red-800 border-red-200";
+        return "bg-red-950/30 text-red-400 border-red-700";
       default:
-        return "bg-neutral-100 text-neutral-800 border-neutral-200";
+        return "bg-zinc-800/50 text-zinc-400 border-zinc-700";
     }
   };
 
@@ -110,8 +110,8 @@ export default function AdminReviewsPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
-          <div className="h-12 w-12 rounded-full border-4 border-neutral-200 border-t-black animate-spin mx-auto mb-4" />
-          <p className="text-black">Loading reviews...</p>
+          <div className="h-12 w-12 rounded-full border-4 border-zinc-800 border-t-zinc-400 animate-spin mx-auto mb-4" />
+          <p className="text-zinc-400">Loading reviews...</p>
         </div>
       </div>
     );
@@ -120,8 +120,8 @@ export default function AdminReviewsPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-black mb-2">Reviews Moderation</h1>
-        <p className="text-neutral-600">Review and approve customer reviews</p>
+        <h1 className="text-3xl font-bold text-zinc-100 mb-2">Reviews Moderation</h1>
+        <p className="text-zinc-400">Review and approve customer reviews</p>
       </div>
 
       {/* Filter Tabs */}
@@ -129,28 +129,28 @@ export default function AdminReviewsPage() {
         <Button
           variant={filter === "PENDING" ? "default" : "outline"}
           onClick={() => setFilter("PENDING")}
-          className={filter === "PENDING" ? "bg-black" : "border-black"}
+          className={filter === "PENDING" ? "bg-zinc-100 text-zinc-900" : "border-zinc-700 text-zinc-300"}
         >
           Pending
         </Button>
         <Button
           variant={filter === "APPROVED" ? "default" : "outline"}
           onClick={() => setFilter("APPROVED")}
-          className={filter === "APPROVED" ? "bg-black" : "border-black"}
+          className={filter === "APPROVED" ? "bg-zinc-100 text-zinc-900" : "border-zinc-700 text-zinc-300"}
         >
           Approved
         </Button>
         <Button
           variant={filter === "REJECTED" ? "default" : "outline"}
           onClick={() => setFilter("REJECTED")}
-          className={filter === "REJECTED" ? "bg-black" : "border-black"}
+          className={filter === "REJECTED" ? "bg-zinc-100 text-zinc-900" : "border-zinc-700 text-zinc-300"}
         >
           Rejected
         </Button>
         <Button
           variant={filter === "all" ? "default" : "outline"}
           onClick={() => setFilter("all")}
-          className={filter === "all" ? "bg-black" : "border-black"}
+          className={filter === "all" ? "bg-zinc-100 text-zinc-900" : "border-zinc-700 text-zinc-300"}
         >
           All
         </Button>
@@ -159,15 +159,15 @@ export default function AdminReviewsPage() {
       {/* Reviews List */}
       <div className="grid gap-4">
         {reviews.length === 0 ? (
-          <Card>
+          <Card className="border-zinc-800 bg-zinc-900/50">
             <CardContent className="py-12 text-center">
-              <div className="h-16 w-16 rounded-full bg-neutral-100 flex items-center justify-center mx-auto mb-4">
-                <CheckCircle2 className="h-8 w-8 text-neutral-400" />
+              <div className="h-16 w-16 rounded-full bg-zinc-800 flex items-center justify-center mx-auto mb-4">
+                <CheckCircle2 className="h-8 w-8 text-zinc-500" />
               </div>
-              <h3 className="text-lg font-bold text-black mb-2">
+              <h3 className="text-lg font-bold text-zinc-100 mb-2">
                 {filter === "PENDING" ? "No Pending Reviews" : "No Reviews"}
               </h3>
-              <p className="text-neutral-600">
+              <p className="text-zinc-400">
                 {filter === "PENDING" 
                   ? "All reviews have been moderated" 
                   : "No reviews found for this filter"}
@@ -176,16 +176,16 @@ export default function AdminReviewsPage() {
           </Card>
         ) : (
           reviews.map((review) => (
-            <Card key={review.id} className="border-2 border-neutral-200">
+            <Card key={review.id} className="border-zinc-800 bg-zinc-900/50">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-gradient-to-br from-silver-200 to-silver-400 flex items-center justify-center">
+                    <div className="h-10 w-10 rounded-full bg-zinc-800 flex items-center justify-center">
                       {review.user.name.charAt(0)}
                     </div>
                     <div>
-                      <p className="font-semibold text-black">{review.user.name}</p>
-                      <p className="text-sm text-neutral-600">{review.user.email}</p>
+                      <p className="font-semibold text-zinc-100">{review.user.name}</p>
+                      <p className="text-sm text-zinc-400">{review.user.email}</p>
                     </div>
                   </div>
                   <Badge className={getStatusColor(review.status)}>
@@ -197,20 +197,20 @@ export default function AdminReviewsPage() {
                 <div>
                   <div className="flex items-center gap-2 mb-2">
                     <StarRating rating={review.rating} readonly size="sm" />
-                    <span className="text-sm text-neutral-600">
+                    <span className="text-sm text-zinc-500">
                       {new Date(review.createdAt).toLocaleDateString("en-IN")}
                     </span>
                   </div>
                   {review.title && (
-                    <p className="font-semibold text-black mb-2">{review.title}</p>
+                    <p className="font-semibold text-zinc-100 mb-2">{review.title}</p>
                   )}
                   {review.comment && (
-                    <p className="text-neutral-700">{review.comment}</p>
+                    <p className="text-zinc-300">{review.comment}</p>
                   )}
                 </div>
 
-                <div className="flex items-center justify-between pt-4 border-t">
-                  <p className="text-sm text-neutral-600">
+                <div className="flex items-center justify-between pt-4 border-t border-zinc-800">
+                  <p className="text-sm text-zinc-400">
                     {getEntityName(review)}
                   </p>
                   <div className="flex items-center gap-2">
@@ -220,7 +220,7 @@ export default function AdminReviewsPage() {
                           variant="default"
                           size="sm"
                           onClick={() => handleApprove(review.id)}
-                          className="bg-green-600 hover:bg-green-700"
+                          className="bg-emerald-600 hover:bg-emerald-700"
                         >
                           <CheckCircle2 className="h-4 w-4 mr-1" />
                           Approve
@@ -229,7 +229,7 @@ export default function AdminReviewsPage() {
                           variant="outline"
                           size="sm"
                           onClick={() => handleReject(review.id)}
-                          className="text-red-600 hover:bg-red-50"
+                          className="text-red-400 border-red-800 hover:bg-red-950/30"
                         >
                           <XCircle className="h-4 w-4 mr-1" />
                           Reject
@@ -240,7 +240,7 @@ export default function AdminReviewsPage() {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleDelete(review.id)}
-                      className="text-neutral-600"
+                      className="text-zinc-500 hover:text-zinc-300"
                     >
                       <Trash2 className="h-4 w-4 mr-1" />
                       Delete
