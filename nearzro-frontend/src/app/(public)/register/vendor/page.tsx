@@ -16,7 +16,7 @@ import { compressImage } from "@/lib/image-utils";
 
 const sanitizeErrorMessage = (
   message: string,
-  setErrors: Function
+  setErrors: React.Dispatch<React.SetStateAction<Record<string, string>>>
 ): boolean => {
   // Last safety net — if somehow a Prisma error leaks through
   const isPrismaError =
@@ -463,7 +463,7 @@ export default function VendorRegisterPage() {
       // STANDARD USER FLOW (New email/password registration)
       const response = await api.post("/auth/register-vendor", formDataObj, {
         headers: { "Content-Type": "multipart/form-data" },
-        // @ts-ignore - skipAuth is a custom property handled in interceptor
+        // @ts-expect-error - skipAuth is a custom property handled in interceptor
         skipAuth: true,
       });
 

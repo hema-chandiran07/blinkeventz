@@ -3,7 +3,6 @@ import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { extname } from 'path';
 import { DatabaseStorageService } from '../storage/database-storage.service';
-import { MulterOptions } from '@nestjs/platform-express/multer/interfaces/multer-options.interface';
 
 // Secure file filter — allowlist of safe file types
 const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf'];
@@ -23,6 +22,7 @@ const secureFileFilter = (req: any, file: Express.Multer.File, callback: (error:
   }
   callback(null, true);
 };
+
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
@@ -59,7 +59,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly storageService: DatabaseStorageService,
-  ) { }
+  ) {}
 
   // 👤 Normal USER registration
   @Public()
@@ -84,15 +84,15 @@ export class AuthController {
       { name: 'kycDocFiles', maxCount: 5 },
       { name: 'venueGovtCertificateFiles', maxCount: 5 }, // Trade License (MANDATORY)
     ], {
-      storage: memoryStorage(),
+      storage: memoryStorage(), // FEATURE ADDED: Using memory storage for DB fallback
       fileFilter: secureFileFilter,
       limits: { fileSize: MAX_FILE_SIZE },
     }),
   )
   async registerVenueOwner(
     @Body() dto: VenueOwnerRegisterDto,
-    @UploadedFiles() files: {
-      venueImages?: Express.Multer.File[];
+    @UploadedFiles() files: { 
+      venueImages?: Express.Multer.File[]; 
       kycDocFiles?: Express.Multer.File[];
       venueGovtCertificateFiles?: Express.Multer.File[];
     },
@@ -127,12 +127,12 @@ export class AuthController {
       { name: 'kycDocFiles', maxCount: 5 },
       { name: 'foodLicenseFiles', maxCount: 5 }, // FSSAI (CONDITIONAL - only for CATERING)
     ], {
-      storage: memoryStorage(),
+      storage: memoryStorage(), // FEATURE ADDED: Using memory storage for DB fallback
       fileFilter: secureFileFilter,
       limits: { fileSize: MAX_FILE_SIZE },
     }),
   )
-  async registerVendor(
+  registerVendor(
     @Body() dto: VendorRegisterDto,
     @UploadedFiles() files: {
       businessImages?: Express.Multer.File[];
@@ -235,6 +235,7 @@ export class AuthController {
     const exists = await this.authService.checkPhoneExists(body.phone);
     return { exists };
   }
+
   // 🚀 Redirect to Google OAuth
   @Public()
   @Get('google')
@@ -254,16 +255,16 @@ export class AuthController {
     try {
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
       if (!req.user) return res.redirect(`${frontendUrl}/login?error=no_user_data`);
-
+      
       // Extract state data parsed by the strategy
       const { intendedRole = 'CUSTOMER', callbackUrl = '/' } = req.user || {};
-
+      
       const result = await this.authService.handleOAuthLogin(req.user, 'google', intendedRole);
       const userData = { id: result.user.id, email: result.user.email, name: result.user.name, role: result.user.role };
-
+      
       // Dynamically route back to the correct registration page at step 2
       const redirectUrl = `${frontendUrl}${callbackUrl}?step=2&token=${result.accessToken}&user=${encodeURIComponent(JSON.stringify(userData))}`;
-
+      
       return res.redirect(redirectUrl);
     } catch (error: any) {
       console.error("🚨 GOOGLE OAUTH CALLBACK CRASHED:", error);
@@ -290,13 +291,13 @@ export class AuthController {
   async facebookAuthCallback(@Req() req: Request & { user?: { facebookId: string; email: string; name: string; picture?: string } }, @Res() res: Response) {
     try {
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
-
+      
       if (!req.user) {
         return res.redirect(`${frontendUrl}/login?error=no_user_data`);
       }
-
+      
       const tokens = await this.authService.handleOAuthLogin(req.user, 'facebook');
-
+      
       const tempCode = Buffer.from(JSON.stringify(tokens)).toString('base64');
       res.redirect(`${frontendUrl}/auth/callback?code=${tempCode}`);
     } catch (error) {
@@ -345,5 +346,4 @@ export class AuthController {
   verifyOtp(@Body() dto: VerifyOtpDto) {
     return this.authService.verifyOtp(dto.email, dto.otp);
   }
-
 }

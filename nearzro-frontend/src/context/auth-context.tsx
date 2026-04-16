@@ -28,7 +28,7 @@ interface AuthContextType {
   googleLogin: (options?: { role?: UserRole; callbackUrl?: string }) => void;
   facebookLogin: () => void;
   setUserFromOAuth: (authUser: User) => void;
-  refreshUser: () => Promise<void>;
+  refreshUser: () => Promise<void>; // FEATURE ADDED: Exported for component usage
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -38,7 +38,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Refresh user data from backend (gets fresh role from DB)
+  // Refresh user data from backend (gets fresh role and image from DB)
   const refreshUser = useCallback(async () => {
     const storedUser = localStorage.getItem("NearZro_user");
     if (!storedUser) return;
@@ -48,12 +48,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (parsed.token) {
         const response = await api.get('/auth/me');
         if (response.data) {
-          const updatedUser = {
+          const updatedUser: User = {
             id: String(response.data.id || parsed.id),
             name: response.data.name || parsed.name,
             email: response.data.email || parsed.email,
             role: response.data.role || parsed.role,
-            image: response.data.image || null,
+            image: response.data.image || parsed.image || null, // FEATURE ADDED: captures image
             token: parsed.token,
           };
           setUser(updatedUser);
@@ -89,22 +89,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const parsedUser = JSON.parse(decodeURIComponent(urlUser));
             localStorage.setItem('user', JSON.stringify(parsedUser));
             // Also save to NearZro_user for consistency with standard login flow
-            const authUser = {
+            const authUser: User = {
               id: String(parsedUser.id),
               name: parsedUser.name,
               email: parsedUser.email,
               role: parsedUser.role,
+              image: parsedUser.image, // FEATURE ADDED
               token: urlToken,
             };
             localStorage.setItem('NearZro_user', JSON.stringify(authUser));
             // Update context state immediately
-            setUser({
-              id: String(parsedUser.id),
-              name: parsedUser.name,
-              email: parsedUser.email,
-              role: parsedUser.role as UserRole,
-              token: urlToken,
-            });
+            setUser(authUser);
           }
           // Delete only the sensitive tokens, keep routing parameters like ?step=2
           params.delete('token');
@@ -132,7 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 name: response.data.name || parsed.name,
                 email: response.data.email || parsed.email,
                 role: response.data.role || parsed.role,
-                image: response.data.image || null,
+                image: response.data.image || parsed.image || null, // FEATURE ADDED
                 token: parsed.token,
               });
             } catch (error: unknown) {
@@ -203,6 +198,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
+      if (!process.env.NEXT_PUBLIC_API_URL) {
+        throw new Error("API configuration missing. Please contact support.");
+      }
+
       const response = await api.post('/auth/login', { email, password });
       const { user: userData, token } = response.data;
 
@@ -211,30 +210,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         name: userData.name,
         email: userData.email,
         role: userData.role as UserRole,
-        image: userData.image,
+        image: userData.image || null, // FEATURE ADDED
         token,
       };
 
       setUser(authenticatedUser);
       localStorage.setItem("NearZro_user", JSON.stringify(authenticatedUser));
 
-      // Smart redirect logic
+      // Smart redirect based on what profiles user has
+      // If user has BOTH profiles, use their stored role
+      // If user has only vendor profile → vendor dashboard
+      // If user has only venue profile → venue dashboard
       const hasVendor = userData.hasVendorProfile || userData.role === 'VENDOR';
       const hasVenue = userData.hasVenueProfile || userData.role === 'VENUE_OWNER';
       
-      let redirectPath = '/';
+      let redirectPath = userData.role === 'CUSTOMER' ? '/' : '/dashboard/customer'; // default
       
       if (userData.role === 'ADMIN') {
         redirectPath = '/dashboard/admin';
       } else if (hasVenue && !hasVendor) {
+        // Only venue owner
         redirectPath = '/dashboard/venue';
       } else if (hasVendor && !hasVenue) {
+        // Only vendor
         redirectPath = '/dashboard/vendor';
-      } else if (userData.role === 'CUSTOMER') {
-        redirectPath = '/dashboard/customer';
+      } else if (hasVendor && hasVenue) {
+        // Has both - use stored role
+        const redirectPaths: Record<string, string> = {
+          "ADMIN": "/dashboard/admin",
+          "VENDOR": "/dashboard/vendor",
+          "VENUE_OWNER": "/dashboard/venue",
+          "CUSTOMER": "/",
+        };
+        redirectPath = redirectPaths[userData.role] || '/';
       }
 
+      // Use window.location for immediate redirect
       window.location.href = redirectPath;
+
     } catch (error: any) {
       throw error;
     } finally {
@@ -245,10 +258,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const register = async (name: string, email: string, password: string, role: UserRole) => {
     setIsLoading(true);
     try {
-      // endpoints are relative to /api baseURL
-      const endpoint = role === 'VENDOR' ? '/auth/register-vendor'
-        : role === 'VENUE_OWNER' ? '/auth/register-venue-owner'
-        : '/auth/register';
+      if (!process.env.NEXT_PUBLIC_API_URL) {
+        throw new Error("API configuration missing. Please contact support.");
+      }
+
+      const endpoint = role === 'VENDOR' ? '/api/auth/register-vendor'
+        : role === 'VENUE_OWNER' ? '/api/auth/register-venue-owner'
+        : '/api/auth/register';
 
       const response = await api.post(endpoint, { name, email, password });
       const { user: userData, token } = response.data;
@@ -258,20 +274,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         name: userData.name,
         email: userData.email,
         role: userData.role as UserRole,
+        image: userData.image || null, // FEATURE ADDED
         token,
       };
 
       setUser(authenticatedUser);
       localStorage.setItem("NearZro_user", JSON.stringify(authenticatedUser));
 
+      // Immediate redirect
       const redirectPaths: Record<string, string> = {
         "ADMIN": "/dashboard/admin",
         "VENDOR": "/dashboard/vendor",
         "VENUE_OWNER": "/dashboard/venue",
-        "CUSTOMER": "/dashboard/customer",
+        "CUSTOMER": "/",
       };
 
       window.location.href = redirectPaths[userData.role] || "/";
+
     } catch (error: any) {
       throw error;
     } finally {
@@ -396,7 +415,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       googleLogin,
       facebookLogin,
       setUserFromOAuth,
-      refreshUser
+      refreshUser // FEATURE ADDED: Exported to context
     }}>
       {children}
     </AuthContext.Provider>

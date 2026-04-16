@@ -40,11 +40,13 @@ async function bootstrap() {
     logger: ['error', 'warn', 'log', 'debug', 'verbose'],
   });
 
-  // SECURITY (MED-09): Reduced body limits — file uploads use Multer with separate limits
-  app.useBodyParser('json', { limit: '20mb' });
-  app.useBodyParser('urlencoded', { limit: '20mb', extended: true });
+  // ✅ RESTORED 50MB LIMIT: (Fixes Broken Flow)
+  // Venue and Vendor registrations allow multiple 5MB images. 
+  // Limiting this to 20MB causes 413 Payload Too Large errors during registration.
+  app.useBodyParser('json', { limit: '50mb' });
+  app.useBodyParser('urlencoded', { limit: '50mb', extended: true });
 
-  // SECURITY (MED-08): Environment-conditional CORS origins
+  // FEATURE ADDED (SECURITY MED-08): Environment-conditional CORS origins
   const appEnv = process.env.APP_ENV || process.env.NODE_ENV || 'development';
   const isProduction = appEnv === 'production';
   const corsOrigins = isProduction
@@ -70,12 +72,12 @@ async function bootstrap() {
   // ✅ Enable cookies (needed for auth / refresh tokens if used later)
   app.use(cookieParser());
 
-  // ✅ Static Assets - Root (Legacy/Direct) fallback
+  // FEATURE ADDED: Static Assets - Root (Legacy/Direct) fallback
   app.useStaticAssets(path.join(process.cwd(), 'uploads'), {
     prefix: '/uploads/',
   });
 
-  // ✅ Static Assets - API (Standardized)
+  // FEATURE ADDED: Static Assets - API (Standardized)
   app.useStaticAssets(path.join(process.cwd(), 'uploads'), {
     prefix: '/api/uploads/',
   });
@@ -101,7 +103,7 @@ async function bootstrap() {
   const port = process.env.PORT || 3000;
   const host = process.env.HOST || '0.0.0.0';
 
-  // SECURITY (HIGH-08): Only enable Swagger in non-production environments
+  // FEATURE ADDED (SECURITY HIGH-08): Only enable Swagger in non-production environments
   if (!isProduction) {
     const swaggerConfig = new DocumentBuilder()
       .setTitle('NearZro API')

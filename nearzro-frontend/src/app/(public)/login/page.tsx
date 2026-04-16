@@ -87,8 +87,6 @@ export default function LoginPage() {
     googleLogin();
   };
 
-
-
   // Listen for auth notice events (for unconfigured OAuth providers)
   useEffect(() => {
     const handleAuthNotice = (event: CustomEvent) => {
@@ -317,7 +315,6 @@ export default function LoginPage() {
                 </Link>
               </div>
               
-
 
               <div className="text-xs text-zinc-500">
                 By signing in, you agree to our{" "}

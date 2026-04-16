@@ -16,7 +16,7 @@ import { PasswordStrength } from "@/components/ui/password-strength";
 
 const sanitizeErrorMessage = (
   message: string,
-  setErrors: Function
+  setErrors: React.Dispatch<React.SetStateAction<Record<string, string>>>
 ): boolean => {
   // Last safety net — if somehow a Prisma error leaks through
   const isPrismaError =
