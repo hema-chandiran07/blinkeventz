@@ -3,7 +3,7 @@ import {
   BadRequestException, NotFoundException, ForbiddenException, UseInterceptors, Query, UploadedFile, UploadedFiles
 } from '@nestjs/common';
 import { FileFieldsInterceptor, FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
+import { diskStorage, memoryStorage } from 'multer';
 import { extname } from 'path';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { VendorsService } from './vendors.service';
@@ -15,7 +15,7 @@ import { ApiBearerAuth, ApiTags, ApiParam, ApiOperation, ApiBody, ApiQuery } fro
 import type { AuthRequest } from '../auth/auth-request.interface';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
-import { Role } from '../common/enums/role.enum';
+import { Role } from '@prisma/client';
 import { Public } from '../common/decorators/public.decorator';
 import { PhotoCategory } from '@prisma/client';
 
@@ -80,24 +80,23 @@ export class VendorsController {
       { name: 'kycDocFiles', maxCount: 5 },
       { name: 'foodLicenseFiles', maxCount: 5 },
     ], {
-      storage: diskStorage({
-        destination: './uploads',
-        filename: (req, file, callback) => {
-          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-          const ext = extname(file.originalname);
-          callback(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
-        },
-      }),
+      storage: memoryStorage(),
     }),
   )
-  updateMyVendor(
+  async updateMyVendor(
     @Req() req: AuthRequest,
     @Body() dto: Partial<CreateVendorDto>,
     @UploadedFiles() files: { businessImages?: Express.Multer.File[], kycDocFiles?: Express.Multer.File[], foodLicenseFiles?: Express.Multer.File[] },
   ) {
-    const businessImageUrls = files?.businessImages?.map(f => `/uploads/${f.filename}`) || [];
-    const kycDocUrls = files?.kycDocFiles?.map(f => `/uploads/${f.filename}`) || [];
-    const foodLicenseUrls = files?.foodLicenseFiles?.map(f => `/uploads/${f.filename}`) || [];
+    const businessImageUrls = files?.businessImages 
+      ? await Promise.all(files.businessImages.map(f => this.databaseStorageService.storeFile(f)))
+      : [];
+    const kycDocUrls = files?.kycDocFiles
+      ? await Promise.all(files.kycDocFiles.map(f => this.databaseStorageService.storeFile(f)))
+      : [];
+    const foodLicenseUrls = files?.foodLicenseFiles
+      ? await Promise.all(files.foodLicenseFiles.map(f => this.databaseStorageService.storeFile(f)))
+      : [];
     return this.vendorsService.updateVendorByUserId(req.user.userId, dto, businessImageUrls, kycDocUrls, foodLicenseUrls);
   }
 
@@ -119,7 +118,7 @@ export class VendorsController {
       where: {
         slot: {
           vendorId: vendor.id,
-        },
+        } as any,
       },
       include: {
         slot: true,
@@ -151,7 +150,7 @@ export class VendorsController {
     const totalEarnings = bookings
       .filter((b: any) => b.status === 'COMPLETED' || b.status === 'CONFIRMED')
       .reduce((sum: number, booking: any) => {
-        const service = services.find((s: any) => booking.slot && booking.slot.entityId === vendor.id);
+        const service = services.find((s: any) => booking.slot && booking.slot.vendorId === vendor.id);
         return sum + (service?.baseRate || vendor.basePrice || 0);
       }, 0);
 
@@ -189,7 +188,7 @@ export class VendorsController {
       where: {
         slot: {
           vendorId: vendor.id,
-        },
+        } as any,
       },
       include: {
         slot: {
@@ -208,9 +207,14 @@ export class VendorsController {
       },
       orderBy: { createdAt: 'desc' },
     });
-    return bookings;
+    // Calculate based on service baseRate or fallback to vendor basePrice
+    const fallbackRate = vendor.basePrice || vendor.services?.[0]?.baseRate || 0;
+    
+    return bookings.map(b => ({
+      ...b,
+      totalAmount: vendor.services?.find(s => s.id === (b as any).slot?.vendorId)?.baseRate || fallbackRate,
+    }));
   }
-
   /// 🧑‍🔧 VENDOR → Get my earnings
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -224,7 +228,7 @@ export class VendorsController {
       where: {
         slot: {
           vendorId: vendor.id,
-        },
+        } as any,
       },
       include: {
         slot: true,
@@ -247,17 +251,17 @@ export class VendorsController {
     const pendingBookings = bookings.filter(b => b.status === 'PENDING');
     
     // Calculate based on service baseRate for each booking
-    const totalGrossEarnings = completedBookings.reduce((sum, booking) => {
+    const totalGrossEarnings = completedBookings.reduce((sum, booking: any) => {
       // Find the vendor service for this booking
       const service = vendor.services?.find(s =>
-        booking.slot && booking.slot.vendorId === vendor.id
+        (booking as any).slot && (booking as any).slot.vendorId === vendor.id
       );
       return sum + (service?.baseRate || 0);
     }, 0);
 
-    const pendingEarnings = pendingBookings.reduce((sum, booking) => {
+    const pendingEarnings = pendingBookings.reduce((sum, booking: any) => {
       const service = vendor.services?.find(s =>
-        booking.slot && booking.slot.vendorId === vendor.id
+        (booking as any).slot && (booking as any).slot.vendorId === vendor.id
       );
       return sum + (service?.baseRate || 0);
     }, 0);
@@ -285,6 +289,21 @@ export class VendorsController {
     };
   }
 
+  /// Get my vendor reviews (Frontend Alias for GET /vendors/me/reviews)
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENDOR)
+  @Get('me/reviews')
+  async getMyVendorReviews(@Req() req: AuthRequest) {
+    const vendor = await this.vendorsService.getVendorByUserId(req.user.userId);
+    const reviews = await this.prisma.review.findMany({
+      where: { vendorId: vendor.id },
+      include: { user: { select: { name: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+    return { reviews };
+  }
+
   /// 🧑‍🔧 VENDOR → Get my availability
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -297,7 +316,7 @@ export class VendorsController {
     const availability = await this.prisma.availabilitySlot.findMany({
       where: {
         vendorId: vendor.id,
-      },
+      } as any,
       orderBy: { date: 'asc' },
     });
     return availability;
@@ -358,7 +377,7 @@ export class VendorsController {
         vendorId: vendor.id,
         date: new Date(body.date),
         timeSlot: body.timeSlot,
-      },
+      } as any,
     });
 
     if (existingSlot) {
@@ -402,7 +421,7 @@ export class VendorsController {
       where: {
         id: slotId,
         vendorId: vendor.id,
-      },
+      } as any,
     });
 
     if (!slot) {
@@ -439,7 +458,7 @@ export class VendorsController {
         vendorId: vendor.id,
         date: new Date(body.date),
         timeSlot: body.timeSlot,
-      },
+      } as any,
     });
 
     if (existingSlot) {
@@ -970,3 +989,4 @@ export class VendorsController {
     return this.vendorsService.getVendorServices(+id);
   }
 }
+

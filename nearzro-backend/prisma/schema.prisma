@@ -10,16 +10,17 @@ datasource db {
 /// ///////////////////////////////////////////////////
 /// ///////////////////////////////////////////////////
 model User {
-  id           Int      @id @default(autoincrement())
-  name         String
-  email        String?  @unique
-  phone        String?  @unique
-  passwordHash String?
-  googleId     String?  @unique
-  role         Role     @default(CUSTOMER)
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                 Int      @id @default(autoincrement())
+  name               String
+  email              String?  @unique
+  phone              String?  @unique
+  passwordHash       String?
+  googleId           String?  @unique
+  role               Role     @default(CUSTOMER)
+  isActive           Boolean  @default(true)
+  image              String?  // Base64 profile picture
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   // Password reset security
   passwordResetToken  String? // Hashed token - never expose
@@ -52,6 +53,7 @@ model User {
   vendor                  Vendor?
   venues                  Venue[]
   refreshTokens           RefreshToken[]
+  searchAudits            SearchAudit[]
 
   // Indexes for authentication queries
   @@index([email])
@@ -60,11 +62,28 @@ model User {
   @@index([passwordResetToken])
 }
 
+/// Search Audit Model - Track query performance and intent
+model SearchAudit {
+  id           Int      @id @default(autoincrement())
+  userId       Int?
+  query        String
+  filters      Json?
+  resultsCount Int
+  durationMs   Int
+  createdAt    DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([query])
+}
+
 /// Refresh Token Model for JWT refresh mechanism
 model RefreshToken {
   id         Int       @id @default(autoincrement())
   userId     Int
-  token      String // Hashed token for security
+  token      String    // Hashed token for security
   expiresAt  DateTime
   revoked    Boolean   @default(false)
   revokedAt  DateTime?
@@ -122,11 +141,11 @@ model Vendor {
   // FSSAI License (CONDITIONAL - only for CATERING)
   foodLicenseFiles String[] @default([])
 
-  payouts         Payout[]
-  reviews         Review[]
-  user            User             @relation(fields: [userId], references: [id])
-  services        VendorService[]
-  portfolioImages PortfolioImage[]
+  payouts          Payout[]
+  reviews          Review[]
+  user             User               @relation(fields: [userId], references: [id])
+  services         VendorService[]
+  portfolioImages  PortfolioImage[]
   availabilitySlots AvailabilitySlot[] @relation("VendorAvailability")
 }
 
@@ -1037,6 +1056,8 @@ enum ItemTypeForEvent {
 enum EventServiceStatus {
   PENDING
   CONFIRMED
+  IN_PROGRESS
+  COMPLETED
   CANCELLED
 }
 
@@ -1053,6 +1074,8 @@ enum NotificationType {
   SERVICE_REJECTED
   EVENT_REMINDER
   EVENT_CANCELLED
+  KYC_APPROVED
+  KYC_REJECTED
   SYSTEM_ALERT
   OTHER
 }

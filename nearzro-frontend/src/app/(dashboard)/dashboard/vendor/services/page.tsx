@@ -305,6 +305,17 @@ export default function VendorServicesPage() {
     }
   };
 
+  const handleToggleStatus = async (serviceId: number, currentStatus: boolean) => {
+    try {
+      const endpoint = currentStatus ? `/vendor-services/${serviceId}/deactivate` : `/vendor-services/${serviceId}/activate`;
+      await api.patch(endpoint);
+      toast.success(`Service ${currentStatus ? 'deactivated' : 'activated'} successfully!`);
+      loadServices();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || `Failed to ${currentStatus ? 'deactivate' : 'activate'} service`);
+    }
+  };
+
   const getServiceIcon = (type: string) => {
     const serviceType = SERVICE_TYPES.find(s => s.value === type);
     const Icon = serviceType?.icon || Settings;
@@ -617,6 +628,11 @@ export default function VendorServicesPage() {
                           <Badge className={service.isActive ? "bg-green-100 text-green-700" : "bg-neutral-100 text-neutral-600"}>
                             {service.isActive ? "Active" : "Inactive"}
                           </Badge>
+                          <Switch
+                            checked={service.isActive}
+                            onCheckedChange={() => handleToggleStatus(service.id, service.isActive)}
+                            aria-label="Toggle service status"
+                          />
                         </div>
                         <div className="flex items-center gap-6 text-sm text-neutral-500">
                           <span className="flex items-center gap-2">

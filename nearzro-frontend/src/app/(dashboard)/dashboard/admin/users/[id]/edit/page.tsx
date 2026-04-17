@@ -11,6 +11,7 @@ import {
 import { useRouter, useParams } from "next/navigation";
 import { toast } from "sonner";
 import api from "@/lib/api";
+import { useAuth } from "@/context/auth-context";
 
 interface UserEdit {
   id: number;
@@ -24,9 +25,12 @@ interface UserEdit {
 export default function EditUserPage() {
   const router = useRouter();
   const params = useParams();
+  const { user: currentUser } = useAuth();
   const [user, setUser] = useState<UserEdit | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  const isSelf = Number(currentUser?.id) === Number(params.id);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -174,12 +178,15 @@ export default function EditUserPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="role" className="text-black">Role *</Label>
+                <Label htmlFor="role" className="text-black">
+                  Role * {isSelf && <span className="text-[10px] text-amber-600 font-bold ml-2">(Current User - Semi Restricted)</span>}
+                </Label>
                 <select
                   id="role"
                   value={formData.role}
                   onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                  className="flex h-10 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-black"
+                  disabled={isSelf}
+                  className="flex h-10 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-black disabled:bg-neutral-50 disabled:text-neutral-500"
                 >
                   <option value="CUSTOMER">Customer</option>
                   <option value="VENDOR">Vendor</option>
@@ -187,17 +194,21 @@ export default function EditUserPage() {
                   <option value="EVENT_MANAGER">Event Manager</option>
                   <option value="ADMIN">Admin</option>
                 </select>
+                {isSelf && <p className="text-[10px] text-neutral-500">You cannot change your own administrative role to prevent accidental lockout.</p>}
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label className="text-black">Status</Label>
+              <Label className="text-black">
+                Status {isSelf && <span className="text-[10px] text-amber-600 font-bold ml-2">(Protected)</span>}
+              </Label>
               <div className="flex items-center gap-4">
                 <Button
                   type="button"
                   variant={formData.isActive ? "default" : "outline"}
                   onClick={() => setFormData({ ...formData, isActive: true })}
-                  className={formData.isActive ? "bg-emerald-600 hover:bg-emerald-700" : "border-neutral-300 text-neutral-700"}
+                  disabled={isSelf}
+                  className={formData.isActive ? "bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50" : "border-neutral-300 text-neutral-700"}
                 >
                   Active
                 </Button>
@@ -205,11 +216,13 @@ export default function EditUserPage() {
                   type="button"
                   variant={!formData.isActive ? "default" : "outline"}
                   onClick={() => setFormData({ ...formData, isActive: false })}
-                  className={!formData.isActive ? "bg-red-600 hover:bg-red-700" : "border-neutral-300 text-neutral-700"}
+                  disabled={isSelf}
+                  className={!formData.isActive ? "bg-red-600 hover:bg-red-700 disabled:opacity-50" : "border-neutral-300 text-neutral-700"}
                 >
                   Inactive
                 </Button>
               </div>
+              {isSelf && <p className="text-[10px] text-neutral-500 font-medium">Platform policies prevent admins from deactivating their own accounts.</p>}
             </div>
           </CardContent>
         </Card>

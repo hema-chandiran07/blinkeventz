@@ -16,7 +16,7 @@ import { ApiBearerAuth,ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagge
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { AuthRequest } from '../auth/auth-request.interface';
 import { Roles } from '../common/decorators/roles.decorator';
-import { Role } from '../common/enums/role.enum';
+import { Role } from '@prisma/client';
 import { RolesGuard } from '../common/guards/roles.guard';
 @ApiBearerAuth()
 @ApiTags('Express')
@@ -78,3 +78,4 @@ export class ExpressController {
     return this.service.updateExpressRequest(id, body);
   }
 }
+

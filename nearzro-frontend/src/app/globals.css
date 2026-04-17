@@ -33,32 +33,32 @@
   --silver-300: #d4d4d4;
   --silver-200: #e5e5e5;
   --silver-100: #f5f5f5;
-  --silver-50:  #fafafa;
+  --silver-50: #fafafa;
 
   /* Accent Colors - Premium Metallic */
-  --accent-silver:   #c0c0c0;
-  --accent-chrome:   #e8e8e8;
+  --accent-silver: #c0c0c0;
+  --accent-chrome: #e8e8e8;
   --accent-platinum: #e5e4e2;
   --accent-metallic: #bcc6cc;
 
   /* Status Colors */
-  --success:             #10b981;
-  --success-bg:          rgba(16, 185, 129, 0.10);
-  --warning:             #f59e0b;
-  --warning-bg:          rgba(245, 158, 11, 0.10);
-  --warning-foreground:  #fcd34d;
-  --error:               #ef4444;
-  --error-bg:            rgba(239, 68, 68, 0.10);
-  --error-foreground:    #fca5a5;
-  --info:                #3b82f6;
-  --info-bg:             rgba(59, 130, 246, 0.10);
-  --info-foreground:     #93c5fd;
+  --success: #10b981;
+  --success-bg: rgba(16, 185, 129, 0.10);
+  --warning: #f59e0b;
+  --warning-bg: rgba(245, 158, 11, 0.10);
+  --warning-foreground: #fcd34d;
+  --error: #ef4444;
+  --error-bg: rgba(239, 68, 68, 0.10);
+  --error-foreground: #fca5a5;
+  --info: #3b82f6;
+  --info-bg: rgba(59, 130, 246, 0.10);
+  --info-foreground: #93c5fd;
 
   /* Body background layers (dark) */
   --body-bg-layer1: rgba(45, 45, 45, 0.4);
   --body-bg-layer2: rgba(55, 55, 55, 0.3);
   --body-bg-layer3: rgba(40, 40, 40, 0.35);
-  --body-bg-base:   linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #0f0f0f 100%);
+  --body-bg-base: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #0f0f0f 100%);
 }
 
 /* ── LIGHT THEME — Premium Silver & White SaaS ── */
@@ -71,29 +71,29 @@
   --secondary-foreground: #262626;
 
   /* Status Colors — slightly more saturated for light surfaces */
-  --success:             #22c55e;
-  --success-bg:          rgba(34, 197, 94, 0.10);
-  --warning:             #f59e0b;
-  --warning-bg:          rgba(245, 158, 11, 0.15);
-  --warning-foreground:  #fcd34d;
-  --error:               #ef4444;
-  --error-bg:            rgba(239, 68, 68, 0.15);
-  --error-foreground:    #fca5a5;
-  --info:                #3b82f6;
-  --info-bg:             rgba(59, 130, 246, 0.15);
-  --info-foreground:     #93c5fd;
+  --success: #22c55e;
+  --success-bg: rgba(34, 197, 94, 0.10);
+  --warning: #f59e0b;
+  --warning-bg: rgba(245, 158, 11, 0.15);
+  --warning-foreground: #fcd34d;
+  --error: #ef4444;
+  --error-bg: rgba(239, 68, 68, 0.15);
+  --error-foreground: #fca5a5;
+  --info: #3b82f6;
+  --info-bg: rgba(59, 130, 246, 0.15);
+  --info-foreground: #93c5fd;
 
   /* Silver palette identical — reused from :root */
 }
 
 @theme inline {
-  --color-background:        var(--background);
-  --color-foreground:        var(--foreground);
-  --color-primary:           var(--primary);
-  --color-primary-foreground:var(--primary-foreground);
-  --color-secondary:         var(--secondary);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
-  --color-silver-50:  var(--silver-50);
+  --color-silver-50: var(--silver-50);
   --color-silver-100: var(--silver-100);
   --color-silver-200: var(--silver-200);
   --color-silver-300: var(--silver-300);
@@ -104,8 +104,8 @@
   --color-silver-800: var(--silver-800);
   --color-silver-900: var(--silver-900);
   --color-silver-950: var(--silver-950);
-  --color-accent-silver:   var(--accent-silver);
-  --color-accent-chrome:   var(--accent-chrome);
+  --color-accent-silver: var(--accent-silver);
+  --color-accent-chrome: var(--accent-chrome);
   --color-accent-platinum: var(--accent-platinum);
   --color-accent-metallic: var(--accent-metallic);
 }
@@ -153,8 +153,8 @@ body::after {
   inset: 0;
   background:
     radial-gradient(ellipse at 60% 40%, rgba(70, 70, 70, 0.15) 0%, transparent 50%),
-    radial-gradient(ellipse at 40% 60%, rgba(55, 55, 55, 0.2)  0%, transparent 45%),
-    radial-gradient(ellipse at 80% 20%, rgba(65, 65, 65, 0.1)  0%, transparent 55%),
+    radial-gradient(ellipse at 40% 60%, rgba(55, 55, 55, 0.2) 0%, transparent 45%),
+    radial-gradient(ellipse at 80% 20%, rgba(65, 65, 65, 0.1) 0%, transparent 55%),
     radial-gradient(ellipse at 20% 80%, rgba(50, 50, 50, 0.18) 0%, transparent 40%);
   pointer-events: none;
   z-index: 0;
@@ -163,17 +163,51 @@ body::after {
 }
 
 @keyframes fluidWave {
-  0%, 100% { transform: translate(0,    0)    scale(1);    opacity: 0.60; }
-  25%       { transform: translate(2%,  -1%)  scale(1.02); opacity: 0.50; }
-  50%       { transform: translate(-1%,  2%)  scale(0.98); opacity: 0.65; }
-  75%       { transform: translate(-2%, -1%)  scale(1.01); opacity: 0.55; }
+
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.60;
+  }
+
+  25% {
+    transform: translate(2%, -1%) scale(1.02);
+    opacity: 0.50;
+  }
+
+  50% {
+    transform: translate(-1%, 2%) scale(0.98);
+    opacity: 0.65;
+  }
+
+  75% {
+    transform: translate(-2%, -1%) scale(1.01);
+    opacity: 0.55;
+  }
 }
 
 @keyframes fluidWaveReverse {
-  0%, 100% { transform: translate(0,    0)   scale(1);    opacity: 0.40; }
-  25%       { transform: translate(-1%,  2%) scale(0.99); opacity: 0.35; }
-  50%       { transform: translate(2%,  -1%) scale(1.02); opacity: 0.45; }
-  75%       { transform: translate(1%,   1%) scale(0.98); opacity: 0.38; }
+
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.40;
+  }
+
+  25% {
+    transform: translate(-1%, 2%) scale(0.99);
+    opacity: 0.35;
+  }
+
+  50% {
+    transform: translate(2%, -1%) scale(1.02);
+    opacity: 0.45;
+  }
+
+  75% {
+    transform: translate(1%, 1%) scale(0.98);
+    opacity: 0.38;
+  }
 }
 
 /* ============================================
@@ -181,23 +215,51 @@ body::after {
    ============================================ */
 
 @keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(30px); }
-  to   { opacity: 1; transform: translateY(0);    }
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes fadeInLeft {
-  from { opacity: 0; transform: translateX(-30px); }
-  to   { opacity: 1; transform: translateX(0);     }
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 @keyframes fadeInRight {
-  from { opacity: 0; transform: translateX(30px); }
-  to   { opacity: 1; transform: translateX(0);    }
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 @keyframes scaleIn {
-  from { opacity: 0; transform: scale(0.95); }
-  to   { opacity: 1; transform: scale(1);    }
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 /* ============================================
@@ -205,20 +267,23 @@ body::after {
    ============================================ */
 
 .skeleton-dark {
-  background: linear-gradient(
-    90deg,
-    rgba(26, 26, 26, 0.8) 0%,
-    rgba(38, 38, 38, 0.9) 50%,
-    rgba(26, 26, 26, 0.8) 100%
-  );
+  background: linear-gradient(90deg,
+      rgba(26, 26, 26, 0.8) 0%,
+      rgba(38, 38, 38, 0.9) 50%,
+      rgba(26, 26, 26, 0.8) 100%);
   background-size: 200% 100%;
   animation: skeletonShimmer 1.5s ease-in-out infinite;
   border-radius: 8px;
 }
 
 @keyframes skeletonShimmer {
-  0%   { background-position:  200% 0; }
-  100% { background-position: -200% 0; }
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 /* ============================================
@@ -269,21 +334,17 @@ body::after {
 }
 
 .bg-gradient-silver-accent {
-  background: linear-gradient(
-    135deg,
-    rgba(192, 192, 192, 0.10) 0%,
-    rgba(163, 163, 163, 0.05) 50%,
-    rgba(192, 192, 192, 0.10) 100%
-  );
+  background: linear-gradient(135deg,
+      rgba(192, 192, 192, 0.10) 0%,
+      rgba(163, 163, 163, 0.05) 50%,
+      rgba(192, 192, 192, 0.10) 100%);
 }
 
 .bg-gradient-chrome-shine {
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.05) 0%,
-    rgba(192, 192, 192, 0.10) 50%,
-    rgba(255, 255, 255, 0.05) 100%
-  );
+  background: linear-gradient(135deg,
+      rgba(255, 255, 255, 0.05) 0%,
+      rgba(192, 192, 192, 0.10) 50%,
+      rgba(255, 255, 255, 0.05) 100%);
 }
 
 /* ============================================
@@ -346,11 +407,12 @@ body::after {
 }
 
 .btn-premium:hover {
-  background: linear-gradient(135deg, #ffffff 0%, #f5f5f5 100%);
-  box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
   transform: translateY(-1px);
 }
-.btn-premium:active { transform: translateY(0); }
+
+.btn-premium:active {
+  transform: translateY(0);
+}
 
 .btn-outline-silver {
   background: transparent;
@@ -434,9 +496,14 @@ body::after {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
-.scrollbar-hide::-webkit-scrollbar { display: none; }
 
-.smooth-scroll { scroll-behavior: smooth; }
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.smooth-scroll {
+  scroll-behavior: smooth;
+}
 
 .focus-ring:focus {
   outline: none;
@@ -444,12 +511,22 @@ body::after {
 }
 
 /* Selection */
-::selection      { background: rgba(192, 192, 192, 0.3); color: #ffffff; }
-::-moz-selection { background: rgba(192, 192, 192, 0.3); color: #ffffff; }
+::selection {
+  background: rgba(192, 192, 192, 0.3);
+  color: #ffffff;
+}
+
+::-moz-selection {
+  background: rgba(192, 192, 192, 0.3);
+  color: #ffffff;
+}
 
 /* Password reveal icons — browser-specific */
 input[type="password"]::-ms-reveal,
-input[type="password"]::-ms-clear { display: none; }
+input[type="password"]::-ms-clear {
+  display: none;
+}
+
 input[type="password"]::-webkit-credentials-auto-fill-button {
   visibility: hidden;
   display: none !important;
@@ -458,18 +535,30 @@ input[type="password"]::-webkit-credentials-auto-fill-button {
 
 /* Explicit helpers */
 .text-black-important,
-.dark-theme-text-fix { color: #000000 !important; }
+.dark-theme-text-fix {
+  color: #000000 !important;
+}
 
 /* ============================================
    FORM ELEMENTS ON LIGHT BACKGROUNDS
    Ensure black text when inputs sit on white/silver
    ============================================ */
 
-select.bg-white, input.bg-white, textarea.bg-white,
-select.bg-neutral-50, input.bg-neutral-50, textarea.bg-neutral-50,
-select.bg-neutral-100, input.bg-neutral-100, textarea.bg-neutral-100,
-select.bg-silver-50, input.bg-silver-50, textarea.bg-silver-50,
-select.bg-silver-100, input.bg-silver-100, textarea.bg-silver-100 {
+select.bg-white,
+input.bg-white,
+textarea.bg-white,
+select.bg-neutral-50,
+input.bg-neutral-50,
+textarea.bg-neutral-50,
+select.bg-neutral-100,
+input.bg-neutral-100,
+textarea.bg-neutral-100,
+select.bg-silver-50,
+input.bg-silver-50,
+textarea.bg-silver-50,
+select.bg-silver-100,
+input.bg-silver-100,
+textarea.bg-silver-100 {
   color: #000000 !important;
 }
 
@@ -484,13 +573,17 @@ button.bg-neutral-100,
 button.bg-neutral-200,
 button.bg-silver-50,
 button.bg-silver-100,
-button.bg-silver-200 { color: #000000 !important; }
+button.bg-silver-200 {
+  color: #000000 !important;
+}
 
 button.border-neutral-200,
 button.border-neutral-300,
 button.border-silver-200,
 button.border-silver-300,
-button.border-white   { color: #000000 !important; }
+button.border-white {
+  color: #000000 !important;
+}
 
 /* Light-background card text safety */
 .bg-white .text-white,
@@ -500,7 +593,9 @@ button.border-white   { color: #000000 !important; }
 .bg-silver-100 .text-white,
 .bg-gradient-to-br.from-white .text-white,
 .bg-gradient-to-br.from-neutral-50 .text-white,
-.bg-gradient-to-br.from-silver-50 .text-white { color: #000000 !important; }
+.bg-gradient-to-br.from-silver-50 .text-white {
+  color: #000000 !important;
+}
 
 /* ============================================
    VENDOR DASHBOARD
@@ -520,17 +615,25 @@ button.border-white   { color: #000000 !important; }
 }
 
 /* All text → black */
-.dashboard h1, .dashboard h2, .dashboard h3, .dashboard h4,
-.dashboard p, .dashboard span,
+.dashboard h1,
+.dashboard h2,
+.dashboard h3,
+.dashboard h4,
+.dashboard p,
+.dashboard span,
 .dashboard [class*="text-white"],
 .dashboard [class*="text-silver-"],
 .dashboard [class*="text-silver-300"],
-.dashboard [class*="text-silver-400"] { color: #000000 !important; }
+.dashboard [class*="text-silver-400"] {
+  color: #000000 !important;
+}
 
 .dashboard [class*="bg-silver-800"] *,
 .dashboard [class*="bg-silver-900/50"] *,
 .dashboard [class*="from-silver-900/50"] *,
-.dashboard [class*="to-silver-950/50"] * { color: #000000 !important; }
+.dashboard [class*="to-silver-950/50"] * {
+  color: #000000 !important;
+}
 
 /* Dark buttons keep white text on interaction */
 .dashboard button[class*="bg-black"]:hover,
@@ -538,13 +641,17 @@ button.border-white   { color: #000000 !important; }
 .dashboard button[class*="bg-neutral-800"]:hover,
 .dashboard button[class*="bg-neutral-800"]:active,
 .dashboard button[class*="bg-neutral-900"]:hover,
-.dashboard button[class*="bg-neutral-900"]:active { color: #ffffff !important; }
+.dashboard button[class*="bg-neutral-900"]:active {
+  color: #ffffff !important;
+}
 
 /* Active tabs on dark button backgrounds */
 .dashboard button[role="tab"][aria-selected="true"],
 .dashboard button[role="tab"][data-state="active"],
 .dashboard button[class*="bg-black"][role="tab"],
-.dashboard button[class*="bg-neutral-800"][role="tab"] { color: #ffffff !important; }
+.dashboard button[class*="bg-neutral-800"][role="tab"] {
+  color: #ffffff !important;
+}
 
 /* Inputs */
 .dashboard input,
@@ -553,8 +660,11 @@ button.border-white   { color: #000000 !important; }
   background-color: #ffffff !important;
   color: #000000 !important;
 }
+
 .dashboard input::placeholder,
-.dashboard textarea::placeholder { color: #9ca3af !important; }
+.dashboard textarea::placeholder {
+  color: #9ca3af !important;
+}
 
 .dashboard select option {
   color: #000000 !important;
@@ -579,27 +689,39 @@ button.border-white   { color: #000000 !important; }
 }
 
 /* All text → black */
-.venue-dashboard h1, .venue-dashboard h2, .venue-dashboard h3, .venue-dashboard h4,
-.venue-dashboard p, .venue-dashboard span,
+.venue-dashboard h1,
+.venue-dashboard h2,
+.venue-dashboard h3,
+.venue-dashboard h4,
+.venue-dashboard p,
+.venue-dashboard span,
 .venue-dashboard [class*="text-white"],
-.venue-dashboard [class*="text-silver-"] { color: #000000 !important; }
+.venue-dashboard [class*="text-silver-"] {
+  color: #000000 !important;
+}
 
 .venue-dashboard [class*="bg-silver-800"] *,
 .venue-dashboard [class*="bg-silver-900/50"] *,
 .venue-dashboard [class*="from-silver-900/50"] *,
-.venue-dashboard [class*="to-silver-950/50"] * { color: #000000 !important; }
+.venue-dashboard [class*="to-silver-950/50"] * {
+  color: #000000 !important;
+}
 
 /* Dark buttons keep white text on interaction */
 .venue-dashboard button[class*="bg-black"]:hover,
 .venue-dashboard button[class*="bg-black"]:active,
 .venue-dashboard button[class*="bg-neutral-800"]:hover,
-.venue-dashboard button[class*="bg-neutral-800"]:active { color: #ffffff !important; }
+.venue-dashboard button[class*="bg-neutral-800"]:active {
+  color: #ffffff !important;
+}
 
 /* Active tabs on dark button backgrounds */
 .venue-dashboard button[role="tab"][aria-selected="true"],
 .venue-dashboard button[role="tab"][data-state="active"],
 .venue-dashboard button[class*="bg-black"][role="tab"],
-.venue-dashboard button[class*="bg-neutral-800"][role="tab"] { color: #ffffff !important; }
+.venue-dashboard button[class*="bg-neutral-800"][role="tab"] {
+  color: #ffffff !important;
+}
 
 /* Inputs */
 .venue-dashboard input,
@@ -608,8 +730,11 @@ button.border-white   { color: #000000 !important; }
   background-color: #ffffff !important;
   color: #000000 !important;
 }
+
 .venue-dashboard input::placeholder,
-.venue-dashboard textarea::placeholder { color: #9ca3af !important; }
+.venue-dashboard textarea::placeholder {
+  color: #9ca3af !important;
+}
 
 .venue-dashboard select option {
   color: #000000 !important;

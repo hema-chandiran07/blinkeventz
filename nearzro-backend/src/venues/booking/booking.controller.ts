@@ -16,7 +16,7 @@ import { BookingService } from './booking.service';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { Role } from '../../common/enums/role.enum';
+import { Role } from '@prisma/client';
 import type { AuthRequest } from '../../auth/auth-request.interface';
 
 @ApiTags('Booking')
@@ -173,3 +173,4 @@ export class BookingController {
     return this.bookingService.deleteBooking(id, req.user.userId, req.user.role as string);
   }
 }
+

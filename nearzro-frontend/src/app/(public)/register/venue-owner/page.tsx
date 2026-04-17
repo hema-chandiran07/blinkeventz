@@ -965,7 +965,7 @@ export default function VenueOwnerRegisterPage() {
                   </div>
                 </div>
 
-<Button
+                <Button
                   type="button"
                   variant="outline"
                   className="w-full flex items-center justify-center gap-3 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white text-sm font-medium hover:bg-white/10 hover:border-white/20 transition-all"
@@ -1036,8 +1036,10 @@ export default function VenueOwnerRegisterPage() {
                     value={otp}
                     onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     maxLength={6}
-                    className="h-12 text-center text-xl tracking-widest bg-zinc-900/50 border-white/10 text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-300 focus:ring-1 focus:ring-zinc-300 transition-all"
+                    className={`h-12 text-center text-xl tracking-widest bg-zinc-900/50 border-white/10 text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-300 focus:ring-1 focus:ring-zinc-300 transition-all ${errors.otp ? "border-red-500" : ""
+                      }`}
                   />
+                  {errors.otp && <p className="text-xs text-red-400">{errors.otp}</p>}
                 </div>
 
                 <Button
@@ -1066,7 +1068,7 @@ export default function VenueOwnerRegisterPage() {
                     type="button"
                     variant="outline"
                     className="flex-1 h-10 text-sm bg-white/5 border border-white/20 text-white font-semibold backdrop-blur-md transition-all duration-300 hover:bg-white/10 hover:border-white/40 active:scale-95"
-                    onClick={() => setStep(4)}
+                    onClick={() => setStep(1)}
                     disabled={isLoading}
                   >
                     Back
@@ -1314,7 +1316,7 @@ export default function VenueOwnerRegisterPage() {
                     type="button"
                     variant="outline"
                     className="flex-1 h-12 bg-zinc-800 text-white hover:bg-zinc-700 transition-all duration-300"
-                    onClick={() => setStep(1)}
+                    onClick={() => setStep(2)}
                     disabled={isLoading}
                   >
                     Back
@@ -1658,7 +1660,7 @@ export default function VenueOwnerRegisterPage() {
                           <Loader2 className="w-10 h-10 text-amber-500 mb-2 animate-spin" />
                         ) : (
                           <svg className="w-10 h-10 text-amber-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                           </svg>
                         )}
                         <p className="text-sm text-amber-300/80">

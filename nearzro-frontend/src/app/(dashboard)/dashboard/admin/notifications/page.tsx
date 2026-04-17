@@ -107,6 +107,18 @@ export default function NotificationsPage() {
     }
   };
 
+  const handleClearAll = async () => {
+    if (!confirm("Are you sure you want to clear all notifications?")) return;
+    try {
+      await api.delete("/notifications");
+      setNotifications([]);
+      toast.success("All notifications cleared");
+    } catch (error: any) {
+      console.error("Clear all error:", error);
+      toast.error("Failed to clear notifications");
+    }
+  };
+
   const filteredNotifications = filter === "all" 
     ? notifications 
     : filter === "unread" 
@@ -135,6 +147,10 @@ export default function NotificationsPage() {
           <Button variant="outline" size="sm" className="border-black" onClick={handleMarkAllAsRead}>
             <CheckCheck className="h-4 w-4 mr-2" />
             Mark All Read
+          </Button>
+          <Button variant="outline" size="sm" className="border-black text-red-600 hover:bg-red-50" onClick={handleClearAll}>
+            <Trash2 className="h-4 w-4 mr-2" />
+            Clear All
           </Button>
           <Button variant="outline" size="sm" className="border-black">
             <Settings className="h-4 w-4 mr-2" />

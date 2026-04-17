@@ -107,7 +107,7 @@ export default function VendorEarningsPage() {
       ]);
 
       // Process earnings stats
-      const earningsData = earningsResponse.data || {
+      const earningsData = earningsResponse?.data || {
         totalEarnings: 0,
         pendingEarnings: 0,
         currency: 'INR',
@@ -117,39 +117,40 @@ export default function VendorEarningsPage() {
       };
 
       setStats({
-        totalEarnings: earningsData.totalEarnings || 0,
-        pendingEarnings: earningsData.pendingEarnings || 0,
-        currency: earningsData.currency || 'INR',
-        bookingCount: earningsData.bookingCount || 0,
-        completedBookings: earningsData.completedBookings || 0,
-        pendingBookings: earningsData.pendingBookings || 0,
+        totalEarnings: earningsData?.totalEarnings || 0,
+        pendingEarnings: earningsData?.pendingEarnings || 0,
+        currency: earningsData?.currency || 'INR',
+        bookingCount: earningsData?.bookingCount || 0,
+        completedBookings: earningsData?.completedBookings || 0,
+        pendingBookings: earningsData?.pendingBookings || 0,
       });
 
       // Process bookings
-      const allBookings = bookingsResponse.data || [];
+      const allBookings = Array.isArray(bookingsResponse?.data) ? bookingsResponse.data : [];
       const transformedBookings: VendorBooking[] = allBookings.map((booking: any) => {
-        const totalAmount = booking.totalAmount || 0;
+        if (!booking) return null;
+        const totalAmount = booking?.totalAmount || 0;
         const platformFee = Math.round(totalAmount * (PLATFORM_FEE_PERCENTAGE / 100));
         const netEarnings = totalAmount - platformFee;
 
         return {
-          id: booking.id,
-          customerName: booking.user?.name || 'Unknown Customer',
-          customerEmail: booking.user?.email || '',
-          customerPhone: booking.user?.phone || '',
-          eventName: booking.slot?.eventTitle || booking.slot?.name || 'Service Booking',
+          id: booking?.id,
+          customerName: booking?.user?.name || 'Unknown Customer',
+          customerEmail: booking?.user?.email || '',
+          customerPhone: booking?.user?.phone || '',
+          eventName: booking?.slot?.eventTitle || booking?.slot?.name || 'Service Booking',
           eventType: 'VENDOR_SERVICE',
-          date: booking.slot?.date || '',
-          timeSlot: booking.slot?.timeSlot || 'full_day',
-          status: (booking.status || 'PENDING').toUpperCase() as any,
+          date: booking?.slot?.date || '',
+          timeSlot: booking?.slot?.timeSlot || 'full_day',
+          status: (booking?.status || 'PENDING').toUpperCase() as any,
           totalAmount,
           platformFee,
           netEarnings,
-          payoutStatus: determinePayoutStatus(booking.status, booking.completedAt),
-          createdAt: booking.createdAt,
-          completedAt: booking.completedAt,
+          payoutStatus: determinePayoutStatus(booking?.status, booking?.completedAt),
+          createdAt: booking?.createdAt,
+          completedAt: booking?.completedAt,
         };
-      });
+      }).filter(Boolean) as VendorBooking[];
 
       setBookings(transformedBookings);
 

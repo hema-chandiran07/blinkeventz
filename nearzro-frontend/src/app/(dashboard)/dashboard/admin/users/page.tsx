@@ -218,8 +218,9 @@ export default function AdminUsersPage() {
                           variant="ghost"
                           size="sm"
                           onClick={() => router.push(`/dashboard/admin/users/${user.id}`)}
+                          className="hover:bg-neutral-100 text-neutral-500 hover:text-black font-bold text-[10px] uppercase tracking-tighter"
                         >
-                          <Edit className="h-4 w-4" />
+                          Details
                         </Button>
                       </td>
                     </tr>

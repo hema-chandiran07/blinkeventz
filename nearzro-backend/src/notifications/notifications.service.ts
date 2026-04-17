@@ -127,6 +127,24 @@ export class NotificationsService {
       },
     });
 
+    return { success: true, count: result.count };
+  }
+
+  /**
+   * Mark notification as unread
+   */
+  async markAsUnread(notificationId: number, userId: number) {
+    const result = await this.prisma.notification.updateMany({
+      where: {
+        id: notificationId,
+        userId,
+      },
+      data: {
+        read: false,
+        readAt: null,
+      },
+    });
+
     if (result.count === 0) {
       throw new NotFoundException('Notification not found');
     }
@@ -211,6 +229,45 @@ export class NotificationsService {
         enabled,
       },
     });
+  }
+
+  // Update global preferences (bulk update for specific channels across all types)
+  async updateGlobalPreferences(userId: number, channels: { IN_APP?: boolean; EMAIL?: boolean; SMS?: boolean; WHATSAPP?: boolean; PUSH?: boolean }) {
+    const notificationTypes = [
+      'KYC_SUBMITTED', 'KYC_APPROVED', 'KYC_REJECTED', 'BOOKING_REQUEST',
+      'BOOKING_CONFIRMED', 'BOOKING_CANCELLED', 'BOOKING_COMPLETED',
+      'PAYMENT_RECEIVED', 'PAYMENT_FAILED', 'PAYMENT_REFUNDED',
+      'SYSTEM_ALERT', 'PROMOTIONAL', 'MESSAGE_RECEIVED'
+    ];
+
+    const updates: Promise<any>[] = [];
+    for (const type of notificationTypes) {
+      for (const [channel, enabled] of Object.entries(channels)) {
+        if (enabled !== undefined) {
+          updates.push(
+            this.prisma.notificationPreference.upsert({
+              where: {
+                userId_type_channel: {
+                  userId,
+                  type: type as any,
+                  channel: channel as any,
+                },
+              },
+              update: { enabled },
+              create: {
+                userId,
+                type: type as any,
+                channel: channel as any,
+                enabled,
+              },
+            })
+          );
+        }
+      }
+    }
+
+    await Promise.all(updates);
+    return { success: true, message: 'Global preferences synchronized' };
   }
 
   // ============================================================================

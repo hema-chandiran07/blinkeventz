@@ -22,7 +22,7 @@ interface Booking {
   timeSlot: string;
   guestCount: number;
   baseRate: number;
-  status: "PENDING" | "CONFIRMED" | "COMPLETED" | "CANCELLED";
+  status: "PENDING" | "CONFIRMED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
   venueName?: string;
   venueAddress?: string;
   notes?: string;
@@ -133,16 +133,34 @@ export default function VendorBookingsPage() {
     }
   };
 
+  const handleMarkStatus = async (bookingId: number, newStatus: string) => {
+    try {
+      await api.patch(`/vendors/me/bookings/${bookingId}/status`, {
+        status: newStatus
+      });
+
+      toast.success(`Booking marked as ${newStatus.toLowerCase().replace('_', ' ')}`);
+      loadBookings();
+    } catch (error: any) {
+      toast.error(`Failed to update booking to ${newStatus}`, {
+        description: error?.response?.data?.message || "Please try again"
+      });
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "CONFIRMED":
         return <Badge className="bg-green-100 text-green-700"><CheckCircle2 className="h-3 w-3 mr-1" />Confirmed</Badge>;
       case "PENDING":
         return <Badge className="bg-yellow-100 text-yellow-700"><Clock className="h-3 w-3 mr-1" />Pending</Badge>;
+      case "IN_PROGRESS":
+        return <Badge className="bg-blue-100 text-blue-700"><Clock className="h-3 w-3 mr-1" />In Progress</Badge>;
       case "COMPLETED":
-        return <Badge className="bg-blue-100 text-blue-700"><CheckCircle2 className="h-3 w-3 mr-1" />Completed</Badge>;
+        return <Badge className="bg-purple-100 text-purple-700"><CheckCircle2 className="h-3 w-3 mr-1" />Completed</Badge>;
       case "CANCELLED":
-        return <Badge className="bg-red-100 text-red-700"><XCircle className="h-3 w-3 mr-1" />Cancelled</Badge>;
+      case "REJECTED":
+        return <Badge className="bg-red-100 text-red-700"><XCircle className="h-3 w-3 mr-1" />{status === 'REJECTED' ? 'Rejected' : 'Cancelled'}</Badge>;
       default:
         return <Badge>{status}</Badge>;
     }
@@ -273,6 +291,7 @@ export default function VendorBookingsPage() {
                 <option value="all">All Status</option>
                 <option value="PENDING">Pending</option>
                 <option value="CONFIRMED">Confirmed</option>
+                <option value="IN_PROGRESS">In Progress</option>
                 <option value="COMPLETED">Completed</option>
                 <option value="CANCELLED">Cancelled</option>
               </select>
@@ -366,7 +385,7 @@ export default function VendorBookingsPage() {
                               size="sm"
                               onClick={() => handleViewDetails(booking)}
                             >
-                              <Eye className="h-4 w-4" />
+                              <Eye className="h-4 w-4 mr-1" /> View
                             </Button>
                             {booking.status === "PENDING" && (
                               <>
@@ -375,7 +394,7 @@ export default function VendorBookingsPage() {
                                   onClick={() => handleConfirmBooking(booking.id)}
                                   className="bg-green-600 hover:bg-green-700 text-white"
                                 >
-                                  <CheckCircle2 className="h-4 w-4" />
+                                  <CheckCircle2 className="h-4 w-4 mr-1" /> Confirm
                                 </Button>
                                 <Button
                                   variant="outline"
@@ -383,9 +402,27 @@ export default function VendorBookingsPage() {
                                   onClick={() => handleRejectBooking(booking.id)}
                                   className="text-red-600 hover:bg-red-50"
                                 >
-                                  <XCircle className="h-4 w-4" />
+                                  <XCircle className="h-4 w-4 mr-1" /> Reject
                                 </Button>
                               </>
+                            )}
+                            {booking.status === "CONFIRMED" && (
+                              <Button
+                                size="sm"
+                                onClick={() => handleMarkStatus(booking.id, "IN_PROGRESS")}
+                                className="bg-blue-600 hover:bg-blue-700 text-white"
+                              >
+                                Start Service
+                              </Button>
+                            )}
+                            {booking.status === "IN_PROGRESS" && (
+                              <Button
+                                size="sm"
+                                onClick={() => handleMarkStatus(booking.id, "COMPLETED")}
+                                className="bg-purple-600 hover:bg-purple-700 text-white"
+                              >
+                                Mark Completed
+                              </Button>
                             )}
                           </div>
                         </div>

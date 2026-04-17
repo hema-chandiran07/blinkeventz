@@ -63,7 +63,7 @@ export default function VenueOwnerDashboardPage() {
       return;
     }
     if (user?.role !== "VENUE_OWNER") {
-      router.push("/dashboard/venue");
+      router.push("/dashboard");
       return;
     }
     loadDashboardData();
@@ -82,15 +82,17 @@ export default function VenueOwnerDashboardPage() {
       setLoading(true);
 
       try {
-        const venuesResponse = await api.get('/venues/my');
-        setVenues(venuesResponse.data || []);
+        const venuesResponse = await api.get('/venues/me');
+        const data = venuesResponse.data;
+        // Handle both array response and wrapped response
+        setVenues(Array.isArray(data) ? data : (data?.venues || data?.data || []));
       } catch (error) {
         console.warn("Could not fetch venues");
         setVenues([]);
       }
 
       try {
-        const statsResponse = await api.get('/venues/owner/stats');
+        const statsResponse = await api.get('/dashboard/venue/stats');
         setStats(statsResponse.data || {
           totalVenues: 0,
           activeBookings: 0,
@@ -126,7 +128,7 @@ export default function VenueOwnerDashboardPage() {
 
   return (
     <motion.div
-      className="venue-dashboard space-y-8"
+      className="venue-dashboard space-y-8 p-8 bg-[#0a0a0b] text-white selection:bg-blue-500/30 min-h-screen"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
@@ -202,6 +204,9 @@ export default function VenueOwnerDashboardPage() {
           { title: "My Venues", subtitle: "Manage properties", icon: Building, href: "/dashboard/venue/details" },
           { title: "Bookings", subtitle: "View all requests", icon: CheckCircle2, href: "/dashboard/venue/bookings" },
           { title: "Calendar", subtitle: "Check availability", icon: Calendar, href: "/dashboard/venue/calendar" },
+          { title: "Analytics", subtitle: "Performance data", icon: BarChart3, href: "/dashboard/venue/analytics" },
+          { title: "Payouts", subtitle: "Manage earnings", icon: DollarSign, href: "/dashboard/venue/payouts" },
+          { title: "KYC & Bank", subtitle: "Compliance", icon: Star, href: "/dashboard/venue/kyc" },
         ].map((action, index) => (
           <motion.div key={index} variants={itemVariants}>
             <Card

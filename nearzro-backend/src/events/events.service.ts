@@ -12,6 +12,21 @@ import { UpdateEventDto } from './dto/update-event.dto';
 import { EventQueryDto } from './dto/event-query.dto';
 import { AddEventServiceDto } from './dto/add-event-service.dto';
 import { EventStatus, Role } from '@prisma/client';
+import { Logger } from '@nestjs/common';
+
+/**
+ * SECURITY: Event Status State Machine
+ * Defines valid transitions to prevent payment-gate bypass (CRIT-02).
+ * Terminal states (COMPLETED, CANCELLED) cannot transition further.
+ */
+const VALID_STATUS_TRANSITIONS: Record<string, string[]> = {
+  INQUIRY: ['QUOTED', 'CANCELLED'],
+  QUOTED: ['CONFIRMED', 'CANCELLED'],
+  CONFIRMED: ['IN_PROGRESS', 'CANCELLED'],
+  IN_PROGRESS: ['COMPLETED', 'CANCELLED'],
+  COMPLETED: [],    // Terminal state
+  CANCELLED: [],    // Terminal state
+};
 import { 
   EventListItemResponseDto, 
   PaginatedEventResponseDto,
@@ -512,7 +527,8 @@ export class EventsService {
           ...(dto.guestCount && { guestCount: dto.guestCount }),
           ...(dto.venueId !== undefined && { venueId: dto.venueId }),
           ...(dto.isExpress !== undefined && { isExpress: dto.isExpress }),
-          ...(dto.status && { status: dto.status }),
+          // SECURITY (HIGH-07): Status changes MUST go through updateEventStatus()
+          // with state machine validation. Removed from customer-facing update.
         },
         include: {
           venue: true,
@@ -683,7 +699,8 @@ export class EventsService {
    *
    * Updates the status of an event.
    */
-  async updateEventStatus(eventId: number, status: string): Promise<any> {
+  async updateEventStatus(eventId: number, newStatus: string): Promise<any> {
+    const logger = new Logger('EventsService');
     try {
       const event = await this.prisma.event.findUnique({
         where: { id: eventId },
@@ -693,14 +710,63 @@ export class EventsService {
         throw new NotFoundException(`Event with ID ${eventId} not found`);
       }
 
+      // SECURITY (CRIT-02): Enforce state machine — prevent arbitrary status jumps
+      const currentStatus = event.status as string;
+      const allowedTransitions = VALID_STATUS_TRANSITIONS[currentStatus];
+
+      if (!allowedTransitions) {
+        throw new BadRequestException(
+          `Unknown current status: ${currentStatus}. Cannot determine valid transitions.`
+        );
+      }
+
+      if (allowedTransitions.length === 0) {
+        throw new BadRequestException(
+          `Event is in terminal state '${currentStatus}' and cannot be changed.`
+        );
+      }
+
+      if (!allowedTransitions.includes(newStatus)) {
+        throw new BadRequestException(
+          `Invalid status transition: '${currentStatus}' → '${newStatus}'. ` +
+          `Allowed transitions: ${allowedTransitions.join(', ')}`
+        );
+      }
+
+      // SECURITY: For CONFIRMED transition, verify payment exists
+      if (newStatus === 'CONFIRMED') {
+        const payment = await this.prisma.payment.findFirst({
+          where: {
+            eventId: eventId,
+            status: 'CAPTURED',
+          },
+        });
+
+        if (!payment) {
+          logger.warn(
+            `Attempted CONFIRMED transition for event ${eventId} without captured payment`
+          );
+          throw new BadRequestException(
+            'Cannot confirm event: No captured payment found. Payment must be completed first.'
+          );
+        }
+      }
+
+      logger.log(
+        `Event ${eventId} status transition: ${currentStatus} → ${newStatus}`
+      );
+
       return this.prisma.event.update({
         where: { id: eventId },
         data: {
-          status: status as any,
+          status: newStatus as any,
         },
       });
     } catch (error) {
-      if (error instanceof NotFoundException) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
         throw error;
       }
       console.error('Error updating event status:', error);

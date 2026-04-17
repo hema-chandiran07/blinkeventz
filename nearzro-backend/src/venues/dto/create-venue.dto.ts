@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsEnum, IsOptional, IsNumber, IsNotEmpty, Min, MaxLength } from 'class-validator';
+import { IsString, IsEnum, IsOptional, IsNumber, IsNotEmpty, Min, MaxLength, IsArray } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { VenueType } from '@prisma/client';
 
@@ -94,7 +94,27 @@ export class CreateVenueDto {
     default: [],
   })
   @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
   venueImages?: string[] = [];
+
+  @ApiPropertyOptional({
+    example: ['uploads/kyc-doc.pdf'],
+    default: [],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  kycDocFiles?: string[] = [];
+
+  @ApiPropertyOptional({
+    example: ['uploads/govt-cert.pdf'],
+    default: [],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  venueGovtCertificateFiles?: string[] = [];
 
   @ApiPropertyOptional({
     example: 'No smoking allowed',

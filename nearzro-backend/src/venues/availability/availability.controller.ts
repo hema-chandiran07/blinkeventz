@@ -15,7 +15,7 @@ import { AvailabilityService } from './availability.service';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { Role } from '../../common/enums/role.enum';
+import { Role } from '@prisma/client';
 import { ApiBearerAuth, ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { VenuesService } from '../venues.service';
 import { VendorsService } from '../../vendors/vendors.service';
@@ -283,3 +283,4 @@ export class AvailabilityController {
     );
   }
 }
+

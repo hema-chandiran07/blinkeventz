@@ -13,7 +13,7 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
-  avatar?: string;
+  image?: string; // Base64 profile picture
   token?: string;
 }
 
@@ -28,6 +28,7 @@ interface AuthContextType {
   googleLogin: (options?: { role?: UserRole; callbackUrl?: string }) => void;
   facebookLogin: () => void;
   setUserFromOAuth: (authUser: User) => void;
+  refreshUser: () => Promise<void>; // FEATURE ADDED: Exported for component usage
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -37,7 +38,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Refresh user data from backend (gets fresh role from DB)
+  // Refresh user data from backend (gets fresh role and image from DB)
   const refreshUser = useCallback(async () => {
     const storedUser = localStorage.getItem("NearZro_user");
     if (!storedUser) return;
@@ -47,11 +48,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (parsed.token) {
         const response = await api.get('/auth/me');
         if (response.data) {
-          const updatedUser = {
+          const updatedUser: User = {
             id: String(response.data.id || parsed.id),
             name: response.data.name || parsed.name,
             email: response.data.email || parsed.email,
             role: response.data.role || parsed.role,
+            image: response.data.image || parsed.image || null, // FEATURE ADDED: captures image
             token: parsed.token,
           };
           setUser(updatedUser);
@@ -87,22 +89,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const parsedUser = JSON.parse(decodeURIComponent(urlUser));
             localStorage.setItem('user', JSON.stringify(parsedUser));
             // Also save to NearZro_user for consistency with standard login flow
-            const authUser = {
+            const authUser: User = {
               id: String(parsedUser.id),
               name: parsedUser.name,
               email: parsedUser.email,
               role: parsedUser.role,
+              image: parsedUser.image, // FEATURE ADDED
               token: urlToken,
             };
             localStorage.setItem('NearZro_user', JSON.stringify(authUser));
             // Update context state immediately
-            setUser({
-              id: String(parsedUser.id),
-              name: parsedUser.name,
-              email: parsedUser.email,
-              role: parsedUser.role as UserRole,
-              token: urlToken,
-            });
+            setUser(authUser);
           }
           // Delete only the sensitive tokens, keep routing parameters like ?step=2
           params.delete('token');
@@ -130,6 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 name: response.data.name || parsed.name,
                 email: response.data.email || parsed.email,
                 role: response.data.role || parsed.role,
+                image: response.data.image || parsed.image || null, // FEATURE ADDED
                 token: parsed.token,
               });
             } catch (error: unknown) {
@@ -212,6 +210,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         name: userData.name,
         email: userData.email,
         role: userData.role as UserRole,
+        image: userData.image || null, // FEATURE ADDED
         token,
       };
 
@@ -275,6 +274,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         name: userData.name,
         email: userData.email,
         role: userData.role as UserRole,
+        image: userData.image || null, // FEATURE ADDED
         token,
       };
 
@@ -414,7 +414,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isLoading,
       googleLogin,
       facebookLogin,
-      setUserFromOAuth
+      setUserFromOAuth,
+      refreshUser // FEATURE ADDED: Exported to context
     }}>
       {children}
     </AuthContext.Provider>

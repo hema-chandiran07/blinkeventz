@@ -541,13 +541,15 @@ export default function VendorPortfolioPage() {
     if (!editingImage) return;
 
     try {
+      await api.patch(`/vendors/me/portfolio/images/${editingImage.id}`, {
+        title: editingImage.title,
+        description: editingImage.description,
+        category: editingImage.category,
+      });
+
       const updatedImages = images.map(img =>
         img.id === editingImage.id ? editingImage : img
       );
-
-      // Use the correct reorder endpoint with imageIds
-      const imageIds = updatedImages.map(img => img.id);
-      await api.patch('/vendors/me/portfolio/reorder', { imageIds });
 
       setImages(updatedImages);
       setEditingImage(null);
@@ -561,16 +563,15 @@ export default function VendorPortfolioPage() {
   }, [editingImage, images]);
 
   const handleSetAsPrimary = useCallback(async (image: PortfolioImage) => {
-    const updatedImages = images.map(img => ({
-      ...img,
-      isPrimary: img.id === image.id,
-    }));
-
-    setImages(updatedImages);
-
     try {
-      const imageUrls = updatedImages.map(img => img.url);
-      await api.patch('/vendors/me/portfolio', { images: imageUrls });
+      await api.post('/vendors/me/portfolio/set-cover', { imageId: image.id });
+      
+      const updatedImages = images.map(img => ({
+        ...img,
+        isPrimary: img.id === image.id,
+      }));
+
+      setImages(updatedImages);
       toast.success("Cover image updated successfully");
     } catch (error: any) {
       console.error("Failed to update primary:", error);

@@ -13,11 +13,12 @@ declare module 'axios' {
 // Works in both development and Docker environments
 const getBaseUrl = () => {
   if (typeof window !== 'undefined') {
-    // Browser environment
+    // Browser environment: Use the local backend URL directly
+    // This allows the browser to reach the API port exposed by Docker
     return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
   }
-  // Server environment (Next.js SSR)
-  return process.env.API_INTERNAL_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+  // Server environment (Next.js SSR): Use internal Docker service name
+  return process.env.API_INTERNAL_URL || 'http://api:3000';
 };
 
 const api = axios.create({

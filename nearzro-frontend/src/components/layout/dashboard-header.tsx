@@ -3,18 +3,20 @@
 import { Menu, Search, User, Settings, LogOut, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { NotificationsBell } from "./notifications-bell";
-import { useState } from "react";
-import { cn } from "@/lib/utils";
+import { useState, useEffect } from "react";
+import { cn, getImageUrl } from "@/lib/utils";
 import { useAuth } from "@/context/auth-context";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePathname } from "next/navigation";
+import { CommandPalette } from "../search/command-palette";
 
 export function DashboardHeader() {
   const [searchFocused, setSearchFocused] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const { user, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -24,7 +26,7 @@ export function DashboardHeader() {
       case "VENDOR":
         return "/dashboard/vendor/profile";
       case "VENUE_OWNER":
-        return "/dashboard/venue/details";
+        return "/dashboard/venue/profile";
       case "CUSTOMER":
         return "/dashboard/customer/profile";
       case "ADMIN":
@@ -39,6 +41,18 @@ export function DashboardHeader() {
     setDropdownOpen(false);
     setMobileMenuOpen(false);
   };
+
+  // Add global shortcut listener for Command Palette (Cmd+K)
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        setIsPaletteOpen((open) => !open);
+      }
+    };
+    window.addEventListener("keydown", down);
+    return () => window.removeEventListener("keydown", down);
+  }, []);
 
   const getSidebarItems = () => {
     switch (user?.role) {
@@ -109,40 +123,33 @@ export function DashboardHeader() {
             <Menu className="h-6 w-6" />
           </button>
 
-          {/* Animated Search */}
-          <div className={cn(
-            "relative transition-all duration-300 ease-out",
-            searchFocused ? "w-full max-w-md" : "w-full max-w-sm"
-          )}>
-            <Search className={cn(
-              "absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 transition-colors duration-300",
-              searchFocused ? "text-neutral-700" : "text-neutral-400"
-            )} />
-            <Input
-              placeholder="Search events, venues, vendors..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onFocus={() => setSearchFocused(true)}
-              onBlur={() => setSearchFocused(false)}
-              className={cn(
-                "pl-10 transition-all duration-300 border-silver-200",
-                searchFocused
-                  ? "bg-white border-silver-300 ring-2 ring-silver-200 shadow-md"
-                  : "bg-silver-50/50 hover:bg-silver-50"
-              )}
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 transition-colors"
-              >
-                <span className="sr-only">Clear</span>
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            )}
+          {/* Premium Search Trigger */}
+          <div className="flex-1 max-w-md hidden md:block">
+            <button
+              onClick={() => setIsPaletteOpen(true)}
+              className="w-full flex items-center justify-between px-4 py-2 bg-silver-50/50 hover:bg-silver-100/80 border border-silver-200 hover:border-silver-300 rounded-xl transition-all duration-300 group"
+            >
+              <div className="flex items-center gap-3">
+                <Search className="h-4 w-4 text-neutral-400 group-hover:text-neutral-600 transition-colors" />
+                <span className="text-sm text-neutral-400 font-medium group-hover:text-neutral-500">
+                  Search everywhere...
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 grayscale opacity-50 group-hover:opacity-100 transition-opacity">
+                <kbd className="inline-flex h-5 select-none items-center gap-1 rounded border border-silver-200 bg-white px-1.5 font-mono text-[10px] font-medium text-neutral-500">
+                  <span className="text-xs">⌘</span>K
+                </kbd>
+              </div>
+            </button>
           </div>
+
+          {/* Mobile Search Icon */}
+          <button
+            onClick={() => setIsPaletteOpen(true)}
+            className="md:hidden p-2 text-neutral-500 hover:bg-silver-100 rounded-lg"
+          >
+            <Search className="h-6 w-6" />
+          </button>
         </div>
 
         <div className="flex items-center gap-2">
@@ -155,8 +162,16 @@ export function DashboardHeader() {
               onClick={() => setDropdownOpen(!dropdownOpen)}
               className="flex items-center gap-2 p-1.5 rounded-full hover:bg-silver-100 transition-all duration-300"
             >
-              <div className="h-9 w-9 rounded-full bg-gradient-to-br from-silver-400 to-silver-600 flex items-center justify-center text-white font-semibold text-sm shadow-md">
-                <User className="h-5 w-5" />
+              <div className="h-9 w-9 rounded-full bg-gradient-to-br from-silver-400 to-silver-600 flex items-center justify-center text-white font-semibold text-sm shadow-md overflow-hidden">
+                {user?.image ? (
+                  <img
+                    src={getImageUrl(user.image)}
+                    alt={user.name || "User"}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <User className="h-5 w-5" />
+                )}
               </div>
               <div className="hidden lg:block text-left">
                 <p className="text-sm font-semibold text-black hover:text-neutral-700 transition-colors">
@@ -239,8 +254,16 @@ export function DashboardHeader() {
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b border-silver-200">
                   <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-silver-400 to-silver-600 flex items-center justify-center">
-                      <User className="h-6 w-6 text-white" />
+                    <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-silver-400 to-silver-600 flex items-center justify-center overflow-hidden">
+                      {user?.image ? (
+                        <img
+                          src={getImageUrl(user.image)}
+                          alt={user.name || "User"}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <User className="h-6 w-6 text-white" />
+                      )}
                     </div>
                     <div>
                       <p className="font-semibold text-black">{user?.name || "User"}</p>
@@ -316,6 +339,8 @@ export function DashboardHeader() {
           </>
         )}
       </AnimatePresence>
+
+      <CommandPalette open={isPaletteOpen} setOpen={setIsPaletteOpen} />
     </>
   );
 }
