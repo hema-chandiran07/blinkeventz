@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   ArrowLeft, Edit, Trash2, Mail, Calendar,
   CheckCircle2, XCircle, Download, MessageSquare, Shield,
-  Loader2
+  Loader2, User
 } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
 import { toast } from "sonner";
@@ -21,6 +21,7 @@ interface UserDetail {
   role: string;
   isActive: boolean;
   isEmailVerified: boolean;
+  image?: string;
   createdAt: string;
   events?: any[];
   vendor?: any;
@@ -42,22 +43,27 @@ export default function UserDetailPage() {
   const [user, setUser] = useState<UserDetail | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
-  useEffect(() => {
-    loadUser();
-  }, [params.id]);
-
-  const loadUser = async () => {
+  const loadUser = useCallback(async (signal?: AbortSignal) => {
     try {
       setLoading(true);
-      const response = await api.get(`/users/${params.id}`);
+      const response = await api.get(`/users/${params.id}`, { signal });
       setUser(response.data);
     } catch (error: any) {
+      if (error.name === 'AbortError' || error.code === 'ERR_CANCELED') {
+        return;
+      }
       console.error("Failed to load user:", error);
       toast.error("Failed to load user details");
     } finally {
       setLoading(false);
     }
-  };
+  }, [params.id]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    loadUser(controller.signal);
+    return () => controller.abort();
+  }, [loadUser]);
 
   const formatCurrency = (amount: number) => {
     if (amount >= 10000000) return `₹${(amount / 10000000).toFixed(2)}Cr`;
@@ -159,14 +165,24 @@ export default function UserDetailPage() {
   return (
     <div className="space-y-6">
       {/* Header with Back Button */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => router.back()}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold text-black">{user.name}</h1>
-            <p className="text-neutral-600">{user.email}</p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="sm" onClick={() => router.back()}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div className="flex items-center gap-3">
+              <div className="h-12 w-12 rounded-full bg-zinc-800 border-2 border-zinc-700 flex items-center justify-center overflow-hidden">
+                {user?.image ? (
+                  <img src={user.image} alt={user?.name || 'User'} className="h-full w-full object-cover" />
+                ) : (
+                  <User className="h-6 w-6 text-zinc-400" />
+                )}
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-black">{user?.name}</h1>
+                <p className="text-neutral-600">{user?.email}</p>
+              </div>
+            </div>
           </div>
         </div>
         <div className="flex gap-2">
@@ -178,8 +194,7 @@ export default function UserDetailPage() {
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
-        </div>
-      </div>
+         </div>
 
       {/* User Info Cards */}
       <div className="grid gap-4 md:grid-cols-4">

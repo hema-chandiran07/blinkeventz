@@ -192,45 +192,45 @@ export default function AdminVenuesPage() {
       {/* Venues Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 px-6">
         {loading ? (
-          <div className="col-span-full text-center py-8 text-neutral-600">Loading venues...</div>
+          <div className="col-span-full text-center py-8 text-zinc-400">Loading venues...</div>
         ) : filteredVenues.length === 0 ? (
-          <div className="col-span-full text-center py-8 text-neutral-600">No venues found</div>
+          <div className="col-span-full text-center py-8 text-zinc-400">No venues found</div>
         ) : (
           filteredVenues.map((venue) => (
-            <Card key={venue.id} className="border-2 border-neutral-200 hover:border-black transition-colors">
+            <Card key={venue.id} className="border-zinc-800 bg-zinc-900/50 hover:border-zinc-700 transition-colors">
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <CardTitle className="text-black">{venue.name}</CardTitle>
-                    <p className="text-sm text-neutral-600 mt-1">{venue.type}</p>
+                    <CardTitle className="text-zinc-100">{venue.name || "N/A"}</CardTitle>
+                    <p className="text-sm text-zinc-400 mt-1">{venue.type || "N/A"}</p>
                   </div>
                   <Badge className={`text-xs ${
-                    venue.status === "ACTIVE" ? "bg-emerald-100 text-emerald-700" :
-                    venue.status === "PENDING_APPROVAL" ? "bg-amber-100 text-amber-700" :
-                    "bg-red-100 text-red-700"
+                    venue.status === "ACTIVE" ? "bg-emerald-950/30 text-emerald-400 border-emerald-700" :
+                    venue.status === "PENDING_APPROVAL" ? "bg-amber-950/30 text-amber-400 border-amber-700" :
+                    "bg-red-950/30 text-red-400 border-red-700"
                   }`}>
-                    {venue.status}
+                    {venue.status || "N/A"}
                   </Badge>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="flex items-center gap-2 text-sm text-neutral-600">
+                <div className="flex items-center gap-2 text-sm text-zinc-400">
                   <MapPin className="h-4 w-4" />
-                  <span>{venue.area}, {venue.city}</span>
+                  <span>{venue.area || "N/A"}, {venue.city || "N/A"}</span>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-neutral-600">
+                <div className="flex items-center gap-2 text-sm text-zinc-400">
                   <Users className="h-4 w-4" />
-                  <span>Capacity: {venue.capacityMax}</span>
+                  <span>Capacity: {venue.capacityMax ?? "N/A"}</span>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-neutral-600">
+                <div className="flex items-center gap-2 text-sm text-zinc-400">
                   <DollarSign className="h-4 w-4" />
-                  <span>₹{venue.basePriceEvening.toLocaleString()} / evening</span>
+                  <span>₹{venue.basePriceEvening?.toLocaleString() ?? "0"} / evening</span>
                 </div>
                 <div className="pt-3 flex gap-2">
                   <Button
                     variant="outline"
                     size="sm"
-                    className="flex-1 border-black"
+                    className="flex-1 border-zinc-700 text-zinc-300 hover:bg-zinc-800"
                     onClick={() => router.push(`/dashboard/admin/venues/${venue.id}`)}
                   >
                     <Eye className="h-4 w-4 mr-1" /> View
@@ -240,7 +240,7 @@ export default function AdminVenuesPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="flex-1 border-emerald-600 text-emerald-600 hover:bg-emerald-50"
+                        className="flex-1 border-emerald-700 text-emerald-400 hover:bg-emerald-950/30"
                         onClick={() => handleApprove(venue.id)}
                       >
                         <CheckCircle2 className="h-4 w-4 mr-1" /> Approve
@@ -248,7 +248,7 @@ export default function AdminVenuesPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="flex-1 border-red-600 text-red-600 hover:bg-red-50"
+                        className="flex-1 border-red-800 text-red-400 hover:bg-red-950/30"
                         onClick={() => handleReject(venue.id)}
                       >
                         <XCircle className="h-4 w-4 mr-1" /> Reject

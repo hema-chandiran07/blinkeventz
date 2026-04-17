@@ -31,13 +31,15 @@ export default function AdminReviewsPage() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [filter, setFilter] = useState<"all" | "PENDING" | "APPROVED" | "REJECTED">("PENDING");
 
-  const loadReviews = useCallback(async () => {
+  const loadReviews = useCallback(async (signal?: AbortSignal) => {
     try {
       const params = filter === "all" ? {} : { status: filter };
-      const response = await api.get("/reviews/admin/all", { params });
+      const config = { params, ...(signal && { signal }) };
+      const response = await api.get("/reviews", config);
       const reviewsData = extractArray<Review>(response);
       setReviews(reviewsData);
     } catch (err: any) {
+      if (err.name === 'AbortError' || err.code === 'ERR_CANCELED') return;
       console.error("Failed to load reviews:", err);
       toast.error("Failed to load reviews");
     } finally {
@@ -45,9 +47,11 @@ export default function AdminReviewsPage() {
     }
   }, [filter]);
 
-  useEffect(() => {
-    loadReviews();
-  }, [loadReviews]);
+   useEffect(() => {
+     const controller = new AbortController();
+     loadReviews(controller.signal);
+     return () => controller.abort();
+   }, [loadReviews]);
 
   const handleApprove = async (id: number) => {
     try {
@@ -179,15 +183,15 @@ export default function AdminReviewsPage() {
             <Card key={review.id} className="border-zinc-800 bg-zinc-900/50">
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-zinc-800 flex items-center justify-center">
-                      {review.user.name.charAt(0)}
-                    </div>
-                    <div>
-                      <p className="font-semibold text-zinc-100">{review.user.name}</p>
-                      <p className="text-sm text-zinc-400">{review.user.email}</p>
-                    </div>
-                  </div>
+                   <div className="flex items-center gap-3">
+                     <div className="h-10 w-10 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-300 font-bold">
+                       {(review.user?.name || "U").charAt(0)}
+                     </div>
+                     <div>
+                       <p className="font-semibold text-zinc-100">{review.user?.name || "Anonymous"}</p>
+                       <p className="text-sm text-zinc-400">{review.user?.email || "No email"}</p>
+                     </div>
+                   </div>
                   <Badge className={getStatusColor(review.status)}>
                     {review.status}
                   </Badge>

@@ -150,7 +150,7 @@ function SummarySidebar({ uiState, formData, activePlan, onAccept, onRegenerate,
             <div className="p-4 border-t border-zinc-800/60 space-y-2">
               <button
                 onClick={onAccept}
-                className="w-full py-3 bg-zinc-100 hover:bg-white text-zinc-950 font-bold text-xs uppercase tracking-widest rounded-xl flex items-center justify-center gap-2 transition-all border border-zinc-200 hover:scale-[1.01] shadow-sm group"
+                className="w-full py-3 bg-zinc-100 hover:bg-zinc-200 text-zinc-950 font-bold text-xs uppercase tracking-widest rounded-xl flex items-center justify-center gap-2 transition-all border border-zinc-200 hover:scale-[1.01] shadow-sm group"
               >
                 <ShoppingCart className="w-4 h-4" />
                 Accept & Create Cart
@@ -492,7 +492,7 @@ function PlanEventContent() {
             >
               <button
                 onClick={handleAccept}
-                className="w-full py-4 bg-zinc-100 hover:bg-white text-zinc-950 font-bold rounded-xl flex items-center justify-center gap-2 shadow-2xl border border-zinc-200 uppercase tracking-wider text-sm"
+                className="w-full py-4 bg-zinc-100 hover:bg-zinc-200 text-zinc-950 font-bold rounded-xl flex items-center justify-center gap-2 shadow-2xl border border-zinc-200 uppercase tracking-wider text-sm"
               >
                 <ShoppingCart className="w-5 h-5" />
                 Accept & Create Cart

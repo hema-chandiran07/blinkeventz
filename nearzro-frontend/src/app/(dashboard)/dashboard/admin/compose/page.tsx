@@ -182,29 +182,29 @@ export default function ComposeMessagePage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 bg-zinc-950 min-h-screen p-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between bg-zinc-900 border-b border-zinc-800 px-6 py-4 rounded-lg">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={handleCancel} className="hover:bg-neutral-100">
+          <Button variant="ghost" size="icon" onClick={handleCancel} className="hover:bg-zinc-800 text-zinc-100">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold text-black">Compose Message</h1>
-            <p className="text-neutral-600">
-              {loadingUser 
-                ? "Loading user details..." 
-                : userId 
-                  ? "Send message to user (notification + email)" 
+            <h1 className="text-3xl font-bold text-zinc-100">Compose Message</h1>
+            <p className="text-zinc-400">
+              {loadingUser
+                ? "Loading user details..."
+                : userId
+                  ? "Send message to user (notification + email)"
                   : "Send a message to vendor, venue owner, or customer"}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={handleCancel} className="border-black text-black" disabled={sending}>
+          <Button variant="outline" onClick={handleCancel} className="border-zinc-800 text-zinc-100 hover:bg-zinc-800" disabled={sending}>
             Cancel
           </Button>
-          <Button onClick={handleSend} disabled={sending || !isValid || loadingUser} className="bg-black hover:bg-neutral-800 text-white">
+          <Button onClick={handleSend} disabled={sending || !isValid || loadingUser} className="bg-zinc-800 hover:bg-zinc-700 text-zinc-100">
             {sent ? (
               <>
                 <CheckCircle2 className="h-4 w-4 mr-2" />
@@ -228,47 +228,47 @@ export default function ComposeMessagePage() {
       {/* Message Method Selection */}
       <div className="grid gap-4 md:grid-cols-3">
         <Card
-          className={`border-2 cursor-pointer transition-all ${formData.method === "email" ? "border-black bg-neutral-50" : "border-neutral-200"}`}
+          className={`border-2 cursor-pointer transition-all ${formData.method === "email" ? "border-zinc-700 bg-zinc-900/80" : "border-zinc-800 bg-zinc-900/50"}`}
           onClick={() => setFormData({ ...formData, method: "email", channels: ["IN_APP", "EMAIL"] })}
         >
           <CardContent className="p-6 text-center">
-            <Mail className="h-8 w-8 mx-auto mb-2 text-neutral-600" />
-            <p className="font-semibold text-black">Email + Notification</p>
-            <p className="text-xs text-neutral-500">Bell icon + email delivery</p>
+            <Mail className="h-8 w-8 mx-auto mb-2 text-zinc-400" />
+            <p className="font-semibold text-zinc-100">Email + Notification</p>
+            <p className="text-xs text-zinc-500">Bell icon + email delivery</p>
           </CardContent>
         </Card>
 
         <Card
-          className={`border-2 cursor-pointer transition-all ${formData.method === "sms" ? "border-black bg-neutral-50" : "border-neutral-200"}`}
+          className={`border-2 cursor-pointer transition-all ${formData.method === "sms" ? "border-zinc-700 bg-zinc-900/80" : "border-zinc-800 bg-zinc-900/50"}`}
           onClick={() => setFormData({ ...formData, method: "sms", channels: ["IN_APP"] })}
         >
           <CardContent className="p-6 text-center">
-            <MessageSquare className="h-8 w-8 mx-auto mb-2 text-neutral-600" />
-            <p className="font-semibold text-black">In-App Only</p>
-            <p className="text-xs text-neutral-500">Notification bell only</p>
+            <MessageSquare className="h-8 w-8 mx-auto mb-2 text-zinc-400" />
+            <p className="font-semibold text-zinc-100">In-App Only</p>
+            <p className="text-xs text-zinc-500">Notification bell only</p>
           </CardContent>
         </Card>
 
         <Card
-          className={`border-2 cursor-pointer transition-all ${formData.method === "whatsapp" ? "border-black bg-neutral-50" : "border-neutral-200"}`}
+          className={`border-2 cursor-pointer transition-all ${formData.method === "whatsapp" ? "border-zinc-700 bg-zinc-900/80" : "border-zinc-800 bg-zinc-900/50"}`}
           onClick={() => setFormData({ ...formData, method: "whatsapp", channels: ["IN_APP"] })}
         >
           <CardContent className="p-6 text-center">
-            <Smartphone className="h-8 w-8 mx-auto mb-2 text-neutral-600" />
-            <p className="font-semibold text-black">In-App Only</p>
-            <p className="text-xs text-neutral-500">Notification bell only</p>
+            <Smartphone className="h-8 w-8 mx-auto mb-2 text-zinc-400" />
+            <p className="font-semibold text-zinc-100">In-App Only</p>
+            <p className="text-xs text-zinc-500">Notification bell only</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Compose Form */}
-      <Card className="border-2 border-black bg-white">
+      <Card className="border border-zinc-800 bg-zinc-900/50">
         <CardHeader>
-          <CardTitle className="text-black">Message Details</CardTitle>
+          <CardTitle className="text-zinc-100">Message Details</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="to" className="text-black">
+            <Label htmlFor="to" className="text-zinc-300">
               Recipient {getMethodLabel()} *
             </Label>
             <div className="relative">
@@ -279,13 +279,13 @@ export default function ComposeMessagePage() {
                 placeholder={getPlaceholder()}
                 type={getInputType()}
                 disabled={loadingUser || !!userId}
-                className={`bg-white text-black border-neutral-300 ${validation.to ? "border-red-300" : ""}`}
+                className={`bg-zinc-800 text-zinc-100 border-zinc-700 ${validation.to ? "border-red-500" : ""}`}
               />
               {loadingUser && (
-                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-neutral-400" />
+                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-zinc-500" />
               )}
               {validation.to && (
-                <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
+                <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
                   <AlertCircle className="h-3 w-3" />
                   {validation.to}
                 </p>
@@ -294,17 +294,17 @@ export default function ComposeMessagePage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="subject" className="text-black">Subject *</Label>
+            <Label htmlFor="subject" className="text-zinc-300">Subject *</Label>
             <div className="relative">
               <Input
                 id="subject"
                 value={formData.subject}
                 onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
                 placeholder="Enter message subject"
-                className={`bg-white text-black border-neutral-300 ${validation.subject ? "border-red-300" : ""}`}
+                className={`bg-zinc-800 text-zinc-100 border-zinc-700 ${validation.subject ? "border-red-500" : ""}`}
               />
               {validation.subject && (
-                <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
+                <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
                   <AlertCircle className="h-3 w-3" />
                   {validation.subject}
                 </p>
@@ -313,7 +313,7 @@ export default function ComposeMessagePage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="message" className="text-black">Message *</Label>
+            <Label htmlFor="message" className="text-zinc-300">Message *</Label>
             <div className="relative">
               <Textarea
                 id="message"
@@ -321,16 +321,16 @@ export default function ComposeMessagePage() {
                 onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                 placeholder="Type your message here..."
                 rows={10}
-                className={`resize-none bg-white text-black border-neutral-300 ${validation.message ? "border-red-300" : ""}`}
+                className={`resize-none bg-zinc-800 text-zinc-100 border-zinc-700 ${validation.message ? "border-red-500" : ""}`}
               />
               {validation.message && (
-                <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
+                <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
                   <AlertCircle className="h-3 w-3" />
                   {validation.message}
                 </p>
               )}
               {formData.message.trim() && (
-                <p className="text-xs text-neutral-500 mt-1 text-right">
+                <p className="text-xs text-zinc-500 mt-1 text-right">
                   {formData.message.trim().length} characters
                 </p>
               )}
@@ -338,13 +338,13 @@ export default function ComposeMessagePage() {
           </div>
 
           {/* Live Message Preview */}
-          <div className="bg-neutral-50 p-4 rounded-lg border border-neutral-200">
+          <div className="bg-zinc-900/80 p-4 rounded-lg border border-zinc-800">
             <div className="flex items-center gap-2 mb-2">
               {getMethodIcon()}
-              <p className="text-sm font-semibold text-black">Message Preview:</p>
+              <p className="text-sm font-semibold text-zinc-100">Message Preview:</p>
             </div>
-            <div className="text-sm text-neutral-700">
-              <p className="font-semibold text-black">{formData.subject || "(No subject)"}</p>
+            <div className="text-sm text-zinc-400">
+              <p className="font-semibold text-zinc-100">{formData.subject || "(No subject)"}</p>
               <p className="mt-2 whitespace-pre-wrap">{formData.message || "(Your message will appear here)"}</p>
             </div>
           </div>

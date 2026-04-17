@@ -36,14 +36,14 @@ const TYPE_ICONS: Record<string, any> = {
 };
 
 const TYPE_COLORS: Record<string, string> = {
-  BOOKING_CONFIRMED: "bg-emerald-50 border-emerald-200",
-  PAYMENT_SUCCESS: "bg-emerald-50 border-emerald-200",
-  VENDOR_APPROVED: "bg-emerald-50 border-emerald-200",
-  VENUE_APPROVED: "bg-emerald-50 border-emerald-200",
-  PAYMENT_FAILED: "bg-red-50 border-red-200",
-  BOOKING_CANCELLED: "bg-red-50 border-red-200",
-  EVENT_REMINDER: "bg-amber-50 border-amber-200",
-  SYSTEM_ALERT: "bg-blue-50 border-blue-200",
+  BOOKING_CONFIRMED: "bg-emerald-950/20 border-emerald-800",
+  PAYMENT_SUCCESS: "bg-emerald-950/20 border-emerald-800",
+  VENDOR_APPROVED: "bg-emerald-950/20 border-emerald-800",
+  VENUE_APPROVED: "bg-emerald-950/20 border-emerald-800",
+  PAYMENT_FAILED: "bg-red-950/20 border-red-800",
+  BOOKING_CANCELLED: "bg-red-950/20 border-red-800",
+  EVENT_REMINDER: "bg-amber-950/20 border-amber-800",
+  SYSTEM_ALERT: "bg-blue-950/20 border-blue-800",
 };
 
 export default function NotificationsPage() {
@@ -53,12 +53,14 @@ export default function NotificationsPage() {
   const [filter, setFilter] = useState("all");
 
   useEffect(() => {
-    loadNotifications();
+    const controller = new AbortController();
+    loadNotifications(controller.signal);
+    return () => controller.abort();
   }, []);
 
-  const loadNotifications = async () => {
+  const loadNotifications = async (signal?: AbortSignal) => {
     try {
-      const response = await api.get("/notifications?admin=true");
+      const response = await api.get("/notifications?admin=true", { signal });
       const data = response.data;
       // Backend may return { data: [...], pagination: {...} } or just [...]
       const notifications = Array.isArray(data) ? data : (data?.data || data?.notifications || []);
@@ -75,7 +77,7 @@ export default function NotificationsPage() {
 
   const handleMarkAsRead = async (id: number) => {
     try {
-      await api.post(`/notifications/${id}/read`);
+      await api.patch(`/notifications/${id}/read`);
       setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
       toast.success("Notification marked as read");
     } catch (error: any) {
@@ -127,32 +129,32 @@ export default function NotificationsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <p className="text-neutral-600">Loading notifications...</p>
+      <div className="flex items-center justify-center min-h-[60vh] bg-zinc-950">
+        <p className="text-zinc-400">Loading notifications...</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 bg-zinc-950 min-h-screen px-6 py-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-black">Notifications</h1>
-          <p className="text-neutral-600">
+          <h1 className="text-3xl font-bold text-zinc-100">Notifications</h1>
+          <p className="text-zinc-400">
             {unreadCount > 0 ? `${unreadCount} unread notifications` : "All caught up!"}
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="border-black" onClick={handleMarkAllAsRead}>
+          <Button variant="outline" size="sm" className="border-zinc-700 text-zinc-300 hover:bg-zinc-800" onClick={handleMarkAllAsRead}>
             <CheckCheck className="h-4 w-4 mr-2" />
             Mark All Read
           </Button>
-          <Button variant="outline" size="sm" className="border-black text-red-600 hover:bg-red-50" onClick={handleClearAll}>
+          <Button variant="outline" size="sm" className="border-zinc-700 text-zinc-300 hover:bg-zinc-800" onClick={handleClearAll}>
             <Trash2 className="h-4 w-4 mr-2" />
             Clear All
           </Button>
-          <Button variant="outline" size="sm" className="border-black">
+          <Button variant="outline" size="sm" className="border-zinc-700 text-zinc-300 hover:bg-zinc-800">
             <Settings className="h-4 w-4 mr-2" />
             Settings
           </Button>
@@ -160,14 +162,14 @@ export default function NotificationsPage() {
       </div>
 
       {/* Filters */}
-      <Card className="border-2 border-black">
+      <Card className="border-zinc-800 bg-zinc-900/50">
         <CardContent className="p-4">
           <div className="flex gap-2">
             <Button
               variant={filter === "all" ? "default" : "outline"}
               size="sm"
               onClick={() => setFilter("all")}
-              className={filter === "all" ? "bg-black" : "border-black"}
+              className={filter === "all" ? "bg-zinc-100 text-zinc-900" : "border-zinc-700 text-zinc-300"}
             >
               All ({notifications.length})
             </Button>
@@ -175,7 +177,7 @@ export default function NotificationsPage() {
               variant={filter === "unread" ? "default" : "outline"}
               size="sm"
               onClick={() => setFilter("unread")}
-              className={filter === "unread" ? "bg-black" : "border-black"}
+              className={filter === "unread" ? "bg-zinc-100 text-zinc-900" : "border-zinc-700 text-zinc-300"}
             >
               Unread ({unreadCount})
             </Button>
@@ -186,11 +188,11 @@ export default function NotificationsPage() {
       {/* Notifications List */}
       <div className="space-y-3">
         {filteredNotifications.length === 0 ? (
-          <Card className="border-2 border-black">
+          <Card className="border-zinc-800 bg-zinc-900/50">
             <CardContent className="p-12 text-center">
-              <Bell className="h-16 w-16 mx-auto mb-4 text-neutral-400" />
-              <h3 className="text-lg font-bold text-black mb-2">No Notifications</h3>
-              <p className="text-neutral-600">
+              <Bell className="h-16 w-16 mx-auto mb-4 text-zinc-500" />
+              <h3 className="text-lg font-bold text-zinc-100 mb-2">No Notifications</h3>
+              <p className="text-zinc-400">
                 {filter === "unread" ? "No unread notifications" : "You're all caught up!"}
               </p>
             </CardContent>
@@ -198,7 +200,7 @@ export default function NotificationsPage() {
         ) : (
           filteredNotifications.map((notification) => {
             const Icon = TYPE_ICONS[notification.type] || Bell;
-            const colorClass = TYPE_COLORS[notification.type] || "bg-neutral-50 border-neutral-200";
+            const colorClass = TYPE_COLORS[notification.type] || "bg-zinc-800/50 border-zinc-700";
 
             return (
               <motion.div
@@ -206,37 +208,37 @@ export default function NotificationsPage() {
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
               >
-                <Card className={`border-2 ${colorClass} ${!notification.read ? 'ring-2 ring-black' : ''}`}>
+                <Card className={`border ${colorClass} ${!notification.read ? 'ring-2 ring-zinc-600' : ''}`}>
                   <CardContent className="p-4">
                     <div className="flex items-start gap-4">
                       <div className={`p-3 rounded-full ${
                         notification.type.includes('SUCCESS') || notification.type.includes('APPROVED')
-                          ? 'bg-emerald-100'
+                          ? 'bg-emerald-950/30'
                           : notification.type.includes('FAILED') || notification.type.includes('CANCELLED')
-                          ? 'bg-red-100'
-                          : 'bg-neutral-100'
+                          ? 'bg-red-950/30'
+                          : 'bg-zinc-800'
                       }`}>
                         <Icon className={`h-5 w-5 ${
                           notification.type.includes('SUCCESS') || notification.type.includes('APPROVED')
-                            ? 'text-emerald-600'
+                            ? 'text-emerald-400'
                             : notification.type.includes('FAILED') || notification.type.includes('CANCELLED')
-                            ? 'text-red-600'
-                            : 'text-neutral-600'
+                            ? 'text-red-400'
+                            : 'text-zinc-400'
                         }`} />
                       </div>
 
                       <div className="flex-1">
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1">
-                            <h3 className="font-bold text-black mb-1">{notification.title}</h3>
-                            <p className="text-neutral-700 text-sm mb-2">{notification.message}</p>
-                            <div className="flex items-center gap-3 text-xs text-neutral-600">
-                              <span className="flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
-                                {new Date(notification.createdAt).toLocaleString()}
+                             <h3 className="font-bold text-zinc-100 mb-1">{notification.title || "No title"}</h3>
+                             <p className="text-zinc-300 text-sm mb-2">{notification.message || "No message"}</p>
+                             <div className="flex items-center gap-3 text-xs text-zinc-500">
+                               <span className="flex items-center gap-1">
+                                 <Clock className="h-3 w-3" />
+                                 {notification.createdAt ? new Date(notification.createdAt).toLocaleString() : "N/A"}
                               </span>
                               {notification.priority === 'HIGH' && (
-                                <Badge className="bg-red-100 text-red-700 border-red-200">
+                                <Badge className="bg-red-950/30 text-red-400 border-red-700">
                                   <AlertTriangle className="h-3 w-3 mr-1" />
                                   High Priority
                                 </Badge>
@@ -250,6 +252,7 @@ export default function NotificationsPage() {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleMarkAsRead(notification.id)}
+                                className="text-zinc-400 hover:text-zinc-100"
                               >
                                 <CheckCircle2 className="h-4 w-4" />
                               </Button>
@@ -258,18 +261,9 @@ export default function NotificationsPage() {
                               variant="ghost"
                               size="sm"
                               onClick={() => handleDelete(notification.id)}
+                              className="text-zinc-400 hover:text-red-400"
                             >
                               <Trash2 className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                navigator.clipboard.writeText(notification.message);
-                                toast.success("Message copied to clipboard");
-                              }}
-                            >
-                              <X className="h-4 w-4" />
                             </Button>
                           </div>
                         </div>

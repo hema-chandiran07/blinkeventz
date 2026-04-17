@@ -9,12 +9,12 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
   Calendar, Clock, DollarSign, Search,
-  CheckCircle2, AlertCircle, Package, ArrowLeft
+  CheckCircle2, AlertCircle, Package, ArrowLeft, X
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { extractArray } from "@/lib/api-response";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface Booking {
   id: number;
@@ -41,6 +41,8 @@ export default function CustomerBookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [isCancelling, setIsCancelling] = useState<number | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -95,6 +97,23 @@ export default function CustomerBookingsPage() {
       case "CONFIRMED": return <CheckCircle2 className="h-4 w-4" />;
       case "COMPLETED": return <CheckCircle2 className="h-4 w-4" />;
       case "CANCELLED": return <AlertCircle className="h-4 w-4" />;
+    }
+  };
+
+  const handleCancelBooking = async (bookingId: number) => {
+    try {
+      setIsCancelling(bookingId);
+      await api.patch(`/booking/${bookingId}/cancel`);
+      toast.success("Booking cancelled successfully");
+      setBookings(prev => prev.map(b => 
+        b.id === bookingId ? { ...b, status: "CANCELLED" as const } : b
+      ));
+      setSelectedBooking(null);
+    } catch (error: any) {
+      console.error("Cancel booking error:", error);
+      toast.error(error?.response?.data?.message || "Failed to cancel booking");
+    } finally {
+      setIsCancelling(null);
     }
   };
 
@@ -218,8 +237,7 @@ export default function CustomerBookingsPage() {
                         <Button
                           variant="silver"
                           size="sm"
-                          disabled
-                          className="opacity-50 cursor-not-allowed"
+                          onClick={() => setSelectedBooking(booking)}
                         >
                           View Details
                         </Button>
@@ -227,10 +245,11 @@ export default function CustomerBookingsPage() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            disabled
-                            className="text-red-400 opacity-50 cursor-not-allowed"
+                            onClick={() => handleCancelBooking(booking.id)}
+                            disabled={isCancelling === booking.id}
+                            className="text-red-400 hover:text-red-300 hover:bg-red-950/30"
                           >
-                            Cancel
+                            {isCancelling === booking.id ? "Cancelling..." : "Cancel"}
                           </Button>
                         )}
                       </div>
@@ -242,6 +261,101 @@ export default function CustomerBookingsPage() {
           </div>
         )}
       </div>
+
+      {/* Booking Detail Modal */}
+      <AnimatePresence>
+        {selectedBooking && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedBooking(null)}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            >
+              <div className="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
+                <div className="flex items-center justify-between p-5 border-b border-zinc-800">
+                  <h2 className="text-xl font-bold text-zinc-100">Booking Details</h2>
+                  <button
+                    onClick={() => setSelectedBooking(null)}
+                    className="p-2 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                <div className="p-5 space-y-4">
+                  <div className="flex items-center gap-4">
+                    <div className="h-14 w-14 rounded-xl bg-zinc-800 flex items-center justify-center text-zinc-300">
+                      <Package className="h-7 w-7" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-zinc-100 text-lg">
+                        {selectedBooking.slot?.venue?.name || selectedBooking.slot?.vendor?.name || "Booking TBA"}
+                      </h3>
+                      <Badge className={`${getStatusColor(selectedBooking.status)} border mt-1`}>
+                        {getStatusIcon(selectedBooking.status)}
+                        <span className="ml-1 capitalize">{selectedBooking.status.toLowerCase()}</span>
+                      </Badge>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4 pt-4 border-t border-zinc-800">
+                    <div>
+                      <p className="text-sm text-zinc-500">Event Date</p>
+                      <p className="font-medium text-zinc-100">
+                        {selectedBooking.slot?.date 
+                          ? new Date(selectedBooking.slot.date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+                          : "TBA"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-zinc-500">Time Slot</p>
+                      <p className="font-medium text-zinc-100">{selectedBooking.slot?.timeSlot?.replace("_", " ") || "TBA"}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-zinc-500">Total Amount</p>
+                      <p className="font-medium text-zinc-100">₹{(selectedBooking.totalAmount || 0).toLocaleString("en-IN")}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-zinc-500">Booked On</p>
+                      <p className="font-medium text-zinc-100">
+                        {selectedBooking.createdAt 
+                          ? new Date(selectedBooking.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+                          : "N/A"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-5 border-t border-zinc-800 flex gap-3">
+                  <Button
+                    variant="silver"
+                    className="flex-1"
+                    onClick={() => setSelectedBooking(null)}
+                  >
+                    Close
+                  </Button>
+                  {selectedBooking.status === "PENDING" && (
+                    <Button
+                      variant="ghost"
+                      className="flex-1 text-red-400 hover:text-red-300 hover:bg-red-950/30"
+                      onClick={() => handleCancelBooking(selectedBooking.id)}
+                      disabled={isCancelling === selectedBooking.id}
+                    >
+                      {isCancelling === selectedBooking.id ? "Cancelling..." : "Cancel Booking"}
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -76,25 +76,23 @@ export default function CustomerDashboardPage() {
   const loadDashboardData = async (signal?: AbortSignal) => {
     try {
       setLoading(true);
+      
+      const statsResponse = await api.get("/dashboard/customer/stats", { signal });
       const eventsResponse = await api.get("/events/my", { signal });
       
-      // Use the utility to safely extract array from paginated response
+      const statsData = statsResponse?.data;
       const eventsData = extractArray<Event>(eventsResponse);
       setEvents(eventsData);
 
-      const upcoming = eventsData.filter((e: Event) =>
-        ["CONFIRMED", "IN_PROGRESS", "PENDING_PAYMENT"].includes(e.status)
-      ).length;
-
-      const totalSpent = eventsData.reduce((sum: number, e: Event) =>
-        sum + (e.totalAmount || 0), 0
-      );
-
       setStats({
-        totalEvents: eventsData.length,
-        upcomingEvents: upcoming,
-        totalSpent: totalSpent,
-        activeBookings: upcoming,
+        totalEvents: statsData?.totalEvents ?? eventsData?.length ?? 0,
+        upcomingEvents: statsData?.upcomingEvents ?? eventsData?.filter((e: Event) =>
+          ["CONFIRMED", "IN_PROGRESS", "PENDING_PAYMENT"].includes(e.status)
+        ).length ?? 0,
+        totalSpent: statsData?.totalSpent ?? eventsData?.reduce((sum: number, e: Event) =>
+          sum + (e.totalAmount || 0), 0
+        ) ?? 0,
+        activeBookings: statsData?.activeBookings ?? statsData?.upcomingEvents ?? 0,
       });
     } catch (error: any) {
       if (error.name === 'AbortError' || error.code === 'ERR_CANCELED') {

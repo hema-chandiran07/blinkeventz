@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  Calendar, CheckCircle2, Clock, Eye, Search, TrendingUp
+  Calendar, CheckCircle2, Clock, Eye, Search, TrendingUp, UserPlus, Loader2
 } from "lucide-react";
+import * as Popover from "@radix-ui/react-popover";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { extractArray } from "@/lib/api-response";
@@ -59,6 +60,26 @@ export default function AdminEventsPage() {
       setLoading(false);
     }
   };
+
+  const assignManagerToEvent = async (eventId: number, managerId: string) => {
+    const loadingKey = `assign-${eventId}`;
+    setLoadingState((prev) => ({ ...prev, [loadingKey]: true }));
+    try {
+      await api.patch(`/events/${eventId}/assign-manager`, { managerId });
+      toast.success("Manager assigned successfully");
+      setManagerInput((prev) => ({ ...prev, [eventId]: "" }));
+      setShowAssignPopover((prev) => ({ ...prev, [eventId]: false }));
+    } catch (error: any) {
+      console.error("Failed to assign manager:", error);
+      toast.error(error?.response?.data?.message || "Failed to assign manager");
+    } finally {
+      setLoadingState((prev) => ({ ...prev, [loadingKey]: false }));
+    }
+  };
+
+  const [showAssignPopover, setShowAssignPopover] = useState<Record<number, boolean>>({});
+  const [managerInput, setManagerInput] = useState<Record<number, string>>({});
+  const [loadingState, setLoadingState] = useState<Record<string, boolean>>({});
 
   const filteredEvents = events.filter(event => {
     const matchesSearch = event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -228,12 +249,12 @@ export default function AdminEventsPage() {
                           <p className="text-sm text-zinc-400">{event.eventType}</p>
                         </div>
                       </td>
-                      <td className="py-3 px-4">
-                        <div>
-                          <p className="text-sm font-medium text-zinc-100">{event.customer?.name}</p>
-                          <p className="text-xs text-zinc-500">{event.customer?.email}</p>
-                        </div>
-                      </td>
+                       <td className="py-3 px-4">
+                         <div>
+                           <p className="text-sm font-medium text-zinc-100">{event.customer?.name || "Guest"}</p>
+                           <p className="text-xs text-zinc-500">{event.customer?.email || "No email"}</p>
+                         </div>
+                       </td>
                       <td className="py-3 px-4 text-sm text-zinc-400">
                         <div>{new Date(event.date).toLocaleDateString("en-IN")}</div>
                         <div className="text-xs">{event.timeSlot}</div>
@@ -255,13 +276,53 @@ export default function AdminEventsPage() {
                         </Badge>
                       </td>
                       <td className="py-3 px-4 text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => router.push(`/dashboard/admin/events/${event.id}`)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center justify-end gap-2">
+                          <Popover.Root open={showAssignPopover[event.id]} onOpenChange={(open) => setShowAssignPopover((prev) => ({ ...prev, [event.id]: open }))}>
+                            <Popover.Trigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                              >
+                                <UserPlus className="h-4 w-4" />
+                              </Button>
+                            </Popover.Trigger>
+                            <Popover.Portal>
+                              <Popover.Content className="bg-zinc-900 border border-zinc-700 rounded-lg p-3 shadow-lg z-50" sideOffset={5}>
+                                <div className="space-y-2">
+                                  <p className="text-sm font-medium text-zinc-100">Assign Manager</p>
+                                  <input
+                                    type="text"
+                                    placeholder="Enter Manager ID"
+                                    value={managerInput[event.id] || ""}
+                                    onChange={(e) => setManagerInput((prev) => ({ ...prev, [event.id]: e.target.value }))}
+                                    className="w-full px-3 py-1.5 text-sm border border-zinc-700 bg-zinc-800 rounded-md text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-600"
+                                  />
+                                  <Button
+                                    size="sm"
+                                    className="w-full"
+                                    onClick={() => assignManagerToEvent(event.id, managerInput[event.id])}
+                                    disabled={loadingState[`assign-${event.id}`] || !managerInput[event.id]}
+                                  >
+                                    {loadingState[`assign-${event.id}`] ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      "Assign"
+                                    )}
+                                  </Button>
+                                </div>
+                                <Popover.Arrow className="fill-zinc-700" />
+                              </Popover.Content>
+                            </Popover.Portal>
+                          </Popover.Root>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => router.push(`/dashboard/admin/events/${event.id}`)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,7 @@ interface UserEdit {
   phone: string;
   role: string;
   isActive: boolean;
+  image?: string;
 }
 
 export default function EditUserPage() {
@@ -40,15 +41,11 @@ export default function EditUserPage() {
     isActive: true,
   });
 
-  useEffect(() => {
-    loadUser();
-  }, []);
-
-  const loadUser = async () => {
+  const loadUser = useCallback(async (signal?: AbortSignal) => {
     try {
       setLoading(true);
       const userId = parseInt(params.id as string);
-      const response = await api.get(`/users/${userId}`);
+      const response = await api.get(`/users/${userId}`, { signal });
       const foundUser = response.data;
 
       if (!foundUser) {
@@ -66,13 +63,21 @@ export default function EditUserPage() {
         isActive: foundUser.isActive,
       });
     } catch (error: any) {
+      if (error.name === 'AbortError' || error.code === 'ERR_CANCELED') {
+        return;
+      }
       console.error("Failed to load user:", error);
       toast.error("Failed to load user details");
-      router.push("/dashboard/admin/users");
     } finally {
       setLoading(false);
     }
-  };
+  }, [params.id, router]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    loadUser(controller.signal);
+    return () => controller.abort();
+  }, [loadUser]);
 
   const handleSave = async () => {
     if (!formData.name || !formData.email) {
@@ -112,16 +117,25 @@ export default function EditUserPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={handleCancel} className="hover:bg-neutral-100">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold text-black">Edit User</h1>
-            <p className="text-neutral-600">Update user information</p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={handleCancel} className="hover:bg-neutral-100">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-full bg-zinc-800 border border-zinc-200 flex items-center justify-center overflow-hidden">
+                {user?.image ? (
+                  <img src={user.image} alt={user?.name || 'User'} className="h-full w-full object-cover" />
+                ) : (
+                  <User className="h-5 w-5 text-neutral-500" />
+                )}
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-black">Edit User</h1>
+                <p className="text-neutral-600">{user?.name || 'User'}</p>
+              </div>
+            </div>
           </div>
-        </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={handleCancel} className="border-black" disabled={saving}>
             <X className="h-4 w-4 mr-2" /> Cancel

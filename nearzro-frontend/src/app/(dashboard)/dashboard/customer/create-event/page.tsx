@@ -39,15 +39,38 @@ export default function CreateEventPage() {
     e.preventDefault();
     setLoading(true);
 
+    const title = formData.title.trim();
+    const city = formData.city.trim();
+    const area = formData.area.trim();
+
+    if (title.length < 3 || title.length > 200) {
+      toast.error("Title must be between 3 and 200 characters");
+      return;
+    }
+    if (city.length < 2 || city.length > 100) {
+      toast.error("City must be between 2 and 100 characters");
+      return;
+    }
+    if (area.length < 2 || area.length > 100) {
+      toast.error("Area must be between 2 and 100 characters");
+      return;
+    }
+
     try {
       const eventData = {
-        ...formData,
+        eventType: formData.eventType,
+        title: formData.title,
+        date: formData.date,
+        timeSlot: formData.timeSlot,
+        city: formData.city,
+        area: formData.area,
         guestCount: parseInt(formData.guestCount),
+        isExpress: formData.isExpress,
       };
 
       await api.post("/events", eventData);
       toast.success("Event created successfully!");
-      router.push("/dashboard/customer");
+      router.push("/dashboard/customer/plan-event");
     } catch (error: any) {
       console.error("Event creation error:", error);
       toast.error(error?.response?.data?.message || "Failed to create event");

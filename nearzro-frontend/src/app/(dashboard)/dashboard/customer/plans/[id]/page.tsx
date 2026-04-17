@@ -186,7 +186,7 @@ export default function PlanDetailPage() {
 
           <div className="relative z-10 flex flex-wrap items-start justify-between gap-6">
             <div>
-              <h2 className="text-3xl font-bold tracking-tight text-white mb-2">
+              <h2 className="text-3xl font-bold tracking-tight text-zinc-100 mb-2">
                 {summary?.eventType || "Event Plan"}
               </h2>
               <div className="flex flex-wrap gap-4 text-sm text-zinc-400 font-medium">
@@ -212,7 +212,7 @@ export default function PlanDetailPage() {
           <div className="relative z-10 flex flex-wrap gap-2 mt-6 pt-6 border-t border-zinc-800/60">
             <button
               onClick={handleShare}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-zinc-700/60 bg-zinc-800/60 hover:bg-zinc-700 text-zinc-300 hover:text-white text-sm font-medium transition-all"
+               className="flex items-center gap-2 px-4 py-2 rounded-xl border border-zinc-700/60 bg-zinc-800/60 hover:bg-zinc-700 text-zinc-300 hover:text-zinc-100 text-sm font-medium transition-all"
             >
               {shared ? <Check className="w-4 h-4 text-emerald-400" /> : <Share2 className="w-4 h-4 text-zinc-400" />}
               {shared ? "Link copied!" : "Share Plan"}
@@ -220,7 +220,7 @@ export default function PlanDetailPage() {
             <button
               onClick={handleRegenerate}
               disabled={regenerating}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-zinc-700/60 bg-zinc-800/60 hover:bg-zinc-700 text-zinc-300 hover:text-white text-sm font-medium transition-all disabled:opacity-50"
+               className="flex items-center gap-2 px-4 py-2 rounded-xl border border-zinc-700/60 bg-zinc-800/60 hover:bg-zinc-700 text-zinc-300 hover:text-zinc-100 text-sm font-medium transition-all disabled:opacity-50"
             >
               <RefreshCw className={cn("w-4 h-4 text-zinc-400", regenerating && "animate-spin")} />
               {regenerating ? "Starting..." : "Regenerate"}
