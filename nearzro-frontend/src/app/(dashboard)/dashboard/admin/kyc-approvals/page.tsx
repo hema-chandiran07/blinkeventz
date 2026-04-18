@@ -55,10 +55,10 @@ interface KycStats {
 
 // ==================== Constants ====================
 const STATUS_CONFIG: Record<string, { className: string; label: string; icon: any }> = {
-  PENDING: { className: "bg-amber-100 text-amber-700 border-amber-300", label: "Pending", icon: Clock },
-  APPROVED: { className: "bg-green-100 text-green-700 border-green-300", label: "Approved", icon: CheckCircle2 },
-  VERIFIED: { className: "bg-green-100 text-green-700 border-green-300", label: "Approved", icon: CheckCircle2 },
-  REJECTED: { className: "bg-red-100 text-red-700 border-red-300", label: "Rejected", icon: XCircle },
+  PENDING:  { className: "bg-amber-950/30 text-amber-400 border-amber-700",   label: "Pending",  icon: Clock },
+  APPROVED: { className: "bg-emerald-950/30 text-emerald-400 border-emerald-700", label: "Approved", icon: CheckCircle2 },
+  VERIFIED: { className: "bg-emerald-950/30 text-emerald-400 border-emerald-700", label: "Approved", icon: CheckCircle2 },
+  REJECTED: { className: "bg-red-950/30 text-red-400 border-red-700",        label: "Rejected", icon: XCircle },
 };
 
 const DOC_TYPE_LABELS: Record<string, string> = {
@@ -119,7 +119,7 @@ export default function AdminKycApprovalsPage() {
   const [previewError, setPreviewError] = useState(false);
 
   // Load KYC submissions
-  const loadSubmissions = useCallback(async (showRefresh = false) => {
+  const loadSubmissions = useCallback(async (showRefresh = false, signal?: AbortSignal) => {
     try {
       if (showRefresh) {
         setRefreshing(true);
@@ -133,17 +133,14 @@ export default function AdminKycApprovalsPage() {
 
       const response = await api.get(endpoint, {
         params: { page, limit, status: filterStatus !== "all" ? filterStatus : undefined },
+        signal,
       });
 
       const data = response.data;
-
-      // Backend returns: { kycDocuments: [...], pagination: { total, totalPages } }
-      // OR may return: { data: [...], totalPages } from other endpoints
       let submissionList: any[] = [];
       let totalPagesVal = 1;
 
       if (data?.kycDocuments && Array.isArray(data.kycDocuments)) {
-        // Map backend KYC doc shape to frontend KycSubmission shape
         submissionList = data.kycDocuments.map((kyc: any) => ({
           id: kyc.id,
           userId: kyc.userId,
@@ -171,8 +168,7 @@ export default function AdminKycApprovalsPage() {
       setSubmissions(submissionList);
       setTotalPages(totalPagesVal);
 
-      // Calculate stats
-      const pending = submissionList.filter((s: KycSubmission) => s.status === "PENDING").length;
+      const pending  = submissionList.filter((s: KycSubmission) => s.status === "PENDING").length;
       const approved = submissionList.filter((s: KycSubmission) => s.status === "APPROVED").length;
       const rejected = submissionList.filter((s: KycSubmission) => s.status === "REJECTED").length;
 
@@ -185,6 +181,7 @@ export default function AdminKycApprovalsPage() {
           : 0,
       });
     } catch (error: any) {
+      if (error?.name === 'AbortError' || error?.code === 'ERR_CANCELED') return;
       console.error("Failed to load KYC submissions:", error);
       toast.error(error?.response?.data?.message || "Failed to load KYC submissions");
       setSubmissions([]);
@@ -196,7 +193,9 @@ export default function AdminKycApprovalsPage() {
   }, [page, filterStatus]);
 
   useEffect(() => {
-    loadSubmissions();
+    const controller = new AbortController();
+    loadSubmissions(false, controller.signal);
+    return () => controller.abort();
   }, [loadSubmissions]);
 
   // Filter submissions
@@ -321,10 +320,10 @@ export default function AdminKycApprovalsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="flex items-center justify-center min-h-[60vh] bg-zinc-950">
         <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-neutral-400" />
-          <p className="text-neutral-600">Loading KYC submissions...</p>
+          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-zinc-400" />
+          <p className="text-zinc-400">Loading KYC submissions...</p>
         </div>
       </div>
     );
@@ -332,24 +331,24 @@ export default function AdminKycApprovalsPage() {
 
   return (
     <motion.div
-      className="space-y-6 bg-neutral-50 min-h-screen"
+      className="space-y-6 bg-zinc-950 min-h-screen"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
     >
       {/* Header */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white border-b border-neutral-200 px-6 py-4"
+        className="bg-zinc-900 border-b border-zinc-800 px-6 py-4"
       >
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-neutral-900">KYC Approvals</h1>
-            <p className="text-sm text-neutral-600 mt-1">Review and approve KYC submissions</p>
+            <h1 className="text-2xl font-bold text-zinc-100">KYC Approvals</h1>
+            <p className="text-sm text-zinc-400 mt-1">Review and approve KYC submissions</p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" className="border-neutral-300" onClick={() => loadSubmissions(true)} disabled={refreshing}>
-              <RefreshCw className={cn("h-4 w-4 mr-2", refreshing && "animate-spin")} /> 
+            <Button variant="outline" className="border-zinc-700 text-zinc-300 hover:bg-zinc-800" onClick={() => loadSubmissions(true)} disabled={refreshing}>
+              <RefreshCw className={cn("h-4 w-4 mr-2", refreshing && "animate-spin")} />
               Refresh
             </Button>
           </div>
@@ -363,61 +362,61 @@ export default function AdminKycApprovalsPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
       >
-        <Card className="border-amber-200 bg-gradient-to-br from-amber-50 to-white">
+        <Card className="border-amber-800 bg-amber-950/20">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-amber-700">Pending Review</p>
-                <p className="text-3xl font-bold text-amber-900 mt-1">{stats?.totalPending || 0}</p>
-                <p className="text-xs text-amber-600 mt-1">Awaiting approval</p>
+                <p className="text-sm font-medium text-amber-400">Pending Review</p>
+                <p className="text-3xl font-bold text-amber-400 mt-1">{stats?.totalPending || 0}</p>
+                <p className="text-xs text-amber-500 mt-1">Awaiting approval</p>
               </div>
-              <div className="p-3 rounded-full bg-amber-600">
-                <Clock className="h-6 w-6 text-white" />
+              <div className="p-3 rounded-full bg-amber-950/30">
+                <Clock className="h-6 w-6 text-amber-400" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-green-200 bg-gradient-to-br from-green-50 to-white">
+        <Card className="border-emerald-800 bg-emerald-950/20">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-green-700">Approved</p>
-                <p className="text-3xl font-bold text-green-900 mt-1">{stats?.totalApproved || 0}</p>
-                <p className="text-xs text-green-600 mt-1">Verified users</p>
+                <p className="text-sm font-medium text-emerald-400">Approved</p>
+                <p className="text-3xl font-bold text-emerald-400 mt-1">{stats?.totalApproved || 0}</p>
+                <p className="text-xs text-emerald-500 mt-1">Verified users</p>
               </div>
-              <div className="p-3 rounded-full bg-green-600">
-                <CheckCircle2 className="h-6 w-6 text-white" />
+              <div className="p-3 rounded-full bg-emerald-950/30">
+                <CheckCircle2 className="h-6 w-6 text-emerald-400" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-red-200 bg-gradient-to-br from-red-50 to-white">
+        <Card className="border-red-800 bg-red-950/20">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-red-700">Rejected</p>
-                <p className="text-3xl font-bold text-red-900 mt-1">{stats?.totalRejected || 0}</p>
-                <p className="text-xs text-red-600 mt-1">Requires resubmission</p>
+                <p className="text-sm font-medium text-red-400">Rejected</p>
+                <p className="text-3xl font-bold text-red-400 mt-1">{stats?.totalRejected || 0}</p>
+                <p className="text-xs text-red-500 mt-1">Requires resubmission</p>
               </div>
-              <div className="p-3 rounded-full bg-red-600">
-                <XCircle className="h-6 w-6 text-white" />
+              <div className="p-3 rounded-full bg-red-950/30">
+                <XCircle className="h-6 w-6 text-red-400" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-neutral-200 bg-gradient-to-br from-neutral-50 to-white">
+        <Card className="border-zinc-700 bg-zinc-900/50">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-700">Approval Rate</p>
-                <p className="text-3xl font-bold text-neutral-900 mt-1">{stats?.approvalRate || 0}%</p>
-                <p className="text-xs text-neutral-600 mt-1">Of reviewed submissions</p>
+                <p className="text-sm font-medium text-zinc-300">Approval Rate</p>
+                <p className="text-3xl font-bold text-zinc-100 mt-1">{stats?.approvalRate || 0}%</p>
+                <p className="text-xs text-zinc-400 mt-1">Of reviewed submissions</p>
               </div>
-              <div className="p-3 rounded-full bg-neutral-900">
-                <TrendingUp className="h-6 w-6 text-white" />
+              <div className="p-3 rounded-full bg-zinc-800">
+                <TrendingUp className="h-6 w-6 text-zinc-300" />
               </div>
             </div>
           </CardContent>
@@ -431,29 +430,29 @@ export default function AdminKycApprovalsPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
       >
-        <Card>
+        <Card className="border-zinc-800 bg-zinc-900/50">
           <CardContent className="p-4">
             <div className="flex flex-wrap items-center gap-4">
               <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-neutral-500" />
-                <span className="text-sm font-medium text-neutral-700">Filters:</span>
+                <Filter className="h-4 w-4 text-zinc-400" />
+                <span className="text-sm font-medium text-zinc-300">Filters:</span>
               </div>
               <div className="flex-1 relative max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
                 <Input
                   placeholder="Search by name, business, or document number..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 bg-zinc-900 border-zinc-700 text-zinc-100 placeholder:text-zinc-500"
                 />
               </div>
               <div className="flex items-center gap-2">
-                <Label htmlFor="filter-status" className="text-sm whitespace-nowrap">Status:</Label>
+                <Label htmlFor="filter-status" className="text-sm whitespace-nowrap text-zinc-300">Status:</Label>
                 <select
                   id="filter-status"
                   value={filterStatus}
                   onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}
-                  className="flex h-10 rounded-md border border-neutral-200 bg-white px-4 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-600"
+                  className="flex h-10 rounded-md border border-zinc-700 bg-zinc-900 text-zinc-100 px-4 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-600"
                 >
                   <option value="PENDING">Pending</option>
                   <option value="all">All Status</option>
@@ -462,12 +461,12 @@ export default function AdminKycApprovalsPage() {
                 </select>
               </div>
               <div className="flex items-center gap-2">
-                <Label htmlFor="filter-type" className="text-sm whitespace-nowrap">Type:</Label>
+                <Label htmlFor="filter-type" className="text-sm whitespace-nowrap text-zinc-300">Type:</Label>
                 <select
                   id="filter-type"
                   value={filterType}
                   onChange={(e) => { setFilterType(e.target.value); setPage(1); }}
-                  className="flex h-10 rounded-md border border-neutral-200 bg-white px-4 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-600"
+                  className="flex h-10 rounded-md border border-zinc-700 bg-zinc-900 text-zinc-100 px-4 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-600"
                 >
                   <option value="all">All Types</option>
                   <option value="VENDOR">Vendors</option>
@@ -484,7 +483,7 @@ export default function AdminKycApprovalsPage() {
                     setFilterStatus("PENDING");
                     setFilterType("all");
                   }}
-                  className="text-neutral-600"
+                  className="text-zinc-400 hover:text-zinc-100"
                 >
                   Clear
                 </Button>
@@ -501,12 +500,12 @@ export default function AdminKycApprovalsPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
       >
-        <Card>
+        <Card className="border-zinc-800 bg-zinc-900/50">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-black">KYC Submissions</CardTitle>
-                <p className="text-sm text-neutral-600 mt-1">
+                <CardTitle className="text-zinc-100">KYC Submissions</CardTitle>
+                <p className="text-sm text-zinc-400 mt-1">
                   {filteredSubmissions.length} submissions found • Page {page} of {totalPages}
                 </p>
               </div>
@@ -515,9 +514,9 @@ export default function AdminKycApprovalsPage() {
           <CardContent>
             {filteredSubmissions.length === 0 ? (
               <div className="text-center py-12">
-                <FileText className="h-16 w-16 text-neutral-300 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-neutral-900 mb-2">No submissions found</h3>
-                <p className="text-neutral-600">
+                <FileText className="h-16 w-16 text-zinc-600 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-zinc-100 mb-2">No submissions found</h3>
+                <p className="text-zinc-400">
                   {searchTerm || filterType !== "all"
                     ? "Try adjusting your filters"
                     : filterStatus === "PENDING"
@@ -529,28 +528,28 @@ export default function AdminKycApprovalsPage() {
               <>
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-neutral-50 border-b-2 border-neutral-200">
+                    <thead className="bg-zinc-800/50 border-b border-zinc-700">
                       <tr>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Submission ID</th>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Entity</th>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Type</th>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Document</th>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Doc Number</th>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Status</th>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Submitted</th>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Actions</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-zinc-400 uppercase">Submission ID</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-zinc-400 uppercase">Entity</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-zinc-400 uppercase">Type</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-zinc-400 uppercase">Document</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-zinc-400 uppercase">Doc Number</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-zinc-400 uppercase">Status</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-zinc-400 uppercase">Submitted</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-zinc-400 uppercase">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-neutral-100">
+                    <tbody className="divide-y divide-zinc-800">
                       {filteredSubmissions.map((submission) => (
-                        <tr key={submission.id} className="hover:bg-neutral-50 transition-colors">
+                        <tr key={submission.id} className="hover:bg-zinc-800/50 transition-colors">
                           <td className="py-3 px-4">
-                            <span className="text-xs font-mono text-neutral-600">#{submission.id}</span>
+                            <span className="text-xs font-mono text-zinc-400">#{submission.id}</span>
                           </td>
                           <td className="py-3 px-4">
                             <div>
-                              <p className="text-sm font-medium text-neutral-900">{getEntityName(submission)}</p>
-                              <p className="text-xs text-neutral-500">{getEntityTypeLabel(submission.entityType)}</p>
+                              <p className="text-sm font-medium text-zinc-100">{getEntityName(submission)}</p>
+                              <p className="text-xs text-zinc-500">{getEntityTypeLabel(submission.entityType)}</p>
                             </div>
                           </td>
                           <td className="py-3 px-4">
@@ -559,21 +558,21 @@ export default function AdminKycApprovalsPage() {
                             </Badge>
                           </td>
                           <td className="py-3 px-4">
-                            <span className="text-sm text-neutral-700">{DOC_TYPE_LABELS[submission.docType] || submission.docType}</span>
+                            <span className="text-sm text-zinc-300">{DOC_TYPE_LABELS[submission.docType] || submission.docType}</span>
                           </td>
                           <td className="py-3 px-4">
-                            <span className="text-sm font-mono text-neutral-600">{submission.docNumber}</span>
+                            <span className="text-sm font-mono text-zinc-400">{submission.docNumber}</span>
                           </td>
                           <td className="py-3 px-4">
                             {getStatusBadge(submission.status)}
                             {submission.rejectionReason && (
-                              <p className="text-xs text-red-600 mt-1 max-w-[150px] truncate" title={submission.rejectionReason}>
+                              <p className="text-xs text-red-400 mt-1 max-w-[150px] truncate" title={submission.rejectionReason}>
                                 {submission.rejectionReason}
                               </p>
                             )}
                           </td>
                           <td className="py-3 px-4">
-                            <span className="text-sm text-neutral-600">{formatDate(submission.submittedAt)}</span>
+                            <span className="text-sm text-zinc-400">{formatDate(submission.submittedAt)}</span>
                           </td>
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-2">
@@ -581,7 +580,7 @@ export default function AdminKycApprovalsPage() {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => handleView(submission)}
-                                className="text-neutral-600 hover:bg-neutral-100"
+                                className="text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 border-zinc-700"
                               >
                                 <Eye className="h-4 w-4" />
                               </Button>
@@ -594,7 +593,7 @@ export default function AdminKycApprovalsPage() {
                                       setSelectedSubmission(submission);
                                       openActionDialog("approve");
                                     }}
-                                    className="text-green-600 hover:bg-green-50 border-green-200"
+                                    className="text-emerald-400 hover:bg-emerald-950/30 border-emerald-700"
                                   >
                                     <CheckCircle2 className="h-4 w-4" />
                                   </Button>
@@ -605,7 +604,7 @@ export default function AdminKycApprovalsPage() {
                                       setSelectedSubmission(submission);
                                       openActionDialog("reject");
                                     }}
-                                    className="text-red-600 hover:bg-red-50 border-red-200"
+                                    className="text-red-400 hover:bg-red-950/30 border-red-800"
                                   >
                                     <XCircle className="h-4 w-4" />
                                   </Button>
@@ -622,7 +621,7 @@ export default function AdminKycApprovalsPage() {
                 {/* Pagination */}
                 {totalPages > 1 && (
                   <div className="flex items-center justify-between mt-6 pt-6 border-t">
-                    <p className="text-sm text-neutral-600">
+                    <p className="text-sm text-zinc-400">
                       Showing {(page - 1) * limit + 1} to {Math.min(page * limit, filteredSubmissions.length)} of {filteredSubmissions.length} submissions
                     </p>
                     <div className="flex items-center gap-2">
@@ -643,7 +642,7 @@ export default function AdminKycApprovalsPage() {
                               variant={page === pageNum ? "default" : "outline"}
                               size="sm"
                               onClick={() => setPage(pageNum)}
-                              className={page === pageNum ? "bg-neutral-900" : ""}
+                              className={page === pageNum ? "bg-zinc-700" : "border-zinc-700 text-zinc-300"}
                             >
                               {pageNum}
                             </Button>
@@ -678,40 +677,40 @@ export default function AdminKycApprovalsPage() {
             <div className="space-y-4 py-4 overflow-y-auto flex-1">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-sm font-medium text-neutral-600">Entity Name</p>
-                  <p className="text-black font-medium">{getEntityName(selectedSubmission)}</p>
+                  <p className="text-sm font-medium text-zinc-400">Entity Name</p>
+                  <p className="text-zinc-100 font-medium">{getEntityName(selectedSubmission)}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-neutral-600">Entity Type</p>
-                  <p className="text-black">{getEntityTypeLabel(selectedSubmission.entityType)}</p>
+                  <p className="text-sm font-medium text-zinc-400">Entity Type</p>
+                  <p className="text-zinc-100">{getEntityTypeLabel(selectedSubmission.entityType)}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-neutral-600">Document Type</p>
-                  <p className="text-black">{DOC_TYPE_LABELS[selectedSubmission.docType] || selectedSubmission.docType}</p>
+                  <p className="text-sm font-medium text-zinc-400">Document Type</p>
+                  <p className="text-zinc-100">{DOC_TYPE_LABELS[selectedSubmission.docType] || selectedSubmission.docType}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-neutral-600">Document Number</p>
-                  <p className="text-black font-mono">{selectedSubmission.docNumber}</p>
+                  <p className="text-sm font-medium text-zinc-400">Document Number</p>
+                  <p className="text-zinc-100 font-mono">{selectedSubmission.docNumber}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-neutral-600">Status</p>
+                  <p className="text-sm font-medium text-zinc-400">Status</p>
                   <div>{getStatusBadge(selectedSubmission.status)}</div>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-neutral-600">Submitted On</p>
-                  <p className="text-black">{formatDate(selectedSubmission.submittedAt)}</p>
+                  <p className="text-sm font-medium text-zinc-400">Submitted On</p>
+                  <p className="text-zinc-100">{formatDate(selectedSubmission.submittedAt)}</p>
                 </div>
               </div>
 
               {selectedSubmission.user && (
                 <div>
-                  <p className="text-sm font-medium text-neutral-600 mb-2">User Information</p>
-                  <div className="p-3 bg-neutral-50 rounded-lg border">
+                  <p className="text-sm font-medium text-zinc-400 mb-2">User Information</p>
+                  <div className="p-3 bg-zinc-800/50 rounded-lg border border-zinc-700">
                     <div className="flex items-center gap-2">
-                      <User className="h-4 w-4 text-neutral-600" />
+                      <User className="h-4 w-4 text-zinc-400" />
                       <div>
-                        <p className="text-sm font-medium text-black">{selectedSubmission.user.name || "N/A"}</p>
-                        <p className="text-xs text-neutral-600">{selectedSubmission.user.email}</p>
+                        <p className="text-sm font-medium text-zinc-100">{selectedSubmission.user.name || "N/A"}</p>
+                        <p className="text-xs text-zinc-400">{selectedSubmission.user.email}</p>
                       </div>
                     </div>
                   </div>
@@ -721,7 +720,7 @@ export default function AdminKycApprovalsPage() {
               {selectedSubmission.documentUrl ? (
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm font-medium text-neutral-600">Uploaded Document</p>
+                    <p className="text-sm font-medium text-zinc-400">Uploaded Document</p>
                     <Button
                       variant="outline"
                       size="sm"
@@ -815,14 +814,14 @@ export default function AdminKycApprovalsPage() {
                       // Fallback: unsupported file type, empty URL, or Error
                       const isMissing = !docUrlToUse || docUrlToUse === '';
                       return (
-                        <div className="flex flex-col items-center justify-center p-12 bg-neutral-50 rounded-lg border border-dashed border-neutral-300">
-                           <div className="p-4 bg-white rounded-2xl shadow-sm mb-4">
-                              <AlertCircle className="h-8 w-8 text-red-500" />
+                        <div className="flex flex-col items-center justify-center p-12 bg-zinc-800/50 rounded-lg border border-dashed border-zinc-600">
+                           <div className="p-4 bg-zinc-900 rounded-2xl shadow-sm mb-4">
+                              <AlertCircle className="h-8 w-8 text-red-400" />
                            </div>
-                           <h4 className="text-lg font-bold text-neutral-900">
+                           <h4 className="text-lg font-bold text-zinc-100">
                              {isMissing ? "Document Required" : "Document Unavailable"}
                            </h4>
-                           <p className="text-sm text-neutral-500 text-center max-w-xs mt-2">
+                           <p className="text-sm text-zinc-400 text-center max-w-xs mt-2">
                              {isMissing 
                                ? "No document file was found for this submission. The record might have been created without a valid upload."
                                : "The original file could not be retrieved from the storage server. It may have been relocated or corrupted."
@@ -833,6 +832,7 @@ export default function AdminKycApprovalsPage() {
                                 variant="outline" 
                                 size="sm" 
                                 onClick={() => window.open(getImageUrl(docUrlToUse), '_blank')}
+                                className="border-zinc-700 text-zinc-300 hover:bg-zinc-800"
                               >
                                 Try Direct Link
                               </Button>
@@ -855,19 +855,19 @@ export default function AdminKycApprovalsPage() {
                 </div>
               ) : (
                 <div>
-                  <p className="text-sm font-medium text-neutral-600 mb-2">Uploaded Document</p>
-                  <div className="p-4 bg-neutral-50 rounded-lg border text-center">
-                    <AlertCircle className="h-8 w-8 text-neutral-400 mx-auto mb-2" />
-                    <p className="text-sm text-neutral-600">No document attached</p>
+                  <p className="text-sm font-medium text-zinc-400 mb-2">Uploaded Document</p>
+                  <div className="p-4 bg-zinc-800/50 rounded-lg border border-zinc-700 text-center">
+                    <AlertCircle className="h-8 w-8 text-zinc-500 mx-auto mb-2" />
+                    <p className="text-sm text-zinc-400">No document attached</p>
                   </div>
                 </div>
               )}
 
               {selectedSubmission.rejectionReason && (
                 <div>
-                  <p className="text-sm font-medium text-neutral-600 mb-2">Rejection Reason</p>
-                  <div className="p-3 bg-red-50 rounded-lg border border-red-200">
-                    <p className="text-sm text-red-700">{selectedSubmission.rejectionReason}</p>
+                  <p className="text-sm font-medium text-zinc-400 mb-2">Rejection Reason</p>
+                  <div className="p-3 bg-red-950/30 rounded-lg border border-red-800">
+                    <p className="text-sm text-red-400">{selectedSubmission.rejectionReason}</p>
                   </div>
                 </div>
               )}
@@ -882,7 +882,7 @@ export default function AdminKycApprovalsPage() {
                       handleCloseView();
                       openActionDialog("reject");
                     }}
-                    className="text-red-600 hover:text-red-700"
+                    className="text-red-400 border-red-800 hover:bg-red-950/30"
                   >
                     <XCircle className="h-4 w-4 mr-2" />
                     Reject
@@ -892,7 +892,7 @@ export default function AdminKycApprovalsPage() {
                       handleCloseView();
                       openActionDialog("approve");
                     }}
-                    className="bg-green-600 hover:bg-green-700"
+                    className="bg-emerald-600 hover:bg-emerald-700"
                   >
                     <CheckCircle2 className="h-4 w-4 mr-2" />
                     Approve
@@ -911,12 +911,12 @@ export default function AdminKycApprovalsPage() {
             <DialogTitle className="flex items-center gap-2">
               {actionType === "approve" ? (
                 <>
-                  <CheckCircle2 className="h-5 w-5 text-green-600" />
+                  <CheckCircle2 className="h-5 w-5 text-emerald-400" />
                   Approve KYC
                 </>
               ) : (
                 <>
-                  <XCircle className="h-5 w-5 text-red-600" />
+                  <XCircle className="h-5 w-5 text-red-400" />
                   Reject KYC
                 </>
               )}
@@ -929,18 +929,18 @@ export default function AdminKycApprovalsPage() {
           </DialogHeader>
           {selectedSubmission && (
             <div className="py-4">
-              <p className="text-sm text-neutral-600 mb-1">Entity:</p>
-              <p className="font-medium text-black mb-3">{getEntityName(selectedSubmission)}</p>
+              <p className="text-sm text-zinc-400 mb-1">Entity:</p>
+              <p className="font-medium text-zinc-100 mb-3">{getEntityName(selectedSubmission)}</p>
               {actionType === "reject" && (
                 <div className="space-y-2">
-                  <Label htmlFor="rejection-reason" className="text-black">Rejection Reason *</Label>
+                  <Label htmlFor="rejection-reason" className="text-zinc-300">Rejection Reason *</Label>
                   <Textarea
                     id="rejection-reason"
                     placeholder="Please explain why this KYC is being rejected..."
                     value={rejectionReason}
                     onChange={(e) => setRejectionReason(e.target.value)}
                     rows={4}
-                    className="resize-none bg-white text-black"
+                    className="resize-none bg-zinc-900 border-zinc-700 text-zinc-100 placeholder:text-zinc-500"
                   />
                 </div>
               )}
@@ -953,7 +953,7 @@ export default function AdminKycApprovalsPage() {
             <Button
               onClick={actionType === "approve" ? handleApprove : handleReject}
               disabled={actionLoading || (actionType === "reject" && !rejectionReason.trim())}
-              className={actionType === "approve" ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"}
+              className={actionType === "approve" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-red-600 hover:bg-red-700"}
             >
               {actionLoading ? (
                 <>

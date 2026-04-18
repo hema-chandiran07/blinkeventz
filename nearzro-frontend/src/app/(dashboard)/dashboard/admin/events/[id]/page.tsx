@@ -70,6 +70,7 @@ export default function EventDetailPage() {
   const [loading, setLoading] = useState(true);
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<null | 'cancel' | 'delete'>(null);
 
    useEffect(() => {
      const controller = new AbortController();
@@ -102,7 +103,7 @@ export default function EventDetailPage() {
   const handleUpdateStatus = async (newStatus: string) => {
     try {
       setActionLoading(true);
-      await api.patch(`/events/${event?.id}`, { status: newStatus });
+      await api.patch(`/events/${event?.id}/status`, { status: newStatus });
       toast.success(`Event status updated to ${newStatus.replace('_', ' ')}`);
       loadEvent();
     } catch (error: any) {
@@ -112,31 +113,25 @@ export default function EventDetailPage() {
     }
   };
 
-  const handleCancel = async () => {
-    if (!confirm("Are you sure you want to cancel this event?")) return;
-    
-    try {
-      setActionLoading(true);
-      await api.patch(`/events/${event?.id}`, { status: 'CANCELLED' });
-      toast.success("Event cancelled");
-      loadEvent();
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Failed to cancel event");
-    } finally {
-      setActionLoading(false);
-    }
-  };
+  const handleCancel = () => setConfirmAction('cancel');
+  const handleDelete = () => setConfirmAction('delete');
 
-  const handleDelete = async () => {
-    if (!confirm("Are you sure you want to delete this event? This cannot be undone.")) return;
-    
+  const executeConfirmedAction = async () => {
+    if (!confirmAction) return;
     try {
       setActionLoading(true);
-      await api.delete(`/events/${event?.id}`);
-      toast.success("Event deleted successfully");
-      router.push("/dashboard/admin/events");
+      setConfirmAction(null);
+      if (confirmAction === 'cancel') {
+        await api.patch(`/events/${event?.id}/status`, { status: 'CANCELLED' });
+        toast.success("Event cancelled");
+        loadEvent();
+      } else {
+        await api.delete(`/events/${event?.id}`);
+        toast.success("Event deleted successfully");
+        router.push("/dashboard/admin/events");
+      }
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Failed to delete event");
+      toast.error(error?.response?.data?.message || "Failed to perform action");
     } finally {
       setActionLoading(false);
     }
@@ -438,6 +433,35 @@ export default function EventDetailPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* ── Inline Confirm Dialog ── */}
+      {confirmAction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 w-full max-w-sm mx-4 shadow-2xl">
+            <h3 className="text-zinc-100 font-semibold text-lg mb-2">
+              {confirmAction === 'cancel' ? 'Cancel Event?' : 'Delete Event?'}
+            </h3>
+            <p className="text-zinc-400 text-sm mb-6">
+              {confirmAction === 'cancel'
+                ? 'This will mark the event as cancelled. The customer will be notified.'
+                : 'This will permanently delete the event and all associated data. This cannot be undone.'}
+            </p>
+            <div className="flex gap-3 justify-end">
+              <Button variant="ghost" className="text-zinc-400 hover:text-zinc-100" onClick={() => setConfirmAction(null)} disabled={actionLoading}>
+                Keep
+              </Button>
+              <Button
+                variant="ghost"
+                className={confirmAction === 'cancel' ? 'bg-amber-950/40 text-amber-400 hover:bg-amber-900/50' : 'bg-red-950/40 text-red-400 hover:bg-red-900/50'}
+                onClick={executeConfirmedAction}
+                disabled={actionLoading}
+              >
+                {actionLoading ? 'Processing...' : confirmAction === 'cancel' ? 'Yes, Cancel Event' : 'Yes, Delete Event'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

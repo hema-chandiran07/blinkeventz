@@ -86,7 +86,7 @@ export default function PlanDetailPage() {
     setAccepting(true);
     try {
       await aiPlannerApi.acceptPlan(plan.id);
-      router.push(`/dashboard/customer/cart?planId=${plan.id}`);
+      router.push(`/dashboard/customer/bookings`);
     } catch {
       setError("Failed to create cart. Please try again.");
     } finally {
@@ -212,7 +212,7 @@ export default function PlanDetailPage() {
           <div className="relative z-10 flex flex-wrap gap-2 mt-6 pt-6 border-t border-zinc-800/60">
             <button
               onClick={handleShare}
-               className="flex items-center gap-2 px-4 py-2 rounded-xl border border-zinc-700/60 bg-zinc-800/60 hover:bg-zinc-700 text-zinc-300 hover:text-zinc-100 text-sm font-medium transition-all"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-zinc-700/60 bg-zinc-800/60 hover:bg-zinc-700 text-zinc-300 hover:text-zinc-100 text-sm font-medium transition-all"
             >
               {shared ? <Check className="w-4 h-4 text-emerald-400" /> : <Share2 className="w-4 h-4 text-zinc-400" />}
               {shared ? "Link copied!" : "Share Plan"}
@@ -220,7 +220,7 @@ export default function PlanDetailPage() {
             <button
               onClick={handleRegenerate}
               disabled={regenerating}
-               className="flex items-center gap-2 px-4 py-2 rounded-xl border border-zinc-700/60 bg-zinc-800/60 hover:bg-zinc-700 text-zinc-300 hover:text-zinc-100 text-sm font-medium transition-all disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-zinc-700/60 bg-zinc-800/60 hover:bg-zinc-700 text-zinc-300 hover:text-zinc-100 text-sm font-medium transition-all disabled:opacity-50"
             >
               <RefreshCw className={cn("w-4 h-4 text-zinc-400", regenerating && "animate-spin")} />
               {regenerating ? "Starting..." : "Regenerate"}
@@ -300,12 +300,12 @@ export default function PlanDetailPage() {
               <button
                 onClick={handleAccept}
                 disabled={accepting}
-                className="w-full flex items-center justify-center gap-3 py-4.5 bg-gradient-to-r from-zinc-200 via-white to-zinc-200 text-zinc-950 rounded-2xl font-bold shadow-[0_0_30px_rgba(255,255,255,0.12)] hover:shadow-[0_0_40px_rgba(255,255,255,0.2)] hover:scale-[1.01] transition-all uppercase tracking-widest text-sm border border-zinc-200 disabled:opacity-60 disabled:cursor-not-allowed disabled:scale-100"
+                className="w-full flex items-center justify-center gap-3 py-4 bg-gradient-to-r from-zinc-200 via-white to-zinc-200 text-zinc-950 rounded-2xl font-bold shadow-[0_0_30px_rgba(255,255,255,0.12)] hover:shadow-[0_0_40px_rgba(255,255,255,0.2)] hover:scale-[1.01] transition-all uppercase tracking-widest text-sm border border-zinc-200 disabled:opacity-60 disabled:cursor-not-allowed disabled:scale-100"
               >
                 {accepting ? (
                   <><Loader2 className="w-5 h-5 animate-spin" /> Creating cart...</>
                 ) : (
-                  <><ShoppingCart className="w-5 h-5" /> Accept Plan & Create Cart <ArrowLeft className="w-5 h-5 rotate-180" /></>
+                  <><ShoppingCart className="w-5 h-5" /> Accept Plan &amp; Create Cart <ArrowLeft className="w-5 h-5 rotate-180" /></>
                 )}
               </button>
             </motion.div>

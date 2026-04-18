@@ -27,20 +27,36 @@ export default function CustomerProfilePage() {
       router.push("/login");
       return;
     }
-    
+
     const controller = new AbortController();
-    
-    if (user) {
-      setFormData({
-        name: user.name || "",
-        email: user.email || "",
-        phone: "",
-        city: "",
-      });
-    }
-    
+
+    const loadProfile = async () => {
+      try {
+        const response = await api.get("/auth/me", { signal: controller.signal });
+        const data = response.data;
+        setFormData({
+          name: data.name || user?.name || "",
+          email: data.email || user?.email || "",
+          phone: data.phone || "",
+          city: data.city || "",
+        });
+      } catch (error: any) {
+        if (error.name === 'AbortError' || error.code === 'ERR_CANCELED') return;
+        // Fallback to auth context data
+        if (user) {
+          setFormData({
+            name: user.name || "",
+            email: user.email || "",
+            phone: "",
+            city: "",
+          });
+        }
+      }
+    };
+
+    loadProfile();
     return () => controller.abort();
-  }, [isAuthenticated, user, router]);
+  }, [isAuthenticated, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,16 +112,16 @@ export default function CustomerProfilePage() {
           <div className="md:col-span-1">
             <Card className="border-zinc-800 bg-zinc-900/50">
               <CardContent className="pt-6">
-                 <div className="flex flex-col items-center text-center">
-                   <div className="h-24 w-24 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-100 text-3xl font-bold mb-4">
-                     {(user?.name || "U").charAt(0)}
-                   </div>
-                   <h3 className="font-semibold text-zinc-100 text-lg">{user?.name || "Unknown User"}</h3>
-                   <p className="text-sm text-zinc-400">{user?.email || "No email"}</p>
-                   <div className="mt-4 px-3 py-1 rounded-full bg-zinc-800 text-xs font-medium text-zinc-300">
-                     {(user?.role || "CUSTOMER").replace("_", " ")}
-                   </div>
-                 </div>
+                <div className="flex flex-col items-center text-center">
+                  <div className="h-24 w-24 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-100 text-3xl font-bold mb-4">
+                    {(user?.name || "U").charAt(0)}
+                  </div>
+                  <h3 className="font-semibold text-zinc-100 text-lg">{user?.name || "Unknown User"}</h3>
+                  <p className="text-sm text-zinc-400">{user?.email || "No email"}</p>
+                  <div className="mt-4 px-3 py-1 rounded-full bg-zinc-800 text-xs font-medium text-zinc-300">
+                    {(user?.role || "CUSTOMER").replace("_", " ")}
+                  </div>
+                </div>
 
                 <div className="mt-6 space-y-2">
                   <Button variant="ghost" className="w-full justify-start gap-2 text-zinc-300 hover:text-zinc-100" onClick={() => router.push("/dashboard/customer")}>
@@ -133,7 +149,7 @@ export default function CustomerProfilePage() {
           <div className="md:col-span-2 space-y-6">
             <Card className="border-zinc-800 bg-zinc-900/50">
               <CardHeader>
-                <CardTitle className="text-zinc-100">
+                <CardTitle className="text-zinc-100 flex items-center gap-2">
                   <Settings className="h-5 w-5 text-zinc-400" />
                   Personal Information
                 </CardTitle>

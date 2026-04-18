@@ -55,11 +55,11 @@ interface PayoutStats {
 
 // ==================== Constants ====================
 const STATUS_CONFIG: Record<string, { className: string; label: string; icon: any; actions: string[] }> = {
-  PENDING: { className: "bg-amber-100 text-amber-700 border-amber-300", label: "Pending", icon: Clock, actions: ["approve", "reject"] },
-  PROCESSING: { className: "bg-blue-100 text-blue-700 border-blue-300", label: "Processing", icon: RefreshCw, actions: [] },
-  APPROVED: { className: "bg-emerald-100 text-emerald-700 border-emerald-300", label: "Approved", icon: CheckCircle2, actions: ["process"] },
-  COMPLETED: { className: "bg-green-100 text-green-700 border-green-300", label: "Completed", icon: CheckCircle2, actions: [] },
-  REJECTED: { className: "bg-red-100 text-red-700 border-red-300", label: "Rejected", icon: XCircle, actions: [] },
+  PENDING: { className: "bg-amber-950/30 text-amber-400 border-amber-700", label: "Pending", icon: Clock, actions: ["approve", "reject"] },
+  PROCESSING: { className: "bg-blue-950/30 text-blue-400 border-blue-700", label: "Processing", icon: RefreshCw, actions: [] },
+  APPROVED: { className: "bg-emerald-950/30 text-emerald-400 border-emerald-700", label: "Approved", icon: CheckCircle2, actions: ["process"] },
+  COMPLETED: { className: "bg-emerald-950/30 text-emerald-400 border-emerald-700", label: "Completed", icon: CheckCircle2, actions: [] },
+  REJECTED: { className: "bg-red-950/30 text-red-400 border-red-700", label: "Rejected", icon: XCircle, actions: [] },
   FAILED: { className: "bg-red-100 text-red-700 border-red-300", label: "Failed", icon: AlertCircle, actions: [] },
 };
 
@@ -80,7 +80,7 @@ export default function AdminPayoutsPage() {
   const limit = 15;
 
   // Load payouts
-  const loadPayouts = useCallback(async (showRefresh = false) => {
+  const loadPayouts = useCallback(async (showRefresh = false, signal?: AbortSignal) => {
     try {
       if (showRefresh) {
         setRefreshing(true);
@@ -90,6 +90,7 @@ export default function AdminPayoutsPage() {
 
       const response = await api.get("/payouts", {
         params: { page, limit },
+        signal,
       });
 
       const data = response.data;
@@ -127,6 +128,7 @@ export default function AdminPayoutsPage() {
         payoutCount: payoutList.length,
       });
     } catch (error: any) {
+      if (error?.name === 'AbortError' || error?.code === 'ERR_CANCELED') return;
       console.error("Failed to load payouts:", error);
       toast.error(error?.response?.data?.message || "Failed to load payouts");
       setPayouts([]);
@@ -138,7 +140,9 @@ export default function AdminPayoutsPage() {
   }, [page]);
 
   useEffect(() => {
-    loadPayouts();
+    const controller = new AbortController();
+    loadPayouts(false, controller.signal);
+    return () => controller.abort();
   }, [loadPayouts]);
 
   // Filter payouts
@@ -168,7 +172,7 @@ export default function AdminPayoutsPage() {
 
   // Get status badge
   const getStatusBadge = (status: string) => {
-    const config = STATUS_CONFIG[status] || { className: "bg-neutral-100 text-neutral-700", label: status, icon: null };
+    const config = STATUS_CONFIG[status] || { className: "bg-zinc-800 text-zinc-400", label: status, icon: null };
     const Icon = config.icon;
     return (
       <Badge className={cn("text-xs font-medium", config.className)}>
@@ -258,10 +262,10 @@ export default function AdminPayoutsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="flex items-center justify-center min-h-[60vh] bg-zinc-950">
         <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-neutral-400" />
-          <p className="text-neutral-600">Loading payouts...</p>
+          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-zinc-400" />
+          <p className="text-zinc-400">Loading payouts...</p>
         </div>
       </div>
     );
@@ -269,7 +273,7 @@ export default function AdminPayoutsPage() {
 
   return (
     <motion.div
-      className="space-y-6 bg-neutral-50 min-h-screen"
+      className="space-y-6 bg-zinc-950 min-h-screen"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
     >
@@ -277,19 +281,19 @@ export default function AdminPayoutsPage() {
       <motion.div 
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white border-b border-neutral-200 px-6 py-4"
+        className="bg-zinc-900 border-b border-zinc-800 px-6 py-4"
       >
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-neutral-900">Payouts Management</h1>
-            <p className="text-sm text-neutral-600 mt-1">Manage vendor and venue owner payouts</p>
+            <h1 className="text-2xl font-bold text-zinc-100">Payouts Management</h1>
+            <p className="text-sm text-zinc-400 mt-1">Manage vendor and venue owner payouts</p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" className="border-neutral-300" onClick={() => loadPayouts(true)} disabled={refreshing}>
+            <Button variant="outline" className="border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100" onClick={() => loadPayouts(true)} disabled={refreshing}>
               <RefreshCw className={cn("h-4 w-4 mr-2", refreshing && "animate-spin")} /> 
               Refresh
             </Button>
-            <Button variant="outline" className="border-neutral-300" onClick={handleExport}>
+            <Button variant="outline" className="border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100" onClick={handleExport}>
               <Download className="h-4 w-4 mr-2" /> 
               Export CSV
             </Button>
@@ -304,13 +308,13 @@ export default function AdminPayoutsPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
       >
-        <Card className="border-amber-200 bg-gradient-to-br from-amber-50 to-white">
+        <Card className="border-amber-800 bg-amber-950/20">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-amber-700">Pending Approval</p>
-                <p className="text-2xl font-bold text-amber-900 mt-1">{formatCurrency(stats?.totalPending || 0)}</p>
-                <p className="text-xs text-amber-600 mt-1">Awaiting review</p>
+                <p className="text-sm font-medium text-amber-400">Pending Approval</p>
+                <p className="text-2xl font-bold text-amber-400 mt-1">{formatCurrency(stats?.totalPending || 0)}</p>
+                <p className="text-xs text-amber-500 mt-1">Awaiting review</p>
               </div>
               <div className="p-3 rounded-full bg-amber-600">
                 <Clock className="h-6 w-6 text-white" />
@@ -319,13 +323,13 @@ export default function AdminPayoutsPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-emerald-200 bg-gradient-to-br from-emerald-50 to-white">
+        <Card className="border-emerald-800 bg-emerald-950/20">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-emerald-700">Processed</p>
-                <p className="text-2xl font-bold text-emerald-900 mt-1">{formatCurrency(stats?.totalProcessed || 0)}</p>
-                <p className="text-xs text-emerald-600 mt-1">Completed payouts</p>
+                <p className="text-sm font-medium text-emerald-400">Processed</p>
+                <p className="text-2xl font-bold text-emerald-400 mt-1">{formatCurrency(stats?.totalProcessed || 0)}</p>
+                <p className="text-xs text-emerald-500 mt-1">Completed payouts</p>
               </div>
               <div className="p-3 rounded-full bg-emerald-600">
                 <CheckCircle2 className="h-6 w-6 text-white" />
@@ -334,13 +338,13 @@ export default function AdminPayoutsPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-red-200 bg-gradient-to-br from-red-50 to-white">
+        <Card className="border-red-800 bg-red-950/20">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-red-700">Failed/Rejected</p>
-                <p className="text-2xl font-bold text-red-900 mt-1">{formatCurrency(stats?.totalFailed || 0)}</p>
-                <p className="text-xs text-red-600 mt-1">Requires attention</p>
+                <p className="text-sm font-medium text-red-400">Failed/Rejected</p>
+                <p className="text-2xl font-bold text-red-400 mt-1">{formatCurrency(stats?.totalFailed || 0)}</p>
+                <p className="text-xs text-red-500 mt-1">Requires attention</p>
               </div>
               <div className="p-3 rounded-full bg-red-600">
                 <AlertCircle className="h-6 w-6 text-white" />
@@ -349,15 +353,15 @@ export default function AdminPayoutsPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-neutral-200 bg-gradient-to-br from-neutral-50 to-white">
+        <Card className="border-zinc-700 bg-zinc-900/50">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-700">Success Rate</p>
-                <p className="text-2xl font-bold text-neutral-900 mt-1">{(stats?.successRate || 0).toFixed(1)}%</p>
-                <p className="text-xs text-neutral-600 mt-1">{stats?.payoutCount || 0} total payouts</p>
+                <p className="text-sm font-medium text-zinc-300">Success Rate</p>
+                <p className="text-2xl font-bold text-zinc-100 mt-1">{(stats?.successRate || 0).toFixed(1)}%</p>
+                <p className="text-xs text-zinc-400 mt-1">{stats?.payoutCount || 0} total payouts</p>
               </div>
-              <div className="p-3 rounded-full bg-neutral-900">
+              <div className="p-3 rounded-full bg-zinc-800">
                 <TrendingUp className="h-6 w-6 text-white" />
               </div>
             </div>
@@ -372,28 +376,28 @@ export default function AdminPayoutsPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
       >
-        <Card>
+        <Card className="border-zinc-800 bg-zinc-900/50">
           <CardContent className="p-4">
             <div className="flex flex-wrap items-center gap-4">
               <div className="flex items-center gap-2">
-                <Search className="h-4 w-4 text-neutral-500" />
-                <span className="text-sm font-medium text-neutral-700">Filters:</span>
+                <Search className="h-4 w-4 text-zinc-400" />
+                <span className="text-sm font-medium text-zinc-300">Filters:</span>
               </div>
               <div className="flex-1 relative max-w-md">
                 <Input
                   placeholder="Search by vendor/venue name..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 bg-zinc-800 border-zinc-700 text-zinc-100 placeholder:text-zinc-500"
                 />
               </div>
               <div className="flex items-center gap-2">
-                <Label htmlFor="filter-status" className="text-sm whitespace-nowrap">Status:</Label>
+                <Label htmlFor="filter-status" className="text-sm whitespace-nowrap text-zinc-300">Status:</Label>
                 <select
                   id="filter-status"
                   value={filterStatus}
                   onChange={(e) => setFilterStatus(e.target.value)}
-                  className="flex h-10 rounded-md border border-neutral-200 bg-white px-4 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-600"
+                  className="flex h-10 rounded-md border border-zinc-700 bg-zinc-800 text-zinc-100 px-4 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-600"
                 >
                   <option value="all">All Status</option>
                   <option value="PENDING">Pending</option>
@@ -405,12 +409,12 @@ export default function AdminPayoutsPage() {
                 </select>
               </div>
               <div className="flex items-center gap-2">
-                <Label htmlFor="filter-type" className="text-sm whitespace-nowrap">Type:</Label>
+                <Label htmlFor="filter-type" className="text-sm whitespace-nowrap text-zinc-300">Type:</Label>
                 <select
                   id="filter-type"
                   value={filterType}
                   onChange={(e) => setFilterType(e.target.value)}
-                  className="flex h-10 rounded-md border border-neutral-200 bg-white px-4 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-600"
+                  className="flex h-10 rounded-md border border-zinc-700 bg-zinc-800 text-zinc-100 px-4 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-600"
                 >
                   <option value="all">All Types</option>
                   <option value="vendor">Vendors</option>
@@ -426,7 +430,7 @@ export default function AdminPayoutsPage() {
                     setFilterStatus("all");
                     setFilterType("all");
                   }}
-                  className="text-neutral-600"
+                  className="text-zinc-400 hover:text-zinc-100"
                 >
                   Clear
                 </Button>
@@ -443,12 +447,12 @@ export default function AdminPayoutsPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
       >
-        <Card>
+        <Card className="border-zinc-800 bg-zinc-900/50">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-black">Payout Requests</CardTitle>
-                <p className="text-sm text-neutral-600 mt-1">
+                <CardTitle className="text-zinc-100">Payout Requests</CardTitle>
+                <p className="text-sm text-zinc-400 mt-1">
                   {filteredPayouts.length} payouts found • Page {page} of {totalPages}
                 </p>
               </div>
@@ -457,9 +461,9 @@ export default function AdminPayoutsPage() {
           <CardContent>
             {filteredPayouts.length === 0 ? (
               <div className="text-center py-12">
-                <DollarSign className="h-16 w-16 text-neutral-300 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-neutral-900 mb-2">No payouts found</h3>
-                <p className="text-neutral-600">
+                <DollarSign className="h-16 w-16 text-zinc-600 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-zinc-100 mb-2">No payouts found</h3>
+                <p className="text-zinc-400">
                   {searchTerm || filterStatus !== "all" || filterType !== "all"
                     ? "Try adjusting your filters"
                     : "No payout requests available"}
@@ -469,30 +473,30 @@ export default function AdminPayoutsPage() {
               <>
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-neutral-50 border-b-2 border-neutral-200">
+                    <thead className="bg-zinc-800/50 border-b border-zinc-700">
                       <tr>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Payout ID</th>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Recipient</th>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Type</th>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Event</th>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Amount</th>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Status</th>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Created</th>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Actions</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-zinc-400 uppercase">Payout ID</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-zinc-400 uppercase">Recipient</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-zinc-400 uppercase">Type</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-zinc-400 uppercase">Event</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-zinc-400 uppercase">Amount</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-zinc-400 uppercase">Status</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-zinc-400 uppercase">Created</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-zinc-400 uppercase">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-neutral-100">
+                    <tbody className="divide-y divide-zinc-800">
                       {filteredPayouts.map((payout) => {
                         const config = STATUS_CONFIG[payout.status] || { actions: [] };
                         return (
-                          <tr key={payout.id} className="hover:bg-neutral-50 transition-colors">
+                          <tr key={payout.id} className="hover:bg-zinc-800/50 transition-colors">
                             <td className="py-3 px-4">
-                              <span className="text-xs font-mono text-neutral-600">#{payout.id}</span>
+                              <span className="text-xs font-mono text-zinc-400">#{payout.id}</span>
                             </td>
                             <td className="py-3 px-4">
                               <div>
-                                <p className="text-sm font-medium text-neutral-900">{getRecipientName(payout)}</p>
-                                <p className="text-xs text-neutral-500">{getRecipientType(payout)}</p>
+                                <p className="text-sm font-medium text-zinc-100">{getRecipientName(payout)}</p>
+                                <p className="text-xs text-zinc-500">{getRecipientType(payout)}</p>
                               </div>
                             </td>
                             <td className="py-3 px-4">
@@ -502,14 +506,14 @@ export default function AdminPayoutsPage() {
                             </td>
                             <td className="py-3 px-4">
                               <div>
-                                <p className="text-sm text-neutral-700">{payout.event?.title || payout.event?.eventType || "-"}</p>
+                                <p className="text-sm text-zinc-300">{payout.event?.title || payout.event?.eventType || "-"}</p>
                                 {payout.event?.date && (
-                                  <p className="text-xs text-neutral-500">{formatDate(payout.event.date)}</p>
+                                  <p className="text-xs text-zinc-500">{formatDate(payout.event.date)}</p>
                                 )}
                               </div>
                             </td>
                             <td className="py-3 px-4">
-                              <span className="text-sm font-bold text-neutral-900">{formatCurrency(payout.amount)}</span>
+                              <span className="text-sm font-bold text-zinc-100">{formatCurrency(payout.amount)}</span>
                             </td>
                             <td className="py-3 px-4">
                               {getStatusBadge(payout.status)}
@@ -520,7 +524,7 @@ export default function AdminPayoutsPage() {
                               )}
                             </td>
                             <td className="py-3 px-4">
-                              <span className="text-sm text-neutral-600">{formatDate(payout.createdAt)}</span>
+                              <span className="text-sm text-zinc-400">{formatDate(payout.createdAt)}</span>
                             </td>
                             <td className="py-3 px-4">
                               <div className="flex items-center gap-2">
@@ -530,7 +534,7 @@ export default function AdminPayoutsPage() {
                                     size="sm"
                                     onClick={() => handleApprove(payout.id)}
                                     disabled={actionLoading === payout.id}
-                                    className="text-green-600 hover:bg-green-50 border-green-200"
+                                    className="text-emerald-400 hover:bg-emerald-950/30 border-emerald-700"
                                   >
                                     {actionLoading === payout.id ? (
                                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -545,7 +549,7 @@ export default function AdminPayoutsPage() {
                                     size="sm"
                                     onClick={() => handleReject(payout.id)}
                                     disabled={actionLoading === payout.id}
-                                    className="text-red-600 hover:bg-red-50 border-red-200"
+                                    className="text-red-400 hover:bg-red-950/30 border-red-700"
                                   >
                                     {actionLoading === payout.id ? (
                                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -560,7 +564,7 @@ export default function AdminPayoutsPage() {
                                     size="sm"
                                     onClick={() => handleProcess(payout.id)}
                                     disabled={actionLoading === payout.id}
-                                    className="text-blue-600 hover:bg-blue-50 border-blue-200"
+                                    className="text-blue-400 hover:bg-blue-950/30 border-blue-700"
                                   >
                                     {actionLoading === payout.id ? (
                                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -573,7 +577,7 @@ export default function AdminPayoutsPage() {
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => router.push(`/dashboard/admin/payouts/${payout.id}`)}
-                                  className="text-neutral-600 hover:bg-neutral-100"
+                                  className="text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
                                 >
                                   <ArrowRight className="h-4 w-4" />
                                 </Button>
@@ -589,7 +593,7 @@ export default function AdminPayoutsPage() {
                 {/* Pagination */}
                 {totalPages > 1 && (
                   <div className="flex items-center justify-between mt-6 pt-6 border-t">
-                    <p className="text-sm text-neutral-600">
+                    <p className="text-sm text-zinc-400">
                       Showing {(page - 1) * limit + 1} to {Math.min(page * limit, filteredPayouts.length)} of {filteredPayouts.length} payouts
                     </p>
                     <div className="flex items-center gap-2">
@@ -610,7 +614,7 @@ export default function AdminPayoutsPage() {
                               variant={page === pageNum ? "default" : "outline"}
                               size="sm"
                               onClick={() => setPage(pageNum)}
-                              className={page === pageNum ? "bg-neutral-900" : ""}
+                              className={page === pageNum ? "bg-zinc-700" : "border-zinc-700 text-zinc-300"}
                             >
                               {pageNum}
                             </Button>

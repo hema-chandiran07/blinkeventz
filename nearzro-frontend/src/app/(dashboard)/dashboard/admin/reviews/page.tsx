@@ -30,6 +30,7 @@ export default function AdminReviewsPage() {
   const [loading, setLoading] = useState(true);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [filter, setFilter] = useState<"all" | "PENDING" | "APPROVED" | "REJECTED">("PENDING");
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
   const loadReviews = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -75,11 +76,12 @@ export default function AdminReviewsPage() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("Are you sure you want to delete this review?")) {
-      return;
-    }
+  const handleDelete = (id: number) => setConfirmDeleteId(id);
 
+  const executeDeleteReview = async () => {
+    if (confirmDeleteId === null) return;
+    const id = confirmDeleteId;
+    setConfirmDeleteId(null);
     try {
       await api.delete(`/reviews/${id}`);
       toast.success("Review deleted");
@@ -256,6 +258,20 @@ export default function AdminReviewsPage() {
           ))
         )}
       </div>
+
+      {/* ── Delete Confirm Dialog ── */}
+      {confirmDeleteId !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 w-full max-w-sm mx-4 shadow-2xl">
+            <h3 className="text-zinc-100 font-semibold text-lg mb-2">Delete Review?</h3>
+            <p className="text-zinc-400 text-sm mb-6">This will permanently remove the review. This action cannot be undone.</p>
+            <div className="flex gap-3 justify-end">
+              <Button variant="ghost" className="text-zinc-400 hover:text-zinc-100" onClick={() => setConfirmDeleteId(null)}>Keep</Button>
+              <Button variant="ghost" className="bg-red-950/40 text-red-400 hover:bg-red-900/50" onClick={executeDeleteReview}>Yes, Delete</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

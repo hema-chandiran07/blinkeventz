@@ -191,7 +191,7 @@ export default function CustomerDashboardPage() {
         >
           <Button
             variant="premium"
-            onClick={() => router.push("/dashboard/customer/create-event")}
+            onClick={() => router.push("/plan-event")}
             className="h-12 px-6"
           >
             <Plus className="h-5 w-5 mr-2" />
@@ -311,7 +311,7 @@ export default function CustomerDashboardPage() {
                     ? "Try adjusting your search or filters"
                     : "Start by creating your first event!"}
                 </p>
-                <Button variant="premium" onClick={() => router.push("/dashboard/customer/create-event")}>
+                <Button variant="premium" onClick={() => router.push("/plan-event")}>
                   <Plus className="h-5 w-5 mr-2" />
                   Create Event
                 </Button>

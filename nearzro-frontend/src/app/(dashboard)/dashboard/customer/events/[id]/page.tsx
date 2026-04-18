@@ -66,26 +66,12 @@ export default function CustomerEventDetailPage() {
     }
   };
 
-  const handleDownloadInvoice = async () => {
-    try {
-      const response = await api.get(`/customer/events/${event?.id}/invoice`, {
-        responseType: 'blob',
-      });
-      
-      const blob = new Blob([response.data], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `invoice-${event?.title?.replace(/\s+/g, '-')}.pdf`;
-      link.click();
-      window.URL.revokeObjectURL(url);
-      
-      toast.success("Invoice downloaded successfully");
-    } catch (error: any) {
-      console.error("Invoice download error:", error);
-      toast.error("Failed to download invoice");
-    }
+  const handleDownloadInvoice = () => {
+    toast.info("Invoice download coming soon", {
+      description: "This feature is being enabled. Please contact support for a manual invoice.",
+    });
   };
+
 
   const formatCurrency = (amount: number) => {
     if (amount >= 10000000) return `₹${(amount / 10000000).toFixed(2)}Cr`;

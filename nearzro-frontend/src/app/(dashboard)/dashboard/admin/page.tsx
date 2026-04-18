@@ -61,17 +61,18 @@ export default function AdminDashboardPage() {
   const [analytics, setAnalytics] = useState<RevenueAnalytics | null>(null);
   const [activity, setActivity] = useState<RecentActivity | null>(null);
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async (signal?: AbortSignal) => {
     try {
       const [statsRes, analyticsRes, activityRes] = await Promise.all([
-        api.get('/dashboard/admin/stats'),
-        api.get('/dashboard/admin/revenue'),
-        api.get('/dashboard/admin/activity'),
+        api.get('/dashboard/admin/stats', { signal }),
+        api.get('/dashboard/admin/revenue', { signal }),
+        api.get('/dashboard/admin/activity', { signal }),
       ]);
       setStats(statsRes.data);
       setAnalytics(analyticsRes.data);
       setActivity(activityRes.data);
     } catch (error: any) {
+      if (error?.name === 'AbortError' || error?.code === 'ERR_CANCELED') return;
       console.error('Failed to fetch dashboard data:', error);
       toast.error('Failed to load dashboard data');
     } finally {
@@ -96,7 +97,9 @@ export default function AdminDashboardPage() {
       router.push("/dashboard");
       return;
     }
-    fetchDashboardData();
+    const controller = new AbortController();
+    fetchDashboardData(controller.signal);
+    return () => controller.abort();
   }, [isInitialized, isAuthenticated, user, router]);
 
   if (!isInitialized) {

@@ -50,35 +50,14 @@ export default function AdminAnalyticsPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [data, setData] = useState<AnalyticsData | null>(null);
 
-  useEffect(() => {
-    loadAnalytics();
-  }, []);
-
-  const loadAnalytics = async () => {
-    try {
-      const analyticsRes = await api.get("/analytics/overview").catch(() => null);
-
-      if (analyticsRes && analyticsRes.data) {
-        setData(analyticsRes.data);
-      } else {
-        await loadAnalyticsFallback();
-      }
-    } catch (error: any) {
-      console.error("Failed to load analytics:", error);
-      await loadAnalyticsFallback();
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadAnalyticsFallback = async () => {
+  const loadAnalyticsFallback = async (signal?: AbortSignal) => {
     try {
       const [usersRes, venuesRes, vendorsRes, eventsRes, paymentsRes] = await Promise.all([
-        api.get("/users").catch(() => ({ data: [] })),
-        api.get("/venues").catch(() => ({ data: { data: [] } })),
-        api.get("/vendors").catch(() => ({ data: [] })),
-        api.get("/events").catch(() => ({ data: { data: [], total: 0 } })),
-        api.get("/payments").catch(() => ({ data: { payments: [], pagination: { total: 0 } } })),
+        api.get("/users", { signal }).catch(() => ({ data: [] })),
+        api.get("/venues", { signal }).catch(() => ({ data: { data: [] } })),
+        api.get("/vendors", { signal }).catch(() => ({ data: [] })),
+        api.get("/events", { signal }).catch(() => ({ data: { data: [], total: 0 } })),
+        api.get("/payments", { signal }).catch(() => ({ data: { payments: [], pagination: { total: 0 } } })),
       ]);
 
       const users = usersRes.data || [];
@@ -114,10 +93,38 @@ export default function AdminAnalyticsPage() {
         topVendors: vendors.slice(0, 5).map((v: any, i: number) => ({ id: v.id, name: v.businessName || v.name, bookings: 15 - i, revenue: 150000 - (i * 10000) })),
       });
     } catch (error: any) {
+      if (error?.name === 'AbortError' || error?.code === 'ERR_CANCELED') return;
       console.error("Failed to load analytics fallback:", error);
       toast.error("Failed to load analytics data");
     }
   };
+
+  const loadAnalytics = async (signal?: AbortSignal) => {
+    try {
+      const analyticsRes = await api.get("/analytics/overview", { signal }).catch((e: any) => {
+        if (e?.name === 'AbortError' || e?.code === 'ERR_CANCELED') throw e;
+        return null;
+      });
+
+      if (analyticsRes && analyticsRes.data) {
+        setData(analyticsRes.data);
+      } else {
+        await loadAnalyticsFallback(signal);
+      }
+    } catch (error: any) {
+      if (error?.name === 'AbortError' || error?.code === 'ERR_CANCELED') return;
+      console.error("Failed to load analytics:", error);
+      await loadAnalyticsFallback(signal);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const controller = new AbortController();
+    loadAnalytics(controller.signal);
+    return () => controller.abort();
+  }, []);
 
   const formatCurrency = (amount: number) => {
     if (amount >= 10000000) return `₹${(amount / 10000000).toFixed(2)}Cr`;
@@ -227,7 +234,7 @@ export default function AdminAnalyticsPage() {
             </Card>
           </motion.div>
         ))}
-        </div>
+      </div>
 
       {/* Main Insights Visualization */}
       <div className="grid gap-8 lg:grid-cols-3">
