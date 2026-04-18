@@ -195,7 +195,7 @@ export const vendorApi = {
   addPortfolioItem: (data: any) => api.post("/vendors/me/portfolio", data, { headers: { 'Content-Type': 'multipart/form-data' } }),
   deletePortfolioItem: (id: number) => api.delete(`/vendors/me/portfolio/${id}`),
   // Reviews
-  getReviews: () => api.get("/vendors/me/reviews"),
+  getReviews: () => api.get("/reviews/vendors/me"),
   // Dashboard stats
   getDashboardStats: () => api.get("/dashboard/vendor/stats"),
 };
@@ -214,7 +214,7 @@ export const venueApi = {
   getPayouts: () => api.get("/payouts/venue-owner/me"),
   getPayoutStats: () => api.get("/payouts/venue-owner/stats"),
   // Reviews
-  getReviews: () => api.get("/venues/me/reviews"),
+  getReviews: () => api.get("/reviews/venues/me"),
   // Dashboard stats
   getDashboardStats: () => api.get("/dashboard/venue/stats"),
   // Earnings

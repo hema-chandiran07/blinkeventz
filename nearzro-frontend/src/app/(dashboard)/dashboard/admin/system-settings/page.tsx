@@ -72,6 +72,20 @@ interface SystemStats {
   lastBackup: string;
 }
 
+interface KernelMetadata {
+  version: string;
+  nodeVersion: string;
+  platform: string;
+  osRelease: string;
+  totalMemory: string;
+  freeMemory: string;
+  uptime: string;
+  environment: string;
+  database: string;
+  cache: string;
+  timestamp: string;
+}
+
 // ==================== Main Component ====================
 export default function AdminSystemSettingsPage() {
   const router = useRouter();
@@ -111,6 +125,7 @@ export default function AdminSystemSettingsPage() {
   });
 
   const [systemStats, setSystemStats] = useState<SystemStats | null>(null);
+  const [kernelMetadata, setKernelMetadata] = useState<KernelMetadata | null>(null);
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
 
   // Valid feature flag keys
@@ -173,8 +188,14 @@ export default function AdminSystemSettingsPage() {
         if (statsRes.data) {
           setSystemStats(statsRes.data);
         }
+
+        // Load kernel info
+        const kernelRes = await api.get("/settings/kernel", { signal });
+        if (kernelRes.data) {
+          setKernelMetadata(kernelRes.data);
+        }
       } catch (error) {
-        console.warn("Could not load system stats");
+        console.warn("Could not load supplementary system diagnostics");
       }
     } catch (error: any) {
       if (error?.name === 'AbortError' || error?.code === 'ERR_CANCELED') return;
@@ -227,7 +248,7 @@ export default function AdminSystemSettingsPage() {
   const saveSecurity = async () => {
     try {
       setSaving(true);
-      await api.post("/settings/security", security);
+      await api.post("/settings/security", { security });
       toast.success("Security settings updated successfully!");
     } catch (error: any) {
       console.error("Failed to save security settings:", error);
@@ -307,11 +328,11 @@ export default function AdminSystemSettingsPage() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Total Nodes</p>
+                  <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">System Identities</p>
                   <p className="text-3xl font-black text-white mt-1">{systemStats.totalUsers || 0}</p>
                 </div>
                 <div className="p-3 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                  <Users className="h-6 w-6" />
+                  <Shield className="h-6 w-6" />
                 </div>
               </div>
             </CardContent>
@@ -321,7 +342,7 @@ export default function AdminSystemSettingsPage() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Active Threads</p>
+                  <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Active Sessions</p>
                   <p className="text-3xl font-black text-emerald-400 mt-1">{systemStats.activeUsers || 0}</p>
                 </div>
                 <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
@@ -853,19 +874,27 @@ export default function AdminSystemSettingsPage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="p-4 rounded-lg bg-zinc-800/50 border border-zinc-700">
                   <p className="text-sm text-zinc-400">Platform Version</p>
-                  <p className="font-medium text-zinc-100">v2.0.0</p>
+                  <p className="font-medium text-zinc-100">{kernelMetadata?.version || "v2.0.0"}</p>
                 </div>
                 <div className="p-4 rounded-lg bg-zinc-800/50 border border-zinc-700">
                   <p className="text-sm text-zinc-400">Environment</p>
-                  <p className="font-medium text-zinc-100">Production</p>
+                  <p className="font-medium text-zinc-100 capitalize">{kernelMetadata?.environment || "Production"}</p>
                 </div>
                 <div className="p-4 rounded-lg bg-zinc-800/50 border border-zinc-700">
-                  <p className="text-sm text-zinc-400">Database</p>
-                  <p className="font-medium text-zinc-100">PostgreSQL 15</p>
+                  <p className="text-sm text-zinc-400">Node Engine</p>
+                  <p className="font-medium text-zinc-100">{kernelMetadata?.nodeVersion || "v20.x"}</p>
                 </div>
                 <div className="p-4 rounded-lg bg-zinc-800/50 border border-zinc-700">
-                  <p className="text-sm text-zinc-400">Cache</p>
-                  <p className="font-medium text-zinc-100">Redis 7</p>
+                  <p className="text-sm text-zinc-400">Platform OS</p>
+                  <p className="font-medium text-zinc-100 uppercase">{kernelMetadata?.platform} {kernelMetadata?.osRelease}</p>
+                </div>
+                <div className="p-4 rounded-lg bg-zinc-800/50 border border-zinc-700">
+                  <p className="text-sm text-zinc-400">Memory Load (Free/Total)</p>
+                  <p className="font-medium text-zinc-100">{kernelMetadata?.freeMemory} / {kernelMetadata?.totalMemory}</p>
+                </div>
+                <div className="p-4 rounded-lg bg-zinc-800/50 border border-zinc-700">
+                  <p className="text-sm text-zinc-400">System Uptime</p>
+                  <p className="font-medium text-zinc-100">{kernelMetadata?.uptime}</p>
                 </div>
               </div>
 

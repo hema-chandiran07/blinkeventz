@@ -11,6 +11,7 @@ import {
   UseInterceptors,
   UploadedFiles,
   BadRequestException,
+  NotFoundException,
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
@@ -160,17 +161,20 @@ export class VendorServicesController {
       parsedDto.isActive = typeof dto.isActive === 'string' ? dto.isActive === 'true' : dto.isActive;
     }
 
-    // Upload new images to database if provided
+    // 1. Identify old images to potentially purge
+    const service = await this.vendorServicesService.findByIdWithDetails(+id);
+    if (!service) throw new NotFoundException('Service not found');
+    const oldImageUrls = (service as any).images || [];
+
+    // 2. Perform uploads
     let newImageUrls: string[] = [];
     if (files?.images && files.images.length > 0) {
       const uploadPromises = files.images.map(file => this.storageService.uploadVendorServiceImage(file));
       newImageUrls = await Promise.all(uploadPromises);
     }
 
-    // Merge with existing images if provided in DTO
+    // 3. Merge and Validate
     const existingImageUrls = dto.images || [];
-
-    // Validate external URLs if provided
     for (const url of existingImageUrls) {
       if (url && !url.startsWith('data:') && !this.storageService.validateImageUrl(url)) {
         throw new BadRequestException(`Invalid image URL: ${url}`);
@@ -178,6 +182,12 @@ export class VendorServicesController {
     }
 
     const allImages = [...existingImageUrls, ...newImageUrls];
+
+    // 4. Purge orphaned files
+    const orphaned = oldImageUrls.filter(url => !allImages.includes(url));
+    for (const url of orphaned) {
+      await this.storageService.deleteFile(url);
+    }
 
     return this.vendorServicesService.update(+id, req.user.userId, {
       ...parsedDto,

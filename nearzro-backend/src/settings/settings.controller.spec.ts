@@ -101,11 +101,14 @@ describe('SettingsController', () => {
         { key: 'FEATURE_AI_PLANNING', value: true, description: 'Enable AI event planning' },
       ];
 
-      mockSettingsService.updateFeatureFlags.mockResolvedValue(mockUpdatedFlags);
-
-      const result = await controller.updateFeatureFlags({ flags: mockFlags });
+      const mockReq = { user: { userId: 1, email: 'admin@test.com' } };
+      const result = await controller.updateFeatureFlags(mockReq, { flags: mockFlags });
       expect(result).toEqual(mockUpdatedFlags);
-      expect(service.updateFeatureFlags).toHaveBeenCalledWith(mockFlags);
+      expect(service.updateFeatureFlags).toHaveBeenCalledWith(
+        mockFlags,
+        mockReq.user.userId,
+        mockReq.user.email,
+      );
     });
   });
 
@@ -136,11 +139,16 @@ describe('SettingsController', () => {
         { key: 'INTEGRATION_SENDGRID', value: { enabled: false, apiKey: '' } },
       ];
 
+      const mockReq = { user: { userId: 1, email: 'admin@test.com' } };
       mockSettingsService.updateIntegrations.mockResolvedValue(mockUpdated);
-
-      const result = await controller.updateIntegrations({ integrations: mockIntegrations });
+ 
+      const result = await controller.updateIntegrations(mockReq, { integrations: mockIntegrations });
       expect(result).toEqual(mockUpdated);
-      expect(service.updateIntegrations).toHaveBeenCalledWith(mockIntegrations);
+      expect(service.updateIntegrations).toHaveBeenCalledWith(
+        mockIntegrations,
+        mockReq.user.userId,
+        mockReq.user.email,
+      );
     });
   });
 
@@ -174,20 +182,29 @@ describe('SettingsController', () => {
         { key: 'SECURITY_MAX_LOGIN_ATTEMPTS', value: { attempts: 3 } },
       ];
 
+      const mockReq = { user: { userId: 1, email: 'admin@test.com' } };
       mockSettingsService.updateSecuritySettings.mockResolvedValue(mockUpdated);
-
-      const result = await controller.updateSecuritySettings(mockSecurity);
+ 
+      const result = await controller.updateSecuritySettings(mockReq, { security: mockSecurity });
       expect(result).toEqual(mockUpdated);
-      expect(service.updateSecuritySettings).toHaveBeenCalledWith(mockSecurity);
+      expect(service.updateSecuritySettings).toHaveBeenCalledWith(
+        mockSecurity,
+        mockReq.user.userId,
+        mockReq.user.email,
+      );
     });
   });
 
   describe('initializeDefaultSettings', () => {
     it('should initialize default settings successfully', async () => {
+      const mockReq = { user: { userId: 1, email: 'admin@test.com' } };
       mockSettingsService.initializeDefaultSettings.mockResolvedValue(undefined);
-
-      const result = await controller.initializeDefaultSettings();
-      expect(result).toEqual({ message: 'Default settings initialized successfully' });
+ 
+      const result = await controller.initializeDefaultSettings(mockReq);
+      expect(result).toEqual({
+        message: 'System protocols re-initialized to factory defaults',
+        timestamp: expect.any(String),
+      });
       expect(service.initializeDefaultSettings).toHaveBeenCalled();
     });
   });
@@ -251,7 +268,7 @@ describe('SettingsService', () => {
         { key: 'FEATURE_AI_PLANNING', value: false, description: 'AI planning' },
       ]);
 
-      const result = await service.updateFeatureFlags(flags);
+      const result = await service.updateFeatureFlags(flags, 1, 'admin@test.com');
       
       // Verify upsert was called for each flag
       expect(prismaService.settings.upsert).toHaveBeenCalledTimes(2);

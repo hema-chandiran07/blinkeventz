@@ -9,41 +9,53 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
   Upload, FileText, CheckCircle2, Shield, Lock, Building, AlertCircle,
-  Clock, XCircle, RefreshCw, Loader2, Save
+  Clock, XCircle, RefreshCw, Loader2, Save, MapPin
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
 
+// ==================== Types ====================
 interface KycStatus {
-  status: "pending" | "verified" | "rejected" | "not_submitted";
+  status: "PENDING" | "VERIFIED" | "REJECTED" | "NOT_SUBMITTED";
   docType?: string;
   docNumber?: string;
   submittedAt?: string;
   verifiedAt?: string;
+  rejectedAt?: string;
   rejectionReason?: string;
 }
 
 interface BankDetails {
-  id: string;
+  id?: number;
   accountHolder: string;
   accountNumber: string;
   ifsc: string;
   bankName: string;
-  branchName: string;
-  isVerified: boolean;
+  branchName?: string;
+  isVerified?: boolean;
 }
 
+// ==================== Constants ====================
+const DOC_TYPES = [
+  { value: "PAN", label: "PAN Card" },
+  { value: "AADHAAR", label: "Aadhaar Card" },
+  { value: "PASSPORT", label: "Passport" },
+  { value: "DRIVING_LICENSE", label: "Driving License" },
+];
+
+// ==================== Main Component ====================
 export default function VenueOwnerKycPage() {
   const router = useRouter();
-  
+
   const [loading, setLoading] = useState(false);
   const [kycSubmitting, setKycSubmitting] = useState(false);
   const [bankSubmitting, setBankSubmitting] = useState(false);
-
-  const [kycStatus, setKycStatus] = useState<KycStatus>({ status: "not_submitted" });
+  
+  const [kycStatus, setKycStatus] = useState<KycStatus | null>(null);
   const [bankDetails, setBankDetails] = useState<BankDetails | null>(null);
-
+  
   // KYC Form State
   const [kycFormData, setKycFormData] = useState({
     docType: "PAN",
@@ -60,9 +72,9 @@ export default function VenueOwnerKycPage() {
     bankName: "",
     branchName: "",
   });
-
   const [isEditingBank, setIsEditingBank] = useState(false);
 
+  // Load KYC status and bank details on mount
   useEffect(() => {
     loadKycStatus();
     loadBankDetails();
@@ -72,12 +84,18 @@ export default function VenueOwnerKycPage() {
     try {
       const response = await api.get("/kyc/venue-owner/status");
       if (response.data) {
-        setKycStatus(response.data);
-        if (response.data.status !== "not_submitted") {
+        // Handle backend returning uppercase or mixed case
+        const normalizedStatus = {
+          ...response.data,
+          status: response.data.status?.toUpperCase() || "NOT_SUBMITTED"
+        };
+        setKycStatus(normalizedStatus);
+        
+        if (normalizedStatus.status !== "NOT_SUBMITTED") {
           setKycFormData(prev => ({
             ...prev,
-            docType: response.data.docType || "PAN",
-            docNumber: response.data.docNumber || "",
+            docType: normalizedStatus.docType || "PAN",
+            docNumber: normalizedStatus.docNumber || "",
           }));
         }
       }
@@ -85,15 +103,17 @@ export default function VenueOwnerKycPage() {
       if (error?.response?.status !== 404) {
         console.error("Failed to load KYC status:", error);
       }
+      setKycStatus({ status: "NOT_SUBMITTED" });
     }
   };
 
   const loadBankDetails = async () => {
     try {
       const response = await api.get("/bank-account/venue-owner");
-      // Handle both { success: true, data: {...} } and direct object responses
+      // Handle unified { success: true, data: {...} } response
       const bankData = response.data?.data || response.data;
-      if (bankData) {
+      
+      if (bankData && (bankData.id || bankData.accountNumber)) {
         setBankDetails(bankData);
         setBankFormData({
           accountHolder: bankData.accountHolder || "",
@@ -102,11 +122,14 @@ export default function VenueOwnerKycPage() {
           bankName: bankData.bankName || "",
           branchName: bankData.branchName || "",
         });
+      } else {
+        setBankDetails(null);
       }
     } catch (error: any) {
       if (error?.response?.status !== 404) {
         console.error("Failed to load bank details:", error);
       }
+      setBankDetails(null);
     }
   };
 
@@ -118,7 +141,7 @@ export default function VenueOwnerKycPage() {
       return;
     }
 
-    if (kycStatus.status === "not_submitted" && !file) {
+    if (kycStatus?.status === "NOT_SUBMITTED" && !file) {
       toast.error("Please upload document");
       return;
     }
@@ -203,14 +226,8 @@ export default function VenueOwnerKycPage() {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
 
-      const allowedTypes = [
-        "application/pdf",
-        "image/jpeg",
-        "image/png",
-        "image/jpg",
-      ];
-
-      if (!allowedTypes.includes(selectedFile.type)) {
+      const validTypes = ["application/pdf", "image/jpeg", "image/png", "image/jpg"];
+      if (!validTypes.includes(selectedFile.type)) {
         toast.error("Please upload PDF or image file (JPG/PNG)");
         e.target.value = "";
         return;
@@ -223,126 +240,120 @@ export default function VenueOwnerKycPage() {
       }
 
       setFile(selectedFile);
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
-      }
       setPreviewUrl(URL.createObjectURL(selectedFile));
     }
   };
 
   const getStatusCard = () => {
-    if (!kycStatus || kycStatus.status === "not_submitted") return null;
+    if (!kycStatus) return null;
 
-    if (kycStatus.status === "verified") {
-      return (
-        <Card className="border-2 border-green-300 bg-green-50">
-          <CardContent className="py-6">
-            <div className="flex items-start gap-4">
-              <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
-                <CheckCircle2 className="h-6 w-6 text-green-600" />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-semibold text-green-900 text-lg">KYC Verified</h3>
-                <p className="text-sm text-green-700 mt-1">
-                  Your identity has been successfully verified. You can now receive payouts.
-                </p>
-                <div className="grid md:grid-cols-2 gap-4 mt-4">
-                  <div>
-                    <p className="text-xs text-green-600">Document Type</p>
-                    <p className="font-medium text-green-900">{kycStatus.docType || "-"}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-green-600">Document Number</p>
-                    <p className="font-medium text-green-900">{kycStatus.docNumber || "-"}</p>
+    switch (kycStatus.status) {
+      case "VERIFIED":
+        return (
+          <Card className="border-2 border-green-300 bg-green-50">
+            <CardContent className="py-6">
+              <div className="flex items-start gap-4">
+                <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                  <CheckCircle2 className="h-6 w-6 text-green-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-green-900 text-lg">KYC Verified</h3>
+                  <p className="text-sm text-green-700 mt-1">
+                    Your identity has been successfully verified. You can now receive payments.
+                  </p>
+                  <div className="grid md:grid-cols-2 gap-4 mt-4">
+                    <div>
+                      <p className="text-xs text-green-600">Document Type</p>
+                      <p className="font-medium text-green-900">{kycStatus.docType || "-"}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-green-600">Document Number</p>
+                      <p className="font-medium text-green-900">{kycStatus.docNumber || "-"}</p>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-      );
-    }
+            </CardContent>
+          </Card>
+        );
 
-    if (kycStatus.status === "pending") {
-      return (
-        <Card className="border-2 border-yellow-300 bg-yellow-50">
-          <CardContent className="py-6">
-            <div className="flex items-start gap-4">
-              <div className="h-12 w-12 rounded-full bg-yellow-100 flex items-center justify-center">
-                <Clock className="h-6 w-6 text-yellow-600" />
+      case "PENDING":
+        return (
+          <Card className="border-2 border-yellow-300 bg-yellow-50">
+            <CardContent className="py-6">
+              <div className="flex items-start gap-4">
+                <div className="h-12 w-12 rounded-full bg-yellow-100 flex items-center justify-center flex-shrink-0">
+                  <Clock className="h-6 w-6 text-yellow-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-yellow-900 text-lg">Verification Pending</h3>
+                  <p className="text-sm text-yellow-700 mt-1">
+                    Your KYC documents are under review. This usually takes 24-48 hours.
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-semibold text-yellow-900 text-lg">Verification Pending</h3>
-                <p className="text-sm text-yellow-700 mt-1">
-                  Your KYC documents are under review. This usually takes 24-48 hours.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      );
-    }
+            </CardContent>
+          </Card>
+        );
 
-    if (kycStatus.status === "rejected") {
-      return (
-        <Card className="border-2 border-red-300 bg-red-50">
-          <CardContent className="py-6">
-            <div className="flex items-start gap-4">
-              <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
-                <XCircle className="h-6 w-6 text-red-600" />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-semibold text-red-900 text-lg">Verification Failed</h3>
-                <p className="text-sm text-red-700 mt-1">
-                  Your KYC documents could not be verified. Please resubmit with correct information.
-                </p>
-                {kycStatus.rejectionReason && (
-                  <div className="mt-4 p-3 bg-red-100 rounded-lg border border-red-200">
-                    <p className="text-xs font-medium text-red-800">Reason for rejection:</p>
-                    <p className="text-sm text-red-700 mt-1">{kycStatus.rejectionReason}</p>
-                  </div>
-                )}
-                <Button
-                  variant="outline"
-                  className="mt-4 text-red-700 border-red-300 hover:bg-red-100"
-                  onClick={() => {
-                    setKycStatus({ status: "not_submitted" });
-                    setKycFormData({ docType: "PAN", docNumber: "" });
-                    setFile(null);
-                    if (previewUrl) {
-                      URL.revokeObjectURL(previewUrl);
+      case "REJECTED":
+        return (
+          <Card className="border-2 border-red-300 bg-red-50">
+            <CardContent className="py-6">
+              <div className="flex items-start gap-4">
+                <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                  <XCircle className="h-6 w-6 text-red-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-red-900 text-lg">Verification Failed</h3>
+                  <p className="text-sm text-red-700 mt-1">
+                    Your KYC documents could not be verified. Please resubmit with correct information.
+                  </p>
+                  {kycStatus.rejectionReason && (
+                    <div className="mt-4 p-3 bg-red-100 rounded-lg border border-red-200">
+                      <p className="text-xs font-medium text-red-800">Reason for rejection:</p>
+                      <p className="text-sm text-red-700 mt-1">{kycStatus.rejectionReason}</p>
+                    </div>
+                  )}
+                  <Button
+                    variant="outline"
+                    className="mt-4 text-red-700 border-red-300 hover:bg-red-100"
+                    onClick={() => {
+                      setKycStatus({ status: "NOT_SUBMITTED" });
+                      setKycFormData({ docType: "PAN", docNumber: "" });
+                      setFile(null);
                       setPreviewUrl(null);
-                    }
-                  }}
-                >
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Resubmit KYC
-                </Button>
+                    }}
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Resubmit KYC
+                  </Button>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-      );
-    }
+            </CardContent>
+          </Card>
+        );
 
-    return (
-      <Card className="border-2 border-blue-200 bg-blue-50">
-        <CardContent className="py-6">
-          <div className="flex items-start gap-4">
-            <Shield className="h-12 w-12 text-blue-600" />
-            <div>
-              <h3 className="font-semibold text-blue-900 text-lg">KYC Verification Required</h3>
-              <p className="text-sm text-blue-700 mt-1">
-                Complete KYC verification to activate your venue and receive payouts
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    );
+      default:
+        return (
+          <Card className="border-2 border-blue-200 bg-blue-50">
+            <CardContent className="py-6">
+              <div className="flex items-start gap-4">
+                <Shield className="h-12 w-12 text-blue-600 flex-shrink-0" />
+                <div>
+                  <h3 className="font-semibold text-blue-900 text-lg">KYC Verification Required</h3>
+                  <p className="text-sm text-blue-700 mt-1">
+                    Complete KYC verification to activate your venue and receive payouts
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        );
+    }
   };
 
-  const showKycForm = kycStatus.status === "not_submitted" || kycStatus.status === "rejected";
+  const showKycForm = !kycStatus || kycStatus.status === "NOT_SUBMITTED" || kycStatus.status === "REJECTED";
   const canEditBank = !bankDetails || isEditingBank;
 
   return (
@@ -366,68 +377,75 @@ export default function VenueOwnerKycPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
-          <Card className="border-neutral-200 bg-white">
+          <Card className="border-neutral-200 bg-white shadow-sm">
             <CardHeader>
-              <CardTitle className="text-black">
+              <CardTitle className="text-black inline-flex items-center gap-2">
                 <FileText className="h-5 w-5" />
                 Owner Identity Proof
               </CardTitle>
               <CardDescription className="text-neutral-600">Upload your identity proof for verification</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="docType" className="text-black font-medium">Document Type *</Label>
-                <select
-                  id="docType"
-                  value={kycFormData.docType}
-                  onChange={(e) => setKycFormData({ ...kycFormData, docType: e.target.value })}
-                  className="flex h-10 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-black"
-                >
-                  <option value="PAN">PAN Card</option>
-                  <option value="AADHAAR">Aadhaar Card</option>
-                  <option value="PASSPORT">Passport</option>
-                  <option value="DRIVING_LICENSE">Driving License</option>
-                </select>
-              </div>
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="docType" className="text-black font-medium">Document Type *</Label>
+                  <select
+                    id="docType"
+                    value={kycFormData.docType}
+                    onChange={(e) => setKycFormData({ ...kycFormData, docType: e.target.value })}
+                    className="flex h-10 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-black"
+                  >
+                    {DOC_TYPES.map((type) => (
+                      <option key={type.value} value={type.value}>{type.label}</option>
+                    ))}
+                  </select>
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="docNumber" className="text-black font-medium">Document Number *</Label>
-                <Input
-                  id="docNumber"
-                  placeholder="Enter document number"
-                  value={kycFormData.docNumber}
-                  onChange={(e) => setKycFormData({ ...kycFormData, docNumber: e.target.value.toUpperCase() })}
-                  className="border-neutral-300 bg-white text-black"
-                />
+                <div className="space-y-2">
+                  <Label htmlFor="docNumber" className="text-black font-medium">Document Number *</Label>
+                  <Input
+                    id="docNumber"
+                    placeholder="Enter document number"
+                    value={kycFormData.docNumber}
+                    onChange={(e) => setKycFormData({ ...kycFormData, docNumber: e.target.value.toUpperCase() })}
+                    className="border-neutral-300 bg-white text-black focus:ring-2 focus:ring-black"
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">
                 <Label className="text-black font-medium">Upload Document *</Label>
-                <div className="border-2 border-dashed border-neutral-300 rounded-lg p-6 text-center">
+                <div className={cn(
+                  "border-2 border-dashed border-neutral-200 rounded-xl p-8 text-center transition-colors",
+                  previewUrl ? "border-solid border-green-200 bg-green-50/10" : "hover:border-neutral-400"
+                )}>
                   {previewUrl ? (
                     <div className="space-y-4">
-                      <img src={previewUrl} alt="Preview" className="max-h-48 mx-auto rounded-lg" />
-                      <div className="flex items-center justify-center gap-2">
-                        <FileText className="h-4 w-4 text-neutral-600" />
-                        <span className="text-sm text-neutral-600">{file?.name}</span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => { setFile(null); setPreviewUrl(null); }}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <XCircle className="h-4 w-4" />
-                        </Button>
+                      <div className="relative inline-block">
+                        <img src={previewUrl} alt="Preview" className="max-h-64 rounded-lg shadow-lg border border-white" />
+                        <div className="absolute -top-3 -right-3">
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="icon"
+                            className="rounded-full h-8 w-8"
+                            onClick={() => { setFile(null); setPreviewUrl(null); }}
+                          >
+                            <XCircle className="h-5 w-5" />
+                          </Button>
+                        </div>
                       </div>
+                      <p className="text-sm font-bold text-green-700">{file?.name}</p>
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      <Upload className="h-10 w-10 mx-auto text-neutral-400" />
+                      <div className="h-16 w-16 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Upload className="h-8 w-8 text-neutral-400" />
+                      </div>
                       <div>
-                        <Label htmlFor="file-upload" className="cursor-pointer">
-                          <span className="text-black font-medium">Click to upload</span>
-                          <span className="text-neutral-600"> or drag and drop</span>
+                        <Label htmlFor="file-upload" className="cursor-pointer group">
+                          <span className="text-black font-bold text-lg group-hover:underline">Click to upload</span>
+                          <span className="text-neutral-500 block text-sm mt-1 uppercase tracking-widest font-black">PDF, JPG or PNG (MAX 5MB)</span>
                         </Label>
                         <Input
                           id="file-upload"
@@ -436,18 +454,17 @@ export default function VenueOwnerKycPage() {
                           onChange={handleFileChange}
                           className="hidden"
                         />
-                        <p className="text-xs text-neutral-600 mt-1">PDF, JPG or PNG (max 5MB)</p>
                       </div>
                     </div>
                   )}
                 </div>
               </div>
 
-              <Button type="submit" className="w-full h-12 bg-black hover:bg-neutral-800" disabled={kycSubmitting}>
+              <Button type="submit" className="w-full h-12 bg-black hover:bg-neutral-800 text-white font-black uppercase tracking-[0.2em] rounded-none" disabled={kycSubmitting}>
                 {kycSubmitting ? (
-                  <><Loader2 className="h-5 w-5 mr-2 animate-spin" /> Submitting...</>
+                  <><Loader2 className="h-5 w-5 mr-2 animate-spin" /> Processing...</>
                 ) : (
-                  <><CheckCircle2 className="h-5 w-5 mr-2" /> {kycStatus.status === "rejected" ? "Resubmit KYC" : "Submit KYC"}</>
+                  <><CheckCircle2 className="h-5 w-5 mr-2" /> Submit Verification</>
                 )}
               </Button>
             </CardContent>
@@ -458,144 +475,126 @@ export default function VenueOwnerKycPage() {
       {/* Bank Details Section */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
         {bankDetails && !isEditingBank ? (
-          <Card className="border-neutral-200 bg-white">
-            <CardHeader>
+          <Card className="border-neutral-200 bg-white shadow-sm">
+            <CardHeader className="border-b border-neutral-100">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-black">
+                  <CardTitle className="text-black inline-flex items-center gap-2">
                     <Building className="h-5 w-5" />
-                    Bank Account Details
+                    Paiments Wallet & Bank
                   </CardTitle>
-                  <CardDescription className="text-neutral-600">Your registered bank account for receiving payments</CardDescription>
+                  <CardDescription className="text-neutral-500">Your registered destination for all booking earnings</CardDescription>
                 </div>
                 <div className="flex gap-2">
                   {bankDetails.isVerified && (
-                    <Badge className="bg-green-100 text-green-700 border-green-300">
-                      <CheckCircle2 className="h-3 w-3 mr-1" /> Verified
+                    <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 rounded-full font-black text-[10px] uppercase tracking-wider">
+                      Verified
                     </Badge>
                   )}
-                  <Button variant="outline" size="sm" onClick={() => setIsEditingBank(true)}>
-                    <RefreshCw className="h-4 w-4 mr-2" /> Update
+                  <Button variant="ghost" size="sm" onClick={() => setIsEditingBank(true)} className="font-black text-[10px] uppercase tracking-widest hover:bg-neutral-100">
+                    <RefreshCw className="h-3 w-3 mr-1" /> Update
                   </Button>
                 </div>
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-neutral-600">Account Holder</p>
-                  <p className="font-medium text-black">{bankDetails.accountHolder}</p>
+            <CardContent className="pt-6">
+              <div className="grid md:grid-cols-2 gap-8">
+                <div className="space-y-1">
+                  <p className="text-[10px] text-neutral-400 font-black uppercase tracking-widest">Account Holder</p>
+                  <p className="font-bold text-black text-xl">{bankDetails.accountHolder}</p>
                 </div>
-                <div>
-                  <p className="text-sm text-neutral-600">Account Number</p>
-                  <p className="font-medium text-black">
-                    {bankDetails.accountNumber.includes("X") 
-                      ? bankDetails.accountNumber 
-                      : bankDetails.accountNumber.length > 4 
-                        ? "XXXX XXXX " + bankDetails.accountNumber.slice(-4)
-                        : bankDetails.accountNumber}
+                <div className="space-y-1">
+                  <p className="text-[10px] text-neutral-400 font-black uppercase tracking-widest">Account Number</p>
+                  <p className="font-bold text-black text-xl tracking-tighter">
+                    {bankDetails.accountNumber && bankDetails.accountNumber.length > 4 
+                      ? `XXXX XXXX ${bankDetails.accountNumber.slice(-4)}` 
+                      : (bankDetails.accountNumber || 'N/A')}
                   </p>
                 </div>
-                <div>
-                  <p className="text-sm text-neutral-600">IFSC Code</p>
-                  <p className="font-medium text-black">{bankDetails.ifsc}</p>
+                <div className="space-y-1">
+                  <p className="text-[10px] text-neutral-400 font-black uppercase tracking-widest">IFSC Code</p>
+                  <p className="font-bold text-black text-xl tracking-tighter">{bankDetails.ifsc}</p>
                 </div>
-                <div>
-                  <p className="text-sm text-neutral-600">Bank Name</p>
-                  <p className="font-medium text-black">{bankDetails.bankName}</p>
+                <div className="space-y-1">
+                  <p className="text-[10px] text-neutral-400 font-black uppercase tracking-widest">Bank Name</p>
+                  <p className="font-bold text-black text-xl">{bankDetails.bankName}</p>
                 </div>
-                {bankDetails.branchName && (
-                  <div className="md:col-span-2">
-                    <p className="text-sm text-neutral-600">Branch Name</p>
-                    <p className="font-medium text-black">{bankDetails.branchName}</p>
-                  </div>
-                )}
               </div>
             </CardContent>
           </Card>
         ) : (
-          <Card className="border-neutral-200 bg-white">
-            <CardHeader>
-              <CardTitle className="text-black">
+          <Card className="border-neutral-200 bg-white shadow-sm overflow-hidden">
+            <CardHeader className="bg-neutral-50/50 border-b border-neutral-100">
+              <CardTitle className="text-black inline-flex items-center gap-2">
                 <Building className="h-5 w-5" />
-                {bankDetails ? "Update Bank Account Details" : "Add Bank Account Details"}
+                {bankDetails ? "Update Payout Method" : "Setup Payout Method"}
               </CardTitle>
-              <CardDescription className="text-neutral-600">For receiving payments from bookings</CardDescription>
+              <CardDescription className="text-neutral-600 font-medium">Add bank details to receive your venue booking earnings</CardDescription>
             </CardHeader>
-            <form onSubmit={handleBankSubmit} className="space-y-6">
-              <CardContent className="space-y-6">
-                <div className="grid md:grid-cols-2 gap-4">
+            <form onSubmit={handleBankSubmit}>
+              <CardContent className="space-y-8 pt-8">
+                <div className="grid md:grid-cols-2 gap-x-8 gap-y-6">
                   <div className="space-y-2">
-                    <Label className="text-black font-medium">Account Holder Name *</Label>
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-neutral-500">Account Holder Name *</Label>
                     <Input
-                      placeholder="As per bank records"
+                      placeholder="AS PER BANK RECORDS"
                       value={bankFormData.accountHolder}
-                      onChange={(e) => setBankFormData({ ...bankFormData, accountHolder: e.target.value })}
-                      className="border-neutral-300 bg-white text-black"
+                      onChange={(e) => setBankFormData({ ...bankFormData, accountHolder: e.target.value.toUpperCase() })}
+                      className="border-neutral-200 bg-white text-black font-bold h-12 rounded-none"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-black font-medium">Account Number *</Label>
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-neutral-500">Bank Account Number *</Label>
                     <Input
-                      placeholder="Enter account number"
+                      placeholder="ENTER ACCOUNT NUMBER"
                       value={bankFormData.bankAccountNumber}
                       onChange={(e) => setBankFormData({ ...bankFormData, bankAccountNumber: e.target.value })}
-                      className="border-neutral-300 bg-white text-black"
+                      className="border-neutral-200 bg-white text-black font-bold h-12 rounded-none"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-black font-medium">IFSC Code *</Label>
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-neutral-500">IFSC Code *</Label>
                     <Input
-                      placeholder="e.g., SBIN0001234"
+                      placeholder="E.G., SBIN0001234"
                       value={bankFormData.ifscCode}
                       onChange={(e) => setBankFormData({ ...bankFormData, ifscCode: e.target.value.toUpperCase() })}
-                      className="border-neutral-300 bg-white text-black"
+                      className="border-neutral-200 bg-white text-black font-bold h-12 rounded-none"
                       maxLength={11}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-black font-medium">Bank Name *</Label>
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-neutral-500">Bank Name *</Label>
                     <Input
-                      placeholder="e.g., State Bank of India"
+                      placeholder="E.G., STATE BANK OF INDIA"
                       value={bankFormData.bankName}
-                      onChange={(e) => setBankFormData({ ...bankFormData, bankName: e.target.value })}
-                      className="border-neutral-300 bg-white text-black"
+                      onChange={(e) => setBankFormData({ ...bankFormData, bankName: e.target.value.toUpperCase() })}
+                      className="border-neutral-200 bg-white text-black font-bold h-12 rounded-none"
                     />
                   </div>
                   <div className="md:col-span-2 space-y-2">
-                    <Label className="text-black font-medium">Branch Name</Label>
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-neutral-500">Branch Name</Label>
                     <Input
-                      placeholder="e.g., Anna Nagar Branch"
+                      placeholder="E.G., MAIN BRANCH"
                       value={bankFormData.branchName}
-                      onChange={(e) => setBankFormData({ ...bankFormData, branchName: e.target.value })}
-                      className="border-neutral-300 bg-white text-black"
+                      onChange={(e) => setBankFormData({ ...bankFormData, branchName: e.target.value.toUpperCase() })}
+                      className="border-neutral-200 bg-white text-black font-bold h-12 rounded-none"
                     />
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 p-4 bg-neutral-50 rounded-lg border border-neutral-200">
-                  <Lock className="h-5 w-5 text-neutral-600 flex-shrink-0" />
-                  <div>
-                    <p className="text-sm font-semibold text-black mb-1">Secure & Encrypted</p>
-                    <p className="text-xs text-neutral-600">
-                      Your bank details are encrypted and used only for payment processing.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex gap-4">
-                  <Button type="submit" className="flex-1 h-12 bg-black hover:bg-neutral-800" disabled={bankSubmitting}>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <Button type="submit" className="h-14 bg-black hover:bg-neutral-800 text-white font-black uppercase tracking-[0.2em] rounded-none" disabled={bankSubmitting}>
                     {bankSubmitting ? (
-                      <><Loader2 className="h-5 w-5 mr-2 animate-spin" /> Saving...</>
+                      <><Loader2 className="h-5 w-5 mr-2 animate-spin" /> Processing...</>
                     ) : (
-                      <><Save className="h-5 w-5 mr-2" /> {bankDetails ? "Update Bank Details" : "Save Bank Details"}</>
+                      <><Save className="h-5 w-5 mr-2" /> Save Bank Details</>
                     )}
                   </Button>
                   {bankDetails && (
                     <Button
                       type="button"
                       variant="outline"
-                      className="flex-1 h-12"
+                      className="h-14 font-black uppercase tracking-[0.2em] rounded-none"
                       onClick={() => setIsEditingBank(false)}
                     >
                       Cancel

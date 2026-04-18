@@ -48,23 +48,26 @@ export default function UnifiedApprovalsPage() {
     try {
       setLoading(true);
       const [vendors, venues, kyc] = await Promise.all([
-        api.get("/vendors", { signal }),
-        api.get("/venues", { signal }),
+        api.get("/vendors?status=ALL", { signal }),
+        api.get("/venues?status=ALL", { signal }),
         api.get("/kyc/admin/submissions", { signal }),
       ]);
 
-      // Filter pending vendors
-      const pendingVendors = (vendors.data || []).filter(
+      // Filter pending vendors - handling paginated response structure
+      const vendorList = Array.isArray(vendors.data) ? vendors.data : (vendors.data?.data || []);
+      const pendingVendors = vendorList.filter(
         (v: any) => v.verificationStatus === 'PENDING'
       );
       
-      // Filter pending venues  
-      const pendingVenues = (venues.data || []).filter(
+      // Filter pending venues - handling paginated response structure
+      const venueList = Array.isArray(venues.data) ? venues.data : (venues.data?.data || []);
+      const pendingVenues = venueList.filter(
         (v: any) => v.status === 'PENDING_APPROVAL'
       );
 
       // Filter pending KYC
-      const pendingKyc = (kyc.data?.kycDocuments || []).filter(
+      const kycList = kyc.data?.kycDocuments || kyc.data || [];
+      const pendingKyc = (Array.isArray(kycList) ? kycList : []).filter(
         (k: any) => k.status === 'PENDING'
       );
 
@@ -128,13 +131,14 @@ export default function UnifiedApprovalsPage() {
 
   const handleApprove = async (approval: ApprovalItem) => {
     try {
-      const endpoint = approval.type === 'VENDOR'
-        ? `/vendors/${approval.id}/approve`
-        : approval.type === 'VENUE'
-        ? `/venues/${approval.id}/approve`
-        : `/kyc/admin/${approval.id}/status`;
-
-      await api.patch(endpoint, approval.type === 'KYC' ? { status: 'VERIFIED' } : {});
+      if (approval.type === 'KYC') {
+        await api.patch(`/kyc/admin/${approval.id}/status`, { status: 'VERIFIED' });
+      } else {
+        await api.patch(`/approvals/${approval.id}/approve`, { 
+          approvalType: approval.type 
+        });
+      }
+      
       toast.success(`${approval.type} approved successfully!`);
       loadApprovals();
       setSelectedApproval(null);
@@ -151,16 +155,18 @@ export default function UnifiedApprovalsPage() {
     }
 
     try {
-      const endpoint = approval.type === 'VENDOR'
-        ? `/vendors/${approval.id}/reject`
-        : approval.type === 'VENUE'
-        ? `/venues/${approval.id}/reject`
-        : `/kyc/admin/${approval.id}/status`;
+      if (approval.type === 'KYC') {
+        await api.patch(`/kyc/admin/${approval.id}/status`, { 
+          status: 'REJECTED',
+          reason: rejectionReason 
+        });
+      } else {
+        await api.patch(`/approvals/${approval.id}/reject`, {
+          approvalType: approval.type,
+          reason: rejectionReason
+        });
+      }
 
-      await api.patch(endpoint, {
-        ...(approval.type === 'KYC' ? { status: 'REJECTED' } : {}),
-        reason: rejectionReason
-      });
       toast.success(`${approval.type} rejected`);
       loadApprovals();
       setSelectedApproval(null);

@@ -89,35 +89,35 @@ export default function ComposeMessagePage() {
     }
 
     setSending(true);
-    try {
-      // Determine channels based on method
-      const channels = formData.method === "email" 
-        ? ["IN_APP", "EMAIL"]  // Send both notification AND email
-        : ["IN_APP"];  // Just in-app notification for other methods
+      try {
+        if (userId) {
+          // Determine channels based on method
+          const channels = formData.method === "email" 
+            ? ["IN_APP", "EMAIL"] 
+            : formData.method === "sms" 
+              ? ["IN_APP", "SMS"] 
+              : ["IN_APP", "WHATSAPP"];
 
-      // Call the new compose endpoint
-      if (userId) {
-        // Use new endpoint with userId
-        await api.post("/notifications/compose", {
-          userId,
-          title: formData.subject.trim(),
-          message: formData.message.trim(),
-          channels,
-          priority: "NORMAL",
-        });
-      } else {
-        // Fallback to old endpoint if no userId
-        const channel = formData.method === "email" ? "EMAIL" : formData.method === "sms" ? "SMS" : "WHATSAPP";
-        await api.post("/notifications/send", {
-          type: "SYSTEM_ALERT",
-          title: formData.subject.trim(),
-          message: formData.message.trim(),
-          channels: [channel],
-          priority: "NORMAL",
-          recipient: formData.to.trim(),
-          targetAudience: "all",
-        });
-      }
+          await api.post("/notifications/compose", {
+            userId,
+            title: formData.subject.trim(),
+            message: formData.message.trim(),
+            channels,
+            priority: "NORMAL",
+          });
+        } else {
+          // Fallback to send endpoint
+          const channel = formData.method === "email" ? "EMAIL" : formData.method === "sms" ? "SMS" : "WHATSAPP";
+          await api.post("/notifications/send", {
+            type: "SYSTEM_ALERT",
+            title: formData.subject.trim(),
+            message: formData.message.trim(),
+            channels: [channel, "IN_APP"],
+            priority: "NORMAL",
+            recipient: formData.to.trim(),
+            targetAudience: "all",
+          });
+        }
 
       setSent(true);
       toast.success("Message sent successfully!", {
@@ -240,23 +240,23 @@ export default function ComposeMessagePage() {
 
         <Card
           className={`border-2 cursor-pointer transition-all ${formData.method === "sms" ? "border-zinc-700 bg-zinc-900/80" : "border-zinc-800 bg-zinc-900/50"}`}
-          onClick={() => setFormData({ ...formData, method: "sms", channels: ["IN_APP"] })}
+          onClick={() => setFormData({ ...formData, method: "sms", channels: ["IN_APP", "SMS"] })}
         >
           <CardContent className="p-6 text-center">
             <MessageSquare className="h-8 w-8 mx-auto mb-2 text-zinc-400" />
-            <p className="font-semibold text-zinc-100">In-App Only</p>
-            <p className="text-xs text-zinc-500">Notification bell only</p>
+            <p className="font-semibold text-zinc-100">SMS + Notification</p>
+            <p className="text-xs text-zinc-500">Direct SMS delivery</p>
           </CardContent>
         </Card>
 
         <Card
           className={`border-2 cursor-pointer transition-all ${formData.method === "whatsapp" ? "border-zinc-700 bg-zinc-900/80" : "border-zinc-800 bg-zinc-900/50"}`}
-          onClick={() => setFormData({ ...formData, method: "whatsapp", channels: ["IN_APP"] })}
+          onClick={() => setFormData({ ...formData, method: "whatsapp", channels: ["IN_APP", "WHATSAPP"] })}
         >
           <CardContent className="p-6 text-center">
             <Smartphone className="h-8 w-8 mx-auto mb-2 text-zinc-400" />
-            <p className="font-semibold text-zinc-100">In-App Only</p>
-            <p className="text-xs text-zinc-500">Notification bell only</p>
+            <p className="font-semibold text-zinc-100">WhatsApp + Notification</p>
+            <p className="text-xs text-zinc-500">Direct WhatsApp delivery</p>
           </CardContent>
         </Card>
       </div>

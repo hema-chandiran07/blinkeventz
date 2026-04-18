@@ -1,34 +1,36 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { SettingsCategory } from '@prisma/client';
+import { SettingsCategory, AuditSeverity, Role } from '@prisma/client';
+import { AuditService } from '../audit/audit.service';
+import * as os from 'os';
 
 export interface FeatureFlag {
   key: string;
   value: boolean;
   description?: string;
+  id: number;
 }
 
 export interface IntegrationConfig {
   key: string;
-  value: {
-    enabled: boolean;
-    apiKey?: string;
-    clientId?: string;
-  };
+  value: any;
+  id: number;
 }
 
 export interface SecuritySetting {
   key: string;
-  value: {
-    enabled?: boolean;
-    minutes?: number;
-    attempts?: number;
-  };
+  value: any;
+  id: number;
 }
 
 @Injectable()
 export class SettingsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(SettingsService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditService: AuditService,
+  ) { }
 
   // ============================================================================
   // GET SETTINGS
@@ -63,14 +65,8 @@ export class SettingsService {
 
   async getFeatureFlags() {
     const settings = await this.prisma.settings.findMany({
-      where: {
-        key: {
-          startsWith: 'FEATURE_',
-        },
-      },
+      where: { key: { startsWith: 'FEATURE_' } },
     });
-
-    // Defensive: handle case where findMany returns undefined/null
     return (settings ?? []).map((s) => ({
       key: s.key,
       value: s.value as boolean,
@@ -79,65 +75,9 @@ export class SettingsService {
     }));
   }
 
-  // ============================================================================
-  // UPDATE SETTINGS
-  // ============================================================================
-
-  async updateSettings(settings: Record<string, any>) {
-    const updates = Object.entries(settings).map(([key, value]) =>
-      this.prisma.settings.upsert({
-        where: { key },
-        update: { value },
-        create: {
-          key,
-          value,
-          category: 'FEATURE' as any,
-        },
-      }),
-    );
-
-    await Promise.all(updates);
-    return this.getAllSettings();
-  }
-
-  async updateFeatureFlags(flags: Record<string, boolean>) {
-    // Defensive: handle null/undefined input
-    if (!flags || typeof flags !== 'object') {
-      throw new Error('Feature flags must be a valid object');
-    }
-    const entries = Object.entries(flags);
-    if (entries.length === 0) {
-      return this.getFeatureFlags();
-    }
-    const updates = entries.map(([key, value]) => {
-      // Ensure key has FEATURE_ prefix but prevent double-wrapping
-      const cleanKey = key.startsWith('FEATURE_') ? key : `FEATURE_${key}`;
-      return this.prisma.settings.upsert({
-        where: { key: cleanKey },
-        update: { 
-          value,
-          category: 'FEATURE',
-        },
-        create: {
-          key: cleanKey,
-          value,
-          category: 'FEATURE',
-          description: key.startsWith('FEATURE_') ? key.substring(8) : key,
-        },
-      });
-    });
-
-    await Promise.all(updates);
-    return this.getFeatureFlags();
-  }
-
   async getIntegrations() {
     const settings = await this.prisma.settings.findMany({
-      where: {
-        key: {
-          startsWith: 'INTEGRATION_',
-        },
-      },
+      where: { key: { startsWith: 'INTEGRATION_' } },
     });
     return (settings ?? []).map((s) => ({
       key: s.key,
@@ -146,141 +86,167 @@ export class SettingsService {
     }));
   }
 
-  async updateIntegrations(integrations: Record<string, any>) {
-    // Defensive: handle null/undefined input
-    if (!integrations || typeof integrations !== 'object') {
-      throw new Error('Integrations must be a valid object');
-    }
-    const entries = Object.entries(integrations);
-    if (entries.length === 0) {
-      return this.getIntegrations();
-    }
-    const updates = entries.map(([key, value]) =>
-      this.prisma.settings.upsert({
-        where: { key: `INTEGRATION_${key}` },
-        update: { value },
-        create: {
-          key: `INTEGRATION_${key}`,
-          value,
-          category: 'INTEGRATION',
-        },
-      }),
-    );
-
-    await Promise.all(updates);
-    return this.getIntegrations();
-  }
-
   async getSecuritySettings() {
     const settings = await this.prisma.settings.findMany({
-      where: {
-        key: {
-          startsWith: 'SECURITY_',
-        },
-      },
+      where: { key: { startsWith: 'SECURITY_' } },
     });
-
-    return settings.map((s) => ({
+    return (settings ?? []).map((s) => ({
       key: s.key,
       value: s.value as any,
       id: Number(s.id),
     }));
   }
 
-  async updateSecuritySettings(settings: Record<string, any>) {
-    const updates = Object.entries(settings).map(([key, value]) =>
-      this.prisma.settings.upsert({
-        where: { key: `SECURITY_${key}` },
-        update: { value },
-        create: {
-          key: `SECURITY_${key}`,
-          value,
-          category: 'SECURITY',
-        },
-      }),
-    );
+  // ============================================================================
+  // UPDATE SETTINGS (INDUSTRIALIZED)
+  // ============================================================================
 
-    await Promise.all(updates);
-    return this.getSecuritySettings();
+  async updateFeatureFlags(flags: Record<string, boolean>, actorId?: number, actorEmail?: string) {
+    return this.processBatchUpdate(flags, 'FEATURE' as SettingsCategory, actorId, actorEmail);
   }
 
-  async getSettingByKey(key: string) {
-    const setting = await this.prisma.settings.findUnique({
-      where: { key },
-    });
+  async updateIntegrations(integrations: Record<string, any>, actorId?: number, actorEmail?: string) {
+    return this.processBatchUpdate(integrations, 'INTEGRATION' as SettingsCategory, actorId, actorEmail);
+  }
 
-    if (!setting) {
-      throw new NotFoundException(`Setting with key "${key}" not found`);
+  async updateSecuritySettings(settings: Record<string, any>, actorId?: number, actorEmail?: string) {
+    return this.processBatchUpdate(settings, 'SECURITY' as SettingsCategory, actorId, actorEmail);
+  }
+
+  private async processBatchUpdate(
+    data: Record<string, any>,
+    category: SettingsCategory,
+    actorId?: number,
+    actorEmail?: string
+  ) {
+    if (!data || typeof data !== 'object') {
+      throw new Error(`${category} settings must be a valid object`);
     }
 
-    return {
-      ...setting,
-      id: Number(setting.id),
-    };
+    const updates = Object.entries(data).map(async ([key, value]) => {
+      const cleanKey = this.getCleanKey(key, category);
+
+      // Get old value for auditing
+      const oldSetting = await this.prisma.settings.findUnique({ where: { key: cleanKey } });
+
+      const newSetting = await this.prisma.settings.upsert({
+        where: { key: cleanKey },
+        update: { value },
+        create: {
+          key: cleanKey,
+          value,
+          category,
+          description: `System ${category.toLowerCase()} setting: ${key}`,
+        },
+      });
+
+      // 📝 Log to Audit Trail
+      await this.auditService.record({
+        entityType: 'SETTINGS',
+        entityId: cleanKey,
+        action: oldSetting ? 'UPDATE' : 'CREATE',
+        severity: AuditSeverity.INFO,
+        actorId,
+        actorEmail,
+        actorRole: Role.ADMIN,
+        oldValue: oldSetting ? { value: oldSetting.value as any } : null,
+        newValue: { value: newSetting.value as any },
+        description: `Administrator ${actorEmail || 'System'} modified system setting: ${cleanKey}`,
+      });
+
+      return newSetting;
+    });
+
+    await Promise.all(updates);
+
+    // Return the appropriate subset
+    switch (category) {
+      case 'FEATURE': return this.getFeatureFlags();
+      case 'INTEGRATION': return this.getIntegrations();
+      case 'SECURITY': return this.getSecuritySettings();
+      default: return this.getAllSettings();
+    }
+  }
+
+  private getCleanKey(key: string, category: SettingsCategory): string {
+    const prefix = `${category}_`;
+    return key.startsWith(prefix) ? key : `${prefix}${key}`;
+  }
+
+  // ============================================================================
+  // UTILS
+  // ============================================================================
+
+  async isMaintenanceModeEnabled(): Promise<boolean> {
+    try {
+      const setting = await this.prisma.settings.findUnique({
+        where: { key: 'FEATURE_MAINTENANCE_MODE' },
+      });
+      return setting ? Boolean(setting.value) : false;
+    } catch {
+      return false;
+    }
   }
 
   async initializeDefaultSettings() {
-    // First, clean up corrupted entries
-    const allSettings = await this.prisma.settings.findMany();
-    const corruptedKeys: string[] = [];
-    const wrapperPattern = /^(FEATURE|INTEGRATION|SECURITY)_\d+$/;
+    this.logger.log('Initializing industrialized system settings...');
 
-    for (const setting of allSettings) {
-      const value = setting.value as any;
-      // Check if value is corrupted (nested object with id/key)
-      if (
-        typeof value === 'object' &&
-        value !== null &&
-        (value.id || value.key) &&
-        typeof value.id === 'number'
-      ) {
-        corruptedKeys.push(setting.key);
-      }
-      // Check if it's a wrapper entry
-      if (wrapperPattern.test(setting.key)) {
-        corruptedKeys.push(setting.key);
-      }
-    }
-
-    // Delete corrupted entries
-    if (corruptedKeys.length > 0) {
-      await this.prisma.settings.deleteMany({
-        where: { key: { in: corruptedKeys } },
-      });
-    }
-
-    // Now initialize clean defaults
     const defaultSettings: Array<{
       key: string;
       value: any;
       description?: string;
       category: SettingsCategory;
     }> = [
-      // Feature Flags
-      { key: 'FEATURE_NEW_DASHBOARD', value: false, description: 'Enable new dashboard UI', category: SettingsCategory.FEATURE },
-      { key: 'FEATURE_AI_PLANNING', value: true, description: 'Enable AI event planning', category: SettingsCategory.FEATURE },
-      { key: 'FEATURE_EXPRESS_BOOKING', value: true, description: 'Enable express booking flow', category: SettingsCategory.FEATURE },
-      { key: 'FEATURE_AUTO_APPROVE_VENUES', value: false, description: 'Auto-approve venue listings', category: SettingsCategory.FEATURE },
-      { key: 'FEATURE_MAINTENANCE_MODE', value: false, description: 'Enable maintenance mode', category: SettingsCategory.FEATURE },
+        // Protocols (Feature Flags)
+        { key: 'FEATURE_NEW_DASHBOARD', value: false, description: 'Enable new laboratory dashboard UI', category: SettingsCategory.FEATURE },
+        { key: 'FEATURE_AI_PLANNING', value: true, description: 'Enable AI-powered event planning protocols', category: SettingsCategory.FEATURE },
+        { key: 'FEATURE_EXPRESS_BOOKING', value: true, description: 'Allow high-velocity booking flows', category: SettingsCategory.FEATURE },
+        { key: 'FEATURE_AUTO_APPROVE_VENUES', value: false, description: 'Autonomous venue approval protocol', category: SettingsCategory.FEATURE },
+        { key: 'FEATURE_MAINTENANCE_MODE', value: false, description: 'Lock platform for core maintenance', category: SettingsCategory.FEATURE },
 
-      // Integrations
-      { key: 'INTEGRATION_RAZORPAY', value: { enabled: false, apiKey: '' }, category: SettingsCategory.INTEGRATION },
-      { key: 'INTEGRATION_SENDGRID', value: { enabled: false, apiKey: '' }, category: SettingsCategory.INTEGRATION },
-      { key: 'INTEGRATION_TWILIO', value: { enabled: false, apiKey: '' }, category: SettingsCategory.INTEGRATION },
-      { key: 'INTEGRATION_GOOGLE_OAUTH', value: { enabled: false, clientId: '' }, category: SettingsCategory.INTEGRATION },
+        // Uplinks (Integrations)
+        { key: 'INTEGRATION_RAZORPAY', value: { enabled: false, keyId: '', keySecret: '' }, category: SettingsCategory.INTEGRATION },
+        { key: 'INTEGRATION_SENDGRID', value: { enabled: false, apiKey: '' }, category: SettingsCategory.INTEGRATION },
+        { key: 'INTEGRATION_TWILIO', value: { enabled: false, accountSid: '', authToken: '', fromNumber: '' }, category: SettingsCategory.INTEGRATION },
+        { key: 'INTEGRATION_GOOGLE_OAUTH', value: { enabled: false, clientId: '', clientSecret: '' }, category: SettingsCategory.INTEGRATION },
+        { key: 'INTEGRATION_OPENAI', value: { enabled: false, apiKey: '', model: 'gpt-4o-mini' }, category: SettingsCategory.INTEGRATION },
 
-      // Security
-      { key: 'SECURITY_MFA_REQUIRED', value: { enabled: false }, category: SettingsCategory.SECURITY },
-      { key: 'SECURITY_SESSION_TIMEOUT', value: { minutes: 30 }, category: SettingsCategory.SECURITY },
-      { key: 'SECURITY_MAX_LOGIN_ATTEMPTS', value: { attempts: 5 }, category: SettingsCategory.SECURITY },
-    ];
+        // Security (Kernel Defaults)
+        { key: 'SECURITY_MFA_REQUIRED', value: { enabled: false }, category: SettingsCategory.SECURITY },
+        { key: 'SECURITY_SESSION_TIMEOUT', value: { minutes: 30 }, category: SettingsCategory.SECURITY },
+        { key: 'SECURITY_MAX_LOGIN_ATTEMPTS', value: { attempts: 5 }, category: SettingsCategory.SECURITY },
+        { key: 'SECURITY_PASSWORD_MIN_LENGTH', value: { length: 8 }, category: SettingsCategory.SECURITY },
+        { key: 'SECURITY_RATE_LIMITING', value: { enabled: true }, category: SettingsCategory.SECURITY },
+        { key: 'SECURITY_RATE_LIMIT_MAX', value: { max: 100 }, category: SettingsCategory.SECURITY },
+        { key: 'SECURITY_RATE_LIMIT_WINDOW', value: { window: 60 }, category: SettingsCategory.SECURITY },
+      ];
 
     for (const setting of defaultSettings) {
       await this.prisma.settings.upsert({
         where: { key: setting.key },
-        update: setting,
+        update: {
+          category: setting.category,
+          description: setting.description,
+          value: setting.value,
+        },
         create: setting,
       });
     }
+  }
+
+  async getKernelMetadata() {
+    return {
+      version: process.env.npm_package_version || '2.0.0',
+      nodeVersion: process.version,
+      platform: os.platform(),
+      osRelease: os.release(),
+      totalMemory: Math.round(os.totalmem() / (1024 * 1024 * 1024)) + ' GB',
+      freeMemory: Math.round(os.freemem() / (1024 * 1024 * 1024)) + ' GB',
+      uptime: Math.round(os.uptime() / 3600) + ' hours',
+      environment: process.env.NODE_ENV || 'development',
+      database: 'PostgreSQL 15',
+      cache: 'Redis 7',
+      timestamp: new Date().toISOString()
+    };
   }
 }

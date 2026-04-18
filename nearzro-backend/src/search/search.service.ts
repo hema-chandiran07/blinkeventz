@@ -41,7 +41,7 @@ export class SearchService {
 
       // 2. Async Audit Logging via BullMQ (Non-blocking)
       this.searchAuditQueue.add('log-search', {
-        userId: user.id,
+        userId: user?.id || null,
         query: queryTerm,
         resultsCount,
         durationMs,
@@ -66,7 +66,7 @@ export class SearchService {
   }
 
   private async searchUsers(query: string, requester: any) {
-    if (requester.role !== Role.ADMIN) return [];
+    if (!requester || requester.role !== Role.ADMIN) return [];
 
     return this.prisma.$queryRaw`
       SELECT id, name, email, role, image,
@@ -79,14 +79,13 @@ export class SearchService {
   }
 
   private async searchVenues(query: string, requester: any) {
-    // Admins see all, Owners see theirs, Customers see approved
+    // Admins see all, Owners see theirs, Customers/Guests see active
     let whereClause = '';
-    if (requester.role === Role.VENUE_OWNER) {
+    if (requester?.role === Role.VENUE_OWNER) {
       whereClause = `AND "ownerId" = ${requester.id}`;
-    } else if (requester.role === Role.CUSTOMER) {
+    } else if (!requester || requester.role === Role.CUSTOMER || requester.role === Role.VENDOR) {
       whereClause = `AND status = 'ACTIVE'`;
     } else if (requester.role !== Role.ADMIN) {
-      // Vendors/Others only see active venues
       whereClause = `AND status = 'ACTIVE'`;
     }
 
@@ -102,7 +101,7 @@ export class SearchService {
 
   private async searchVendors(query: string, requester: any) {
     let whereClause = '';
-    if (requester.role === Role.CUSTOMER) {
+    if (!requester || requester.role === Role.CUSTOMER || requester.role === Role.VENDOR) {
       whereClause = `AND "verificationStatus" = 'VERIFIED'`;
     }
 
@@ -118,13 +117,13 @@ export class SearchService {
 
   private async searchEvents(query: string, requester: any) {
     let whereClause = '';
-    if (requester.role === Role.CUSTOMER) {
+    if (!requester) {
+      return []; // Guests cannot search events by default
+    } else if (requester.role === Role.CUSTOMER) {
       whereClause = `AND "customerId" = ${requester.id}`;
     } else if (requester.role === Role.VENUE_OWNER) {
-      // Show events at venues owned by this user
       whereClause = `AND "venueId" IN (SELECT id FROM "Venue" WHERE "ownerId" = ${requester.id})`;
     } else if (requester.role === Role.VENDOR) {
-      // Show events where vendor is providing a service
       whereClause = `AND id IN (
         SELECT "EventId" FROM "EventService" 
         WHERE "vendorId" = (SELECT id FROM "Vendor" WHERE "userId" = ${requester.id})

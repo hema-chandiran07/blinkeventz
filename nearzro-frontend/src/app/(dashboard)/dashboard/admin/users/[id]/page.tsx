@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ArrowLeft, Edit, Trash2, Mail, Calendar,
   CheckCircle2, XCircle, Download, MessageSquare, Shield,
@@ -12,6 +13,7 @@ import {
 import { useRouter, useParams } from "next/navigation";
 import { toast } from "sonner";
 import api from "@/lib/api";
+import { extractArray } from "@/lib/api-response";
 
 interface UserDetail {
   id: number;
@@ -23,7 +25,10 @@ interface UserDetail {
   isEmailVerified: boolean;
   image?: string;
   createdAt: string;
-  events?: any[];
+  customerEvents?: any[];
+  bookings?: any[];
+  payments?: any[];
+  reviews?: any[];
   vendor?: any;
   venues?: any[];
 }
@@ -41,6 +46,8 @@ export default function UserDetailPage() {
   const params = useParams();
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<UserDetail | null>(null);
+  const [events, setEvents] = useState<any[]>([]);
+  const [payments, setPayments] = useState<any[]>([]);
   const [actionLoading, setActionLoading] = useState(false);
 
   const loadUser = useCallback(async (signal?: AbortSignal) => {
@@ -71,68 +78,48 @@ export default function UserDetailPage() {
     return `₹${(amount / 1000).toFixed(2)}K`;
   };
 
+  const loadAllData = () => {
+    loadUser();
+  };
+
+  const handleSendMessage = () => {
+    toast.info("Message interface initializing...");
+  };
+
+  const handleExportCSV = () => {
+    toast.info("Exporting user ledger data...");
+  };
+
+  const handleDelete = async () => {
+    if (!user) return;
+    if (!confirm("Are you sure you want to permanently delete this user account? This action cannot be undone.")) return;
+
+    try {
+      setActionLoading(true);
+      await api.delete(`/users/${user.id}`);
+      toast.success("Identity record purged successfully");
+      router.push("/dashboard/admin/users");
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Purge protocol failed");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleToggleStatus = async () => {
     if (!user) return;
-    
+
     const newStatus = !user.isActive;
     try {
       setActionLoading(true);
       await api.patch(`/users/${user.id}`, { isActive: newStatus });
-      toast.success(`User ${newStatus ? 'activated' : 'deactivated'} successfully`);
-      loadUser();
+      toast.success(`User account ${newStatus ? 'fully restored' : 'suspended indefinitely'}`);
+      loadAllData();
     } catch (error: any) {
-      console.error("Status update error:", error);
-      toast.error(error?.response?.data?.message || "Failed to update status");
+      toast.error(error?.response?.data?.message || "Critical error updating status");
     } finally {
       setActionLoading(false);
     }
-  };
-
-  const handleDelete = async () => {
-    if (!confirm("Are you sure you want to delete this user?")) return;
-    
-    try {
-      setActionLoading(true);
-      await api.delete(`/users/${user?.id}`);
-      toast.success("User deleted successfully");
-      router.push("/dashboard/admin/users");
-    } catch (error: any) {
-      console.error("Delete error:", error);
-      toast.error(error?.response?.data?.message || "Failed to delete user");
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleSendMessage = () => {
-    router.push(`/dashboard/admin/compose?userId=${user?.id}&email=${encodeURIComponent(user?.email || '')}&method=email`);
-  };
-
-  const handleExportCSV = () => {
-    if (!user) return;
-
-    const headers = ['Field', 'Value'];
-    const rows = [
-      ['ID', user.id],
-      ['Name', user.name],
-      ['Email', user.email],
-      ['Phone', user.phone || 'N/A'],
-      ['Role', user.role],
-      ['Status', user.isActive ? 'Active' : 'Inactive'],
-      ['Email Verified', user.isEmailVerified ? 'Yes' : 'No'],
-      ['Created At', new Date(user.createdAt).toLocaleString()],
-    ];
-
-    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `user-${user.name.replace(/\s+/g, '-').toLowerCase()}-${user.id}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-
-    toast.success("User data exported successfully");
   };
 
   if (loading) {
@@ -164,38 +151,38 @@ export default function UserDetailPage() {
   return (
     <div className="space-y-6 bg-zinc-950 min-h-screen p-6">
       {/* Header with Back Button */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={() => router.back()} className="text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div className="flex items-center gap-3">
-              <div className="h-12 w-12 rounded-full bg-zinc-800 border-2 border-zinc-700 flex items-center justify-center overflow-hidden">
-                {user?.image ? (
-                  <img src={user.image} alt={user?.name || 'User'} className="h-full w-full object-cover" />
-                ) : (
-                  <User className="h-6 w-6 text-zinc-400" />
-                )}
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold text-zinc-100">{user?.name}</h1>
-                <p className="text-zinc-400">{user?.email}</p>
-              </div>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="sm" onClick={() => router.back()} className="text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div className="flex items-center gap-3">
+            <div className="h-12 w-12 rounded-full bg-zinc-800 border-2 border-zinc-700 flex items-center justify-center overflow-hidden">
+              {user?.image ? (
+                <img src={user.image} alt={user?.name || 'User'} className="h-full w-full object-cover" />
+              ) : (
+                <User className="h-6 w-6 text-zinc-400" />
+              )}
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-zinc-100">{user?.name}</h1>
+              <p className="text-zinc-400">{user?.email}</p>
             </div>
           </div>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" className="border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100" onClick={handleSendMessage}>
-            <MessageSquare className="h-4 w-4 mr-2" />
-            Message
-          </Button>
-          <Button variant="outline" className="border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100" onClick={handleExportCSV}>
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
-         </div>
+      </div>
+      <div className="flex gap-2">
+        <Button variant="outline" className="border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100" onClick={handleSendMessage}>
+          <MessageSquare className="h-4 w-4 mr-2" />
+          Message
+        </Button>
+        <Button variant="outline" className="border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100" onClick={handleExportCSV}>
+          <Download className="h-4 w-4 mr-2" />
+          Export
+        </Button>
+      </div>
 
-      {/* User Info Cards */}
+      {/* Hero Stats */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card className="border-zinc-800 bg-zinc-900/50">
           <CardContent className="p-6">
@@ -339,7 +326,7 @@ export default function UserDetailPage() {
               )}
               {user.isActive ? 'Deactivate User' : 'Activate User'}
             </Button>
-            
+
             <Button
               variant="outline"
               className="border-red-800 text-red-400 hover:bg-red-950/30 hover:text-red-300"

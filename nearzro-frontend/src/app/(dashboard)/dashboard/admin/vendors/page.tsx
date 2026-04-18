@@ -6,11 +6,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  Store, CheckCircle2, XCircle, Clock, Eye, Search, MapPin, Mail, DollarSign
+  Store, CheckCircle2, XCircle, Clock, Eye, Search, MapPin, Mail, DollarSign,
+  Briefcase, ShieldCheck, AlertCircle, TrendingUp, RefreshCw, Filter, MoreHorizontal
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { extractArray } from "@/lib/api-response";
+import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 interface Vendor {
   id: number;
@@ -25,6 +28,10 @@ interface Vendor {
     phone?: string;
   };
   services?: any[];
+  _count?: {
+    services: number;
+    reviews: number;
+  };
   createdAt: string;
 }
 
@@ -50,15 +57,17 @@ export default function AdminVendorsPage() {
     } catch (error: any) {
       if (error?.name === 'AbortError' || error?.code === 'ERR_CANCELED') return;
       console.error("Failed to load vendors:", error);
-      toast.error("Failed to load vendors");
+      toast.error("Transmission Error while fetching vendor data");
     } finally {
       setLoading(false);
     }
   };
 
   const filteredVendors = vendors.filter(vendor => {
-    const matchesSearch = vendor.businessName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         vendor.user?.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const searchStr = searchTerm.toLowerCase();
+    const matchesSearch = vendor.businessName.toLowerCase().includes(searchStr) ||
+      vendor.user?.name.toLowerCase().includes(searchStr) ||
+      vendor.city.toLowerCase().includes(searchStr);
     const matchesStatus = filterStatus === "all" || vendor.verificationStatus === filterStatus;
     return matchesSearch && matchesStatus;
   });
@@ -66,27 +75,36 @@ export default function AdminVendorsPage() {
   const stats = {
     total: vendors.length,
     verified: vendors.filter(v => v.verificationStatus === "VERIFIED").length,
-    pending: vendors.filter(v => v.verificationStatus === "PENDING").length,
+    pending: vendors.filter(v => v.verificationStatus === "PENDING" || v.verificationStatus === "PENDING_APPROVAL").length,
     rejected: vendors.filter(v => v.verificationStatus === "REJECTED").length,
+    critical: vendors.filter(v => v.verificationStatus === "REJECTED" || v.verificationStatus === "SUSPENDED" || v.verificationStatus === "DELISTED").length,
   };
 
-  const handleApprove = async (id: number) => {
+  const handleApprove = async (vendorId: number) => {
     try {
-      await api.patch(`/vendors/${id}/approve`);
-      setVendors(prev => prev.map(v => v.id === id ? { ...v, verificationStatus: "VERIFIED" } : v));
-      toast.success("Vendor approved successfully");
+      await api.patch(`/approvals/${vendorId}/approve`, { approvalType: 'VENDOR' });
+      toast.success("Vendor application authorized successfully");
+      loadVendors();
     } catch (error: any) {
-      toast.error("Failed to approve vendor");
+      console.error("Authorization error:", error);
+      toast.error(error?.response?.data?.message || "Authorization failed");
     }
   };
 
-  const handleReject = async (id: number) => {
+  const handleReject = async (vendorId: number) => {
+    const reason = prompt("Enter rejection reason:");
+    if (reason === null) return;
+    
     try {
-      await api.patch(`/vendors/${id}/reject`, { reason: "Rejected by admin" });
-      setVendors(prev => prev.map(v => v.id === id ? { ...v, verificationStatus: "REJECTED" } : v));
-      toast.success("Vendor rejected");
+      await api.patch(`/approvals/${vendorId}/reject`, { 
+        approvalType: 'VENDOR',
+        reason: reason 
+      });
+      toast.success("Vendor application rejected");
+      loadVendors();
     } catch (error: any) {
-      toast.error("Failed to reject vendor");
+      console.error("Rejection error:", error);
+      toast.error(error?.response?.data?.message || "Rejection protocol failed");
     }
   };
 
@@ -204,11 +222,10 @@ export default function AdminVendorsPage() {
                     <CardTitle className="text-zinc-100">{vendor.businessName || "N/A"}</CardTitle>
                     <p className="text-sm text-zinc-400 mt-1">{vendor.user?.name || "N/A"}</p>
                   </div>
-                  <Badge className={`text-xs ${
-                    vendor.verificationStatus === "VERIFIED" ? "bg-emerald-950/30 text-emerald-400 border-emerald-700" :
-                    vendor.verificationStatus === "PENDING" ? "bg-amber-950/30 text-amber-400 border-amber-700" :
-                    "bg-red-950/30 text-red-400 border-red-700"
-                  }`}>
+                  <Badge className={`text-xs ${vendor.verificationStatus === "VERIFIED" ? "bg-emerald-950/30 text-emerald-400 border-emerald-700" :
+                      vendor.verificationStatus === "PENDING" ? "bg-amber-950/30 text-amber-400 border-amber-700" :
+                        "bg-red-950/30 text-red-400 border-red-700"
+                    }`}>
                     {vendor.verificationStatus || "N/A"}
                   </Badge>
                 </div>
@@ -262,5 +279,6 @@ export default function AdminVendorsPage() {
         )}
       </div>
     </div>
+
   );
 }

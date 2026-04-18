@@ -134,4 +134,25 @@ export class CreateVendorDto {
   @IsOptional()
   @IsString()
   kycDocNumber?: string;
+
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'URLs of business images',
+  })
+  @IsOptional()
+  businessImages?: string[];
+
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'URLs of KYC documents',
+  })
+  @IsOptional()
+  kycDocFiles?: string[];
+
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'URLs of food license files',
+  })
+  @IsOptional()
+  foodLicenseFiles?: string[];
 }

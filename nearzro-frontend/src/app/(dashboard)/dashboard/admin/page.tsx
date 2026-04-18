@@ -6,26 +6,28 @@ import { useAuth } from "@/context/auth-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Users, Building, Store, CheckCircle2,
+import {
+  Calendar, Users, Building, Store, CheckCircle2,
   DollarSign, TrendingUp, TrendingDown, ArrowRight, RefreshCw,
   AlertCircle, MapPin, PieChart as PieChartIcon, CreditCard,
   Settings, Download
 } from "lucide-react";
 import { toast } from "sonner";
-import { BarChart, Bar, Pie, PieChart, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area
+import {
+  BarChart, Bar, Pie, PieChart, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area
 } from "recharts";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import api from "@/lib/api";
-
-const COLORS = ["#059669", "#2563eb", "#16a34a", "#f59e0b", "#dc2626", "#7c3aed"];
 
 const formatCurrency = (amount: number) => {
   if (amount >= 10000000) return `₹${(amount / 10000000).toFixed(2)}Cr`;
   if (amount >= 100000) return `₹${(amount / 100000).toFixed(2)}L`;
   return `₹${(amount / 1000).toFixed(2)}K`;
 };
+
+const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
 interface DashboardStats {
   totalUsers: number;
@@ -265,12 +267,12 @@ export default function AdminDashboardPage() {
                     <p className="text-sm text-zinc-500 mt-1">Cross-referencing monthly revenue and booking volume</p>
                   </div>
                   <div className="flex items-center gap-2">
-                     <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-medium text-zinc-400">
-                        <div className="h-1.5 w-1.5 rounded-full bg-blue-400" /> Revenue
-                     </div>
-                     <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-medium text-zinc-400">
-                        <div className="h-1.5 w-1.5 rounded-full bg-zinc-400" /> Bookings
-                     </div>
+                    <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-medium text-zinc-400">
+                      <div className="h-1.5 w-1.5 rounded-full bg-blue-400" /> Revenue
+                    </div>
+                    <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-medium text-zinc-400">
+                      <div className="h-1.5 w-1.5 rounded-full bg-zinc-400" /> Bookings
+                    </div>
                   </div>
                 </div>
               </CardHeader>
@@ -280,12 +282,12 @@ export default function AdminDashboardPage() {
                     <AreaChart data={revenueData}>
                       <defs>
                         <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4}/>
-                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
+                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                         </linearGradient>
                         <linearGradient id="colorBookings" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#71717b" stopOpacity={0.4}/>
-                          <stop offset="95%" stopColor="#71717b" stopOpacity={0}/>
+                          <stop offset="5%" stopColor="#71717b" stopOpacity={0.4} />
+                          <stop offset="95%" stopColor="#71717b" stopOpacity={0} />
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
@@ -302,7 +304,7 @@ export default function AdminDashboardPage() {
                         fontSize={11}
                         tickLine={false}
                         axisLine={false}
-                        tickFormatter={(value) => `₹${(value/100000).toFixed(0)}L`}
+                        tickFormatter={(value) => `₹${(value / 100000).toFixed(0)}L`}
                       />
                       <Tooltip
                         content={({ active, payload, label }) => {
@@ -377,8 +379,8 @@ export default function AdminDashboardPage() {
                         width={100}
                       />
                       <Tooltip
-                        cursor={{fill: 'rgba(0,0,0,0.2)'}}
-                        contentStyle={{backgroundColor: '#18181b', borderRadius: '12px', border: '1px solid #27272a'}}
+                        cursor={{ fill: 'rgba(0,0,0,0.2)' }}
+                        contentStyle={{ backgroundColor: '#18181b', borderRadius: '12px', border: '1px solid #27272a' }}
                       />
                       <Bar dataKey="revenue" fill="#3b82f6" radius={[0, 6, 6, 0]} barSize={24} />
                     </BarChart>
@@ -417,18 +419,18 @@ export default function AdminDashboardPage() {
                         ))}
                       </Pie>
                       <Tooltip
-                        contentStyle={{backgroundColor: '#18181b', borderRadius: '12px', border: '1px solid #27272a'}}
+                        contentStyle={{ backgroundColor: '#18181b', borderRadius: '12px', border: '1px solid #27272a' }}
                       />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
                 <div className="grid grid-cols-2 gap-4 mt-4">
-                   {eventTypeData.slice(0, 4).map((item, i) => (
-                      <div key={i} className="flex items-center gap-2">
-                         <div className="h-2 w-2 rounded-full" style={{backgroundColor: COLORS[i % COLORS.length]}} />
-                         <span className="text-[10px] text-zinc-400 font-medium truncate uppercase tracking-tighter">{item.name}</span>
-                      </div>
-                    ))}
+                  {eventTypeData.slice(0, 4).map((item, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                      <span className="text-[10px] text-zinc-400 font-medium truncate uppercase tracking-tighter">{item.name}</span>
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>
@@ -445,33 +447,33 @@ export default function AdminDashboardPage() {
                 <div className="divide-y divide-zinc-800">
                   {recentTransactions.map((tx) => (
                     <div key={tx.id} className="p-4 hover:bg-zinc-900/50 transition-colors group">
-                       <div className="flex items-center justify-between mb-1">
-                          <div className="flex items-center gap-3">
-                             <div className="h-8 w-8 rounded-xl bg-zinc-900 flex items-center justify-center text-zinc-500 group-hover:text-zinc-300 transition-colors">
-                                <CreditCard className="h-4 w-4" />
-                             </div>
-                             <span className="text-xs font-bold text-zinc-300 group-hover:text-zinc-100 truncate max-w-[120px]">{tx.entity}</span>
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-3">
+                          <div className="h-8 w-8 rounded-xl bg-zinc-900 flex items-center justify-center text-zinc-500 group-hover:text-zinc-300 transition-colors">
+                            <CreditCard className="h-4 w-4" />
                           </div>
-                          <span className="text-xs font-black text-zinc-100">₹{tx.amount.toLocaleString()}</span>
-                       </div>
-                       <div className="flex items-center justify-between">
-                          <span className="text-[10px] text-zinc-500 font-medium">{new Date(tx.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} • ID-{tx.id}</span>
-                          <Badge variant="outline" className={cn(
-                            "text-[9px] font-black uppercase tracking-widest px-1.5 py-0 h-4",
-                            tx.status === "COMPLETED" || tx.status === "CONFIRMED" ? "border-emerald-700/50 text-emerald-400 bg-emerald-950/20" : "border-amber-700/50 text-amber-400 bg-amber-950/20"
-                          )}>
-                            {tx.status}
-                          </Badge>
-                       </div>
+                          <span className="text-xs font-bold text-zinc-300 group-hover:text-zinc-100 truncate max-w-[120px]">{tx.entity}</span>
+                        </div>
+                        <span className="text-xs font-black text-zinc-100">₹{tx.amount.toLocaleString()}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-zinc-500 font-medium">{new Date(tx.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • ID-{tx.id}</span>
+                        <Badge variant="outline" className={cn(
+                          "text-[9px] font-black uppercase tracking-widest px-1.5 py-0 h-4",
+                          tx.status === "COMPLETED" || tx.status === "CONFIRMED" ? "border-emerald-700/50 text-emerald-400 bg-emerald-950/20" : "border-amber-700/50 text-amber-400 bg-amber-950/20"
+                        )}>
+                          {tx.status}
+                        </Badge>
+                      </div>
                     </div>
                   ))}
                 </div>
                 <Button
-                 variant="ghost"
-                 className="w-full rounded-none h-12 text-xs font-bold text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900"
-                 onClick={() => router.push('/dashboard/admin/transactions')}
+                  variant="ghost"
+                  className="w-full rounded-none h-12 text-xs font-bold text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900"
+                  onClick={() => router.push('/dashboard/admin/transactions')}
                 >
-                   EXPLORE FULL LEDGER <ArrowRight className="h-3 w-3 ml-2" />
+                  EXPLORE FULL LEDGER <ArrowRight className="h-3 w-3 ml-2" />
                 </Button>
               </CardContent>
             </Card>

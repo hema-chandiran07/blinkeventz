@@ -6,11 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  Users, UserCheck, Edit, Search, User as UserIcon
+  Users, UserCheck, Edit, Search, UserMinus, Shield, Eye, MoreVertical, Settings, RefreshCw, FileText, User as UserIcon
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { extractArray } from "@/lib/api-response";
+import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 interface User {
   id: number;
@@ -22,6 +24,10 @@ interface User {
   isEmailVerified: boolean;
   image?: string;
   createdAt: string;
+  _count?: {
+    customerEvents: number;
+    bookings: number;
+  };
 }
 
 export default function AdminUsersPage() {
@@ -55,8 +61,10 @@ export default function AdminUsersPage() {
   }, []);
 
   const filteredUsers = users.filter(user => {
-    const matchesSearch = (user.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (user.email || "").toLowerCase().includes(searchTerm.toLowerCase());
+    const searchStr = searchTerm.toLowerCase();
+    const matchesSearch = (user.name || "").toLowerCase().includes(searchStr) ||
+      (user.email || "").toLowerCase().includes(searchStr) ||
+      (user.phone && user.phone.includes(searchStr));
     const matchesRole = filterRole === "all" || user.role === filterRole;
     return matchesSearch && matchesRole;
   });
@@ -248,6 +256,9 @@ export default function AdminUsersPage() {
               </table>
             </div>
           )}
+          <div className="bg-zinc-900/50 py-6 px-10 border-t border-white/5">
+            <p className="text-[9px] font-black uppercase tracking-[0.5em] text-zinc-700 text-center italic">Encryption Active • Distributed Ledger Authority • Optimized for Command Access</p>
+          </div>
         </CardContent>
       </Card>
     </div>

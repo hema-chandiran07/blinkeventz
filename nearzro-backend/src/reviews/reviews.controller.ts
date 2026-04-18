@@ -61,6 +61,13 @@ export class ReviewsController {
     return this.service.findByVendorUser(req.user.userId);
   }
 
+  // Get Reviews for Current Venue Owner (Venue Owner only)
+  @Roles(Role.VENUE_OWNER)
+  @Get('venues/me')
+  getMyVenueReviews(@Req() req: any) {
+    return this.service.findByVenueOwner(req.user.userId);
+  }
+
   // Get My Reviews (User)
   @Get('my')
   getMyReviews(@Req() req: any) {

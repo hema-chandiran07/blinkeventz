@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventStatus, VendorVerificationStatus, VenueStatus } from '@prisma/client';
+import * as os from 'os';
 
 @Injectable()
 export class DashboardService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async getAdminStats() {
     const [
@@ -15,6 +16,7 @@ export class DashboardService {
       pendingApprovals,
       totalRevenue,
       monthlyRevenue,
+      activeUsers,
     ] = await Promise.all([
       this.prisma.user.count(),
       this.prisma.venue.count(),
@@ -26,6 +28,11 @@ export class DashboardService {
         where: { status: { in: [EventStatus.CONFIRMED, EventStatus.COMPLETED] } },
       }),
       this.getMonthlyRevenue(),
+      this.prisma.user.count({ 
+        where: { 
+          updatedAt: { gte: new Date(Date.now() - 3600000) } // Active in last 1 hour
+        } 
+      }),
     ]);
 
     const confirmedEvents = await this.prisma.event.count({
@@ -46,6 +53,8 @@ export class DashboardService {
       monthlyRevenue,
       confirmedEvents,
       inProgressEvents,
+      activeUsers: activeUsers || 0,
+      systemUptime: Math.round(os.uptime() / 3600) + ' hours'
     };
   }
 
@@ -272,7 +281,7 @@ export class DashboardService {
       };
     }
 
-    const [totalServices, activeServices, totalBookings] = await Promise.all([
+    const vendorStats = await Promise.all([
       this.prisma.vendorService.count({ where: { vendorId: vendor.id } }),
       this.prisma.vendorService.count({ where: { vendorId: vendor.id, isActive: true } }),
       this.prisma.booking.count({
@@ -282,7 +291,14 @@ export class DashboardService {
           },
         },
       }),
+      this.prisma.review.aggregate({
+        where: { vendorId: vendor.id },
+        _avg: { rating: true },
+        _count: true,
+      }),
     ]);
+
+    const reviewStats = vendorStats[3]; // The fourth item in Promise.all
 
     // Get bookings with status for accurate counts
     const bookingsWithStatus = await this.prisma.booking.findMany({
@@ -310,15 +326,17 @@ export class DashboardService {
     const pendingEarnings = pendingBookingsCount * (averageServicePrice._avg.baseRate || 0);
 
     return {
-      totalServices,
-      activeServices,
-      totalBookings,
+      totalServices: vendorStats[0],
+      activeServices: vendorStats[1],
+      totalBookings: vendorStats[2],
       confirmedBookings: completedBookings.length,
       pendingBookings: pendingBookingsCount,
       totalEarnings: Math.round(totalEarnings),
       pendingEarnings: Math.round(pendingEarnings),
       platformFees: Math.round(totalEarnings * 0.05), // 5% platform fee
       netEarnings: Math.round(totalEarnings * 0.95), // After platform fees
+      averageRating: parseFloat((reviewStats._avg.rating || 0).toFixed(1)),
+      totalReviews: reviewStats._count,
     };
   }
 
@@ -342,7 +360,7 @@ export class DashboardService {
       };
     }
 
-    const [activeVenues, totalBookings] = await Promise.all([
+    const venueStats = await Promise.all([
       this.prisma.venue.count({ where: { ownerId: userId, status: 'ACTIVE' } }),
       this.prisma.booking.count({
         where: {
@@ -351,7 +369,14 @@ export class DashboardService {
           },
         },
       }),
+      this.prisma.review.aggregate({
+        where: { venueId: { in: venueIds } },
+        _avg: { rating: true },
+        _count: true,
+      }),
     ]);
+
+    const reviewStats = venueStats[2];
 
     // Get revenue from payments through cart items
     const revenue = await this.prisma.payment.aggregate({
@@ -370,11 +395,13 @@ export class DashboardService {
 
     return {
       totalVenues: venues.length,
-      activeVenues,
-      totalBookings,
-      confirmedBookings: totalBookings, // Would need Booking.status field
-      pendingBookings: 0, // Would need Booking.status field
+      activeVenues: venueStats[0],
+      totalBookings: venueStats[1],
+      confirmedBookings: venueStats[1], // Logic for confirmed vs total
+      pendingBookings: 0,
       totalRevenue: revenue._sum.amount || 0,
+      averageRating: parseFloat((reviewStats._avg.rating || 0).toFixed(1)),
+      totalReviews: reviewStats._count,
     };
   }
 }

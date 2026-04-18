@@ -1289,15 +1289,16 @@ export class PaymentsService {
     };
   }
 
-  // ✅ Export payments to CSV
   async exportPaymentsToCsv(page: number = 1, limit: number = 1000, status?: string) {
-    const skip = (page - 1) * limit;
+    const validPage = Math.max(1, parseInt(page.toString()) || 1);
+    const validLimit = Math.max(1, parseInt(limit.toString()) || 1000);
+    const skip = (validPage - 1) * validLimit;
     const where: any = status ? { status } : {};
 
     const payments = await this.prisma.payment.findMany({
       where,
       skip,
-      take: limit,
+      take: validLimit,
       include: {
         user: {
           select: {

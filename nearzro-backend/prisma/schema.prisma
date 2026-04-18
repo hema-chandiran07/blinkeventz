@@ -830,6 +830,18 @@ model AuditOutbox {
   @@index([status])
 }
 
+/// Outbox Event for Cart and System Events
+model OutboxEvent {
+  id        String   @id @default(uuid())
+  eventType String
+  payload   Json
+  processed Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([processed])
+  @@index([createdAt])
+}
+
 /// System Settings for Feature Flags, Integrations, and Security
 model Settings {
   id          Int              @id @default(autoincrement())
