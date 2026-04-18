@@ -13,11 +13,12 @@ declare module 'axios' {
 // Works in both development and Docker environments
 const getBaseUrl = () => {
   if (typeof window !== 'undefined') {
-    // Browser environment
+    // Browser environment: Use the local backend URL directly
+    // This allows the browser to reach the API port exposed by Docker
     return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
   }
-  // Server environment (Next.js SSR)
-  return process.env.API_INTERNAL_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+  // Server environment (Next.js SSR): Use internal Docker service name
+  return process.env.API_INTERNAL_URL || 'http://api:3000';
 };
 
 const api = axios.create({
@@ -81,9 +82,14 @@ api.interceptors.response.use(
 
     if (status === 401) {
       if (typeof window !== 'undefined') {
-        localStorage.removeItem('NearZro_user');
-        toast.error(message || "Session expired. Please login again.");
-        window.location.href = '/login';
+        // Only redirect to /login for non-cart routes
+        // Cart API calls should fail gracefully without redirecting
+        const isCartRequest = error.config?.url?.includes('/cart');
+        if (!isCartRequest) {
+          localStorage.removeItem('NearZro_user');
+          toast.error(message || "Session expired. Please login again.");
+          window.location.href = '/login';
+        }
       }
       return Promise.reject(error);
     }

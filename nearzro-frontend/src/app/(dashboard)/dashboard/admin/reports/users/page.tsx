@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,10 @@ import api from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
+  Cell, PieChart, Pie, AreaChart, Area 
+} from 'recharts';
 
 // ==================== Types ====================
 interface UserReportEntry {
@@ -115,9 +119,6 @@ export default function UsersReportPage() {
   const [page, setPage] = useState(1);
   const limit = 15;
 
-  // Action dialog states
-  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
-  const [confirmAction, setConfirmAction] = useState<"delete" | "activate" | "deactivate" | "changeRole" | null>(null);
   const [confirmUser, setConfirmUser] = useState<UserReportEntry | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [newRole, setNewRole] = useState("");
@@ -183,55 +184,7 @@ export default function UsersReportPage() {
     loadUsersReport();
   }, [loadUsersReport]);
 
-  // ==================== User Action Handlers (Real Backend APIs) ====================
-
-  const openConfirmDialog = (action: "delete" | "activate" | "deactivate" | "changeRole", user: UserReportEntry) => {
-    setConfirmAction(action);
-    setConfirmUser(user);
-    setNewRole(user.role);
-    setConfirmDialogOpen(true);
-  };
-
-  const executeAction = async () => {
-    if (!confirmUser || !confirmAction) return;
-
-    setActionLoading(true);
-    try {
-      if (confirmAction === "delete") {
-        // Real API: DELETE /users/:id
-        await api.delete(`/users/${confirmUser.id}`);
-        toast.success(`User "${confirmUser.name || confirmUser.email}" deleted successfully`);
-
-      } else if (confirmAction === "activate") {
-        // Real API: PATCH /users/:id { isActive: true }
-        await api.patch(`/users/${confirmUser.id}`, { isActive: true });
-        toast.success(`User "${confirmUser.name || confirmUser.email}" activated`);
-
-      } else if (confirmAction === "deactivate") {
-        // Real API: PATCH /users/:id { isActive: false }
-        await api.patch(`/users/${confirmUser.id}`, { isActive: false });
-        toast.success(`User "${confirmUser.name || confirmUser.email}" deactivated`);
-
-      } else if (confirmAction === "changeRole") {
-        if (!newRole) {
-          toast.error("Please select a role");
-          setActionLoading(false);
-          return;
-        }
-        // Real API: PATCH /users/:id { role: newRole }
-        await api.patch(`/users/${confirmUser.id}`, { role: newRole });
-        toast.success(`User role changed to ${ROLE_LABELS[newRole] || newRole}`);
-      }
-
-      setConfirmDialogOpen(false);
-      loadUsersReport(true);
-    } catch (error: any) {
-      console.error("User action error:", error);
-      toast.error(error?.response?.data?.message || `Failed to ${confirmAction} user`);
-    } finally {
-      setActionLoading(false);
-    }
-  };
+  // Action handlers removed as per administrative policy (view-only)
 
   // Handle export: Real API: GET /reports/users/export
   const handleExport = async () => {
@@ -288,25 +241,10 @@ export default function UsersReportPage() {
     return matchesSearch;
   }) || [];
 
-  const getDialogConfig = () => {
-    if (!confirmUser || !confirmAction) return { title: "", description: "", confirmText: "", danger: false };
-    const name = confirmUser.name || confirmUser.email;
-    switch (confirmAction) {
-      case "delete":
-        return { title: "Delete User", description: `Are you sure you want to delete "${name}"? This action cannot be undone.`, confirmText: "Delete User", danger: true };
-      case "activate":
-        return { title: "Activate User", description: `Activate "${name}"? They will be able to log in and use the platform.`, confirmText: "Activate", danger: false };
-      case "deactivate":
-        return { title: "Deactivate User", description: `Deactivate "${name}"? They will no longer be able to log in.`, confirmText: "Deactivate", danger: true };
-      case "changeRole":
-        return { title: "Change User Role", description: `Change role for "${name}" from ${ROLE_LABELS[confirmUser.role] || confirmUser.role} to ${ROLE_LABELS[newRole] || newRole}?`, confirmText: "Change Role", danger: false };
-    }
-  };
-
-  const dialogConfig = getDialogConfig();
+  // Action dialog logic removed
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 p-6 bg-[#0a0a0b] text-white selection:bg-blue-500/30 min-h-screen">
       {/* ==================== Header ==================== */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
@@ -314,147 +252,193 @@ export default function UsersReportPage() {
         className="flex items-center justify-between flex-wrap gap-4"
       >
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => router.back()} className="hover:bg-neutral-100">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => router.back()} 
+            className="hover:bg-white shadow-sm rounded-full transition-all"
+          >
             <ArrowRight className="h-5 w-5 rotate-180" />
           </Button>
+          <div className="p-3 rounded-2xl bg-gradient-to-br from-zinc-800 to-zinc-900 shadow-2xl border border-zinc-700/50">
+            <Users className="h-8 w-8 text-blue-400" />
+          </div>
           <div>
-            <h1 className="text-3xl font-bold text-black">User Analytics</h1>
-            <p className="text-neutral-600">User growth, engagement, and distribution metrics</p>
+            <h1 className="text-4xl font-black text-white tracking-tight">
+              User <span className="text-zinc-500">Intelligence</span>
+            </h1>
+            <p className="text-zinc-500 font-medium">Growth indexing and demographic distribution matrix</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={handleRefresh} disabled={refreshing || loading}>
+        <div className="flex items-center gap-3">
+          <Button 
+            variant="outline" 
+            className="border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 text-zinc-400 hover:text-white transition-all rounded-full" 
+            onClick={handleRefresh} 
+            disabled={refreshing || loading}
+          >
             <RefreshCw className={cn("h-4 w-4 mr-2", refreshing && "animate-spin")} />
-            Refresh
+            Sync
           </Button>
-          <Button variant="outline" className="border-black hover:bg-neutral-100 text-black" onClick={handleExport}>
-            <Download className="h-4 w-4 mr-2" /> Export CSV
+          <Button 
+            className="bg-white text-black hover:bg-zinc-200 shadow-xl shadow-white/5 transition-all font-bold rounded-full h-11 px-8" 
+            onClick={handleExport}
+          >
+            <Download className="h-4 w-4 mr-2" /> Export Dataset
           </Button>
         </div>
       </motion.div>
 
       {/* ==================== Stats Overview ==================== */}
       {!loading && stats && (
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card className="border-2 border-blue-600">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-neutral-600">Total Users</p>
-                  <p className="text-3xl font-bold text-blue-600 mt-1">{stats.totalUsers.toLocaleString()}</p>
-                  <p className="text-xs text-blue-600 mt-2 flex items-center gap-1">
-                    <TrendingUp className="h-3 w-3" /> +{stats.growth}% this month
-                  </p>
-                </div>
-                <div className="p-3 rounded-full bg-blue-600">
-                  <Users className="h-6 w-6 text-white" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 border-emerald-600">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-neutral-600">Active Users</p>
-                  <p className="text-3xl font-bold text-emerald-600 mt-1">{stats.activeUsers.toLocaleString()}</p>
-                  <p className="text-xs text-emerald-600 mt-2">
-                    {stats.totalUsers > 0 ? Math.round((stats.activeUsers / stats.totalUsers) * 100) : 0}% of total
-                  </p>
-                </div>
-                <div className="p-3 rounded-full bg-emerald-600">
-                  <UserCheck className="h-6 w-6 text-white" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 border-purple-600">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-neutral-600">New Users</p>
-                  <p className="text-3xl font-bold text-purple-600 mt-1">+{stats.newUsers}</p>
-                  <p className="text-xs text-purple-600 mt-2">Last 30 days</p>
-                </div>
-                <div className="p-3 rounded-full bg-purple-600">
-                  <Users className="h-6 w-6 text-white" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 border-neutral-600">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-neutral-600">Retention Rate</p>
-                  <p className="text-3xl font-bold text-neutral-900 mt-1">{stats.retentionRate}%</p>
-                  <p className="text-xs text-neutral-600 mt-2">Last 30 days</p>
-                </div>
-                <div className="p-3 rounded-full bg-neutral-900">
-                  <Activity className="h-6 w-6 text-white" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          {[
+            { label: "Total Identities", value: stats.totalUsers, growth: stats.growth, icon: Users, color: "text-blue-400", bg: "bg-blue-500/10" },
+            { label: "Active Nodes", value: stats.activeUsers, subtext: `${stats.totalUsers > 0 ? Math.round((stats.activeUsers / stats.totalUsers) * 100) : 0}% Uptime`, icon: UserCheck, color: "text-emerald-400", bg: "bg-emerald-500/10" },
+            { label: "New Provisions", value: stats.newUsers, subtext: "30D Velocity", icon: Users, color: "text-purple-400", bg: "bg-purple-500/10" },
+            { label: "Retention Delta", value: `${stats.retentionRate}%`, subtext: "Stability Index", icon: Activity, color: "text-zinc-400", bg: "bg-zinc-500/10" }
+          ].map((item, i) => (
+            <motion.div
+              key={item.label}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.1 }}
+            >
+              <Card className="bg-zinc-900/50 border-zinc-800 shadow-xl backdrop-blur-md overflow-hidden relative">
+                <div className="absolute top-0 left-0 w-1 h-full bg-blue-500 opacity-20" />
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-widest font-black text-zinc-500 mb-1">{item.label}</p>
+                      <p className="text-3xl font-black text-white">{item.value.toLocaleString()}</p>
+                      {item.growth !== undefined ? (
+                        <p className="text-[10px] text-blue-400 mt-2 flex items-center gap-1 font-bold">
+                          <TrendingUp className="h-3 w-3" /> +{item.growth}% Monthly Linear Growth
+                        </p>
+                      ) : (
+                        <p className="text-[10px] text-zinc-500 mt-2 font-bold uppercase tracking-tighter">{item.subtext}</p>
+                      )}
+                    </div>
+                    <div className={cn("p-3 rounded-xl border", item.bg, item.color, "border-white/5 shadow-2xl")}>
+                      <item.icon className="h-6 w-6" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
         </div>
       )}
 
       {/* ==================== Filters ==================== */}
-      <Card>
+      <Card className="bg-zinc-950 border-zinc-800">
         <CardContent className="p-4">
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-black" />
-              <span className="text-sm font-medium text-black">Filters:</span>
+              <Filter className="h-4 w-4 text-blue-400" />
+              <span className="text-sm font-bold text-zinc-400 uppercase tracking-tighter">Query Filter:</span>
             </div>
             <div className="flex-1 relative max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-500" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
               <Input
-                placeholder="Search by name or email..."
+                placeholder="Search identity registry..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 text-black"
+                className="pl-10 bg-zinc-900 border-zinc-800 text-white focus:border-blue-500"
               />
             </div>
             <select
               value={filterRole}
               onChange={(e) => { setFilterRole(e.target.value); setPage(1); }}
-              className="flex h-10 rounded-md border border-neutral-200 bg-white px-4 py-2 text-sm text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-600"
+              className="flex h-10 rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-2 text-sm text-white focus:border-blue-500 outline-none"
             >
-              <option value="all" className="text-black">All Roles</option>
-              <option value="CUSTOMER" className="text-black">Customers</option>
-              <option value="VENDOR" className="text-black">Vendors</option>
-              <option value="VENUE_OWNER" className="text-black">Venue Owners</option>
-              <option value="EVENT_MANAGER" className="text-black">Event Managers</option>
-              <option value="ADMIN" className="text-black">Admins</option>
+              <option value="all">Global Fleet</option>
+              <option value="CUSTOMER">End Users</option>
+              <option value="VENDOR">Service Providers</option>
+              <option value="VENUE_OWNER">Asset Owners</option>
+              <option value="EVENT_MANAGER">Regional Nodes</option>
+              <option value="ADMIN">Root Administrators</option>
             </select>
-            {(searchTerm || filterRole !== 'all') && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => { setSearchTerm(""); setFilterRole("all"); }}
-                className="text-black hover:bg-neutral-100"
-              >
-                Clear Filters
-              </Button>
-            )}
           </div>
         </CardContent>
       </Card>
+
+      {/* ==================== Charts ==================== */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Card className="lg:col-span-2 bg-zinc-900 shadow-2xl border-zinc-800">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-blue-400" />
+              Provisioning Velocity
+            </CardTitle>
+            <CardDescription className="text-zinc-500 font-medium font-mono text-[10px] uppercase tracking-widest">Temporal Growth Analysis</CardDescription>
+          </CardHeader>
+          <CardContent className="h-[300px] w-full pt-4">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={reportData?.data.slice(0, 15).reverse().map((u, i) => ({ name: formatDate(u.createdAt), users: i + 1 })) || []}>
+                <defs>
+                  <linearGradient id="colorUsers" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                <XAxis dataKey="name" stroke="#52525b" fontSize={10} tickLine={false} axisLine={false} />
+                <YAxis stroke="#52525b" fontSize={10} tickLine={false} axisLine={false} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#09090b', border: '1px solid #27272a', borderRadius: '8px', fontSize: '10px' }}
+                  itemStyle={{ color: '#fff' }}
+                />
+                <Area type="monotone" dataKey="users" stroke="#3b82f6" fillOpacity={1} fill="url(#colorUsers)" strokeWidth={2} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-zinc-900 shadow-2xl border-zinc-800">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center gap-2">
+              <Activity className="h-5 w-5 text-purple-400" />
+              Role Composition
+            </CardTitle>
+            <CardDescription className="text-zinc-500 font-medium font-mono text-[10px] uppercase tracking-widest">Demographic Matrix</CardDescription>
+          </CardHeader>
+          <CardContent className="h-[300px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={roleDistribution}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={80}
+                  paddingAngle={5}
+                  dataKey="count"
+                  nameKey="role"
+                >
+                  {roleDistribution.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={['#3b82f6', '#8b5cf6', '#f59e0b', '#10b981', '#ffffff'][index % 5]} />
+                  ))}
+                </Pie>
+                <Tooltip 
+                   contentStyle={{ backgroundColor: '#09090b', border: '1px solid #27272a', borderRadius: '8px', fontSize: '10px' }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* ==================== Content Grid ==================== */}
       <div className="grid gap-6 lg:grid-cols-3">
         {/* User List */}
         <div className="lg:col-span-2">
-          <Card className="border-2 border-black">
+          <Card className="bg-zinc-900 border-zinc-800 shadow-2xl">
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="text-black">Recent Users</CardTitle>
-                <Badge variant="outline">
-                  {filteredUsers.length} users
+                <CardTitle className="text-white font-black tracking-tight">Active Identity Registry</CardTitle>
+                <Badge variant="outline" className="border-zinc-800 text-zinc-500 font-bold uppercase tracking-tighter text-[10px]">
+                  {filteredUsers.length} ARCHIVED NODES
                 </Badge>
               </div>
             </CardHeader>
@@ -476,93 +460,33 @@ export default function UsersReportPage() {
                 <>
                   <div className="overflow-x-auto">
                     <table className="w-full">
-                      <thead className="bg-neutral-50 border-b-2 border-neutral-200">
+                      <thead className="bg-zinc-950/50 border-b border-zinc-800">
                         <tr>
-                          <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">User</th>
-                          <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Role</th>
-                          <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Status</th>
-                          <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Joined</th>
-                          <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Actions</th>
+                          <th className="text-left py-4 px-4 text-[10px] font-black text-zinc-500 uppercase tracking-widest">Identity Node</th>
+                          <th className="text-left py-4 px-4 text-[10px] font-black text-zinc-500 uppercase tracking-widest">Protocol Type</th>
+                          <th className="text-left py-4 px-4 text-[10px] font-black text-zinc-500 uppercase tracking-widest">Uptime Status</th>
+                          <th className="text-left py-4 px-4 text-[10px] font-black text-zinc-500 uppercase tracking-widest">Provision Date</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-neutral-100">
+                      <tbody className="divide-y divide-zinc-800/50">
                         {filteredUsers.map((user) => (
-                          <tr key={user.id} className="hover:bg-neutral-50 transition-colors">
-                            <td className="py-3 px-4">
+                          <tr key={user.id} className="hover:bg-zinc-800/30 transition-colors group">
+                            <td className="py-4 px-4">
                               <div>
-                                <p className="text-sm font-bold text-black">{user.name || 'Unnamed User'}</p>
-                                <p className="text-xs text-neutral-600">{user.email}</p>
+                                <p className="text-sm font-bold text-white group-hover:text-blue-400 transition-colors">{user.name || 'Anonymous'}</p>
+                                <p className="text-[10px] text-zinc-500 font-medium font-mono">{user.email}</p>
                               </div>
                             </td>
-                            <td className="py-3 px-4">
-                              <Badge className={`${ROLE_COLORS[user.role]} text-xs`}>
+                            <td className="py-4 px-4">
+                              <Badge className={`${ROLE_COLORS[user.role]} text-[9px] font-bold uppercase tracking-tighter px-2 py-0.5 rounded-md shadow-sm border border-white/10`}>
                                 {ROLE_LABELS[user.role] || user.role.replace("_", " ")}
                               </Badge>
                             </td>
-                            <td className="py-3 px-4">
+                            <td className="py-4 px-4">
                               {getStatusBadge(user.isActive, user.isEmailVerified)}
                             </td>
-                            <td className="py-3 px-4">
-                              <span className="text-sm text-neutral-600">{formatDate(user.createdAt)}</span>
-                            </td>
-                            <td className="py-3 px-4">
-                              <div className="flex items-center gap-1">
-                                {/* View → Navigate to user detail page */}
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-8 w-8 p-0 text-neutral-600 hover:bg-neutral-100"
-                                  onClick={() => handleViewUser(user.id)}
-                                  title="View Details"
-                                >
-                                  <ArrowRight className="h-4 w-4" />
-                                </Button>
-
-                                {/* Activate/Deactivate → PATCH /users/:id */}
-                                {user.isActive ? (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-8 w-8 p-0 text-amber-600 hover:bg-amber-50"
-                                    onClick={() => openConfirmDialog("deactivate", user)}
-                                    title="Deactivate User"
-                                  >
-                                    <ToggleRight className="h-4 w-4" />
-                                  </Button>
-                                ) : (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-8 w-8 p-0 text-green-600 hover:bg-green-50"
-                                    onClick={() => openConfirmDialog("activate", user)}
-                                    title="Activate User"
-                                  >
-                                    <ToggleLeft className="h-4 w-4" />
-                                  </Button>
-                                )}
-
-                                {/* Change Role → PATCH /users/:id { role } */}
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-8 w-8 p-0 text-blue-600 hover:bg-blue-50"
-                                  onClick={() => openConfirmDialog("changeRole", user)}
-                                  title="Change Role"
-                                >
-                                  <Power className="h-4 w-4" />
-                                </Button>
-
-                                {/* Delete → DELETE /users/:id */}
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-8 w-8 p-0 text-red-600 hover:bg-red-50"
-                                  onClick={() => openConfirmDialog("delete", user)}
-                                  title="Delete User"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
+                            <td className="py-4 px-4">
+                              <span className="text-xs text-zinc-500 font-bold">{formatDate(user.createdAt)}</span>
                             </td>
                           </tr>
                         ))}
@@ -630,34 +554,35 @@ export default function UsersReportPage() {
 
         {/* Role Distribution */}
         <div>
-          <Card className="border-2 border-black">
-            <CardHeader>
-              <CardTitle className="text-black">
-                <BarChart3 className="h-5 w-5" />
-                Role Distribution
+          <Card className="bg-zinc-900 border-zinc-800 shadow-2xl">
+            <CardHeader className="border-b border-zinc-800/50 pb-4">
+              <CardTitle className="text-white flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-indigo-400" />
+                Sector Analysis
               </CardTitle>
+              <CardDescription className="text-zinc-500 font-medium font-mono text-[10px] uppercase tracking-widest">Protocol Distribution Matrix</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-6 pt-6">
               {!loading && roleDistribution.length > 0 ? (
                 roleDistribution.map((item, index) => (
-                  <div key={index} className="space-y-2">
+                  <div key={index} className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-black">{item.role}</span>
-                      <span className="text-sm text-neutral-600">{item.count} ({item.percentage}%)</span>
+                      <span className="text-xs font-bold text-zinc-300 uppercase tracking-tighter">{item.role}</span>
+                      <span className="text-[10px] font-mono text-zinc-500 font-bold">{item.count} NODES | {item.percentage}%</span>
                     </div>
-                    <div className="h-2 bg-neutral-200 rounded-full overflow-hidden">
+                    <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
                       <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${item.percentage}%` }}
                         transition={{ duration: 0.5, delay: index * 0.1 }}
-                        className="h-full bg-gradient-to-r from-blue-600 to-blue-400"
+                        className="h-full bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600 shadow-[0_0_10px_rgba(59,130,246,0.3)]"
                       />
                     </div>
                   </div>
                 ))
               ) : (
-                <div className="text-center py-8 text-neutral-500">
-                  <p>No role data available</p>
+                <div className="text-center py-8 text-zinc-700 font-bold uppercase tracking-widest text-[10px]">
+                  No sector data synchronized
                 </div>
               )}
             </CardContent>
@@ -665,59 +590,7 @@ export default function UsersReportPage() {
         </div>
       </div>
 
-      {/* ==================== Action Confirmation Dialog ==================== */}
-      <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
-        <DialogContent className="max-w-md max-h-[90vh] text-black">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-black">
-              {confirmAction === "delete" && <Trash2 className="h-5 w-5 text-red-600" />}
-              {confirmAction === "activate" && <ToggleLeft className="h-5 w-5 text-green-600" />}
-              {confirmAction === "deactivate" && <ToggleRight className="h-5 w-5 text-amber-600" />}
-              {confirmAction === "changeRole" && <Power className="h-5 w-5 text-blue-600" />}
-              {dialogConfig.title}
-            </DialogTitle>
-            <DialogDescription className="text-neutral-600">
-              {dialogConfig.description}
-            </DialogDescription>
-          </DialogHeader>
-
-          {confirmAction === "changeRole" && (
-            <div className="space-y-2 py-4">
-              <Label htmlFor="new-role" className="text-black">New Role</Label>
-              <select
-                id="new-role"
-                value={newRole}
-                onChange={(e) => setNewRole(e.target.value)}
-                className="flex h-10 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-black"
-              >
-                {ALL_ROLES.map(role => (
-                  <option key={role} value={role}>{ROLE_LABELS[role] || role}</option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmDialogOpen(false)} disabled={actionLoading}>
-              Cancel
-            </Button>
-            <Button
-              onClick={executeAction}
-              disabled={actionLoading || (confirmAction === "changeRole" && !newRole)}
-              className={dialogConfig.danger ? "bg-red-600 hover:bg-red-700 text-white" : "bg-green-600 hover:bg-green-700 text-white"}
-            >
-              {actionLoading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                dialogConfig.confirmText
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Action dialog removed */}
     </div>
   );
 }

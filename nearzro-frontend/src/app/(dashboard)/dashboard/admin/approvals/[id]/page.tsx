@@ -47,17 +47,19 @@ export default function ApprovalDetailPage() {
   const [showRejectModal, setShowRejectModal] = useState(false);
 
   useEffect(() => {
-    loadApproval();
+    const controller = new AbortController();
+    loadApproval(controller.signal);
+    return () => controller.abort();
   }, [params.id]);
 
-  const loadApproval = async () => {
+  const loadApproval = async (signal?: AbortSignal) => {
     try {
       setLoading(true);
       // Try to load from all three sources
       const [vendors, venues, kyc] = await Promise.all([
-        api.get("/vendors").catch(() => ({ data: [] })),
-        api.get("/venues").catch(() => ({ data: [] })),
-        api.get("/kyc/admin/submissions").catch(() => ({ data: [] })),
+        api.get("/vendors", { signal }).catch(() => ({ data: [] })),
+        api.get("/venues", { signal }).catch(() => ({ data: [] })),
+        api.get("/kyc/admin/submissions", { signal }).catch(() => ({ data: [] })),
       ]);
 
       const id = parseInt(params.id as string);
@@ -121,6 +123,7 @@ export default function ApprovalDetailPage() {
       toast.error("Approval not found");
       router.push("/dashboard/admin/approvals");
     } catch (error: any) {
+      if (error.name === 'AbortError' || error.code === 'ERR_CANCELED') return;
       console.error("Failed to load approval:", error);
       toast.error("Failed to load approval details");
     } finally {
@@ -138,7 +141,7 @@ export default function ApprovalDetailPage() {
         ? `/venues/${approval.id}/approve`
         : `/kyc/admin/${approval.id}/status`;
 
-      await api.post(endpoint, approval.type === 'KYC' ? { status: 'VERIFIED' } : {});
+      await api.patch(endpoint, approval.type === 'KYC' ? { status: 'VERIFIED' } : {});
       toast.success(`${approval.type} approved successfully!`);
       router.push("/dashboard/admin/approvals");
     } catch (error: any) {
@@ -163,7 +166,7 @@ export default function ApprovalDetailPage() {
         ? `/venues/${approval.id}/reject`
         : `/kyc/admin/${approval.id}/status`;
 
-      await api.post(endpoint, {
+      await api.patch(endpoint, {
         ...(approval.type === 'KYC' ? { status: 'REJECTED' } : {}),
         reason: rejectionReason
       });
@@ -201,8 +204,8 @@ export default function ApprovalDetailPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-black" />
-          <p className="text-neutral-600">Loading approval details...</p>
+          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-zinc-400" />
+          <p className="text-zinc-400">Loading approval details...</p>
         </div>
       </div>
     );
@@ -212,8 +215,8 @@ export default function ApprovalDetailPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
-          <AlertCircle className="h-16 w-16 mx-auto mb-4 text-red-600" />
-          <h3 className="text-lg font-bold text-black mb-2">Approval Not Found</h3>
+          <AlertCircle className="h-16 w-16 mx-auto mb-4 text-red-400" />
+          <h3 className="text-lg font-bold text-zinc-100 mb-2">Approval Not Found</h3>
           <Button onClick={() => router.push("/dashboard/admin/approvals")}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Approvals
@@ -232,21 +235,21 @@ export default function ApprovalDetailPage() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex items-center gap-3">
-            {approval.type === 'VENDOR' && <Store className="h-8 w-8 text-black" />}
-            {approval.type === 'VENUE' && <Building className="h-8 w-8 text-black" />}
-            {approval.type === 'KYC' && <FileText className="h-8 w-8 text-black" />}
+            {approval.type === 'VENDOR' && <Store className="h-8 w-8 text-zinc-400" />}
+            {approval.type === 'VENUE' && <Building className="h-8 w-8 text-zinc-400" />}
+            {approval.type === 'KYC' && <FileText className="h-8 w-8 text-zinc-400" />}
             <div>
-              <h1 className="text-3xl font-bold text-black">{approval.title}</h1>
-              <p className="text-neutral-600">{approval.subtitle}</p>
+              <h1 className="text-3xl font-bold text-zinc-100">{approval.title}</h1>
+              <p className="text-zinc-400">{approval.subtitle}</p>
             </div>
           </div>
         </div>
         <Badge className={
           approval.status === 'PENDING' || approval.status === 'PENDING_APPROVAL'
-            ? "bg-amber-100 text-amber-700"
+            ? "bg-amber-950/30 text-amber-400 border border-amber-800"
             : approval.status === 'VERIFIED' || approval.status === 'APPROVED'
-            ? "bg-emerald-100 text-emerald-700"
-            : "bg-red-100 text-red-700"
+            ? "bg-emerald-950/30 text-emerald-400 border border-emerald-800"
+            : "bg-red-950/30 text-red-400 border border-red-800"
         }>
           {approval.status}
         </Badge>
@@ -254,109 +257,109 @@ export default function ApprovalDetailPage() {
 
       {/* Details */}
       <div className="grid gap-6 md:grid-cols-2">
-        <Card className="border-2 border-black">
+        <Card className="border border-zinc-800 bg-zinc-900/50">
           <CardHeader>
-            <CardTitle className="text-black">Approval Information</CardTitle>
+            <CardTitle className="text-zinc-100">Approval Information</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <p className="text-xs text-neutral-600">Type</p>
-              <p className="font-medium text-black">{approval.type}</p>
+              <p className="text-xs text-zinc-500">Type</p>
+              <p className="font-medium text-zinc-100">{approval.type}</p>
             </div>
             <div>
-              <p className="text-xs text-neutral-600">Title</p>
-              <p className="font-medium text-black">{approval.title}</p>
+              <p className="text-xs text-zinc-500">Title</p>
+              <p className="font-medium text-zinc-100">{approval.title}</p>
             </div>
             {approval.description && (
               <div>
-                <p className="text-xs text-neutral-600">Description</p>
-                <p className="font-medium text-black">{approval.description}</p>
+                <p className="text-xs text-zinc-500">Description</p>
+                <p className="font-medium text-zinc-100">{approval.description}</p>
               </div>
             )}
             <div>
-              <p className="text-xs text-neutral-600">Location</p>
-              <p className="font-medium text-black">{approval.area}, {approval.city}</p>
+              <p className="text-xs text-zinc-500">Location</p>
+              <p className="font-medium text-zinc-100">{approval.area}, {approval.city}</p>
             </div>
             <div>
-              <p className="text-xs text-neutral-600">Submitted</p>
-              <p className="font-medium text-black">{new Date(approval.submittedAt).toLocaleString()}</p>
+              <p className="text-xs text-zinc-500">Submitted</p>
+              <p className="font-medium text-zinc-100">{new Date(approval.submittedAt).toLocaleString()}</p>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-2 border-black">
+        <Card className="border border-zinc-800 bg-zinc-900/50">
           <CardHeader>
-            <CardTitle className="text-black">User Information</CardTitle>
+            <CardTitle className="text-zinc-100">User Information</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <p className="text-xs text-neutral-600">Name</p>
-              <p className="font-medium text-black">{approval.user?.name || 'N/A'}</p>
+              <p className="text-xs text-zinc-500">Name</p>
+              <p className="font-medium text-zinc-100">{approval.user?.name || 'N/A'}</p>
             </div>
             <div>
-              <p className="text-xs text-neutral-600">Email</p>
-              <p className="font-medium text-black">{approval.user?.email || 'N/A'}</p>
+              <p className="text-xs text-zinc-500">Email</p>
+              <p className="font-medium text-zinc-100">{approval.user?.email || 'N/A'}</p>
             </div>
             {approval.user?.phone && (
               <div>
-                <p className="text-xs text-neutral-600">Phone</p>
-                <p className="font-medium text-black">{approval.user.phone}</p>
+                <p className="text-xs text-zinc-500">Phone</p>
+                <p className="font-medium text-zinc-100">{approval.user.phone}</p>
               </div>
             )}
             <div>
-              <p className="text-xs text-neutral-600">Role</p>
-              <p className="font-medium text-black">{approval.user?.role || 'N/A'}</p>
+              <p className="text-xs text-zinc-500">Role</p>
+              <p className="font-medium text-zinc-100">{approval.user?.role || 'N/A'}</p>
             </div>
           </CardContent>
         </Card>
 
         {approval.type === 'KYC' && (
           <>
-            <Card className="border-2 border-black md:col-span-2">
+            <Card className="border border-zinc-800 bg-zinc-900/50 md:col-span-2">
               <CardHeader>
-                <CardTitle className="text-black">KYC Document Details</CardTitle>
+                <CardTitle className="text-zinc-100">KYC Document Details</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
-                    <p className="text-xs text-neutral-600">Document Type</p>
-                    <p className="font-medium text-black">{approval.docType}</p>
+                    <p className="text-xs text-zinc-500">Document Type</p>
+                    <p className="font-medium text-zinc-100">{approval.docType}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-neutral-600">Document Number</p>
-                    <p className="font-medium text-black">{approval.docNumber}</p>
+                    <p className="text-xs text-zinc-500">Document Number</p>
+                    <p className="font-medium text-zinc-100">{approval.docNumber}</p>
                   </div>
                 </div>
-                
+
                 {approval.docFileUrl && (
-                  <div className="border-2 border-neutral-200 rounded-lg p-4">
+                  <div className="border border-zinc-800 rounded-lg p-4 bg-zinc-950/50">
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-3">
-                        <FileText className="h-8 w-8 text-neutral-400" />
+                        <FileText className="h-8 w-8 text-zinc-500" />
                         <div>
-                          <p className="font-medium text-black">KYC Document</p>
-                          <p className="text-xs text-neutral-600">{approval.docFileUrl.split('/').pop()}</p>
+                          <p className="font-medium text-zinc-100">KYC Document</p>
+                          <p className="text-xs text-zinc-400">{approval.docFileUrl.split('/').pop()}</p>
                         </div>
                       </div>
-                      <Button variant="outline" size="sm" onClick={handleDownloadDocument}>
+                      <Button variant="outline" size="sm" onClick={handleDownloadDocument} className="border-zinc-700 text-zinc-300 hover:bg-zinc-800">
                         <Download className="h-4 w-4 mr-2" />
                         Download
                       </Button>
                     </div>
-                    
+
                     {approval.docFileUrl.match(/\.(jpg|jpeg|png|gif)$/i) ? (
                       <img
                         src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}${approval.docFileUrl}`}
                         alt="KYC Document"
-                        className="max-w-full h-auto max-h-64 mx-auto rounded"
+                        className="max-w-full h-auto max-h-64 mx-auto rounded border border-zinc-800"
                       />
                     ) : (
-                      <div className="text-center p-8 bg-neutral-50 rounded-lg">
-                        <FileText className="h-12 w-12 text-neutral-400 mx-auto mb-3" />
-                        <p className="text-sm text-neutral-600 mb-4">
+                      <div className="text-center p-8 bg-zinc-900/50 rounded-lg border border-zinc-800">
+                        <FileText className="h-12 w-12 text-zinc-600 mx-auto mb-3" />
+                        <p className="text-sm text-zinc-400 mb-4">
                           Click download to view the document
                         </p>
-                        <Button variant="outline" onClick={handleDownloadDocument}>
+                        <Button variant="outline" onClick={handleDownloadDocument} className="border-zinc-700 text-zinc-300 hover:bg-zinc-800">
                           <Download className="h-4 w-4 mr-2" />
                           Download Document
                         </Button>
@@ -370,14 +373,14 @@ export default function ApprovalDetailPage() {
         )}
 
         {approval.images && approval.images.length > 0 && (
-          <Card className="border-2 border-black md:col-span-2">
+          <Card className="border border-zinc-800 bg-zinc-900/50 md:col-span-2">
             <CardHeader>
-              <CardTitle className="text-black">Images</CardTitle>
+              <CardTitle className="text-zinc-100">Images</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-3 gap-4">
                 {approval.images.map((img, idx) => (
-                  <div key={idx} className="aspect-video rounded-lg overflow-hidden border-2 border-neutral-200">
+                  <div key={idx} className="aspect-video rounded-lg overflow-hidden border border-zinc-800">
                     <img
                       src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}${img}`}
                       alt={`Image ${idx + 1}`}
@@ -391,15 +394,15 @@ export default function ApprovalDetailPage() {
         )}
 
         {approval.rejectionReason && (
-          <Card className="border-2 border-red-300 md:col-span-2">
+          <Card className="border border-red-900/50 bg-red-950/20 md:col-span-2">
             <CardHeader>
-              <CardTitle className="text-red-700 flex items-center gap-2">
+              <CardTitle className="text-red-400 flex items-center gap-2">
                 <AlertCircle className="h-5 w-5" />
                 Rejection Reason
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-red-700">{approval.rejectionReason}</p>
+              <p className="text-red-300">{approval.rejectionReason}</p>
             </CardContent>
           </Card>
         )}
@@ -407,15 +410,15 @@ export default function ApprovalDetailPage() {
 
       {/* Actions */}
       {(approval.status === 'PENDING' || approval.status === 'PENDING_APPROVAL') && (
-        <Card className="border-2 border-black">
+        <Card className="border border-zinc-800 bg-zinc-900/50">
           <CardHeader>
-            <CardTitle className="text-black">Admin Actions</CardTitle>
+            <CardTitle className="text-zinc-100">Admin Actions</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex gap-3">
               <Button
                 variant="default"
-                className="bg-green-600 hover:bg-green-700"
+                className="bg-emerald-700 hover:bg-emerald-600 text-zinc-100"
                 onClick={handleApprove}
                 disabled={actionLoading}
               >
@@ -424,7 +427,7 @@ export default function ApprovalDetailPage() {
               </Button>
               <Button
                 variant="outline"
-                className="border-red-300 text-red-600 hover:bg-red-50"
+                className="border-red-800 text-red-400 hover:bg-red-950/30"
                 onClick={() => setShowRejectModal(true)}
                 disabled={actionLoading}
               >
@@ -438,26 +441,26 @@ export default function ApprovalDetailPage() {
 
       {/* Reject Modal */}
       {showRejectModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="max-w-md w-full">
-            <CardHeader>
-              <CardTitle className="text-black">Reject {approval.type}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-md shadow-2xl">
+            <div className="flex items-center justify-between p-5 border-b border-zinc-800">
+              <h2 className="text-xl font-bold text-zinc-100">Reject {approval.type}</h2>
+            </div>
+            <div className="p-5 space-y-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-black">Rejection Reason *</label>
+                <label className="text-sm font-medium text-zinc-300">Rejection Reason *</label>
                 <textarea
                   rows={4}
                   placeholder="Please specify why this is being rejected..."
                   value={rejectionReason}
                   onChange={(e) => setRejectionReason(e.target.value)}
-                  className="flex min-h-[100px] w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm"
+                  className="flex min-h-[100px] w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-zinc-600"
                 />
               </div>
               <div className="flex gap-3">
                 <Button
                   variant="outline"
-                  className="flex-1"
+                  className="flex-1 border-zinc-700 text-zinc-300 hover:bg-zinc-800"
                   onClick={() => {
                     setShowRejectModal(false);
                     setRejectionReason("");
@@ -473,8 +476,8 @@ export default function ApprovalDetailPage() {
                   Reject
                 </Button>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
       )}
     </div>

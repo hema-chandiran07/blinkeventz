@@ -4,51 +4,52 @@ import * as path from 'path';
 import * as fs from 'fs';
 
 // ─────────────────────────────────────────────────────────────
-// Database Storage Service — Store files as base64 in PostgreSQL
+// Database Storage Service — Rewritten to use File System
+// To avoid massive Base64 database memory leaks
 // ─────────────────────────────────────────────────────────────
 
 const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
 
 @Injectable()
 export class DatabaseStorageService {
   private readonly logger = new Logger(DatabaseStorageService.name);
+  private readonly uploadDir = path.join(process.cwd(), 'uploads');
+
+  constructor() {
+    // Ensure uploads directory exists at startup
+    if (!fs.existsSync(this.uploadDir)) {
+      fs.mkdirSync(this.uploadDir, { recursive: true });
+    }
+  }
 
   /**
-   * Store a file as base64 in PostgreSQL
-   * Supports both memory storage (buffer) and disk storage (path)
+   * Store a file heavily optimized on local disk
+   * Avoids Base64 memory explosions
    */
   async storeFile(file: Express.Multer.File): Promise<string> {
-    // Validate file object exists
-    if (!file) {
-      throw new BadRequestException('No file provided');
-    }
+    if (!file) throw new BadRequestException('No file provided');
 
-    // Validate MIME type
     if (!file.mimetype || !ALLOWED_MIME_TYPES.includes(file.mimetype)) {
       throw new BadRequestException(
         `Invalid file type "${file?.mimetype || 'unknown'}". Allowed: ${ALLOWED_MIME_TYPES.join(', ')}`,
       );
     }
 
-    // Validate file size
     if (!file.size || file.size > MAX_FILE_SIZE) {
       throw new BadRequestException(
-        `File size ${file.size ? (file.size / 1024 / 1024).toFixed(2) : 'unknown'} MB exceeds the 5 MB limit`,
+        `File size ${file.size ? (file.size / 1024 / 1024).toFixed(2) : 'unknown'} MB exceeds the 50 MB limit`,
       );
     }
 
-    let base64: string;
+    const ext = path.extname(file.originalname) || this.fallbackExt(file.mimetype);
+    const filename = `${randomUUID()}${ext}`;
+    const filePath = path.join(this.uploadDir, filename);
 
     if (file.buffer) {
-      // Memory storage: convert buffer directly
-      base64 = file.buffer.toString('base64');
+      fs.writeFileSync(filePath, file.buffer);
     } else if (file.path) {
-      // Disk storage: read file from disk and convert
-      const fileBuffer = fs.readFileSync(file.path);
-      base64 = fileBuffer.toString('base64');
-
-      // Clean up the temp file after reading
+      fs.copyFileSync(file.path, filePath);
       try {
         fs.unlinkSync(file.path);
       } catch (err) {
@@ -58,53 +59,43 @@ export class DatabaseStorageService {
       throw new BadRequestException('No file data available (no buffer or path)');
     }
 
-    const dataUrl = `data:${file.mimetype};base64,${base64}`;
+    this.logger.log(`File stored successfully: ${filename} (${(file.size / 1024).toFixed(2)} KB)`);
 
-    this.logger.log(`File stored successfully: ${file.originalname} (${(file.size / 1024).toFixed(2)} KB)`);
-
-    return dataUrl;
+    // Return the correct relative path for NextJS and static serving
+    return `/api/uploads/${filename}`;
   }
 
-  /**
-   * Upload a KYC document
-   * Returns data URL for storage in database
-   */
+  private fallbackExt(mimetype: string): string {
+    if (mimetype === 'image/jpeg') return '.jpg';
+    if (mimetype === 'image/png') return '.png';
+    if (mimetype === 'image/webp') return '.webp';
+    if (mimetype === 'application/pdf') return '.pdf';
+    return '.bin';
+  }
+
   async uploadKycDocument(file: Express.Multer.File): Promise<string> {
     return this.storeFile(file);
   }
 
-  /**
-   * Upload a vendor service image
-   * Returns data URL for storage in database
-   */
   async uploadVendorServiceImage(file: Express.Multer.File): Promise<string> {
-    // Only allow images for vendor services
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype)) {
       throw new BadRequestException(
         `Invalid file type "${file.mimetype}". Allowed: image/jpeg, image/png, image/webp`,
       );
     }
-
     return this.storeFile(file);
   }
 
-  /**
-   * Validate a URL for external image storage
-   * Useful for accepting URLs from Unsplash or other CDN
-   */
   validateImageUrl(url: string): boolean {
+    if (!url) return false;
+    if (url.startsWith('/api/uploads/')) return true;
+    
     try {
       const parsed = new URL(url);
-      // Only allow HTTP/HTTPS
-      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-        return false;
-      }
-
-      // Check if it looks like an image URL
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
       const imageExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.svg'];
       const hasExtension = imageExtensions.some(ext => parsed.pathname.toLowerCase().endsWith(ext));
       const hasImageParam = parsed.searchParams.has('image') || parsed.searchParams.has('photo');
-      
       return hasExtension || hasImageParam || url.includes('unsplash.com') || url.includes('cloudinary.com');
     } catch {
       return false;

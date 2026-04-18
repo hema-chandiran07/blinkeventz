@@ -123,12 +123,12 @@ export default function AdminSystemSettingsPage() {
   ];
 
   // ==================== Load Settings from Backend ====================
-  const loadSettings = useCallback(async () => {
+  const loadSettings = useCallback(async (signal?: AbortSignal) => {
     try {
       setLoading(true);
 
       // Load all settings in one call
-      const response = await api.get("/settings");
+      const response = await api.get("/settings", { signal });
       const data = response.data;
 
       // Parse feature flags - ONLY valid keys
@@ -169,7 +169,7 @@ export default function AdminSystemSettingsPage() {
 
       // Load system stats
       try {
-        const statsRes = await api.get("/dashboard/admin/stats");
+        const statsRes = await api.get("/dashboard/admin/stats", { signal });
         if (statsRes.data) {
           setSystemStats(statsRes.data);
         }
@@ -177,6 +177,7 @@ export default function AdminSystemSettingsPage() {
         console.warn("Could not load system stats");
       }
     } catch (error: any) {
+      if (error?.name === 'AbortError' || error?.code === 'ERR_CANCELED') return;
       console.error("Failed to load settings:", error);
       toast.error(error?.response?.data?.message || "Failed to load settings");
     } finally {
@@ -189,7 +190,9 @@ export default function AdminSystemSettingsPage() {
       router.push("/login");
       return;
     }
-    loadSettings();
+    const controller = new AbortController();
+    loadSettings(controller.signal);
+    return () => controller.abort();
   }, [isAuthenticated, user, router, loadSettings]);
 
   // ==================== Save Feature Flags ====================
@@ -258,8 +261,8 @@ export default function AdminSystemSettingsPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-neutral-400" />
-          <p className="text-neutral-600">Loading system settings...</p>
+          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-zinc-400" />
+          <p className="text-zinc-400">Loading system settings...</p>
         </div>
       </div>
     );
@@ -267,7 +270,7 @@ export default function AdminSystemSettingsPage() {
 
   // ==================== Main Render ====================
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 p-6 bg-[#0a0a0b] text-white selection:bg-blue-500/30 min-h-screen">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
@@ -275,15 +278,17 @@ export default function AdminSystemSettingsPage() {
         className="flex items-center justify-between flex-wrap gap-4"
       >
         <div>
-          <h1 className="text-3xl font-bold text-black">System Settings</h1>
-          <p className="text-neutral-600">Configure platform features, integrations, and security</p>
+          <h1 className="text-4xl font-black text-white tracking-tight">
+            Node <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-600">Infrastructure</span>
+          </h1>
+          <p className="text-zinc-500 font-medium">Core system protocols and integration matrix</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={initializeDefaults} disabled={saving}>
             <Settings className="h-4 w-4 mr-2" />
             Reset to Defaults
           </Button>
-          <Button variant="outline" onClick={loadSettings}>
+          <Button variant="outline" onClick={() => loadSettings()}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
@@ -298,56 +303,56 @@ export default function AdminSystemSettingsPage() {
           transition={{ delay: 0.1 }}
           className="grid gap-4 md:grid-cols-4"
         >
-          <Card>
+          <Card className="bg-zinc-900/50 border-zinc-800 shadow-xl">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-neutral-600">Total Users</p>
-                  <p className="text-3xl font-bold text-black mt-1">{systemStats.totalUsers || 0}</p>
+                  <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Total Nodes</p>
+                  <p className="text-3xl font-black text-white mt-1">{systemStats.totalUsers || 0}</p>
                 </div>
-                <div className="p-3 rounded-full bg-blue-100 text-blue-600">
+                <div className="p-3 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
                   <Users className="h-6 w-6" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-zinc-900/50 border-zinc-800 shadow-xl">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-neutral-600">Active Users</p>
-                  <p className="text-3xl font-bold text-green-600 mt-1">{systemStats.activeUsers || 0}</p>
+                  <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Active Threads</p>
+                  <p className="text-3xl font-black text-emerald-400 mt-1">{systemStats.activeUsers || 0}</p>
                 </div>
-                <div className="p-3 rounded-full bg-green-100 text-green-600">
+                <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                   <Activity className="h-6 w-6" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-zinc-900/50 border-zinc-800 shadow-xl">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-neutral-600">Total Revenue</p>
-                  <p className="text-3xl font-bold text-black mt-1">₹{(systemStats.totalRevenue || 0).toLocaleString()}</p>
+                  <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Total Revenue</p>
+                  <p className="text-3xl font-black text-amber-400 mt-1">₹{(systemStats.totalRevenue || 0).toLocaleString()}</p>
                 </div>
-                <div className="p-3 rounded-full bg-amber-100 text-amber-600">
+                <div className="p-3 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
                   <TrendingUp className="h-6 w-6" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-zinc-900/50 border-zinc-800 shadow-xl">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-neutral-600">System Uptime</p>
-                  <p className="text-3xl font-bold text-black mt-1">{systemStats.systemUptime || "99.9%"}</p>
+                  <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">System Availability</p>
+                  <p className="text-3xl font-black text-white mt-1">{systemStats.systemUptime || "99.9%"}</p>
                 </div>
-                <div className="p-3 rounded-full bg-purple-100 text-purple-600">
+                <div className="p-3 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
                   <Zap className="h-6 w-6" />
                 </div>
               </div>
@@ -357,23 +362,23 @@ export default function AdminSystemSettingsPage() {
       )}
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="features" className="flex items-center gap-2">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
+        <TabsList className="grid w-full grid-cols-4 bg-zinc-900/50 border border-zinc-800 p-1 h-14 rounded-2xl">
+          <TabsTrigger value="features" className="flex items-center gap-2 rounded-xl data-[state=active]:bg-zinc-800 data-[state=active]:text-blue-400 text-zinc-500 transition-all font-bold uppercase tracking-tighter text-[10px]">
             <Zap className="h-4 w-4" />
-            Features
+            Protocols
           </TabsTrigger>
-          <TabsTrigger value="integrations" className="flex items-center gap-2">
+          <TabsTrigger value="integrations" className="flex items-center gap-2 rounded-xl data-[state=active]:bg-zinc-800 data-[state=active]:text-blue-400 text-zinc-500 transition-all font-bold uppercase tracking-tighter text-[10px]">
             <Cloud className="h-4 w-4" />
-            Integrations
+            Uplinks
           </TabsTrigger>
-          <TabsTrigger value="security" className="flex items-center gap-2">
+          <TabsTrigger value="security" className="flex items-center gap-2 rounded-xl data-[state=active]:bg-zinc-800 data-[state=active]:text-blue-400 text-zinc-500 transition-all font-bold uppercase tracking-tighter text-[10px]">
             <Shield className="h-4 w-4" />
             Security
           </TabsTrigger>
-          <TabsTrigger value="system" className="flex items-center gap-2">
+          <TabsTrigger value="system" className="flex items-center gap-2 rounded-xl data-[state=active]:bg-zinc-800 data-[state=active]:text-blue-400 text-zinc-500 transition-all font-bold uppercase tracking-tighter text-[10px]">
             <Database className="h-4 w-4" />
-            System
+            Kernel
           </TabsTrigger>
         </TabsList>
       </Tabs>
@@ -384,23 +389,23 @@ export default function AdminSystemSettingsPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <Card>
+          <Card className="bg-zinc-900/40 border-zinc-800 shadow-2xl backdrop-blur-xl">
             <CardHeader>
-              <CardTitle className="text-black">
-                <Zap className="h-5 w-5" />
-                Feature Flags
+              <CardTitle className="text-white flex items-center gap-2">
+                <Zap className="h-5 w-5 text-blue-400" />
+                Operational Protocols
               </CardTitle>
-              <CardDescription className="text-neutral-600">Enable or disable platform features</CardDescription>
+              <CardDescription className="text-zinc-500 font-medium">Enable or disable platform functional modules</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid gap-4">
                 {Object.entries(featureFlags).map(([key, value]) => (
-                  <div key={key} className="flex items-center justify-between p-4 rounded-lg border border-neutral-200">
+                  <div key={key} className="flex items-center justify-between p-4 rounded-2xl bg-zinc-900 border border-zinc-800 hover:border-zinc-700 transition-all group">
                     <div>
-                      <p className="font-medium text-black capitalize">
+                      <p className="font-bold text-zinc-200 capitalize tracking-tight group-hover:text-white">
                         {key.replace(/_/g, ' ').toLowerCase()}
                       </p>
-                      <p className="text-sm text-neutral-600">
+                      <p className="text-xs text-zinc-500 font-medium mt-1">
                         {key === 'MAINTENANCE_MODE' ? 'Put the entire platform in maintenance mode' :
                          key === 'AI_PLANNING' ? 'Enable AI-powered event planning assistant' :
                          key === 'EXPRESS_BOOKING' ? 'Allow quick booking without full registration' :
@@ -411,6 +416,7 @@ export default function AdminSystemSettingsPage() {
                     </div>
                     <Switch
                       checked={value}
+                      className="data-[state=checked]:bg-blue-600"
                       onCheckedChange={(checked) =>
                         setFeatureFlags(prev => ({ ...prev, [key]: checked }))
                       }
@@ -420,29 +426,33 @@ export default function AdminSystemSettingsPage() {
               </div>
 
               {featureFlags.MAINTENANCE_MODE && (
-                <div className="p-4 rounded-lg bg-amber-50 border border-amber-200">
+                <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20">
                   <div className="flex items-start gap-3">
-                    <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
+                    <AlertCircle className="h-5 w-5 text-red-500 mt-0.5" />
                     <div>
-                      <p className="font-medium text-amber-900">Maintenance Mode Active</p>
-                      <p className="text-sm text-amber-700 mt-1">
-                        Users will see a maintenance page. Only admins can access the platform.
+                      <p className="font-bold text-red-400 uppercase tracking-tighter text-xs">MAINTENANCE_MODE_ACTIVE</p>
+                      <p className="text-xs text-zinc-500 mt-1">
+                        Users will see a maintenance page. Only identities with administrative clearance can access the platform.
                       </p>
                     </div>
                   </div>
                 </div>
               )}
 
-              <Button onClick={saveFeatureFlags} disabled={saving} className="w-full h-12 text-white">
+              <Button 
+                onClick={saveFeatureFlags} 
+                disabled={saving} 
+                className="w-full h-12 bg-white text-black font-black hover:bg-zinc-200 shadow-xl shadow-white/5 transition-all rounded-xl"
+              >
                 {saving ? (
                   <>
                     <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                    Saving...
+                    Synchronizing...
                   </>
                 ) : (
                   <>
                     <Save className="h-5 w-5 mr-2" />
-                    Save Feature Flags
+                    Commit Protocol Changes
                   </>
                 )}
               </Button>
@@ -459,17 +469,17 @@ export default function AdminSystemSettingsPage() {
           className="space-y-6"
         >
           {/* Razorpay */}
-          <Card>
+          <Card className="border-zinc-800 bg-zinc-900/50">
             <CardHeader>
-              <CardTitle className="text-black">
-                <CreditCard className="h-5 w-5" />
+              <CardTitle className="text-zinc-100 flex items-center gap-2">
+                <CreditCard className="h-5 w-5 text-zinc-400" />
                 Razorpay Payment Gateway
               </CardTitle>
-              <CardDescription className="text-neutral-600">Configure payment processing</CardDescription>
+              <CardDescription className="text-zinc-500">Configure payment processing</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
-                <Label className="text-black">Enable Razorpay</Label>
+                <Label className="text-zinc-300">Enable Razorpay</Label>
                 <Switch
                   checked={integrations.RAZORPAY?.enabled || false}
                   onCheckedChange={(checked) =>
@@ -483,7 +493,7 @@ export default function AdminSystemSettingsPage() {
               {integrations.RAZORPAY?.enabled && (
                 <div className="space-y-4">
                   <div>
-                    <Label className="text-black">Key ID</Label>
+                    <Label className="text-zinc-300">Key ID</Label>
                     <div className="flex gap-2 mt-1">
                       <Input
                         type={showSecrets.razorpayKey ? "text" : "password"}
@@ -493,7 +503,7 @@ export default function AdminSystemSettingsPage() {
                           RAZORPAY: { ...prev.RAZORPAY, keyId: e.target.value }
                         }))}
                         placeholder="rzp_live_xxxxx"
-                        className="text-black"
+                        className="bg-zinc-800 border-zinc-700 text-zinc-100 placeholder:text-zinc-500"
                       />
                       <Button variant="outline" size="icon" onClick={() => toggleSecret("razorpayKey")}>
                         {showSecrets.razorpayKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -501,7 +511,7 @@ export default function AdminSystemSettingsPage() {
                     </div>
                   </div>
                   <div>
-                    <Label className="text-black">Key Secret</Label>
+                    <Label className="text-zinc-300">Key Secret</Label>
                     <div className="flex gap-2 mt-1">
                       <Input
                         type={showSecrets.razorpaySecret ? "text" : "password"}
@@ -511,7 +521,7 @@ export default function AdminSystemSettingsPage() {
                           RAZORPAY: { ...prev.RAZORPAY, keySecret: e.target.value }
                         }))}
                         placeholder="Enter secret key"
-                        className="text-black"
+                        className="bg-zinc-800 border-zinc-700 text-zinc-100 placeholder:text-zinc-500"
                       />
                       <Button variant="outline" size="icon" onClick={() => toggleSecret("razorpaySecret")}>
                         {showSecrets.razorpaySecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -524,17 +534,17 @@ export default function AdminSystemSettingsPage() {
           </Card>
 
           {/* SendGrid */}
-          <Card>
+          <Card className="border-zinc-800 bg-zinc-900/50">
             <CardHeader>
-              <CardTitle className="text-black">
-                <Mail className="h-5 w-5" />
+              <CardTitle className="text-zinc-100 flex items-center gap-2">
+                <Mail className="h-5 w-5 text-zinc-400" />
                 SendGrid Email Service
               </CardTitle>
-              <CardDescription className="text-neutral-600">Configure transactional emails</CardDescription>
+              <CardDescription className="text-zinc-500">Configure transactional emails</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
-                <Label className="text-black">Enable SendGrid</Label>
+                <Label className="text-zinc-300">Enable SendGrid</Label>
                 <Switch
                   checked={integrations.SENDGRID?.enabled || false}
                   onCheckedChange={(checked) =>
@@ -547,7 +557,7 @@ export default function AdminSystemSettingsPage() {
               </div>
               {integrations.SENDGRID?.enabled && (
                 <div>
-                  <Label className="text-black">API Key</Label>
+                  <Label className="text-zinc-300">API Key</Label>
                   <div className="flex gap-2 mt-1">
                     <Input
                       type={showSecrets.sendgrid ? "text" : "password"}
@@ -557,7 +567,7 @@ export default function AdminSystemSettingsPage() {
                         SENDGRID: { ...prev.SENDGRID, apiKey: e.target.value }
                       }))}
                       placeholder="SG.xxxxx"
-                      className="text-black"
+                      className="bg-zinc-800 border-zinc-700 text-zinc-100 placeholder:text-zinc-500"
                     />
                     <Button variant="outline" size="icon" onClick={() => toggleSecret("sendgrid")}>
                       {showSecrets.sendgrid ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -569,17 +579,17 @@ export default function AdminSystemSettingsPage() {
           </Card>
 
           {/* Twilio */}
-          <Card>
+          <Card className="border-zinc-800 bg-zinc-900/50">
             <CardHeader>
-              <CardTitle className="text-black">
-                <Phone className="h-5 w-5" />
+              <CardTitle className="text-zinc-100 flex items-center gap-2">
+                <Phone className="h-5 w-5 text-zinc-400" />
                 Twilio SMS & WhatsApp
               </CardTitle>
-              <CardDescription className="text-neutral-600">Configure SMS and WhatsApp notifications</CardDescription>
+              <CardDescription className="text-zinc-500">Configure SMS and WhatsApp notifications</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
-                <Label className="text-black">Enable Twilio</Label>
+                <Label className="text-zinc-300">Enable Twilio</Label>
                 <Switch
                   checked={integrations.TWILIO?.enabled || false}
                   onCheckedChange={(checked) =>
@@ -593,7 +603,7 @@ export default function AdminSystemSettingsPage() {
               {integrations.TWILIO?.enabled && (
                 <div className="space-y-4">
                   <div>
-                    <Label className="text-black">Account SID</Label>
+                    <Label className="text-zinc-300">Account SID</Label>
                     <Input
                       value={integrations.TWILIO?.accountSid || ""}
                       onChange={(e) => setIntegrations(prev => ({
@@ -601,11 +611,11 @@ export default function AdminSystemSettingsPage() {
                         TWILIO: { ...prev.TWILIO, accountSid: e.target.value }
                       }))}
                       placeholder="ACxxxxx"
-                      className="text-black"
+                      className="bg-zinc-800 border-zinc-700 text-zinc-100 placeholder:text-zinc-500"
                     />
                   </div>
                   <div>
-                    <Label className="text-black">Auth Token</Label>
+                    <Label className="text-zinc-300">Auth Token</Label>
                     <div className="flex gap-2 mt-1">
                       <Input
                         type={showSecrets.twilio ? "text" : "password"}
@@ -615,7 +625,7 @@ export default function AdminSystemSettingsPage() {
                           TWILIO: { ...prev.TWILIO, authToken: e.target.value }
                         }))}
                         placeholder="Enter auth token"
-                        className="text-black"
+                        className="bg-zinc-800 border-zinc-700 text-zinc-100 placeholder:text-zinc-500"
                       />
                       <Button variant="outline" size="icon" onClick={() => toggleSecret("twilio")}>
                         {showSecrets.twilio ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -623,7 +633,7 @@ export default function AdminSystemSettingsPage() {
                     </div>
                   </div>
                   <div>
-                    <Label className="text-black">From Number</Label>
+                    <Label className="text-zinc-300">From Number</Label>
                     <Input
                       value={integrations.TWILIO?.fromNumber || ""}
                       onChange={(e) => setIntegrations(prev => ({
@@ -631,7 +641,7 @@ export default function AdminSystemSettingsPage() {
                         TWILIO: { ...prev.TWILIO, fromNumber: e.target.value }
                       }))}
                       placeholder="+1234567890"
-                      className="text-black"
+                      className="bg-zinc-800 border-zinc-700 text-zinc-100 placeholder:text-zinc-500"
                     />
                   </div>
                 </div>
@@ -640,17 +650,17 @@ export default function AdminSystemSettingsPage() {
           </Card>
 
           {/* OpenAI */}
-          <Card>
+          <Card className="border-zinc-800 bg-zinc-900/50">
             <CardHeader>
-              <CardTitle className="text-black">
-                <Zap className="h-5 w-5" />
+              <CardTitle className="text-zinc-100 flex items-center gap-2">
+                <Zap className="h-5 w-5 text-zinc-400" />
                 OpenAI Integration
               </CardTitle>
-              <CardDescription className="text-neutral-600">Configure AI-powered features</CardDescription>
+              <CardDescription className="text-zinc-500">Configure AI-powered features</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
-                <Label className="text-black">Enable OpenAI</Label>
+                <Label className="text-zinc-300">Enable OpenAI</Label>
                 <Switch
                   checked={integrations.OPENAI?.enabled || false}
                   onCheckedChange={(checked) =>
@@ -664,7 +674,7 @@ export default function AdminSystemSettingsPage() {
               {integrations.OPENAI?.enabled && (
                 <div className="space-y-4">
                   <div>
-                    <Label className="text-black">API Key</Label>
+                    <Label className="text-zinc-300">API Key</Label>
                     <div className="flex gap-2 mt-1">
                       <Input
                         type={showSecrets.openai ? "text" : "password"}
@@ -674,7 +684,7 @@ export default function AdminSystemSettingsPage() {
                           OPENAI: { ...prev.OPENAI, apiKey: e.target.value }
                         }))}
                         placeholder="sk-proj-xxxxx"
-                        className="text-black"
+                        className="bg-zinc-800 border-zinc-700 text-zinc-100 placeholder:text-zinc-500"
                       />
                       <Button variant="outline" size="icon" onClick={() => toggleSecret("openai")}>
                         {showSecrets.openai ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -682,7 +692,7 @@ export default function AdminSystemSettingsPage() {
                     </div>
                   </div>
                   <div>
-                    <Label className="text-black">Model</Label>
+                    <Label className="text-zinc-300">Model</Label>
                     <Input
                       value={integrations.OPENAI?.model || "gpt-4o-mini"}
                       onChange={(e) => setIntegrations(prev => ({
@@ -690,7 +700,7 @@ export default function AdminSystemSettingsPage() {
                         OPENAI: { ...prev.OPENAI, model: e.target.value }
                       }))}
                       placeholder="gpt-4o-mini"
-                      className="text-black"
+                      className="bg-zinc-800 border-zinc-700 text-zinc-100 placeholder:text-zinc-500"
                     />
                   </div>
                 </div>
@@ -720,20 +730,20 @@ export default function AdminSystemSettingsPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <Card>
+          <Card className="border-zinc-800 bg-zinc-900/50">
             <CardHeader>
-              <CardTitle className="text-black">
-                <Shield className="h-5 w-5" />
+              <CardTitle className="text-zinc-100 flex items-center gap-2">
+                <Shield className="h-5 w-5 text-zinc-400" />
                 Security Settings
               </CardTitle>
-              <CardDescription className="text-neutral-600">Configure platform security</CardDescription>
+              <CardDescription className="text-zinc-500">Configure platform security</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid gap-4 md:grid-cols-2">
-                <div className="flex items-center justify-between p-4 rounded-lg border border-neutral-200">
+                <div className="flex items-center justify-between p-4 rounded-lg border border-zinc-700 bg-zinc-800/30">
                   <div>
-                    <p className="font-medium text-black">Require MFA</p>
-                    <p className="text-sm text-neutral-600">Force multi-factor authentication</p>
+                    <p className="font-medium text-zinc-100">Require MFA</p>
+                    <p className="text-sm text-zinc-400">Force multi-factor authentication</p>
                   </div>
                   <Switch
                     checked={security.MFA_REQUIRED?.enabled || false}
@@ -741,10 +751,10 @@ export default function AdminSystemSettingsPage() {
                   />
                 </div>
 
-                <div className="flex items-center justify-between p-4 rounded-lg border border-neutral-200">
+                <div className="flex items-center justify-between p-4 rounded-lg border border-zinc-700 bg-zinc-800/30">
                   <div>
-                    <p className="font-medium text-black">Enable Rate Limiting</p>
-                    <p className="text-sm text-neutral-600">Prevent API abuse</p>
+                    <p className="font-medium text-zinc-100">Enable Rate Limiting</p>
+                    <p className="text-sm text-zinc-400">Prevent API abuse</p>
                   </div>
                   <Switch
                     checked={security.RATE_LIMITING?.enabled || false}
@@ -755,30 +765,30 @@ export default function AdminSystemSettingsPage() {
 
               <div className="grid gap-4 md:grid-cols-3">
                 <div>
-                  <Label className="text-black">Session Timeout (minutes)</Label>
+                  <Label className="text-zinc-300">Session Timeout (minutes)</Label>
                   <Input
                     type="number"
                     value={security.SESSION_TIMEOUT?.minutes || 30}
                     onChange={(e) => setSecurity(prev => ({ ...prev, SESSION_TIMEOUT: { minutes: parseInt(e.target.value) || 30 } }))}
-                    className="mt-1 text-black"
+                    className="mt-1 bg-zinc-800 border-zinc-700 text-zinc-100"
                   />
                 </div>
                 <div>
-                  <Label className="text-black">Max Login Attempts</Label>
+                  <Label className="text-zinc-300">Max Login Attempts</Label>
                   <Input
                     type="number"
                     value={security.MAX_LOGIN_ATTEMPTS?.attempts || 5}
                     onChange={(e) => setSecurity(prev => ({ ...prev, MAX_LOGIN_ATTEMPTS: { attempts: parseInt(e.target.value) || 5 } }))}
-                    className="mt-1 text-black"
+                    className="mt-1 bg-zinc-800 border-zinc-700 text-zinc-100"
                   />
                 </div>
                 <div>
-                  <Label className="text-black">Password Min Length</Label>
+                  <Label className="text-zinc-300">Password Min Length</Label>
                   <Input
                     type="number"
                     value={security.PASSWORD_MIN_LENGTH?.length || 8}
                     onChange={(e) => setSecurity(prev => ({ ...prev, PASSWORD_MIN_LENGTH: { length: parseInt(e.target.value) || 8 } }))}
-                    className="mt-1 text-black"
+                    className="mt-1 bg-zinc-800 border-zinc-700 text-zinc-100"
                   />
                 </div>
               </div>
@@ -786,21 +796,21 @@ export default function AdminSystemSettingsPage() {
               {security.RATE_LIMITING?.enabled && (
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
-                    <Label className="text-black">Rate Limit Max Requests</Label>
+                    <Label className="text-zinc-300">Rate Limit Max Requests</Label>
                     <Input
                       type="number"
                       value={security.RATE_LIMIT_MAX?.max || 100}
                       onChange={(e) => setSecurity(prev => ({ ...prev, RATE_LIMIT_MAX: { max: parseInt(e.target.value) || 100 } }))}
-                      className="mt-1 text-black"
+                      className="mt-1 bg-zinc-800 border-zinc-700 text-zinc-100"
                     />
                   </div>
                   <div>
-                    <Label className="text-black">Rate Limit Window (seconds)</Label>
+                    <Label className="text-zinc-300">Rate Limit Window (seconds)</Label>
                     <Input
                       type="number"
                       value={security.RATE_LIMIT_WINDOW?.window || 60}
                       onChange={(e) => setSecurity(prev => ({ ...prev, RATE_LIMIT_WINDOW: { window: parseInt(e.target.value) || 60 } }))}
-                      className="mt-1 text-black"
+                      className="mt-1 bg-zinc-800 border-zinc-700 text-zinc-100"
                     />
                   </div>
                 </div>
@@ -831,40 +841,40 @@ export default function AdminSystemSettingsPage() {
           animate={{ opacity: 1, y: 0 }}
           className="space-y-6"
         >
-          <Card>
+          <Card className="border-zinc-800 bg-zinc-900/50">
             <CardHeader>
-              <CardTitle className="text-black">
-                <Database className="h-5 w-5" />
+              <CardTitle className="text-zinc-100 flex items-center gap-2">
+                <Database className="h-5 w-5 text-zinc-400" />
                 System Information
               </CardTitle>
-              <CardDescription className="text-neutral-600">Platform status and maintenance</CardDescription>
+              <CardDescription className="text-zinc-500">Platform status and maintenance</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
-                <div className="p-4 rounded-lg bg-neutral-50 border border-neutral-200">
-                  <p className="text-sm text-neutral-600">Platform Version</p>
-                  <p className="font-medium text-black">v2.0.0</p>
+                <div className="p-4 rounded-lg bg-zinc-800/50 border border-zinc-700">
+                  <p className="text-sm text-zinc-400">Platform Version</p>
+                  <p className="font-medium text-zinc-100">v2.0.0</p>
                 </div>
-                <div className="p-4 rounded-lg bg-neutral-50 border border-neutral-200">
-                  <p className="text-sm text-neutral-600">Environment</p>
-                  <p className="font-medium text-black">Production</p>
+                <div className="p-4 rounded-lg bg-zinc-800/50 border border-zinc-700">
+                  <p className="text-sm text-zinc-400">Environment</p>
+                  <p className="font-medium text-zinc-100">Production</p>
                 </div>
-                <div className="p-4 rounded-lg bg-neutral-50 border border-neutral-200">
-                  <p className="text-sm text-neutral-600">Database</p>
-                  <p className="font-medium text-black">PostgreSQL 15</p>
+                <div className="p-4 rounded-lg bg-zinc-800/50 border border-zinc-700">
+                  <p className="text-sm text-zinc-400">Database</p>
+                  <p className="font-medium text-zinc-100">PostgreSQL 15</p>
                 </div>
-                <div className="p-4 rounded-lg bg-neutral-50 border border-neutral-200">
-                  <p className="text-sm text-neutral-600">Cache</p>
-                  <p className="font-medium text-black">Redis 7</p>
+                <div className="p-4 rounded-lg bg-zinc-800/50 border border-zinc-700">
+                  <p className="text-sm text-zinc-400">Cache</p>
+                  <p className="font-medium text-zinc-100">Redis 7</p>
                 </div>
               </div>
 
-              <div className="p-4 rounded-lg bg-green-50 border border-green-200">
+              <div className="p-4 rounded-lg bg-emerald-950/30 border border-emerald-800">
                 <div className="flex items-center gap-3">
-                  <CheckCircle2 className="h-5 w-5 text-green-600" />
+                  <CheckCircle2 className="h-5 w-5 text-emerald-400" />
                   <div>
-                    <p className="font-medium text-green-900">All Systems Operational</p>
-                    <p className="text-sm text-green-700">All services are running normally</p>
+                    <p className="font-medium text-emerald-300">All Systems Operational</p>
+                    <p className="text-sm text-emerald-500">All services are running normally</p>
                   </div>
                 </div>
               </div>

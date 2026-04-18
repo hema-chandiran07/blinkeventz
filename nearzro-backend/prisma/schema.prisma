@@ -18,6 +18,7 @@ model User {
   googleId     String?  @unique
   role         Role     @default(CUSTOMER)
   isActive     Boolean  @default(true)
+  image        String? // Base64 profile picture
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -52,12 +53,30 @@ model User {
   vendor                  Vendor?
   venues                  Venue[]
   refreshTokens           RefreshToken[]
+  searchAudits            SearchAudit[]
 
   // Indexes for authentication queries
   @@index([email])
   @@index([googleId])
   @@index([facebookId])
   @@index([passwordResetToken])
+}
+
+/// Search Audit Model - Track query performance and intent
+model SearchAudit {
+  id           Int      @id @default(autoincrement())
+  userId       Int?
+  query        String
+  filters      Json?
+  resultsCount Int
+  durationMs   Int
+  createdAt    DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([query])
 }
 
 /// Refresh Token Model for JWT refresh mechanism
@@ -122,11 +141,11 @@ model Vendor {
   // FSSAI License (CONDITIONAL - only for CATERING)
   foodLicenseFiles String[] @default([])
 
-  payouts         Payout[]
-  reviews         Review[]
-  user            User             @relation(fields: [userId], references: [id])
-  services        VendorService[]
-  portfolioImages PortfolioImage[]
+  payouts           Payout[]
+  reviews           Review[]
+  user              User               @relation(fields: [userId], references: [id])
+  services          VendorService[]
+  portfolioImages   PortfolioImage[]
   availabilitySlots AvailabilitySlot[] @relation("VendorAvailability")
 }
 
@@ -191,14 +210,14 @@ model Venue {
 
   // Note: AvailabilitySlot references are polymorphic (entityType + entityId)
   // Queried at application layer, not via Prisma relation
-  availabilitySlots    AvailabilitySlot[]   @relation("VenueAvailability")
-  cartItems            CartItem[]
-  events               Event[]
-  EventService         EventService[]
-  payouts              Payout[]
-  reviews              Review[]
-  owner                User               @relation(fields: [ownerId], references: [id])
-  photos               VenuePhoto[]
+  availabilitySlots AvailabilitySlot[] @relation("VenueAvailability")
+  cartItems         CartItem[]
+  events            Event[]
+  EventService      EventService[]
+  payouts           Payout[]
+  reviews           Review[]
+  owner             User               @relation(fields: [ownerId], references: [id])
+  photos            VenuePhoto[]
 
   // ============================================
   // DATABASE INDEXES FOR PERFORMANCE
@@ -298,10 +317,10 @@ model AvailabilitySlot {
   bookings   Booking[]
 
   // Separate FK columns — avoids PG dual-FK conflict on same column
-  venueId    Int?
-  venue      Venue?     @relation("VenueAvailability", fields: [venueId], references: [id], onDelete: Cascade)
-  vendorId   Int?
-  vendor     Vendor?    @relation("VendorAvailability", fields: [vendorId], references: [id], onDelete: Cascade)
+  venueId  Int?
+  venue    Venue?  @relation("VenueAvailability", fields: [venueId], references: [id], onDelete: Cascade)
+  vendorId Int?
+  vendor   Vendor? @relation("VendorAvailability", fields: [vendorId], references: [id], onDelete: Cascade)
 
   @@index([venueId])
   @@index([vendorId])
@@ -408,7 +427,7 @@ model AIConversation {
 model Payment {
   id                     Int             @id @default(autoincrement())
   userId                 Int
-  cartId                 Int             @default(0) // Default to 0 for simplified checkout (no cart)
+  cartId                 Int? // Optional for direct bookings (no cart)
   provider               PaymentProvider
   providerOrderId        String          @unique // Razorpay order ID
   providerPaymentId      String? // Razorpay payment ID
@@ -1037,6 +1056,8 @@ enum ItemTypeForEvent {
 enum EventServiceStatus {
   PENDING
   CONFIRMED
+  IN_PROGRESS
+  COMPLETED
   CANCELLED
 }
 
@@ -1053,6 +1074,8 @@ enum NotificationType {
   SERVICE_REJECTED
   EVENT_REMINDER
   EVENT_CANCELLED
+  KYC_APPROVED
+  KYC_REJECTED
   SYSTEM_ALERT
   OTHER
 }

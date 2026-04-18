@@ -18,7 +18,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { FileFieldsInterceptor, FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage, memoryStorage } from 'multer';
+import { memoryStorage } from 'multer';
 import { extname } from 'path';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -99,6 +99,74 @@ export class VenuesController {
     return venues;
   }
 
+  /// Update my venue profile (Frontend Alias for PATCH /venues/me)
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENUE_OWNER)
+  @Patch('me')
+  async updateMyVenueProfile(@Req() req: any, @Body() dto: Partial<CreateVenueDto>, @UploadedFiles() files: any) {
+    return this.updateMyVenue(req, dto, files);
+  }
+
+  /// Get my venue availability (Frontend Alias for GET /venues/me/availability)
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENUE_OWNER)
+  @Get('me/availability')
+  async getMyVenueAvailability(@Req() req: any) {
+    const venues = await this.venuesService.getVenuesByOwner(req.user.userId);
+    if (!venues || venues.length === 0) return [];
+    
+    return this.prisma.availabilitySlot.findMany({
+      where: { venueId: { in: venues.map(v => v.id) } },
+      orderBy: { date: 'asc' },
+    });
+  }
+
+  /// Get my venue earnings (Frontend Alias for GET /venues/me/earnings)
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENUE_OWNER)
+  @Get('me/earnings')
+  async getMyVenueEarnings(@Req() req: any) {
+    const userId = req.user.userId;
+    const venues = await this.prisma.venue.findMany({ where: { ownerId: userId }, select: { id: true } });
+    if (venues.length === 0) return { totalEarnings: 0, currency: 'INR' };
+
+    const venueIds = venues.map(v => v.id);
+    const payments = await this.prisma.payment.findMany({
+      where: { cart: { items: { some: { venueId: { in: venueIds } } } }, status: 'CAPTURED' },
+      include: { cart: { include: { items: true } } },
+    });
+
+    let totalEarnings = 0;
+    payments.forEach((p: any) => {
+      const items = p.cart.items.filter((i: any) => venueIds.includes(i.venueId));
+      totalEarnings += items.reduce((sum, i) => sum + (Number(i.unitPrice) || 0) * (i.quantity || 1), 0);
+    });
+
+    return { totalEarnings, netEarnings: totalEarnings * 0.95, platformFees: totalEarnings * 0.05, currency: 'INR' };
+  }
+
+  /// Get my venue reviews (Frontend Alias for GET /venues/me/reviews)
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENUE_OWNER)
+  @Get('me/reviews')
+  async getMyVenueReviews(@Req() req: any) {
+    // This is essentially what VenueReviewsController.getMyReviews does
+    // Redirect logic would be better but simple fetch is safer for connectivity check
+    const venues = await this.prisma.venue.findMany({ where: { ownerId: req.user.userId }, select: { id: true } });
+    if (venues.length === 0) return { reviews: [] };
+    
+    const reviews = await this.prisma.review.findMany({
+      where: { venueId: { in: venues.map(v => v.id) } },
+      include: { user: { select: { name: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+    return { reviews };
+  }
+
   /// Get venue owner stats (frontend expects /venues/owner/stats)
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -117,8 +185,58 @@ export class VenuesController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.VENUE_OWNER)
   @Post()
-  createVenue(@Req() req: any, @Body() dto: CreateVenueDto) {
-    return this.venuesService.createVenue(dto, req.user.userId);
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'venueImages', maxCount: 10 },
+      { name: 'kycDocFiles', maxCount: 5 },
+      { name: 'venueGovtCertificateFiles', maxCount: 5 },
+    ], {
+      storage: memoryStorage(),
+    }),
+  )
+  async createVenue(
+    @Req() req: any, 
+    @Body() dto: CreateVenueDto,
+    @UploadedFiles() files: { venueImages?: Express.Multer.File[], kycDocFiles?: Express.Multer.File[], venueGovtCertificateFiles?: Express.Multer.File[] },
+  ) {
+    const ownerId = req.user.userId;
+    
+    // Helper to parse Base64 or existing URLs from DTO
+    const parseBodyUrls = (field: any): string[] => {
+      if (!field) return [];
+      if (Array.isArray(field)) return field;
+      if (typeof field === 'string') {
+        try {
+          return JSON.parse(field);
+        } catch {
+          return field.split(',').map((u: string) => u.trim()).filter((u: string) => u);
+        }
+      }
+      return [];
+    };
+
+    // 1. Process Venue Images
+    const uploadedImageUrls = files?.venueImages
+      ? await Promise.all(files.venueImages.map(f => this.storageService.storeFile(f)))
+      : [];
+    const bodyImageUrls = parseBodyUrls((dto as any).venueImages);
+    const finalImageUrls = [...new Set([...bodyImageUrls, ...uploadedImageUrls])];
+
+    // 2. Process KYC Documents
+    const uploadedKycUrls = files?.kycDocFiles
+      ? await Promise.all(files.kycDocFiles.map(f => this.storageService.storeFile(f)))
+      : [];
+    const bodyKycUrls = parseBodyUrls((dto as any).kycDocFiles);
+    const finalKycUrls = [...new Set([...bodyKycUrls, ...uploadedKycUrls])];
+
+    // 3. Process Government Certificates
+    const uploadedGovtUrls = files?.venueGovtCertificateFiles
+      ? await Promise.all(files.venueGovtCertificateFiles.map(f => this.storageService.storeFile(f)))
+      : [];
+    const bodyGovtUrls = parseBodyUrls((dto as any).venueGovtCertificateFiles);
+    const finalGovtUrls = [...new Set([...bodyGovtUrls, ...uploadedGovtUrls])];
+
+    return this.venuesService.createVenue(dto, ownerId, finalImageUrls, finalKycUrls, finalGovtUrls);
   }
 
   /// 🏢 VENUE OWNER → Update my venue (no ID param, uses JWT)
@@ -144,37 +262,42 @@ export class VenuesController {
     const venues = await this.venuesService.getVenuesByOwner(ownerId);
     if (!venues || venues.length === 0) throw new NotFoundException('No venue found for this owner');
 
-    // Store uploaded files in database as base64 data URLs
+    // Helper to parse Base64 or existing URLs from DTO
+    const parseBodyUrls = (field: any): string[] => {
+      if (!field) return [];
+      if (Array.isArray(field)) return field;
+      if (typeof field === 'string') {
+        try {
+          return JSON.parse(field);
+        } catch {
+          return field.split(',').map((u: string) => u.trim()).filter((u: string) => u);
+        }
+      }
+      return [];
+    };
+
+    // 1. Process Venue Images
     const uploadedImageUrls = files?.venueImages
       ? await Promise.all(files.venueImages.map(f => this.storageService.storeFile(f)))
       : [];
+    const bodyImageUrls = parseBodyUrls((dto as any).venueImages);
+    const finalImageUrls = [...new Set([...bodyImageUrls, ...uploadedImageUrls])];
 
-    // Parse pre-uploaded URLs - handle both string (from FormData) and array formats
-    let preUploadedUrls: string[] = [];
-    const rawVenueImages = (dto as any).venueImages;
-    if (rawVenueImages) {
-      if (Array.isArray(rawVenueImages)) {
-        preUploadedUrls = rawVenueImages;
-      } else if (typeof rawVenueImages === 'string') {
-        try {
-          preUploadedUrls = JSON.parse(rawVenueImages);
-        } catch {
-          preUploadedUrls = rawVenueImages.split(',').map((u: string) => u.trim()).filter((u: string) => u);
-        }
-      }
-    }
-
-    const venueImageUrls = [...preUploadedUrls, ...uploadedImageUrls];
-
-    // Store KYC docs in database as base64
-    const kycDocUrls = files?.kycDocFiles
+    // 2. Process KYC Documents
+    const uploadedKycUrls = files?.kycDocFiles
       ? await Promise.all(files.kycDocFiles.map(f => this.storageService.storeFile(f)))
       : [];
-    const govtCertUrls = files?.venueGovtCertificateFiles
+    const bodyKycUrls = parseBodyUrls((dto as any).kycDocFiles);
+    const finalKycUrls = [...new Set([...bodyKycUrls, ...uploadedKycUrls])];
+
+    // 3. Process Government Certificates
+    const uploadedGovtUrls = files?.venueGovtCertificateFiles
       ? await Promise.all(files.venueGovtCertificateFiles.map(f => this.storageService.storeFile(f)))
       : [];
+    const bodyGovtUrls = parseBodyUrls((dto as any).venueGovtCertificateFiles);
+    const finalGovtUrls = [...new Set([...bodyGovtUrls, ...uploadedGovtUrls])];
 
-    return this.venuesService.updateVenue(venues[0].id, dto, ownerId, venueImageUrls, kycDocUrls, govtCertUrls);
+    return this.venuesService.updateVenue(venues[0].id, dto, ownerId, finalImageUrls, finalKycUrls, finalGovtUrls);
   }
 
   // ============================================
@@ -228,7 +351,7 @@ export class VenuesController {
   @Get('me')
   async getMyVenue(@Req() req: any) {
     const venues = await this.venuesService.getVenuesByOwner(req.user.userId);
-    return venues.length > 0 ? venues[0] : null;
+    return venues;
   }
 
   /// 🏢 VENUE OWNER → Get my bookings
@@ -245,7 +368,7 @@ export class VenuesController {
       where: {
         slot: {
           venueId: { in: venueIds },
-        },
+        } as any,
       },
       include: {
         slot: {
@@ -264,7 +387,18 @@ export class VenuesController {
       },
       orderBy: { createdAt: 'desc' },
     });
-    return bookings;
+    // Calculate totalAmount dynamically if missing based on timeSlot using Prisma JSON enums or mapped strings
+    return bookings.map(b => {
+      const slot = (b as any).slot;
+      const v = slot?.venue;
+      let amount = 0;
+      if (v) {
+        if (slot?.timeSlot === 'morning') amount = v.basePriceMorning || v.basePriceFullDay || 0;
+        else if (slot?.timeSlot === 'evening') amount = v.basePriceEvening || v.basePriceFullDay || 0;
+        else amount = v.basePriceFullDay || v.basePriceEvening || 0;
+      }
+      return { ...b, totalAmount: amount };
+    });
   }
 
   /// 🏢 VENUE OWNER → Update booking status
@@ -307,7 +441,8 @@ export class VenuesController {
     }
 
     // Verify booking belongs to this venue owner
-    if (booking.slot.entityType !== 'VENUE' || !venueIds.includes(booking.slot.venueId)) {
+    const slot = (booking as any).slot;
+    if (!slot || slot.entityType !== 'VENUE' || !venueIds.includes(slot.venueId)) {
       throw new ForbiddenException('This booking does not belong to your venues');
     }
 
@@ -361,7 +496,7 @@ export class VenuesController {
     const availability = await this.prisma.availabilitySlot.findMany({
       where: {
         venueId: { in: venueIds },
-      },
+      } as any,
       orderBy: { date: 'asc' },
     });
     return availability;
@@ -376,15 +511,20 @@ export class VenuesController {
     const venues = await this.venuesService.getVenuesByOwner(req.user.userId);
     const venueIds = venues.map(v => v.id);
     
-    // Get booking stats through AvailabilitySlot
-    const totalBookings = await this.prisma.booking.count({
+    // Get booking stats by status
+    const bookings = await this.prisma.booking.findMany({
       where: {
         slot: {
           venueId: { in: venueIds },
-        },
+        } as any,
       },
+      select: { status: true },
     });
-    
+
+    const totalBookings = bookings.length;
+    const confirmedBookings = bookings.filter(b => b.status === "CONFIRMED").length;
+    const completedBookings = bookings.filter(b => b.status === "COMPLETED").length;
+
     // Get revenue from payments (through cart)
     const revenue = await this.prisma.payment.aggregate({
       where: {
@@ -403,9 +543,9 @@ export class VenuesController {
     return {
       totalVenues: venues.length,
       totalBookings,
-      confirmedBookings: totalBookings, // Would need Booking.status field
-      completedBookings: 0, // Would need Booking.status field
-      totalRevenue: revenue._sum.amount || 0,
+      confirmedBookings,
+      completedBookings,
+      totalRevenue: revenue._sum.amount ? revenue._sum.amount / 100 : 0, // Convert paise to rupees
       currency: 'INR',
     };
   }
@@ -434,12 +574,21 @@ export class VenuesController {
     }
     const venueIds = venues.map(v => v.id);
     const bookings = await this.prisma.booking.findMany({
-      where: { slot: { venueId: { in: venueIds } } },
-      include: { slot: true },
+      where: { slot: { venueId: { in: venueIds } } as any },
+      include: { slot: { include: { venue: true } } },
     });
-    const totalRevenue = bookings.reduce((sum, b: any) => sum + ((b as any).totalAmount || 0), 0);
+
+    const calculateBookingAmount = (b: any) => {
+      const v = b.slot?.venue;
+      if (!v) return 0;
+      if (b.slot?.timeSlot === 'morning') return v.basePriceMorning || v.basePriceFullDay || 0;
+      if (b.slot?.timeSlot === 'evening') return v.basePriceEvening || v.basePriceFullDay || 0;
+      return v.basePriceFullDay || v.basePriceEvening || 0;
+    };
+
+    const totalRevenue = bookings.reduce((sum, b: any) => sum + calculateBookingAmount(b), 0);
     const completedBookings = bookings.filter(b => b.status === 'COMPLETED');
-    const completedRevenue = completedBookings.reduce((sum, b: any) => sum + ((b as any).totalAmount || 0), 0);
+    const completedRevenue = completedBookings.reduce((sum, b: any) => sum + calculateBookingAmount(b), 0);
     const confirmedBookings = bookings.filter(b => b.status === 'CONFIRMED');
     const pendingBookings = bookings.filter(b => b.status === 'PENDING');
     const cancelledBookings = bookings.filter(b => b.status === 'CANCELLED');
@@ -455,7 +604,7 @@ export class VenuesController {
         const bd = new Date(b.createdAt);
         return bd >= monthStart && bd <= monthEnd;
       });
-      const monthRevenue = monthBookings.reduce((sum, b: any) => sum + ((b as any).totalAmount || 0), 0);
+      const monthRevenue = monthBookings.reduce((sum, b: any) => sum + calculateBookingAmount(b), 0);
       monthlyRevenue.push({
         month: d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
         revenue: monthRevenue,
@@ -466,15 +615,15 @@ export class VenuesController {
 
     // Venue performance
     const venuePerformance: any[] = await Promise.all(venues.map(async v => {
-      const vBookings = bookings.filter(b => (b.slot as any)?.venueId === v.id);
-      const vRevenue = vBookings.reduce((sum, b: any) => sum + ((b as any).totalAmount || 0), 0);
+      const vBookings = bookings.filter(b => (b as any).slot?.venueId === v.id);
+      const vRevenue = vBookings.reduce((sum, b: any) => sum + calculateBookingAmount(b), 0);
       return { id: v.id, name: v.name, bookings: vBookings.length, revenue: vRevenue };
     }));
 
     // Event type breakdown - use venue type as fallback since slot doesn't have eventType
     const eventTypeMap: Record<string, number> = {};
     bookings.forEach(b => {
-      const type = (b.slot as any)?.eventType || 'VENUE_BOOKING';
+      const type = (b as any).slot?.eventType || 'VENUE_BOOKING';
       eventTypeMap[type] = (eventTypeMap[type] || 0) + 1;
     });
     const eventTypeBreakdown = Object.entries(eventTypeMap).map(([type, count]) => ({ type, count }));
@@ -516,17 +665,26 @@ export class VenuesController {
     }
     const venueIds = venues.map(v => v.id);
     const bookings = await this.prisma.booking.findMany({
-      where: { slot: { venueId: { in: venueIds } }, status: { in: ['COMPLETED', 'CONFIRMED'] } },
-      include: { slot: true },
+      where: { slot: { venueId: { in: venueIds } } as any, status: { in: ['COMPLETED', 'CONFIRMED'] } },
+      include: { slot: { include: { venue: true } } },
     });
-    const totalGrossRevenue = bookings.reduce((sum, b: any) => sum + ((b as any).totalAmount || 0), 0);
+
+    const calculateBookingAmount = (b: any) => {
+      const v = b.slot?.venue;
+      if (!v) return 0;
+      if (b.slot?.timeSlot === 'morning') return v.basePriceMorning || v.basePriceFullDay || 0;
+      if (b.slot?.timeSlot === 'evening') return v.basePriceEvening || v.basePriceFullDay || 0;
+      return v.basePriceFullDay || v.basePriceEvening || 0;
+    };
+
+    const totalGrossRevenue = bookings.reduce((sum, b: any) => sum + calculateBookingAmount(b), 0);
     const totalPlatformFee = Math.round(totalGrossRevenue * 0.05);
     const totalNetRevenue = totalGrossRevenue - totalPlatformFee;
 
     // By venue breakdown
     const breakdown = venues.map(v => {
-      const vBookings = bookings.filter(b => (b.slot as any)?.venueId === v.id);
-      const vRevenue = vBookings.reduce((sum, b: any) => sum + ((b as any).totalAmount || 0), 0);
+      const vBookings = bookings.filter(b => (b as any).slot?.venueId === v.id);
+      const vRevenue = vBookings.reduce((sum, b: any) => sum + calculateBookingAmount(b), 0);
       return { venueId: v.id, venueName: v.name, grossRevenue: vRevenue, platformFee: Math.round(vRevenue * 0.05), netRevenue: vRevenue - Math.round(vRevenue * 0.05), bookings: vBookings.length };
     });
 
@@ -538,7 +696,7 @@ export class VenuesController {
       const monthStart = new Date(d.getFullYear(), d.getMonth(), 1);
       const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
       const monthBookings = bookings.filter(b => { const bd = new Date(b.createdAt); return bd >= monthStart && bd <= monthEnd; });
-      const monthRevenue = monthBookings.reduce((sum, b: any) => sum + ((b as any).totalAmount || 0), 0);
+      const monthRevenue = monthBookings.reduce((sum, b: any) => sum + calculateBookingAmount(b), 0);
       trends.push({ month: d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }), revenue: monthRevenue, bookings: monthBookings.length });
     }
 
@@ -559,7 +717,7 @@ export class VenuesController {
     const venueIds = venues.map(v => v.id);
     const totalSlots = venueIds.length * 3 * 30; // 3 slots/day * 30 days
     const bookings = await this.prisma.booking.findMany({
-      where: { slot: { venueId: { in: venueIds } }, status: { in: ['COMPLETED', 'CONFIRMED'] } },
+      where: { slot: { venueId: { in: venueIds } } as any, status: { in: ['COMPLETED', 'CONFIRMED'] } },
     });
     const bookedSlots = bookings.length;
     const occupancyRate = totalSlots > 0 ? Math.round((bookedSlots / totalSlots) * 10000) / 100 : 0;
@@ -579,15 +737,24 @@ export class VenuesController {
     }
     const venueIds = venues.map(v => v.id);
     const bookings = await this.prisma.booking.findMany({
-      where: { slot: { venueId: { in: venueIds } } },
-      include: { slot: true },
+      where: { slot: { venueId: { in: venueIds } } as any },
+      include: { slot: { include: { venue: true } } },
     });
+
+    const calculateBookingAmount = (b: any) => {
+      const v = b.slot?.venue;
+      if (!v) return 0;
+      if (b.slot?.timeSlot === 'morning') return v.basePriceMorning || v.basePriceFullDay || 0;
+      if (b.slot?.timeSlot === 'evening') return v.basePriceEvening || v.basePriceFullDay || 0;
+      return v.basePriceFullDay || v.basePriceEvening || 0;
+    };
+
     const eventTypeMap: Record<string, { count: number; revenue: number }> = {};
     bookings.forEach(b => {
-      const type = (b.slot as any)?.eventType || 'VENUE_BOOKING';
+      const type = (b as any).slot?.eventType || 'VENUE_BOOKING';
       if (!eventTypeMap[type]) eventTypeMap[type] = { count: 0, revenue: 0 };
       eventTypeMap[type].count++;
-      eventTypeMap[type].revenue += (b as any).totalAmount || 0;
+      eventTypeMap[type].revenue += calculateBookingAmount(b);
     });
     const eventTypes = Object.entries(eventTypeMap).map(([type, data]) => ({ type, ...data }));
     return { eventTypes, currency: 'INR' };
@@ -665,7 +832,7 @@ export class VenuesController {
     let imageUrl: string;
 
     if (file) {
-      imageUrl = `/uploads/${file.filename}`;
+      imageUrl = await this.storageService.storeFile(file);
     } else if (body.imageUrl) {
       imageUrl = body.imageUrl;
     } else {
@@ -983,30 +1150,57 @@ export class VenuesController {
   @ApiParam({ name: 'id', type: Number, description: 'Venue ID' })
   @UseInterceptors(
     FileFieldsInterceptor([
-      { name: 'venueImages', maxCount: 5 },
+      { name: 'venueImages', maxCount: 10 },
       { name: 'kycDocFiles', maxCount: 5 },
       { name: 'venueGovtCertificateFiles', maxCount: 5 },
     ], {
-      storage: diskStorage({
-        destination: './uploads',
-        filename: (req, file, callback) => {
-          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-          const ext = extname(file.originalname);
-          callback(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
-        },
-      }),
+      storage: memoryStorage(),
     }),
   )
-  updateVenue(
+  async updateVenue(
     @Param('id', ParseIntPipe) id: number,
     @Req() req: any,
     @Body() dto: Partial<CreateVenueDto>,
     @UploadedFiles() files: { venueImages?: Express.Multer.File[], kycDocFiles?: Express.Multer.File[], venueGovtCertificateFiles?: Express.Multer.File[] },
   ) {
-    const venueImageUrls = files?.venueImages?.map(f => `/uploads/${f.filename}`) || [];
-    const kycDocUrls = files?.kycDocFiles?.map(f => `/uploads/${f.filename}`) || [];
-    const govtCertUrls = files?.venueGovtCertificateFiles?.map(f => `/uploads/${f.filename}`) || [];
-    return this.venuesService.updateVenue(id, dto, req.user.userId, venueImageUrls, kycDocUrls, govtCertUrls);
+    const ownerId = req.user.userId || req.user.id;
+
+    // Helper to parse Base64 or existing URLs from DTO
+    const parseBodyUrls = (field: any): string[] => {
+      if (!field) return [];
+      if (Array.isArray(field)) return field;
+      if (typeof field === 'string') {
+        try {
+          return JSON.parse(field);
+        } catch {
+          return field.split(',').map((u: string) => u.trim()).filter((u: string) => u);
+        }
+      }
+      return [];
+    };
+
+    // 1. Process Venue Images
+    const uploadedImageUrls = files?.venueImages
+      ? await Promise.all(files.venueImages.map(f => this.storageService.storeFile(f)))
+      : [];
+    const bodyImageUrls = parseBodyUrls((dto as any).venueImages);
+    const finalImageUrls = [...new Set([...bodyImageUrls, ...uploadedImageUrls])];
+
+    // 2. Process KYC Documents
+    const uploadedKycUrls = files?.kycDocFiles
+      ? await Promise.all(files.kycDocFiles.map(f => this.storageService.storeFile(f)))
+      : [];
+    const bodyKycUrls = parseBodyUrls((dto as any).kycDocFiles);
+    const finalKycUrls = [...new Set([...bodyKycUrls, ...uploadedKycUrls])];
+
+    // 3. Process Government Certificates
+    const uploadedGovtUrls = files?.venueGovtCertificateFiles
+      ? await Promise.all(files.venueGovtCertificateFiles.map(f => this.storageService.storeFile(f)))
+      : [];
+    const bodyGovtUrls = parseBodyUrls((dto as any).venueGovtCertificateFiles);
+    const finalGovtUrls = [...new Set([...bodyGovtUrls, ...uploadedGovtUrls])];
+
+    return this.venuesService.updateVenue(id, dto, ownerId, finalImageUrls, finalKycUrls, finalGovtUrls);
   }
 
   /// 🏢 VENUE OWNER → Delete venue (ownership guard)
@@ -1115,9 +1309,19 @@ export class VenuesController {
   })
   async unblockSlot(
     @Req() req: any,
-    @Body() body: { date: string; timeSlot: string; venueId?: number },
+    @Query('date') date: string,
+    @Query('slot') slot: string,
+    @Query('venueId') venueId?: number,
   ) {
-    await this.venuesService.unblockTimeSlot(req.user.userId, body.date, body.timeSlot);
+    if (!date || isNaN(new Date(date).getTime())) {
+      throw new BadRequestException('Invalid date format');
+    }
+    
+    // Map 'slot' from frontend to 'timeSlot' logic if needed, 
+    // but the service handles the string. Ensure it's not undefined.
+    const timeSlot = slot || 'FULL_DAY';
+    
+    await this.venuesService.unblockTimeSlot(req.user.userId, date, timeSlot);
     return { success: true, message: 'Slot unblocked successfully' };
   }
 

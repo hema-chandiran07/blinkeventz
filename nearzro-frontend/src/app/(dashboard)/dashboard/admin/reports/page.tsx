@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,21 +29,15 @@ export default function ReportsPage() {
   const [vendorStats, setVendorStats] = useState<string>("0 Active Vendors");
   const [exporting, setExporting] = useState(false);
 
-  useEffect(() => {
-    loadAllStats();
-  }, []);
-
-  // Merged single effect: fetches all data once, derives all stats
-  const loadAllStats = async () => {
+  const loadAllStats = useCallback(async (signal?: AbortSignal) => {
     try {
       setLoading(true);
-      // Fetch all data in a single Promise.all call
       const [usersRes, venuesRes, vendorsRes, eventsRes, paymentsRes] = await Promise.all([
-        api.get("/users").catch(() => ({ data: [] })),
-        api.get("/venues").catch(() => ({ data: { data: [] } })),
-        api.get("/vendors").catch(() => ({ data: [] })),
-        api.get("/events").catch(() => ({ data: { data: [], total: 0 } })),
-        api.get("/payments").catch(() => ({ data: { payments: [], pagination: { total: 0 } } })),
+        api.get("/users", { signal }).catch(() => ({ data: [] })),
+        api.get("/venues", { signal }).catch(() => ({ data: { data: [] } })),
+        api.get("/vendors", { signal }).catch(() => ({ data: [] })),
+        api.get("/events", { signal }).catch(() => ({ data: { data: [], total: 0 } })),
+        api.get("/payments", { signal }).catch(() => ({ data: { payments: [], pagination: { total: 0 } } })),
       ]);
 
       const users = usersRes.data || [];
@@ -52,7 +46,6 @@ export default function ReportsPage() {
       const events = eventsRes.data?.data || eventsRes.data || [];
       const payments = paymentsRes.data?.payments || paymentsRes.data || [];
 
-      // Derive report stats
       const totalRevenue = payments.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
       const confirmedEvents = events.filter((e: any) => e.status === "CONFIRMED" || e.status === "COMPLETED").length;
       const successCount = payments.filter((p: any) => p.status === "SUCCESS" || p.status === "CAPTURED").length;
@@ -64,32 +57,28 @@ export default function ReportsPage() {
         userGrowth: 0,
         totalBookings: confirmedEvents,
         bookingsGrowth: 0,
-        successRate: payments.length > 0
-          ? (successCount / payments.length) * 100
-          : 0,
+        successRate: payments.length > 0 ? (successCount / payments.length) * 100 : 0,
       });
 
-      // Derive venue/vendor stats from the same data
       setVenueStats(`${venues.filter((v: any) => v.status === "ACTIVE").length} Active Venues`);
       setVendorStats(`${vendors.filter((v: any) => v.verificationStatus === "VERIFIED").length} Active Vendors`);
     } catch (error: any) {
+      if (error?.name === 'AbortError' || error?.code === 'ERR_CANCELED') return;
       console.error("Failed to load report stats:", error);
-      setStats({
-        monthlyRevenue: 0,
-        revenueGrowth: 0,
-        newUsers: 0,
-        userGrowth: 0,
-        totalBookings: 0,
-        bookingsGrowth: 0,
-        successRate: 0,
-      });
+      setStats({ monthlyRevenue: 0, revenueGrowth: 0, newUsers: 0, userGrowth: 0, totalBookings: 0, bookingsGrowth: 0, successRate: 0 });
       setVenueStats("0 Active Venues");
       setVendorStats("0 Active Vendors");
       toast.error("Failed to load report statistics");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    loadAllStats(controller.signal);
+    return () => controller.abort();
+  }, [loadAllStats]);
 
   const formatCurrency = (amount: number) => {
     if (amount >= 10000000) return `₹${(amount / 10000000).toFixed(2)}Cr`;
@@ -198,10 +187,10 @@ export default function ReportsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="flex items-center justify-center min-h-[60vh] bg-zinc-950">
         <div className="text-center">
-          <div className="h-12 w-12 rounded-full border-4 border-neutral-200 border-t-black animate-spin mx-auto mb-4" />
-          <p className="text-black">Loading reports...</p>
+          <div className="h-12 w-12 rounded-full border-4 border-zinc-800 border-t-zinc-400 animate-spin mx-auto mb-4" />
+          <p className="text-zinc-400">Loading reports...</p>
         </div>
       </div>
     );
@@ -212,15 +201,15 @@ export default function ReportsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-black">Reports & Analytics</h1>
-          <p className="text-neutral-600">Comprehensive business intelligence and insights</p>
+          <h1 className="text-3xl font-bold text-zinc-100">Reports &amp; Analytics</h1>
+          <p className="text-zinc-400">Comprehensive business intelligence and insights</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="border-black" onClick={loadAllStats}>
+          <Button variant="outline" className="border-zinc-700 text-zinc-300 hover:bg-zinc-800" onClick={() => loadAllStats()}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
-          <Button variant="outline" className="border-black" onClick={handleExportAll} disabled={exporting}>
+          <Button variant="outline" className="border-zinc-700 text-zinc-300 hover:bg-zinc-800" onClick={handleExportAll} disabled={exporting}>
             <Download className="h-4 w-4 mr-2" />
             {exporting ? "Exporting..." : "Export All Reports"}
           </Button>
@@ -229,85 +218,85 @@ export default function ReportsPage() {
 
       {/* Quick Stats */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card className="border-2 border-emerald-600">
+        <Card className="border-zinc-800 bg-zinc-900/50">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-600">Monthly Revenue</p>
-                <p className="text-2xl font-bold text-emerald-600 mt-1">{formatCurrency(stats?.monthlyRevenue || 0)}</p>
+                <p className="text-sm font-medium text-zinc-400">Monthly Revenue</p>
+                <p className="text-2xl font-bold text-emerald-400 mt-1">{formatCurrency(stats?.monthlyRevenue || 0)}</p>
                 {stats?.revenueGrowth !== undefined && stats.revenueGrowth !== 0 ? (
-                  <p className="text-xs text-emerald-600 mt-2 flex items-center gap-1">
+                  <p className="text-xs text-emerald-400 mt-2 flex items-center gap-1">
                     <TrendingUp className="h-3 w-3" />
                     +{stats.revenueGrowth}% vs last month
                   </p>
                 ) : (
-                  <p className="text-xs text-neutral-500 mt-2">No historical data</p>
+                  <p className="text-xs text-zinc-500 mt-2">No historical data</p>
                 )}
               </div>
-              <div className="p-3 rounded-full bg-emerald-600">
-                <DollarSign className="h-6 w-6 text-white" />
+              <div className="p-3 rounded-full bg-emerald-950/30">
+                <DollarSign className="h-6 w-6 text-emerald-400" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-2 border-blue-600">
+        <Card className="border-zinc-800 bg-zinc-900/50">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-600">Total Users</p>
-                <p className="text-2xl font-bold text-blue-600 mt-1">{stats?.newUsers.toLocaleString() || 0}</p>
+                <p className="text-sm font-medium text-zinc-400">Total Users</p>
+                <p className="text-2xl font-bold text-blue-400 mt-1">{stats?.newUsers.toLocaleString() || 0}</p>
                 {stats?.userGrowth !== undefined && stats.userGrowth !== 0 ? (
-                  <p className="text-xs text-blue-600 mt-2 flex items-center gap-1">
+                  <p className="text-xs text-blue-400 mt-2 flex items-center gap-1">
                     <TrendingUp className="h-3 w-3" />
                     +{stats.userGrowth}% vs last month
                   </p>
                 ) : (
-                  <p className="text-xs text-neutral-500 mt-2">No historical data</p>
+                  <p className="text-xs text-zinc-500 mt-2">No historical data</p>
                 )}
               </div>
-              <div className="p-3 rounded-full bg-blue-600">
-                <Users className="h-6 w-6 text-white" />
+              <div className="p-3 rounded-full bg-blue-950/30">
+                <Users className="h-6 w-6 text-blue-400" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-2 border-orange-600">
+        <Card className="border-zinc-800 bg-zinc-900/50">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-600">Confirmed Bookings</p>
-                <p className="text-2xl font-bold text-orange-600 mt-1">{stats?.totalBookings || 0}</p>
+                <p className="text-sm font-medium text-zinc-400">Confirmed Bookings</p>
+                <p className="text-2xl font-bold text-amber-400 mt-1">{stats?.totalBookings || 0}</p>
                 {stats?.bookingsGrowth !== undefined && stats.bookingsGrowth !== 0 ? (
-                  <p className="text-xs text-orange-600 mt-2 flex items-center gap-1">
+                  <p className="text-xs text-amber-400 mt-2 flex items-center gap-1">
                     <TrendingUp className="h-3 w-3" />
                     +{stats.bookingsGrowth}% vs last month
                   </p>
                 ) : (
-                  <p className="text-xs text-neutral-500 mt-2">No historical data</p>
+                  <p className="text-xs text-zinc-500 mt-2">No historical data</p>
                 )}
               </div>
-              <div className="p-3 rounded-full bg-orange-600">
-                <Calendar className="h-6 w-6 text-white" />
+              <div className="p-3 rounded-full bg-amber-950/30">
+                <Calendar className="h-6 w-6 text-amber-400" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-2 border-purple-600">
+        <Card className="border-zinc-800 bg-zinc-900/50">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-600">Payment Success Rate</p>
-                <p className="text-2xl font-bold text-purple-600 mt-1">{stats?.successRate.toFixed(1) || 0}%</p>
-                <p className="text-xs text-purple-600 mt-2 flex items-center gap-1">
+                <p className="text-sm font-medium text-zinc-400">Payment Success Rate</p>
+                <p className="text-2xl font-bold text-purple-400 mt-1">{stats?.successRate.toFixed(1) || 0}%</p>
+                <p className="text-xs text-purple-400 mt-2 flex items-center gap-1">
                   <TrendingUp className="h-3 w-3" />
                   Platform average
                 </p>
               </div>
-              <div className="p-3 rounded-full bg-purple-600">
-                <BarChart3 className="h-6 w-6 text-white" />
+              <div className="p-3 rounded-full bg-purple-950/30">
+                <BarChart3 className="h-6 w-6 text-purple-400" />
               </div>
             </div>
           </CardContent>
@@ -321,23 +310,23 @@ export default function ReportsPage() {
           return (
             <Card
               key={index}
-              className="border-2 border-black hover:shadow-lg transition-shadow cursor-pointer"
+              className="border-zinc-800 bg-zinc-900/50 hover:border-zinc-700 transition-all duration-200 cursor-pointer"
               onClick={() => router.push(report.href)}
             >
               <CardContent className="p-6">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-4">
-                    <div className={`p-4 rounded-lg ${report.color}`}>
+                    <div className={`p-4 rounded-xl ${report.color}`}>
                       <Icon className="h-6 w-6 text-white" />
                     </div>
                     <div>
-                      <h3 className="text-lg font-bold text-black">{report.title}</h3>
-                      <p className="text-sm text-neutral-600 mt-1">{report.description}</p>
-                      <p className="text-sm font-semibold text-black mt-2">{report.stats}</p>
+                      <h3 className="text-lg font-bold text-zinc-100">{report.title}</h3>
+                      <p className="text-sm text-zinc-400 mt-1">{report.description}</p>
+                      <p className="text-sm font-semibold text-zinc-300 mt-2">{report.stats}</p>
                     </div>
                   </div>
                   <Button variant="ghost" size="sm">
-                    <ArrowRight className="h-4 w-4 text-black" />
+                    <ArrowRight className="h-4 w-4 text-zinc-400" />
                   </Button>
                 </div>
               </CardContent>
@@ -347,47 +336,47 @@ export default function ReportsPage() {
       </div>
 
       {/* Info Card */}
-      <Card className="border-2 border-black">
+      <Card className="border-zinc-800 bg-zinc-900/50">
         <CardHeader>
-          <CardTitle className="text-black">Platform Reports Overview</CardTitle>
+          <CardTitle className="text-zinc-100">Platform Reports Overview</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid md:grid-cols-3 gap-6">
             <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-emerald-600" />
-                <span className="text-sm font-semibold text-black">Financial Reports</span>
+                <div className="h-2 w-2 rounded-full bg-emerald-500" />
+                <span className="text-sm font-semibold text-zinc-100">Financial Reports</span>
               </div>
-              <p className="text-sm text-neutral-600">
+              <p className="text-sm text-zinc-400">
                 Track revenue, payments, and financial performance across all events and bookings.
               </p>
-              <Button variant="link" className="p-0 h-auto text-black underline" onClick={() => router.push("/dashboard/admin/reports/revenue")}>
+              <Button variant="link" className="p-0 h-auto text-zinc-300 hover:text-zinc-100 underline" onClick={() => router.push("/dashboard/admin/reports/revenue")}>
                 View revenue reports
               </Button>
             </div>
 
             <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-blue-600" />
-                <span className="text-sm font-semibold text-black">User Analytics</span>
+                <div className="h-2 w-2 rounded-full bg-blue-500" />
+                <span className="text-sm font-semibold text-zinc-100">User Analytics</span>
               </div>
-              <p className="text-sm text-neutral-600">
+              <p className="text-sm text-zinc-400">
                 Monitor user growth, engagement, and retention across all customer segments.
               </p>
-              <Button variant="link" className="p-0 h-auto text-black underline" onClick={() => router.push("/dashboard/admin/reports/users")}>
+              <Button variant="link" className="p-0 h-auto text-zinc-300 hover:text-zinc-100 underline" onClick={() => router.push("/dashboard/admin/reports/users")}>
                 View user reports
               </Button>
             </div>
 
             <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-orange-600" />
-                <span className="text-sm font-semibold text-black">Performance Metrics</span>
+                <div className="h-2 w-2 rounded-full bg-amber-500" />
+                <span className="text-sm font-semibold text-zinc-100">Performance Metrics</span>
               </div>
-              <p className="text-sm text-neutral-600">
+              <p className="text-sm text-zinc-400">
                 Analyze venue and vendor performance with detailed booking and revenue metrics.
               </p>
-              <Button variant="link" className="p-0 h-auto text-black underline" onClick={() => router.push("/dashboard/admin/reports/venues")}>
+              <Button variant="link" className="p-0 h-auto text-zinc-300 hover:text-zinc-100 underline" onClick={() => router.push("/dashboard/admin/reports/venues")}>
                 View performance reports
               </Button>
             </div>

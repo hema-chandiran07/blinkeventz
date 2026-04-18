@@ -48,12 +48,17 @@ export class VendorsService {
         where: { id },
         include: {
           services: true,
+          portfolioImages: {
+            where: { isActive: true },
+            orderBy: [{ isCover: 'desc' }, { order: 'asc' }],
+          },
           user: {
             select: {
               id: true,
               name: true,
               email: true,
               phone: true,
+              image: true,
             },
           },
         },

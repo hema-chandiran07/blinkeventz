@@ -11,7 +11,7 @@ import api from "@/lib/api";
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isInitialized } = useAuth();
   const [loading, setLoading] = useState(false);
   const [notifications, setNotifications] = useState({
     email: true,
@@ -20,20 +20,46 @@ export default function SettingsPage() {
   });
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (!isAuthenticated && isInitialized) {
       router.push("/login");
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, isInitialized, router]);
+
+  // Load preferences on mount
+  useEffect(() => {
+    const loadPreferences = async () => {
+      try {
+        const response = await api.get("/notifications/preferences");
+        const prefs = response.data || [];
+        
+        // Map backend preferences to local state
+        const newPrefs = { ...notifications };
+        prefs.forEach((p: any) => {
+          if (p.channel === 'EMAIL' && p.type === 'SYSTEM_ALERT') newPrefs.email = p.enabled;
+          if (p.channel === 'SMS' && p.type === 'SYSTEM_ALERT') newPrefs.sms = p.enabled;
+          if (p.channel === 'IN_APP' && p.type === 'SYSTEM_ALERT') newPrefs.push = p.enabled;
+        });
+        setNotifications(newPrefs);
+      } catch (error) {
+        console.error("Failed to load preferences:", error);
+      }
+    };
+
+    if (isAuthenticated) {
+      loadPreferences();
+    }
+  }, [isAuthenticated]);
 
   const handleSaveNotifications = async () => {
     setLoading(true);
     try {
-      await api.patch("/notifications/preferences", {
-        email: notifications.email,
-        sms: notifications.sms,
-        push: notifications.push,
+      // Use the new global bulk update endpoint
+      await api.patch("/notifications/preferences/global", {
+        EMAIL: notifications.email,
+        SMS: notifications.sms,
+        IN_APP: notifications.push, // Mapping 'push' to 'IN_APP' for dashboard visibility
       });
-      toast.success("Notification settings saved successfully!");
+      toast.success("Notification settings synchronized across all categories!");
     } catch (error: any) {
       console.error("Failed to save notification settings:", error);
       toast.error(error?.response?.data?.message || "Failed to save settings");

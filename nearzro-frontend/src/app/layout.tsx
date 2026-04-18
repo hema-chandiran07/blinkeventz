@@ -21,7 +21,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" data-scroll-behavior="smooth">
+    <html lang="en" data-scroll-behavior="smooth" className="overflow-x-hidden">
       <head>
         {/* Razorpay Script for Payment Gateway */}
         <Script
@@ -30,7 +30,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className="font-sans antialiased"
+        className="bg-zinc-950 text-white font-sans antialiased overflow-x-hidden max-w-full"
         style={{
           fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
         }}

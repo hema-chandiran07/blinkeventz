@@ -22,7 +22,7 @@ import { DebugLiveDto } from './dto/debug-live.dto';
 import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../common/decorators/roles.decorator';
-import { Role } from '../common/enums/role.enum';
+import { Role } from '@prisma/client';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { NotificationActionDto } from './dto/notification-action.dto';
 import { Public } from '../common/decorators/public.decorator';
@@ -222,7 +222,7 @@ export class NotificationsController {
     }
 
     // Otherwise return user-specific notifications
-    return this.service.getUserNotifications(req.user.id, pageNum, limitNum, readBool);
+    return this.service.getUserNotifications(req.user.userId || req.user.id, pageNum, limitNum, readBool);
   }
 
   // ✅ Get unread count
@@ -232,7 +232,7 @@ export class NotificationsController {
   @Throttle({ default: { limit: 100, ttl: 60000 } })
   @ApiOperation({ summary: 'Get unread notification count' })
   async getUnreadCount(@Req() req: any) {
-    return this.service.getUnreadCount(req.user.id);
+    return this.service.getUnreadCount(req.user.userId || req.user.id);
   }
 
   // ✅ ALIAS: Get unread count (frontend expects /unread-count)
@@ -242,7 +242,7 @@ export class NotificationsController {
   @Throttle({ default: { limit: 100, ttl: 60000 } })
   @ApiOperation({ summary: 'Get unread notification count (alias)' })
   async getUnreadCountAlias(@Req() req: any) {
-    return this.service.getUnreadCount(req.user.id);
+    return this.service.getUnreadCount(req.user.userId || req.user.id);
   }
 
   // ============================================================================
@@ -256,7 +256,7 @@ export class NotificationsController {
   @Throttle({ default: { limit: 50, ttl: 60000 } }) // 50 requests per minute
   @ApiOperation({ summary: 'Mark notification as read' })
   async markAsRead(@Req() req: any, @Param('id') id: number) {
-    return this.service.markAsRead(id, req.user.id);
+    return this.service.markAsRead(id, req.user.userId || req.user.id);
   }
 
   // ✅ ALIAS: Mark notification as read (PATCH - for frontend compatibility)
@@ -266,7 +266,17 @@ export class NotificationsController {
   @Throttle({ default: { limit: 50, ttl: 60000 } })
   @ApiOperation({ summary: 'Mark notification as read (PATCH alias)' })
   async markAsReadPatch(@Req() req: any, @Param('id') id: number) {
-    return this.service.markAsRead(id, req.user.id);
+    return this.service.markAsRead(id, req.user.userId || req.user.id);
+  }
+
+  // ✅ Mark notification as unread
+  @ApiBearerAuth()
+  @Patch(':id/unread')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 50, ttl: 60000 } })
+  @ApiOperation({ summary: 'Mark notification as unread' })
+  async markAsUnread(@Req() req: any, @Param('id') id: number) {
+    return this.service.markAsUnread(id, req.user.userId || req.user.id);
   }
 
   // ✅ Mark all as read (POST - as per existing implementation)
@@ -276,7 +286,7 @@ export class NotificationsController {
   @Throttle({ default: { limit: 10, ttl: 60000 } }) // 10 requests per minute
   @ApiOperation({ summary: 'Mark all notifications as read' })
   async markAllAsRead(@Req() req: any) {
-    return this.service.markAllAsRead(req.user.id);
+    return this.service.markAllAsRead(req.user.userId || req.user.id);
   }
 
   // ✅ ALIAS: Mark all as read (PATCH - for frontend compatibility)
@@ -286,7 +296,7 @@ export class NotificationsController {
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @ApiOperation({ summary: 'Mark all notifications as read (PATCH alias)' })
   async markAllAsReadPatch(@Req() req: any) {
-    return this.service.markAllAsRead(req.user.id);
+    return this.service.markAllAsRead(req.user.userId || req.user.id);
   }
 
   // ============================================================================
@@ -300,7 +310,7 @@ export class NotificationsController {
   @Throttle({ default: { limit: 50, ttl: 60000 } })
   @ApiOperation({ summary: 'Delete a notification' })
   async deleteNotification(@Req() req: any, @Param('id', ParseIntPipe) id: number) {
-    return this.service.deleteNotification(id, req.user.id);
+    return this.service.deleteNotification(id, req.user.userId || req.user.id);
   }
 
   // ✅ Delete all notifications (clear all)
@@ -310,7 +320,7 @@ export class NotificationsController {
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @ApiOperation({ summary: 'Delete all notifications (clear all)' })
   async deleteAllNotifications(@Req() req: any) {
-    return this.service.deleteAllNotifications(req.user.id);
+    return this.service.deleteAllNotifications(req.user.userId || req.user.id);
   }
 
   // ============================================================================
@@ -324,7 +334,7 @@ export class NotificationsController {
   @Throttle({ default: { limit: 100, ttl: 60000 } })
   @ApiOperation({ summary: 'Get notification preferences' })
   async getPreferences(@Req() req: any) {
-    return this.service.getPreferences(req.user.id);
+    return this.service.getPreferences(req.user.userId || req.user.id);
   }
 
   // ✅ Update notification preferences
@@ -347,7 +357,32 @@ export class NotificationsController {
     @Req() req: any,
     @Body() dto: { type: string; channel: string; enabled: boolean },
   ) {
-    return this.service.updatePreference(req.user.id, dto.type, dto.channel, dto.enabled);
+    return this.service.updatePreference(req.user.userId || req.user.id, dto.type, dto.channel, dto.enabled);
+  }
+
+  // ✅ Update global notification preferences (bulk)
+  @ApiBearerAuth()
+  @Patch('preferences/global')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
+  @ApiOperation({ summary: 'Update global notification preferences (bulk)' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        IN_APP: { type: 'boolean', example: true },
+        EMAIL: { type: 'boolean', example: true },
+        SMS: { type: 'boolean', example: true },
+        WHATSAPP: { type: 'boolean', example: true },
+        PUSH: { type: 'boolean', example: true },
+      },
+    },
+  })
+  async updateGlobalPreferences(
+    @Req() req: any,
+    @Body() dto: { IN_APP?: boolean; EMAIL?: boolean; SMS?: boolean; WHATSAPP?: boolean; PUSH?: boolean },
+  ) {
+    return this.service.updateGlobalPreferences(req.user.userId || req.user.id, dto);
   }
 
   // ============================================================================
@@ -378,7 +413,7 @@ export class NotificationsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Handle notification action (accept/reject)' })
   async action(@Req() req, @Body() dto: NotificationActionDto) {
-    await this.service.handleAction(req.user.id, dto);
+    await this.service.handleAction(req.user.userId || req.user.id, dto);
     return { success: true };
   }
 
@@ -395,6 +430,7 @@ export class NotificationsController {
   @ApiOperation({ summary: 'Compose and send a message to a specific user via email + notification' })
   @ApiBody({ type: ComposeMessageDto })
   async composeMessage(@Req() req: any, @Body() dto: ComposeMessageDto) {
-    return this.service.composeAndSendMessage(dto, req.user.id);
+    return this.service.composeAndSendMessage(dto, req.user.userId || req.user.id);
   }
 }
+

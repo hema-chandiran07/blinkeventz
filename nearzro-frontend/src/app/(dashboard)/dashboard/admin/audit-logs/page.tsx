@@ -1,19 +1,19 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
-  Activity, Shield, User, Calendar, Download, Search, Eye, CheckCircle2, XCircle,
+  Activity, Shield, User, Calendar, Download, Search, CheckCircle2, XCircle,
   AlertTriangle, AlertCircle, Info, RefreshCw, ChevronLeft, ChevronRight,
-  Clock, Database, FileText, Code, Server, Loader2
+  Clock, Database, FileText, Code, Server, Loader2, X, Filter
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import api from "@/lib/api";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 // ==================== Types ====================
@@ -102,13 +102,16 @@ export default function AuditLogsPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterSeverity, setFilterSeverity] = useState("all");
+  const [filterEntity, setFilterEntity] = useState("all");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const limit = 50;
 
-  // Detail dialog state
-  const [detailOpen, setDetailOpen] = useState(false);
+  // Detail Drawer state
   const [detailLog, setDetailLog] = useState<AuditLogDetail | null>(null);
+
+  // Entities Set for filters
+  const entities = Array.from(new Set(logs.map(l => l.entityType).filter(Boolean)));
 
   // ==================== Load Logs ====================
   const loadLogs = useCallback(async (showRefresh = false) => {
@@ -142,10 +145,7 @@ export default function AuditLogsPage() {
   // ==================== View Log Detail ====================
   const handleViewLog = (logId: number) => {
     const log = logs.find(l => l.id === logId);
-    if (!log) {
-      toast.error("Log not found");
-      return;
-    }
+    if (!log) return;
 
     const sevConfig = SEVERITY_CONFIG[log.severity] || SEVERITY_CONFIG.INFO;
     const srcConfig = SOURCE_CONFIG[log.source] || SOURCE_CONFIG.SYSTEM;
@@ -156,7 +156,6 @@ export default function AuditLogsPage() {
       severityLabel: sevConfig.label,
       sourceLabel: srcConfig.label,
     });
-    setDetailOpen(true);
   };
 
   // ==================== Filtered Logs ====================
@@ -168,17 +167,9 @@ export default function AuditLogsPage() {
       (log.description || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
       (log.actorId?.toString() || "").includes(searchTerm);
     const matchesSeverity = filterSeverity === "all" || log.severity === filterSeverity;
-    return matchesSearch && matchesSeverity;
+    const matchesEntity = filterEntity === "all" || log.entityType === filterEntity;
+    return matchesSearch && matchesSeverity && matchesEntity;
   });
-
-  // ==================== Stats ====================
-  const stats = {
-    totalLogs: logs.length,
-    successful: logs.filter(l => l.severity === "INFO" || l.severity === "LOW").length,
-    warnings: logs.filter(l => l.severity === "WARNING").length,
-    failed: logs.filter(l => l.severity === "HIGH" || l.severity === "CRITICAL").length,
-    uniqueActors: new Set(logs.map(l => l.actorEmail).filter(Boolean)).size,
-  };
 
   // ==================== Export ====================
   const handleExport = () => {
@@ -203,8 +194,8 @@ export default function AuditLogsPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-neutral-400" />
-          <p className="text-neutral-600">Loading audit logs...</p>
+          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-black" />
+          <p className="text-zinc-500 font-bold tracking-widest uppercase text-xs">Accessing Kernel Logs...</p>
         </div>
       </div>
     );
@@ -212,411 +203,305 @@ export default function AuditLogsPage() {
 
   // ==================== Main Render ====================
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between flex-wrap gap-4">
+    <div className="h-[calc(100vh-6rem)] flex flex-col bg-zinc-50">
+      {/* Top Protocol Bar */}
+      <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="shrink-0 flex items-center justify-between p-6 bg-white border-b border-zinc-200">
         <div>
-          <h1 className="text-3xl font-bold text-black">Audit Logs</h1>
-          <p className="text-neutral-600">System activity and security logs</p>
+          <h1 className="text-2xl font-black text-black flex items-center gap-2 tracking-tight">
+            <Activity className="h-6 w-6 text-indigo-600" />
+            Audit Ledger
+          </h1>
+          <p className="text-sm font-medium text-zinc-500 mt-1">Immutable system activity and compliance records</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => loadLogs(true)} disabled={refreshing}>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" onClick={() => loadLogs(true)} disabled={refreshing} className="shadow-sm border-zinc-200 text-zinc-700 rounded-full font-bold">
             <RefreshCw className={cn("h-4 w-4 mr-2", refreshing && "animate-spin")} />
-            Refresh
+            Refresh Feed
           </Button>
-          <Button variant="outline" onClick={handleExport}>
-            <Download className="h-4 w-4 mr-2" /> Export Logs
+          <Button onClick={handleExport} className="bg-black hover:bg-zinc-800 text-white rounded-full font-bold shadow-md transition-all">
+            <Download className="h-4 w-4 mr-2" /> Export to CSV
           </Button>
         </div>
       </motion.div>
 
-      {/* Stats Overview */}
-      <div className="grid gap-4 md:grid-cols-5">
-        <Card className="border-2 border-neutral-600">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-neutral-600">Total Logs</p>
-                <p className="text-3xl font-bold text-neutral-900 mt-1">{stats.totalLogs}</p>
-              </div>
-              <div className="p-3 rounded-full bg-neutral-900">
-                <Activity className="h-6 w-6 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-2 border-emerald-600">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-neutral-600">Successful</p>
-                <p className="text-3xl font-bold text-emerald-600 mt-1">{stats.successful}</p>
-              </div>
-              <div className="p-3 rounded-full bg-emerald-600">
-                <CheckCircle2 className="h-6 w-6 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-2 border-amber-600">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-neutral-600">Warnings</p>
-                <p className="text-3xl font-bold text-amber-600 mt-1">{stats.warnings}</p>
-              </div>
-              <div className="p-3 rounded-full bg-amber-600">
-                <AlertTriangle className="h-6 w-6 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-2 border-red-600">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-neutral-600">Failed</p>
-                <p className="text-3xl font-bold text-red-600 mt-1">{stats.failed}</p>
-              </div>
-              <div className="p-3 rounded-full bg-red-600">
-                <XCircle className="h-6 w-6 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-2 border-blue-600">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-neutral-600">Unique Users</p>
-                <p className="text-3xl font-bold text-blue-600 mt-1">{stats.uniqueActors}</p>
-              </div>
-              <div className="p-3 rounded-full bg-blue-600">
-                <User className="h-6 w-6 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filters */}
-      <Card className="border-2 border-black">
-        <CardContent className="p-4">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
-              <Input
-                placeholder="Search by action, user, entity, or description..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 border-neutral-300"
-              />
-            </div>
-            <select
-              value={filterSeverity}
-              onChange={(e) => setFilterSeverity(e.target.value)}
-              className="flex h-10 rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm text-black"
-            >
-              <option value="all">All Severity</option>
-              <option value="LOW">Low</option>
-              <option value="INFO">Info</option>
-              <option value="WARNING">Warning</option>
-              <option value="HIGH">High</option>
-              <option value="CRITICAL">Critical</option>
-            </select>
+      {/* Main Workspace */}
+      <div className="flex flex-1 overflow-hidden">
+        
+        {/* Left Sidebar Filters */}
+        <div className="w-64 bg-white border-r border-zinc-200 flex flex-col shrink-0 overflow-y-auto hidden md:flex">
+          <div className="p-4 border-b border-zinc-100 flex items-center gap-2 text-sm font-black text-black uppercase tracking-widest">
+            <Filter className="h-4 w-4" /> Filtering Controls
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Logs Table */}
-      <Card className="border-2 border-black">
-        <CardHeader>
-          <CardTitle className="text-black">
-            <Shield className="h-5 w-5" />
-            Recent Activity ({filteredLogs.length} logs)
-          </CardTitle>
-          <CardDescription>Showing audit log entries with full details</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {filteredLogs.length === 0 ? (
-            <div className="text-center py-12">
-              <Activity className="h-16 w-16 text-neutral-300 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-black mb-2">No audit logs found</h3>
-              <p className="text-neutral-600">
-                {searchTerm || filterSeverity !== "all" ? "Try adjusting your filters" : "No audit logs recorded yet"}
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-neutral-50 border-b-2 border-neutral-200">
-                    <tr>
-                      <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Action</th>
-                      <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">User</th>
-                      <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Source</th>
-                      <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Entity</th>
-                      <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Timestamp</th>
-                      <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Severity</th>
-                      <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-neutral-100">
-                    {filteredLogs.map((log) => {
-                      const Icon = ACTION_ICONS[log.action] || Activity;
-                      const sevConfig = SEVERITY_CONFIG[log.severity] || SEVERITY_CONFIG.INFO;
-                      const SevIcon = sevConfig.icon;
-                      const srcConfig = SOURCE_CONFIG[log.source] || SOURCE_CONFIG.SYSTEM;
-                      const SrcIcon = srcConfig.icon;
-
-                      return (
-                        <tr key={log.id} className="hover:bg-neutral-50 transition-colors">
-                          <td className="py-3 px-4">
-                            <div className="flex items-center gap-2">
-                              <Icon className="h-4 w-4 text-neutral-400" />
-                              <span className="text-sm font-medium text-black">{formatAction(log.action)}</span>
-                            </div>
-                          </td>
-                          <td className="py-3 px-4">
-                            <div>
-                              <p className="text-sm text-black">{log.actorEmail || "System"}</p>
-                              {log.actorId && <p className="text-xs text-neutral-500">ID: {log.actorId}</p>}
-                            </div>
-                          </td>
-                          <td className="py-3 px-4">
-                            <div className="flex items-center gap-1">
-                              <SrcIcon className="h-3 w-3 text-neutral-500" />
-                              <span className="text-sm text-black">{srcConfig.label}</span>
-                            </div>
-                          </td>
-                          <td className="py-3 px-4">
-                            <div>
-                              <p className="text-sm text-black">{log.entityType}</p>
-                              {log.entityId && <p className="text-xs text-neutral-500">ID: {log.entityId}</p>}
-                            </div>
-                          </td>
-                          <td className="py-3 px-4">
-                            <div>
-                              <p className="text-sm text-black">{new Date(log.occurredAt).toLocaleDateString("en-IN")}</p>
-                              <p className="text-xs text-neutral-500">{new Date(log.occurredAt).toLocaleTimeString("en-IN")}</p>
-                            </div>
-                          </td>
-                          <td className="py-3 px-4">
-                            <Badge className={`${sevConfig.className} border text-xs`}>
-                              <SevIcon className="h-3 w-3 mr-1" />
-                              {sevConfig.label}
-                            </Badge>
-                          </td>
-                          <td className="py-3 px-4">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-black hover:bg-neutral-100"
-                              onClick={() => handleViewLog(log.id)}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+          <div className="p-4 space-y-6">
+            <div className="space-y-3">
+              <Label className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Search Term</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+                <Input
+                  placeholder="ID, Action, Email..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9 h-10 border-zinc-200 bg-zinc-50 focus:bg-white text-sm transition-all"
+                />
               </div>
+            </div>
 
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="flex items-center justify-between mt-6 pt-6 border-t">
-                  <p className="text-sm text-neutral-600">Page {page}</p>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPage(p => Math.max(1, p - 1))}
-                      disabled={page === 1}
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPage(p => p + 1)}
-                      disabled={page >= totalPages}
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </>
+            <div className="space-y-3">
+              <Label className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Severity Level</Label>
+              <div className="flex flex-col gap-1">
+                {["all", "INFO", "WARNING", "HIGH", "CRITICAL"].map((sev) => (
+                   <button
+                     key={sev}
+                     onClick={() => setFilterSeverity(sev)}
+                     className={cn(
+                       "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-all border",
+                       filterSeverity === sev 
+                        ? "bg-zinc-100 text-black border-zinc-300 shadow-sm"
+                        : "border-transparent text-zinc-500 hover:bg-zinc-50 hover:text-zinc-700"
+                     )}
+                   >
+                     {sev !== "all" && React.createElement(SEVERITY_CONFIG[sev].icon, { className: cn("h-4 w-4", `text-${SEVERITY_CONFIG[sev].color}-500`) })}
+                     {sev === "all" ? "All Levels" : SEVERITY_CONFIG[sev].label}
+                   </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <Label className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Entity Type</Label>
+              <select
+                value={filterEntity}
+                onChange={(e) => setFilterEntity(e.target.value)}
+                className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-medium focus:ring-1 focus:ring-black outline-none"
+              >
+                <option value="all">All Entities</option>
+                {entities.map(e => <option key={e} value={e}>{e}</option>)}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Center High Density Table */}
+        <div className="flex-1 flex flex-col min-w-0 bg-white">
+          <div className="flex-1 overflow-auto">
+            <table className="w-full text-left border-collapse whitespace-nowrap">
+              <thead className="bg-zinc-50/80 sticky top-0 z-10 border-b border-zinc-200 shadow-sm">
+                <tr>
+                  <th className="py-3 px-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest w-40">Timestamp</th>
+                  <th className="py-3 px-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest w-24">Actor</th>
+                  <th className="py-3 px-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest w-48">Action</th>
+                  <th className="py-3 px-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest">Resource</th>
+                  <th className="py-3 px-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest w-24 text-center">Severity</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-100/80">
+                {filteredLogs.length === 0 ? (
+                  <tr>
+                     <td colSpan={5} className="py-12 text-center">
+                        <Activity className="h-8 w-8 text-zinc-200 mx-auto mb-3" />
+                        <p className="text-zinc-500 font-medium">No system events matched the filter criteria.</p>
+                     </td>
+                  </tr>
+                ) : (
+                  filteredLogs.map((log) => {
+                    const Icon = ACTION_ICONS[log.action] || Activity;
+                    const sevConfig = SEVERITY_CONFIG[log.severity] || SEVERITY_CONFIG.INFO;
+                    const SevIcon = sevConfig.icon;
+                    const isSelected = detailLog?.log.id === log.id;
+                    
+                    return (
+                      <tr 
+                        key={log.id} 
+                        onClick={() => handleViewLog(log.id)}
+                        className={cn(
+                          "cursor-pointer transition-all hover:bg-indigo-50/50 group",
+                          isSelected ? "bg-indigo-50 border-l-4 border-l-indigo-600" : "border-l-4 border-l-transparent"
+                        )}
+                      >
+                        <td className="py-2.5 px-4">
+                          <p className="text-[13px] font-mono text-zinc-600">
+                            {new Date(log.occurredAt).toISOString().replace('T', ' ').substring(0, 19)}
+                          </p>
+                        </td>
+                        <td className="py-2.5 px-4">
+                          <div className="flex items-center gap-2">
+                            <div className="bg-zinc-100 p-1 rounded-md text-zinc-500"><User className="h-3 w-3" /></div>
+                            <span className="text-[13px] font-medium text-zinc-800 truncate max-w-[120px]">
+                              {log.actorEmail || log.source}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-2.5 px-4">
+                          <div className="flex items-center gap-2">
+                             <span className="text-[13px] font-semibold text-black group-hover:text-indigo-700 transition-colors">
+                                {formatAction(log.action)}
+                             </span>
+                          </div>
+                        </td>
+                        <td className="py-2.5 px-4 font-mono text-[12px] text-zinc-500 truncate max-w-[200px]">
+                          {log.entityType}{log.entityId ? `:${log.entityId}` : ''}
+                        </td>
+                        <td className="py-2.5 px-4 text-center">
+                           <div className="flex justify-center">
+                              <Badge className={cn("px-2 py-0 h-6 text-[10px] font-bold uppercase", sevConfig.className)}>
+                                <SevIcon className="h-3 w-3 mr-1" />
+                                {sevConfig.label}
+                              </Badge>
+                           </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+          {totalPages > 1 && (
+            <div className="shrink-0 p-3 bg-white border-t border-zinc-200 flex items-center justify-between">
+              <span className="text-xs font-semibold text-zinc-500">Page {page} of {totalPages}</span>
+              <div className="flex gap-1">
+                <Button variant="outline" size="sm" onClick={() => setPage(Math.max(1, page - 1))} disabled={page === 1} className="h-7 w-7 p-0">
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setPage(page + 1)} disabled={page >= totalPages} className="h-7 w-7 p-0">
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* Detail Dialog */}
-      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col text-black">
-          <DialogHeader className="shrink-0">
-            <DialogTitle className="flex items-center gap-2 text-black">
-              <Shield className="h-5 w-5" />
-              Audit Log Details
-            </DialogTitle>
-            <DialogDescription className="text-neutral-600">
-              Log #{detailLog?.log.id}
-            </DialogDescription>
-          </DialogHeader>
+        {/* Right Inspector Drawer */}
+        <AnimatePresence>
           {detailLog && (
-            <div className="space-y-6 py-4 overflow-y-auto flex-1">
-              {/* Action & Severity */}
-              <div className="flex items-start gap-4 p-4 bg-neutral-50 rounded-lg border">
-                {(() => {
-                  const ActionIcon = ACTION_ICONS[detailLog.log.action] || Activity;
-                  return <ActionIcon className="h-8 w-8 text-neutral-600" />;
-                })()}
-                <div className="flex-1">
-                  <h3 className="font-semibold text-lg text-black">{detailLog.actionLabel}</h3>
-                  <p className="text-sm text-neutral-600 mt-1">{detailLog.log.description || "No description provided"}</p>
-                  <div className="flex items-center gap-3 mt-3">
-                    <Badge className={cn(
-                      "text-xs",
-                      SEVERITY_CONFIG[detailLog.log.severity]?.className || SEVERITY_CONFIG.INFO.className
-                    )}>
-                      {detailLog.severityLabel}
-                    </Badge>
-                    <Badge variant="outline" className="text-xs text-black">{detailLog.sourceLabel}</Badge>
-                  </div>
-                </div>
+            <motion.div
+              initial={{ x: "100%", opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: "100%", opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="w-96 border-l border-zinc-200 bg-white flex flex-col shrink-0 shadow-2xl relative z-20"
+            >
+              <div className="p-4 border-b border-zinc-100 flex items-center justify-between bg-zinc-50">
+                <h3 className="font-bold text-sm text-black flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-indigo-600" /> Event Inspector
+                </h3>
+                <button onClick={() => setDetailLog(null)} className="p-1 hover:bg-zinc-200 rounded-md transition-colors text-zinc-500">
+                   <X className="h-4 w-4" />
+                </button>
               </div>
+              <div className="flex-1 overflow-y-auto p-5 space-y-6">
+                 
+                 {/* Header Banner */}
+                 <div className="space-y-1">
+                    <p className="font-mono text-[10px] text-zinc-400">UID: {detailLog.log.id} • {new Date(detailLog.log.occurredAt).toISOString()}</p>
+                    <h2 className="text-lg font-black text-black break-words leading-tight">{detailLog.actionLabel}</h2>
+                 </div>
 
-              {/* Details Grid */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-3 bg-neutral-50 rounded-lg">
-                  <p className="text-xs font-medium text-neutral-600 mb-1">Actor</p>
-                  <div className="flex items-center gap-2">
-                    <User className="h-4 w-4 text-neutral-500" />
-                    <p className="text-sm text-black">{detailLog.log.actorEmail || "System"}</p>
-                  </div>
-                  {detailLog.log.actorId && (
-                    <p className="text-xs text-neutral-500 mt-1">Actor ID: {detailLog.log.actorId}</p>
-                  )}
-                  {detailLog.log.actorRole && (
-                    <p className="text-xs text-neutral-500">Role: {detailLog.log.actorRole}</p>
-                  )}
-                </div>
-
-                <div className="p-3 bg-neutral-50 rounded-lg">
-                  <p className="text-xs font-medium text-neutral-600 mb-1">Entity</p>
-                  <div className="flex items-center gap-2">
-                    <Database className="h-4 w-4 text-neutral-500" />
-                    <p className="text-sm text-black">{detailLog.log.entityType}</p>
-                  </div>
-                  {detailLog.log.entityId && (
-                    <p className="text-xs text-neutral-500 mt-1">Entity ID: {detailLog.log.entityId}</p>
-                  )}
-                </div>
-
-                <div className="p-3 bg-neutral-50 rounded-lg">
-                  <p className="text-xs font-medium text-neutral-600 mb-1">Timestamp</p>
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-neutral-500" />
-                    <p className="text-sm text-black">{new Date(detailLog.log.occurredAt).toLocaleString("en-IN")}</p>
-                  </div>
-                </div>
-
-                <div className="p-3 bg-neutral-50 rounded-lg">
-                  <p className="text-xs font-medium text-neutral-600 mb-1">Request Info</p>
-                  <div className="space-y-1">
-                    {detailLog.log.requestId && (
-                      <p className="text-xs text-neutral-600">Request: <code className="text-xs bg-neutral-200 px-1 rounded">{detailLog.log.requestId}</code></p>
-                    )}
-                    {detailLog.log.sessionId && (
-                      <p className="text-xs text-neutral-600">Session: <code className="text-xs bg-neutral-200 px-1 rounded">{detailLog.log.sessionId}</code></p>
-                    )}
-                    {detailLog.log.traceId && (
-                      <p className="text-xs text-neutral-600">Trace: <code className="text-xs bg-neutral-200 px-1 rounded">{detailLog.log.traceId}</code></p>
-                    )}
-                    {!detailLog.log.requestId && !detailLog.log.sessionId && !detailLog.log.traceId && (
-                      <p className="text-xs text-neutral-400">No request info available</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Metadata */}
-              {detailLog.log.metadata && (
-                <div>
-                  <p className="text-sm font-medium text-neutral-700 mb-2 flex items-center gap-2">
-                    <FileText className="h-4 w-4" />
-                    Metadata
-                  </p>
-                  <pre className="text-xs bg-neutral-900 text-green-400 p-4 rounded-lg overflow-x-auto max-h-48">
-                    {formatJson(detailLog.log.metadata)}
-                  </pre>
-                </div>
-              )}
-
-              {/* Diff */}
-              {detailLog.log.diff && (
-                <div>
-                  <p className="text-sm font-medium text-neutral-700 mb-2 flex items-center gap-2">
-                    <Code className="h-4 w-4" />
-                    Diff
-                  </p>
-                  <pre className="text-xs bg-neutral-900 text-yellow-400 p-4 rounded-lg overflow-x-auto max-h-48">
-                    {formatJson(detailLog.log.diff)}
-                  </pre>
-                </div>
-              )}
-
-              {/* Old / New Values */}
-              {(detailLog.log.oldValue || detailLog.log.newValue) && (
-                <div className="grid grid-cols-2 gap-4">
-                  {detailLog.log.oldValue && (
+                 {/* Key Values */}
+                 <div className="grid grid-cols-2 gap-3 pb-4 border-b border-zinc-100">
                     <div>
-                      <p className="text-sm font-medium text-red-700 mb-2 flex items-center gap-2">
-                        <XCircle className="h-4 w-4" />
-                        Old Value
-                      </p>
-                      <pre className="text-xs bg-red-50 text-red-800 p-4 rounded-lg border border-red-200 overflow-x-auto max-h-48">
-                        {formatJson(detailLog.log.oldValue)}
+                       <Label className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">Severity</Label>
+                       <div className={cn("mt-1 flex items-center gap-1.5 text-xs font-bold", SEVERITY_CONFIG[detailLog.log.severity]?.className?.split(" ")[1])}>
+                          {React.createElement(SEVERITY_CONFIG[detailLog.log.severity]?.icon || Info, { className: "h-3.5 w-3.5" })}
+                          {detailLog.severityLabel}
+                       </div>
+                    </div>
+                    <div>
+                       <Label className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">Actor</Label>
+                       <p className="mt-1 text-xs font-medium text-black truncate" title={detailLog.log.actorEmail || "System"}>
+                          {detailLog.log.actorEmail || "System"}
+                       </p>
+                    </div>
+                    <div>
+                       <Label className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">Resource Type</Label>
+                       <p className="mt-1 font-mono text-[11px] text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded-md w-max border border-indigo-100">
+                          {detailLog.log.entityType}
+                       </p>
+                    </div>
+                    <div>
+                       <Label className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">Resource ID</Label>
+                       <p className="mt-1 font-mono text-[11px] text-zinc-700">{detailLog.log.entityId || "N/A"}</p>
+                    </div>
+                 </div>
+
+                 {/* Description */}
+                 {detailLog.log.description && (
+                   <div className="bg-zinc-50 border border-zinc-200 p-3 rounded-lg">
+                      <Label className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider">Context Message</Label>
+                      <p className="text-sm font-medium text-zinc-800 mt-1">{detailLog.log.description}</p>
+                   </div>
+                 )}
+
+                 {/* Delta Viewer */}
+                 {(detailLog.log.diff || detailLog.log.oldValue || detailLog.log.newValue) && (
+                   <div className="space-y-3">
+                      <Label className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider flex items-center gap-1.5">
+                         <Code className="h-3.5 w-3.5" /> Payload Delta
+                      </Label>
+                      
+                      {detailLog.log.oldValue && (
+                        <div className="border border-red-200 rounded-lg overflow-hidden flex flex-col">
+                           <div className="bg-red-50 px-3 py-1.5 border-b border-red-100 flex items-center gap-1.5">
+                              <XCircle className="h-3 w-3 text-red-600" />
+                              <span className="text-[10px] font-bold text-red-800 uppercase tracking-widest">Before</span>
+                           </div>
+                           <pre className="p-3 bg-[#1e1e1e] text-[#d4d4d4] font-mono text-[11px] overflow-x-auto m-0 shadow-inner">
+                              {formatJson(detailLog.log.oldValue)}
+                           </pre>
+                        </div>
+                      )}
+                      
+                      {detailLog.log.newValue && (
+                        <div className="border border-emerald-200 rounded-lg overflow-hidden flex flex-col mt-2">
+                           <div className="bg-emerald-50 px-3 py-1.5 border-b border-emerald-100 flex items-center gap-1.5">
+                              <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                              <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-widest">After</span>
+                           </div>
+                           <pre className="p-3 bg-[#1e1e1e] text-[#d4d4d4] font-mono text-[11px] overflow-x-auto m-0 shadow-inner">
+                              {formatJson(detailLog.log.newValue)}
+                           </pre>
+                        </div>
+                      )}
+                   </div>
+                 )}
+
+                 {/* Metadata */}
+                 {detailLog.log.metadata && (
+                    <div className="space-y-1">
+                      <Label className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider flex items-center gap-1.5">
+                         <Database className="h-3.5 w-3.5" /> System Metadata
+                      </Label>
+                      <pre className="p-3 bg-[#1e1e1e] text-[#d4d4d4] rounded-lg font-mono text-[11px] overflow-x-auto shadow-inner border border-zinc-800">
+                        {formatJson(detailLog.log.metadata)}
                       </pre>
                     </div>
-                  )}
-                  {detailLog.log.newValue && (
-                    <div>
-                      <p className="text-sm font-medium text-green-700 mb-2 flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4" />
-                        New Value
-                      </p>
-                      <pre className="text-xs bg-green-50 text-green-800 p-4 rounded-lg border border-green-200 overflow-x-auto max-h-48">
-                        {formatJson(detailLog.log.newValue)}
-                      </pre>
-                    </div>
-                  )}
-                </div>
-              )}
+                 )}
 
-              {/* Sensitive Flag */}
-              {detailLog.log.isSensitive && (
-                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4 text-amber-600" />
-                    <p className="text-sm text-amber-800 font-medium">Sensitive Log</p>
-                  </div>
-                  <p className="text-xs text-amber-700 mt-1">This log entry contains sensitive information. Handle with care.</p>
-                </div>
-              )}
-            </div>
+                 {/* HTTP Request Details */}
+                 {(detailLog.log.requestId || detailLog.log.sessionId) && (
+                    <div className="p-3 bg-zinc-50 border border-zinc-200 rounded-lg space-y-2">
+                       <Label className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider">Network Trace</Label>
+                       <div className="space-y-1">
+                          {detailLog.log.requestId && (
+                            <div className="flex justify-between items-center bg-white p-1.5 rounded border border-zinc-100 shadow-sm">
+                               <span className="text-[10px] font-bold text-zinc-400 uppercase">Request ID</span>
+                               <span className="text-[10px] font-mono text-zinc-600">{detailLog.log.requestId}</span>
+                            </div>
+                          )}
+                          {detailLog.log.sessionId && (
+                            <div className="flex justify-between items-center bg-white p-1.5 rounded border border-zinc-100 shadow-sm">
+                               <span className="text-[10px] font-bold text-zinc-400 uppercase">Session ID</span>
+                               <span className="text-[10px] font-mono text-zinc-600">{detailLog.log.sessionId}</span>
+                            </div>
+                          )}
+                       </div>
+                    </div>
+                 )}
+              </div>
+            </motion.div>
           )}
-          <DialogFooter className="shrink-0">
-            <Button variant="outline" onClick={() => setDetailOpen(false)}>Close</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </AnimatePresence>
+      </div>
     </div>
   );
 }

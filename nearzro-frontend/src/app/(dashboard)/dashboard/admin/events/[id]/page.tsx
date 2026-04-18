@@ -46,12 +46,12 @@ interface EventDetail {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  INQUIRY: "bg-blue-100 text-blue-700 border-blue-200",
-  PENDING_PAYMENT: "bg-amber-100 text-amber-700 border-amber-200",
-  CONFIRMED: "bg-emerald-100 text-emerald-700 border-emerald-200",
-  IN_PROGRESS: "bg-blue-100 text-blue-700 border-blue-200",
-  COMPLETED: "bg-emerald-100 text-emerald-700 border-emerald-200",
-  CANCELLED: "bg-red-100 text-red-700 border-red-200",
+  INQUIRY: "bg-blue-950/30 text-blue-400 border-blue-800",
+  PENDING_PAYMENT: "bg-amber-950/30 text-amber-400 border-amber-800",
+  CONFIRMED: "bg-emerald-950/30 text-emerald-400 border-emerald-800",
+  IN_PROGRESS: "bg-blue-950/30 text-blue-400 border-blue-800",
+  COMPLETED: "bg-emerald-950/30 text-emerald-400 border-emerald-800",
+  CANCELLED: "bg-red-950/30 text-red-400 border-red-800",
 };
 
 const EVENT_TYPE_LABELS: Record<string, string> = {
@@ -70,24 +70,29 @@ export default function EventDetailPage() {
   const [loading, setLoading] = useState(true);
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<null | 'cancel' | 'delete'>(null);
 
-  useEffect(() => {
-    loadEvent();
-  }, [params.id]);
+   useEffect(() => {
+     const controller = new AbortController();
+     loadEvent(controller.signal);
+     return () => controller.abort();
+   }, [params.id]);
 
-  const loadEvent = async () => {
-    try {
-      setLoading(true);
-      const response = await api.get("/events");
-      const found = response.data.find((e: any) => e.id === parseInt(params.id as string));
-      setEvent(found || null);
-    } catch (error: any) {
-      console.error("Failed to load event:", error);
-      toast.error("Failed to load event details");
-    } finally {
-      setLoading(false);
-    }
-  };
+   const loadEvent = async (signal?: AbortSignal) => {
+     try {
+       setLoading(true);
+       const response = await api.get(`/events/${params.id}`, { signal });
+       const data = response.data;
+       setEvent(data);
+     } catch (error: any) {
+       if (error.name === 'AbortError' || error.code === 'ERR_CANCELED') return;
+       console.error("Failed to load event:", error);
+       toast.error("Failed to load event details");
+       router.push("/dashboard/admin/events");
+     } finally {
+       setLoading(false);
+     }
+   };
 
   const formatCurrency = (amount: number) => {
     if (amount >= 10000000) return `₹${(amount / 10000000).toFixed(2)}Cr`;
@@ -98,7 +103,7 @@ export default function EventDetailPage() {
   const handleUpdateStatus = async (newStatus: string) => {
     try {
       setActionLoading(true);
-      await api.patch(`/events/${event?.id}`, { status: newStatus });
+      await api.patch(`/events/${event?.id}/status`, { status: newStatus });
       toast.success(`Event status updated to ${newStatus.replace('_', ' ')}`);
       loadEvent();
     } catch (error: any) {
@@ -108,31 +113,25 @@ export default function EventDetailPage() {
     }
   };
 
-  const handleCancel = async () => {
-    if (!confirm("Are you sure you want to cancel this event?")) return;
-    
-    try {
-      setActionLoading(true);
-      await api.patch(`/events/${event?.id}`, { status: 'CANCELLED' });
-      toast.success("Event cancelled");
-      loadEvent();
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Failed to cancel event");
-    } finally {
-      setActionLoading(false);
-    }
-  };
+  const handleCancel = () => setConfirmAction('cancel');
+  const handleDelete = () => setConfirmAction('delete');
 
-  const handleDelete = async () => {
-    if (!confirm("Are you sure you want to delete this event? This cannot be undone.")) return;
-    
+  const executeConfirmedAction = async () => {
+    if (!confirmAction) return;
     try {
       setActionLoading(true);
-      await api.delete(`/events/${event?.id}`);
-      toast.success("Event deleted successfully");
-      router.push("/dashboard/admin/events");
+      setConfirmAction(null);
+      if (confirmAction === 'cancel') {
+        await api.patch(`/events/${event?.id}/status`, { status: 'CANCELLED' });
+        toast.success("Event cancelled");
+        loadEvent();
+      } else {
+        await api.delete(`/events/${event?.id}`);
+        toast.success("Event deleted successfully");
+        router.push("/dashboard/admin/events");
+      }
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Failed to delete event");
+      toast.error(error?.response?.data?.message || "Failed to perform action");
     } finally {
       setActionLoading(false);
     }
@@ -142,8 +141,8 @@ export default function EventDetailPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-black" />
-          <p className="text-neutral-600">Loading event details...</p>
+          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-zinc-400" />
+          <p className="text-zinc-400">Loading event details...</p>
         </div>
       </div>
     );
@@ -153,8 +152,8 @@ export default function EventDetailPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
-          <AlertCircle className="h-16 w-16 mx-auto mb-4 text-red-600" />
-          <h3 className="text-lg font-bold text-black mb-2">Event Not Found</h3>
+          <AlertCircle className="h-16 w-16 mx-auto mb-4 text-red-400" />
+          <h3 className="text-lg font-bold text-zinc-100 mb-2">Event Not Found</h3>
           <Button onClick={() => router.push("/dashboard/admin/events")}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Events
@@ -165,23 +164,23 @@ export default function EventDetailPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 bg-zinc-950 min-h-screen p-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between bg-zinc-900 border-b border-zinc-800 px-6 py-4 rounded-lg">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => router.back()}>
+          <Button variant="ghost" size="icon" onClick={() => router.back()} className="hover:bg-zinc-800 text-zinc-100">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold text-black">{event.title || `${EVENT_TYPE_LABELS[event.eventType]} Event`}</h1>
-            <p className="text-neutral-600 flex items-center gap-2">
+            <h1 className="text-3xl font-bold text-zinc-100">{event.title || `${EVENT_TYPE_LABELS[event.eventType]} Event`}</h1>
+            <p className="text-zinc-400 flex items-center gap-2">
               <Calendar className="h-4 w-4" />
               {new Date(event.date).toLocaleDateString()} • {event.timeSlot}
             </p>
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="border-black">
+          <Button variant="outline" className="border-zinc-700 text-zinc-300 hover:bg-zinc-800">
             <Edit className="h-4 w-4 mr-2" />
             Edit Event
           </Button>
@@ -190,57 +189,57 @@ export default function EventDetailPage() {
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card className="border-2 border-black">
+        <Card className="border border-zinc-800 bg-zinc-900/50">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-600">Status</p>
-                <p className="text-2xl font-bold text-black mt-1">{event.status.replace('_', ' ')}</p>
+                <p className="text-sm font-medium text-zinc-400">Status</p>
+                <p className="text-2xl font-bold text-zinc-100 mt-1">{event.status.replace('_', ' ')}</p>
               </div>
-              <div className="p-3 rounded-full bg-black">
-                <Clock className="h-6 w-6 text-white" />
+              <div className="p-3 rounded-full bg-zinc-800">
+                <Clock className="h-6 w-6 text-zinc-400" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-2 border-emerald-600">
+        <Card className="border border-emerald-900/30 bg-emerald-950/20">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-600">Total Amount</p>
-                <p className="text-2xl font-bold text-emerald-600 mt-1">{formatCurrency(event.totalAmount)}</p>
+                <p className="text-sm font-medium text-zinc-400">Total Amount</p>
+                <p className="text-2xl font-bold text-emerald-400 mt-1">{formatCurrency(event.totalAmount)}</p>
               </div>
-              <div className="p-3 rounded-full bg-emerald-600">
-                <DollarSign className="h-6 w-6 text-white" />
+              <div className="p-3 rounded-full bg-emerald-950/40">
+                <DollarSign className="h-6 w-6 text-emerald-400" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-2 border-blue-600">
+        <Card className="border border-blue-900/30 bg-blue-950/20">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-600">Guests</p>
-                <p className="text-2xl font-bold text-blue-600 mt-1">{event.guestCount}</p>
+                <p className="text-sm font-medium text-zinc-400">Guests</p>
+                <p className="text-2xl font-bold text-blue-400 mt-1">{event.guestCount}</p>
               </div>
-              <div className="p-3 rounded-full bg-blue-600">
-                <Users className="h-6 w-6 text-white" />
+              <div className="p-3 rounded-full bg-blue-950/40">
+                <Users className="h-6 w-6 text-blue-400" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-2 border-amber-600">
+        <Card className="border border-amber-900/30 bg-amber-950/20">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-600">Type</p>
-                <p className="text-2xl font-bold text-amber-600 mt-1">{EVENT_TYPE_LABELS[event.eventType] || event.eventType}</p>
+                <p className="text-sm font-medium text-zinc-400">Type</p>
+                <p className="text-2xl font-bold text-amber-400 mt-1">{EVENT_TYPE_LABELS[event.eventType] || event.eventType}</p>
               </div>
-              <div className="p-3 rounded-full bg-amber-600">
-                <TrendingUp className="h-6 w-6 text-white" />
+              <div className="p-3 rounded-full bg-amber-950/40">
+                <TrendingUp className="h-6 w-6 text-amber-400" />
               </div>
             </div>
           </CardContent>
@@ -249,32 +248,32 @@ export default function EventDetailPage() {
 
       {/* Event Information */}
       <div className="grid gap-6 md:grid-cols-2">
-        <Card className="border-2 border-black">
+        <Card className="border border-zinc-800 bg-zinc-900/50">
           <CardHeader>
-            <CardTitle className="text-black">Event Details</CardTitle>
+            <CardTitle className="text-zinc-100">Event Details</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <p className="text-xs text-neutral-600">Event Type</p>
-              <p className="font-medium text-black">{EVENT_TYPE_LABELS[event.eventType] || event.eventType}</p>
+              <p className="text-xs text-zinc-500">Event Type</p>
+              <p className="font-medium text-zinc-100">{EVENT_TYPE_LABELS[event.eventType] || event.eventType}</p>
             </div>
             <div>
-              <p className="text-xs text-neutral-600">Date & Time</p>
-              <p className="font-medium text-black">
+              <p className="text-xs text-zinc-500">Date & Time</p>
+              <p className="font-medium text-zinc-100">
                 {new Date(event.date).toLocaleDateString()} • {event.timeSlot}
               </p>
             </div>
             <div>
-              <p className="text-xs text-neutral-600">Location</p>
-              <p className="font-medium text-black">{event.area}, {event.city}</p>
+              <p className="text-xs text-zinc-500">Location</p>
+              <p className="font-medium text-zinc-100">{event.area}, {event.city}</p>
             </div>
             <div>
-              <p className="text-xs text-neutral-600">Guest Count</p>
-              <p className="font-medium text-black">{event.guestCount} guests</p>
+              <p className="text-xs text-zinc-500">Guest Count</p>
+              <p className="font-medium text-zinc-100">{event.guestCount} guests</p>
             </div>
             {event.isExpress && (
               <div>
-                <Badge className="bg-amber-100 text-amber-700 border-amber-200">
+                <Badge className="bg-amber-950/30 text-amber-400 border-amber-800">
                   <Clock className="h-3 w-3 mr-1" />
                   Express Booking
                 </Badge>
@@ -283,78 +282,78 @@ export default function EventDetailPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-2 border-black">
+        <Card className="border border-zinc-800 bg-zinc-900/50">
           <CardHeader>
-            <CardTitle className="text-black">Customer Information</CardTitle>
+            <CardTitle className="text-zinc-100">Customer Information</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <p className="text-xs text-neutral-600">Customer Name</p>
-              <p className="font-medium text-black">{event.customer?.name || 'N/A'}</p>
+              <p className="text-xs text-zinc-500">Customer Name</p>
+              <p className="font-medium text-zinc-100">{event.customer?.name || 'N/A'}</p>
             </div>
             <div>
-              <p className="text-xs text-neutral-600">Email</p>
-              <p className="font-medium text-black">{event.customer?.email || 'N/A'}</p>
+              <p className="text-xs text-zinc-500">Email</p>
+              <p className="font-medium text-zinc-100">{event.customer?.email || 'N/A'}</p>
             </div>
             {event.customer?.phone && (
               <div>
-                <p className="text-xs text-neutral-600">Phone</p>
-                <p className="font-medium text-black">{event.customer.phone}</p>
+                <p className="text-xs text-zinc-500">Phone</p>
+                <p className="font-medium text-zinc-100">{event.customer.phone}</p>
               </div>
             )}
           </CardContent>
         </Card>
 
         {event.venue && (
-          <Card className="border-2 border-black md:col-span-2">
+          <Card className="border border-zinc-800 bg-zinc-900/50 md:col-span-2">
             <CardHeader>
-              <CardTitle className="text-black">Venue Information</CardTitle>
+              <CardTitle className="text-zinc-100">Venue Information</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid md:grid-cols-3 gap-4">
                 <div>
-                  <p className="text-xs text-neutral-600">Venue Name</p>
-                  <p className="font-medium text-black">{event.venue.name}</p>
+                  <p className="text-xs text-zinc-500">Venue Name</p>
+                  <p className="font-medium text-zinc-100">{event.venue.name}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-neutral-600">Venue Type</p>
-                  <p className="font-medium text-black">{event.venue.type}</p>
+                  <p className="text-xs text-zinc-500">Venue Type</p>
+                  <p className="font-medium text-zinc-100">{event.venue.type}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-neutral-600">Address</p>
-                  <p className="font-medium text-black">{event.venue.address}</p>
+                  <p className="text-xs text-zinc-500">Address</p>
+                  <p className="font-medium text-zinc-100">{event.venue.address}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
         )}
 
-        <Card className="border-2 border-black md:col-span-2">
+        <Card className="border border-zinc-800 bg-zinc-900/50 md:col-span-2">
           <CardHeader>
-            <CardTitle className="text-black">Payment Breakdown</CardTitle>
+            <CardTitle className="text-zinc-100">Payment Breakdown</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid md:grid-cols-4 gap-4">
               <div>
-                <p className="text-xs text-neutral-600">Subtotal</p>
-                <p className="font-medium text-black">{formatCurrency(event.subtotal)}</p>
+                <p className="text-xs text-zinc-500">Subtotal</p>
+                <p className="font-medium text-zinc-100">{formatCurrency(event.subtotal)}</p>
               </div>
               <div>
-                <p className="text-xs text-neutral-600">Discount</p>
-                <p className="font-medium text-red-600">- {formatCurrency(event.discount)}</p>
+                <p className="text-xs text-zinc-500">Discount</p>
+                <p className="font-medium text-red-400">- {formatCurrency(event.discount)}</p>
               </div>
               <div>
-                <p className="text-xs text-neutral-600">Platform Fee</p>
-                <p className="font-medium text-black">{formatCurrency(event.platformFee)}</p>
+                <p className="text-xs text-zinc-500">Platform Fee</p>
+                <p className="font-medium text-zinc-100">{formatCurrency(event.platformFee)}</p>
               </div>
               <div>
-                <p className="text-xs text-neutral-600">Tax</p>
-                <p className="font-medium text-black">{formatCurrency(event.tax)}</p>
+                <p className="text-xs text-zinc-500">Tax</p>
+                <p className="font-medium text-zinc-100">{formatCurrency(event.tax)}</p>
               </div>
-              <div className="md:col-span-4 pt-4 border-t">
+              <div className="md:col-span-4 pt-4 border-t border-zinc-800">
                 <div className="flex items-center justify-between">
-                  <p className="font-bold text-black">Total Amount</p>
-                  <p className="text-2xl font-bold text-emerald-600">{formatCurrency(event.totalAmount)}</p>
+                  <p className="font-bold text-zinc-100">Total Amount</p>
+                  <p className="text-2xl font-bold text-emerald-400">{formatCurrency(event.totalAmount)}</p>
                 </div>
               </div>
             </div>
@@ -363,11 +362,11 @@ export default function EventDetailPage() {
       </div>
 
       {/* Status Badge */}
-      <Card className="border-2 border-black">
+      <Card className="border border-zinc-800 bg-zinc-900/50">
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-neutral-600 mb-2">Current Status</p>
+              <p className="text-sm font-medium text-zinc-500 mb-2">Current Status</p>
               <Badge className={STATUS_COLORS[event.status]}>
                 {event.status.replace('_', ' ')}
               </Badge>
@@ -376,7 +375,7 @@ export default function EventDetailPage() {
               {event.status === 'PENDING_PAYMENT' && (
                 <Button
                   variant="default"
-                  className="bg-emerald-600 hover:bg-emerald-700"
+                  className="bg-emerald-700 hover:bg-emerald-600 text-zinc-100"
                   onClick={() => handleUpdateStatus('CONFIRMED')}
                   disabled={actionLoading}
                 >
@@ -384,11 +383,11 @@ export default function EventDetailPage() {
                   Confirm Event
                 </Button>
               )}
-              
+
               {event.status === 'CONFIRMED' && (
                 <Button
                   variant="default"
-                  className="bg-blue-600 hover:bg-blue-700"
+                  className="bg-blue-700 hover:bg-blue-600 text-zinc-100"
                   onClick={() => handleUpdateStatus('IN_PROGRESS')}
                   disabled={actionLoading}
                 >
@@ -400,7 +399,7 @@ export default function EventDetailPage() {
               {event.status === 'IN_PROGRESS' && (
                 <Button
                   variant="default"
-                  className="bg-emerald-600 hover:bg-emerald-700"
+                  className="bg-emerald-700 hover:bg-emerald-600 text-zinc-100"
                   onClick={() => handleUpdateStatus('COMPLETED')}
                   disabled={actionLoading}
                 >
@@ -412,7 +411,7 @@ export default function EventDetailPage() {
               {event.status !== 'CANCELLED' && event.status !== 'COMPLETED' && (
                 <Button
                   variant="outline"
-                  className="border-red-300 text-red-600 hover:bg-red-50"
+                  className="border-red-800 text-red-400 hover:bg-red-950/30"
                   onClick={handleCancel}
                   disabled={actionLoading}
                 >
@@ -423,7 +422,7 @@ export default function EventDetailPage() {
 
               <Button
                 variant="outline"
-                className="border-red-300 text-red-600 hover:bg-red-50"
+                className="border-red-800 text-red-400 hover:bg-red-950/30"
                 onClick={handleDelete}
                 disabled={actionLoading}
               >
@@ -434,6 +433,35 @@ export default function EventDetailPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* ── Inline Confirm Dialog ── */}
+      {confirmAction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 w-full max-w-sm mx-4 shadow-2xl">
+            <h3 className="text-zinc-100 font-semibold text-lg mb-2">
+              {confirmAction === 'cancel' ? 'Cancel Event?' : 'Delete Event?'}
+            </h3>
+            <p className="text-zinc-400 text-sm mb-6">
+              {confirmAction === 'cancel'
+                ? 'This will mark the event as cancelled. The customer will be notified.'
+                : 'This will permanently delete the event and all associated data. This cannot be undone.'}
+            </p>
+            <div className="flex gap-3 justify-end">
+              <Button variant="ghost" className="text-zinc-400 hover:text-zinc-100" onClick={() => setConfirmAction(null)} disabled={actionLoading}>
+                Keep
+              </Button>
+              <Button
+                variant="ghost"
+                className={confirmAction === 'cancel' ? 'bg-amber-950/40 text-amber-400 hover:bg-amber-900/50' : 'bg-red-950/40 text-red-400 hover:bg-red-900/50'}
+                onClick={executeConfirmedAction}
+                disabled={actionLoading}
+              >
+                {actionLoading ? 'Processing...' : confirmAction === 'cancel' ? 'Yes, Cancel Event' : 'Yes, Delete Event'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

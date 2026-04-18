@@ -49,6 +49,8 @@ export default function CustomerDashboardPage() {
   const [isProcessingOAuth, setIsProcessingOAuth] = useState(false);
 
   useEffect(() => {
+    const controller = new AbortController();
+    
     if (!isInitialized) return;
     if (!isAuthenticated) {
       router.push("/login");
@@ -58,7 +60,9 @@ export default function CustomerDashboardPage() {
       router.push("/dashboard/customer");
       return;
     }
-    loadDashboardData();
+    loadDashboardData(controller.signal);
+    
+    return () => controller.abort();
   }, [isInitialized, isAuthenticated, user, router]);
 
   if (!isInitialized) {
@@ -69,30 +73,31 @@ export default function CustomerDashboardPage() {
     );
   }
 
-  const loadDashboardData = async () => {
+  const loadDashboardData = async (signal?: AbortSignal) => {
     try {
       setLoading(true);
-      const eventsResponse = await api.get("/events/my");
       
-      // Use the utility to safely extract array from paginated response
+      const statsResponse = await api.get("/dashboard/customer/stats", { signal });
+      const eventsResponse = await api.get("/events/my", { signal });
+      
+      const statsData = statsResponse?.data;
       const eventsData = extractArray<Event>(eventsResponse);
       setEvents(eventsData);
 
-      const upcoming = eventsData.filter((e: Event) =>
-        ["CONFIRMED", "IN_PROGRESS", "PENDING_PAYMENT"].includes(e.status)
-      ).length;
-
-      const totalSpent = eventsData.reduce((sum: number, e: Event) =>
-        sum + (e.totalAmount || 0), 0
-      );
-
       setStats({
-        totalEvents: eventsData.length,
-        upcomingEvents: upcoming,
-        totalSpent: totalSpent,
-        activeBookings: upcoming,
+        totalEvents: statsData?.totalEvents ?? eventsData?.length ?? 0,
+        upcomingEvents: statsData?.upcomingEvents ?? eventsData?.filter((e: Event) =>
+          ["CONFIRMED", "IN_PROGRESS", "PENDING_PAYMENT"].includes(e.status)
+        ).length ?? 0,
+        totalSpent: statsData?.totalSpent ?? eventsData?.reduce((sum: number, e: Event) =>
+          sum + (e.totalAmount || 0), 0
+        ) ?? 0,
+        activeBookings: statsData?.activeBookings ?? statsData?.upcomingEvents ?? 0,
       });
     } catch (error: any) {
+      if (error.name === 'AbortError' || error.code === 'ERR_CANCELED') {
+        return; // Ignore abort errors
+      }
       console.error("Dashboard error:", error);
       setStats({
         totalEvents: 0,
@@ -115,13 +120,13 @@ export default function CustomerDashboardPage() {
 
   const getStatusColor = (status: EventStatus) => {
     switch (status) {
-      case "INQUIRY": return "bg-blue-900/30 text-blue-300 border-blue-700";
-      case "PENDING_PAYMENT": return "bg-yellow-900/30 text-yellow-300 border-yellow-700";
-      case "CONFIRMED": return "bg-green-900/30 text-green-300 border-green-700";
-      case "IN_PROGRESS": return "bg-purple-900/30 text-purple-300 border-purple-700";
-      case "COMPLETED": return "bg-silver-800/50 text-silver-300 border-silver-600";
-      case "CANCELLED": return "bg-red-900/30 text-red-300 border-red-700";
-      default: return "bg-silver-800/50 text-silver-300 border-silver-600";
+      case "INQUIRY": return "bg-blue-950/30 text-blue-400 border-blue-700";
+      case "PENDING_PAYMENT": return "bg-yellow-950/30 text-yellow-400 border-yellow-700";
+      case "CONFIRMED": return "bg-emerald-950/30 text-emerald-400 border-emerald-700";
+      case "IN_PROGRESS": return "bg-purple-950/30 text-purple-400 border-purple-700";
+      case "COMPLETED": return "bg-zinc-800/50 text-zinc-400 border-zinc-700";
+      case "CANCELLED": return "bg-red-950/30 text-red-400 border-red-700";
+      default: return "bg-zinc-800/50 text-zinc-400 border-zinc-700";
     }
   };
 
@@ -140,8 +145,8 @@ export default function CustomerDashboardPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
-          <div className="h-12 w-12 rounded-full border-4 border-silver-800 border-t-silver-400 animate-spin mx-auto mb-4" />
-          <p className="text-silver-400">Authenticating...</p>
+          <div className="h-12 w-12 rounded-full border-4 border-zinc-800 border-t-zinc-400 animate-spin mx-auto mb-4" />
+          <p className="text-zinc-400">Authenticating...</p>
         </div>
       </div>
     );
@@ -151,8 +156,8 @@ export default function CustomerDashboardPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
-          <div className="h-12 w-12 rounded-full border-4 border-silver-800 border-t-silver-400 animate-spin mx-auto mb-4" />
-          <p className="text-silver-400">Loading your dashboard...</p>
+          <div className="h-12 w-12 rounded-full border-4 border-zinc-800 border-t-zinc-400 animate-spin mx-auto mb-4" />
+          <p className="text-zinc-400">Loading your dashboard...</p>
         </div>
       </div>
     );
@@ -173,10 +178,10 @@ export default function CustomerDashboardPage() {
         transition={{ duration: 0.5 }}
       >
         <div>
-          <h1 className="text-3xl font-bold text-white">
+          <h1 className="text-3xl font-bold text-zinc-100">
             Welcome back, {user?.name || "Customer"}! 👋
           </h1>
-          <p className="text-silver-400 mt-1">
+          <p className="text-zinc-400 mt-1">
             Manage your events and bookings all in one place
           </p>
         </div>
@@ -186,7 +191,7 @@ export default function CustomerDashboardPage() {
         >
           <Button
             variant="premium"
-            onClick={() => router.push("/dashboard/customer/create-event")}
+            onClick={() => router.push("/plan-event")}
             className="h-12 px-6"
           >
             <Plus className="h-5 w-5 mr-2" />
@@ -209,16 +214,16 @@ export default function CustomerDashboardPage() {
           { title: "Active Bookings", value: stats?.activeBookings || 0, subtext: "Venues & vendors", icon: Package },
         ].map((stat, index) => (
           <motion.div key={index} variants={itemVariants}>
-            <Card className="border-silver-800 bg-gradient-to-br from-silver-900/50 to-silver-950/50 hover:shadow-xl hover:shadow-black/30 transition-all duration-300">
+            <Card className="border-zinc-800 bg-zinc-900/50 hover:border-zinc-700 transition-all duration-300">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-black">
+                <CardTitle className="text-zinc-100">
                   {stat.title}
                 </CardTitle>
-                <stat.icon className="h-5 w-5 text-silver-300" />
+                <stat.icon className="h-5 w-5 text-zinc-400" />
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-white">{stat.value}</div>
-                <p className="text-xs text-silver-500 mt-1">{stat.subtext}</p>
+                <div className="text-3xl font-bold text-zinc-100">{stat.value}</div>
+                <p className="text-xs text-zinc-500 mt-1">{stat.subtext}</p>
               </CardContent>
             </Card>
           </motion.div>
@@ -240,17 +245,17 @@ export default function CustomerDashboardPage() {
         ].map((action, index) => (
           <motion.div key={index} variants={itemVariants}>
             <Card 
-              className="border-silver-800 bg-gradient-to-br from-silver-900/50 to-silver-950/50 hover:shadow-xl hover:shadow-black/30 transition-all duration-300 cursor-pointer hover:-translate-y-1" 
+              className="border-zinc-800 bg-zinc-900/50 hover:border-zinc-700 transition-all duration-300 cursor-pointer hover:-translate-y-1" 
               onClick={() => router.push(action.href)}
             >
               <CardContent className="pt-6">
                 <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-silver-700 to-silver-800 flex items-center justify-center shadow-lg shadow-black/20">
-                    <action.icon className="h-6 w-6 text-silver-200" />
+                  <div className="h-12 w-12 rounded-xl bg-zinc-800 flex items-center justify-center">
+                    <action.icon className="h-6 w-6 text-zinc-300" />
                   </div>
                   <div>
-                    <p className="font-semibold text-white">{action.title}</p>
-                    <p className="text-sm text-silver-400">{action.subtitle}</p>
+                    <p className="font-semibold text-zinc-100">{action.title}</p>
+                    <p className="text-sm text-zinc-400">{action.subtitle}</p>
                   </div>
                 </div>
               </CardContent>
@@ -261,27 +266,27 @@ export default function CustomerDashboardPage() {
 
       {/* Events Section */}
       <motion.div variants={itemVariants}>
-        <Card className="border-silver-800 bg-gradient-to-br from-silver-900/50 to-silver-950/50">
+        <Card className="border-zinc-800 bg-zinc-900/50">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-black">Your Events</CardTitle>
-                <CardDescription>
+                <CardTitle className="text-zinc-100">Your Events</CardTitle>
+                <CardDescription className="text-zinc-400">
                   Manage and track all your events
                 </CardDescription>
               </div>
               <div className="flex items-center gap-2">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-silver-500" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
                   <Input
                     placeholder="Search events..."
-                    className="pl-9 w-64"
+                    className="pl-9 w-64 bg-zinc-900 border-zinc-700 text-zinc-100"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
                 </div>
                 <select
-                  className="h-11 px-4 rounded-xl border border-silver-700 bg-silver-900/50 text-sm text-white focus:outline-none focus:ring-2 focus:ring-silver-600"
+                  className="h-11 px-4 rounded-xl border border-zinc-700 bg-zinc-900 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-600"
                   value={filterStatus}
                   onChange={(e) => setFilterStatus(e.target.value)}
                 >
@@ -299,14 +304,14 @@ export default function CustomerDashboardPage() {
           <CardContent>
             {filteredEvents.length === 0 ? (
               <div className="text-center py-12">
-                <Calendar className="h-16 w-16 text-silver-600 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-white mb-2">No events found</h3>
-                <p className="text-silver-400 mb-6">
+                <Calendar className="h-16 w-16 text-zinc-600 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-zinc-100 mb-2">No events found</h3>
+                <p className="text-zinc-400 mb-6">
                   {searchQuery || filterStatus !== "all"
                     ? "Try adjusting your search or filters"
                     : "Start by creating your first event!"}
                 </p>
-                <Button variant="premium" onClick={() => router.push("/dashboard/customer/create-event")}>
+                <Button variant="premium" onClick={() => router.push("/plan-event")}>
                   <Plus className="h-5 w-5 mr-2" />
                   Create Event
                 </Button>
@@ -319,15 +324,15 @@ export default function CustomerDashboardPage() {
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.05 }}
-                    className="flex items-center justify-between p-4 rounded-xl border border-silver-800 hover:shadow-lg hover:shadow-black/20 hover:border-silver-700 transition-all duration-300 bg-gradient-to-r from-silver-900/30 to-transparent"
+                    className="flex items-center justify-between p-4 rounded-xl border border-zinc-800 hover:border-zinc-700 transition-all duration-300 bg-zinc-900/30"
                   >
                     <div className="flex items-center gap-4">
-                      <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-silver-600 to-silver-800 flex items-center justify-center text-white font-bold shadow-lg shadow-black/20">
+                      <div className="h-12 w-12 rounded-xl bg-zinc-800 flex items-center justify-center text-zinc-100 font-bold">
                         {event.eventType.charAt(0)}
                       </div>
                       <div>
-                        <h3 className="font-semibold text-white">{event.title || event.eventType}</h3>
-                        <div className="flex items-center gap-4 text-sm text-silver-400 mt-1">
+                        <h3 className="font-semibold text-zinc-100">{event.title || event.eventType}</h3>
+                        <div className="flex items-center gap-4 text-sm text-zinc-400 mt-1">
                           <span className="flex items-center gap-1">
                             <Calendar className="h-4 w-4" />
                             {new Date(event.date).toLocaleDateString("en-IN", {
@@ -355,7 +360,7 @@ export default function CustomerDashboardPage() {
                       <Button
                         variant="silver"
                         size="sm"
-                        onClick={() => router.push(`/dashboard/customer`)}
+                        onClick={() => router.push(`/dashboard/customer/events/${event.id}`)}
                       >
                         View Details
                       </Button>
@@ -370,10 +375,10 @@ export default function CustomerDashboardPage() {
 
       {/* Tips Section */}
       <motion.div variants={itemVariants}>
-        <Card className="border-silver-800 bg-gradient-to-br from-silver-900/30 to-silver-950/30">
+        <Card className="border-zinc-800 bg-zinc-900/30">
           <CardHeader>
-            <CardTitle className="text-black">Quick Tips</CardTitle>
-            <CardDescription>Make the most of NearZro</CardDescription>
+            <CardTitle className="text-zinc-100">Quick Tips</CardTitle>
+            <CardDescription className="text-zinc-400">Make the most of NearZro</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -381,13 +386,13 @@ export default function CustomerDashboardPage() {
                 { icon: Sparkles, title: "Use AI Event Planner", desc: "Get personalized budget recommendations and vendor suggestions based on your event type and city" },
                 { icon: Bell, title: "Stay Updated", desc: "Enable notifications to get real-time updates on your bookings and vendor responses" },
               ].map((tip, index) => (
-                <div key={index} className="flex items-start gap-4 p-4 rounded-xl bg-silver-900/50 border border-silver-800">
-                  <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-silver-600 to-silver-800 flex items-center justify-center flex-shrink-0 shadow-lg shadow-black/20">
-                    <tip.icon className="h-5 w-5 text-silver-200" />
+                <div key={index} className="flex items-start gap-4 p-4 rounded-xl bg-zinc-900/50 border border-zinc-800">
+                  <div className="h-10 w-10 rounded-xl bg-zinc-800 flex items-center justify-center flex-shrink-0">
+                    <tip.icon className="h-5 w-5 text-zinc-300" />
                   </div>
                   <div>
-                    <p className="font-semibold text-white">{tip.title}</p>
-                    <p className="text-sm text-silver-400 mt-1">{tip.desc}</p>
+                    <p className="font-semibold text-zinc-100">{tip.title}</p>
+                    <p className="text-sm text-zinc-400 mt-1">{tip.desc}</p>
                   </div>
                 </div>
               ))}

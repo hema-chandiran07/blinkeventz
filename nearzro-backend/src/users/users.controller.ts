@@ -1,5 +1,5 @@
 import { Roles } from '../common/decorators/roles.decorator';
-import { Role } from '../common/enums/role.enum';
+import { Role } from '@prisma/client';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Controller, Get, Req, UseGuards, Param, NotFoundException, ParseIntPipe, ForbiddenException, Body, Patch, Delete } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -63,7 +63,7 @@ export class UsersController {
   })
   async updateProfile(
     @Req() req: any,
-    @Body() body: { name?: string; phone?: string; city?: string; area?: string },
+    @Body() body: { name?: string; phone?: string; city?: string; area?: string; image?: string },
   ) {
     return this.usersService.updateProfile(req.user.userId || req.user.id, body);
   }
@@ -193,3 +193,4 @@ export class UsersController {
     return this.usersService.deleteUser(id, req.user.userId || req.user.id);
   }
 }
+

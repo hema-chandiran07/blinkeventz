@@ -21,7 +21,7 @@ import { PaymentsService } from './payments.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
-import { Role } from '../common/enums/role.enum';
+import { Role } from '@prisma/client';
 import type { AuthRequest } from '../auth/auth-request.interface';
 import { Public } from '../common/decorators/public.decorator';
 import { CreatePaymentDto, CreateSimplePaymentDto } from './dto/create-payment.dto';
@@ -281,3 +281,4 @@ export class PaymentsController {
   // NOTE: Duplicate POST refund endpoint removed (HIGH-07).
   // Use PATCH /:id/refund (processRefund) which tracks cumulative refund amounts.
 }
+

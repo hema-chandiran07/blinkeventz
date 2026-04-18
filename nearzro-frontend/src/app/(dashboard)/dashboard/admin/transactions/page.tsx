@@ -12,6 +12,7 @@ import {
   Clock, CheckCircle2, AlertCircle, RefreshCw, Loader2, Filter,
   DollarSign, Calendar, User, Building
 } from "lucide-react";
+import Link from "next/link";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -43,11 +44,11 @@ interface TransactionStats {
 
 // ==================== Constants ====================
 const STATUS_CONFIG: Record<string, { className: string; label: string; icon: any }> = {
-  SUCCESS: { className: "bg-green-100 text-green-700 border-green-300", label: "Success", icon: CheckCircle2 },
+  SUCCESS: { className: "bg-emerald-950/30 text-emerald-400 border-emerald-700", label: "Success", icon: CheckCircle2 },
   CAPTURED: { className: "bg-green-100 text-green-700 border-green-300", label: "Captured", icon: CheckCircle2 },
-  PENDING: { className: "bg-amber-100 text-amber-700 border-amber-300", label: "Pending", icon: Clock },
-  FAILED: { className: "bg-red-100 text-red-700 border-red-300", label: "Failed", icon: AlertCircle },
-  REFUNDED: { className: "bg-blue-100 text-blue-700 border-blue-300", label: "Refunded", icon: TrendingDown },
+  PENDING: { className: "bg-amber-950/30 text-amber-400 border-amber-700", label: "Pending", icon: Clock },
+  FAILED: { className: "bg-red-950/30 text-red-400 border-red-700", label: "Failed", icon: AlertCircle },
+  REFUNDED: { className: "bg-blue-950/30 text-blue-400 border-blue-700", label: "Refunded", icon: TrendingDown },
 };
 
 // ==================== Main Component ====================
@@ -61,12 +62,13 @@ export default function AdminTransactionsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterType, setFilterType] = useState("all");
+  const [dateRange, setDateRange] = useState<"all" | "7days" | "30days">("all");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const limit = 20;
 
   // Load transactions
-  const loadTransactions = useCallback(async (showRefresh = false) => {
+  const loadTransactions = useCallback(async (showRefresh = false, signal?: AbortSignal) => {
     try {
       if (showRefresh) {
         setRefreshing(true);
@@ -74,8 +76,22 @@ export default function AdminTransactionsPage() {
         setLoading(true);
       }
 
+      const now = new Date();
+      let start: string | undefined;
+      
+      if (dateRange === "7days") {
+        const d = new Date(now);
+        d.setDate(d.getDate() - 7);
+        start = d.toISOString().split('T')[0];
+      } else if (dateRange === "30days") {
+        const d = new Date(now);
+        d.setDate(d.getDate() - 30);
+        start = d.toISOString().split('T')[0];
+      }
+
       const response = await api.get("/payments", {
-        params: { page, limit },
+        params: { page, limit, startDate: start },
+        signal,
       });
 
       const data = response.data;
@@ -89,7 +105,7 @@ export default function AdminTransactionsPage() {
 
       const formattedTransactions: Transaction[] = payments.map((p: any) => ({
         id: p.id,
-        type: p.refundId ? "Refund" : "Payment",
+        type: (p.status === "REFUNDED" || p.refundId) ? "Refund" : "Payment",
         customer: p.user?.name || "Unknown",
         customerEmail: p.user?.email || "",
         event: p.event?.title || p.Event?.title || "N/A",
@@ -128,6 +144,7 @@ export default function AdminTransactionsPage() {
         transactionCount: payments.length,
       });
     } catch (error: any) {
+      if (error?.name === 'AbortError' || error?.code === 'ERR_CANCELED') return;
       console.error("Failed to load transactions:", error);
       const errorMessage = error?.response?.data?.message || "Failed to load transactions";
       toast.error(errorMessage);
@@ -137,10 +154,12 @@ export default function AdminTransactionsPage() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [page]);
+  }, [page, dateRange]);
 
   useEffect(() => {
-    loadTransactions();
+    const controller = new AbortController();
+    loadTransactions(false, controller.signal);
+    return () => controller.abort();
   }, [loadTransactions]);
 
   // Filter transactions
@@ -174,7 +193,7 @@ export default function AdminTransactionsPage() {
 
   // Get status badge
   const getStatusBadge = (status: string) => {
-    const config = STATUS_CONFIG[status] || { className: "bg-neutral-100 text-neutral-700", label: status, icon: null };
+    const config = STATUS_CONFIG[status] || { className: "bg-zinc-800 text-zinc-400", label: status, icon: null };
     const Icon = config.icon;
     return (
       <Badge className={cn("text-xs font-medium", config.className)}>
@@ -210,107 +229,79 @@ export default function AdminTransactionsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen bg-zinc-950">
         <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-neutral-400" />
-          <p className="text-neutral-600">Loading transactions...</p>
+          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-zinc-400" />
+          <p className="text-zinc-400">Loading transactions...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 bg-neutral-50 min-h-screen">
+    <div className="space-y-8 p-6 bg-zinc-950 min-h-screen">
       {/* Header */}
       <motion.div 
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white border-b border-neutral-200 px-6 py-4"
+        className="flex items-center justify-between flex-wrap gap-4"
       >
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-neutral-900">Transactions</h1>
-            <p className="text-sm text-neutral-600 mt-1">Payment and transaction history</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" className="border-neutral-300" onClick={() => loadTransactions(true)} disabled={refreshing}>
-              <RefreshCw className={cn("h-4 w-4 mr-2", refreshing && "animate-spin")} /> 
-              Refresh
-            </Button>
-            <Button variant="outline" className="border-neutral-300" onClick={handleExport}>
-              <Download className="h-4 w-4 mr-2" /> 
-              Export CSV
-            </Button>
-          </div>
+        <div>
+          <h1 className="text-4xl font-extrabold text-zinc-100 tracking-tight">
+            Financial <span className="text-zinc-400">Ledger</span>
+          </h1>
+          <p className="text-zinc-400 font-medium">Real-time payment tracking and reconciliation</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button 
+            variant="outline" 
+            className="border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 transition-all" 
+            onClick={() => loadTransactions(true)} 
+            disabled={refreshing}
+          >
+            <RefreshCw className={cn("h-4 w-4 mr-2", refreshing && "animate-spin")} /> 
+            Refresh
+          </Button>
+          <Button 
+            className="bg-zinc-100 text-zinc-900 hover:bg-zinc-200 shadow-lg transition-all font-semibold" 
+            onClick={handleExport}
+          >
+            <Download className="h-4 w-4 mr-2" /> Export CSV
+          </Button>
         </div>
       </motion.div>
 
       {/* Stats Cards */}
       <motion.div 
-        className="grid gap-4 md:grid-cols-4 px-6"
+        className="grid gap-6 md:grid-cols-2 lg:grid-cols-4"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
       >
-        <Card className="border-emerald-200 bg-gradient-to-br from-emerald-50 to-white">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-emerald-700">Total Revenue</p>
-                <p className="text-2xl font-bold text-emerald-900 mt-1">{formatCurrency(stats?.totalRevenue || 0)}</p>
-                <p className="text-xs text-emerald-600 mt-1">{stats?.transactionCount || 0} transactions</p>
+        {[
+          { label: "Total Revenue", value: stats?.totalRevenue, icon: DollarSign, color: "text-emerald-400", bg: "bg-emerald-950/30", sub: `${stats?.transactionCount} successful` },
+          { label: "Pending Buffer", value: stats?.pendingAmount, icon: Clock, color: "text-amber-400", bg: "bg-amber-950/30", sub: "Awaiting confirmation" },
+          { label: "Refund Volume", value: stats?.refundAmount, icon: TrendingDown, color: "text-blue-400", bg: "bg-blue-950/30", sub: "Total volume" },
+          { label: "Efficiency Rate", value: `${(stats?.successRate || 0).toFixed(1)}%`, icon: CheckCircle2, color: "text-zinc-100", bg: "bg-zinc-800", sub: "Payment integrity" }
+        ].map((item, i) => (
+          <Card key={item.label} className="border border-zinc-800 bg-zinc-900/50 shadow-xl overflow-hidden relative">
+            <div className="absolute top-0 left-0 w-1 h-full bg-zinc-600 opacity-30" />
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest font-bold text-zinc-500 mb-1">{item.label}</p>
+                  <p className="text-2xl font-black text-zinc-100">
+                    {typeof item.value === 'number' ? formatCurrency(item.value) : item.value}
+                  </p>
+                  <p className="text-[10px] text-zinc-500 mt-1 font-medium">{item.sub}</p>
+                </div>
+                <div className={cn("p-3 rounded-2xl shadow-inner", item.bg, item.color)}>
+                  <item.icon className="h-6 w-6" />
+                </div>
               </div>
-              <div className="p-3 rounded-full bg-emerald-600">
-                <DollarSign className="h-6 w-6 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-amber-200 bg-gradient-to-br from-amber-50 to-white">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-amber-700">Pending Amount</p>
-                <p className="text-2xl font-bold text-amber-900 mt-1">{formatCurrency(stats?.pendingAmount || 0)}</p>
-                <p className="text-xs text-amber-600 mt-1">Awaiting confirmation</p>
-              </div>
-              <div className="p-3 rounded-full bg-amber-600">
-                <Clock className="h-6 w-6 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-white">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-blue-700">Refunds</p>
-                <p className="text-2xl font-bold text-blue-900 mt-1">{formatCurrency(stats?.refundAmount || 0)}</p>
-                <p className="text-xs text-blue-600 mt-1">Total refunded</p>
-              </div>
-              <div className="p-3 rounded-full bg-blue-600">
-                <TrendingDown className="h-6 w-6 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-neutral-200 bg-gradient-to-br from-neutral-50 to-white">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-neutral-700">Success Rate</p>
-                <p className="text-2xl font-bold text-neutral-900 mt-1">{(stats?.successRate || 0).toFixed(1)}%</p>
-                <p className="text-xs text-neutral-600 mt-1">Payment completion</p>
-              </div>
-              <div className="p-3 rounded-full bg-neutral-900">
-                <CheckCircle2 className="h-6 w-6 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        ))}
       </motion.div>
 
       {/* Filters */}
@@ -320,12 +311,12 @@ export default function AdminTransactionsPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
       >
-        <Card>
+        <Card className="border-zinc-800 bg-zinc-900/50">
           <CardContent className="p-4">
             <div className="flex flex-wrap items-center gap-4">
               <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-neutral-500" />
-                <span className="text-sm font-medium text-neutral-700">Filters:</span>
+                <Filter className="h-4 w-4 text-zinc-400" />
+                <span className="text-sm font-medium text-zinc-300">Filters:</span>
               </div>
               <div className="flex-1 relative max-w-md">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
@@ -333,16 +324,29 @@ export default function AdminTransactionsPage() {
                   placeholder="Search by customer, email, or event..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 bg-zinc-800 border-zinc-700 text-zinc-100 placeholder:text-zinc-500"
                 />
               </div>
               <div className="flex items-center gap-2">
-                <Label htmlFor="filter-status" className="text-sm whitespace-nowrap">Status:</Label>
+                <Label htmlFor="date-range" className="text-sm whitespace-nowrap text-zinc-300">Date:</Label>
+                <select
+                  id="date-range"
+                  value={dateRange}
+                  onChange={(e) => { setDateRange(e.target.value as any); setPage(1); }}
+                  className="flex h-10 rounded-md border border-zinc-700 bg-zinc-800 text-zinc-100 px-4 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-600"
+                >
+                  <option value="all">All Time</option>
+                  <option value="7days">Last 7 Days</option>
+                  <option value="30days">Last 30 Days</option>
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="filter-status" className="text-sm whitespace-nowrap text-zinc-300">Status:</Label>
                 <select
                   id="filter-status"
                   value={filterStatus}
                   onChange={(e) => setFilterStatus(e.target.value)}
-                  className="flex h-10 rounded-md border border-neutral-200 bg-white px-4 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-600"
+                  className="flex h-10 rounded-md border border-zinc-700 bg-zinc-800 text-zinc-100 px-4 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-600"
                 >
                   <option value="all">All Status</option>
                   <option value="SUCCESS">Success</option>
@@ -353,19 +357,19 @@ export default function AdminTransactionsPage() {
                 </select>
               </div>
               <div className="flex items-center gap-2">
-                <Label htmlFor="filter-type" className="text-sm whitespace-nowrap">Type:</Label>
+                <Label htmlFor="filter-type" className="text-sm whitespace-nowrap text-zinc-300">Type:</Label>
                 <select
                   id="filter-type"
                   value={filterType}
                   onChange={(e) => setFilterType(e.target.value)}
-                  className="flex h-10 rounded-md border border-neutral-200 bg-white px-4 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-600"
+                  className="flex h-10 rounded-md border border-zinc-700 bg-zinc-800 text-zinc-100 px-4 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-600"
                 >
                   <option value="all">All Types</option>
                   <option value="Payment">Payments</option>
                   <option value="Refund">Refunds</option>
                 </select>
               </div>
-              {(searchTerm || filterStatus !== "all" || filterType !== "all") && (
+              {(searchTerm || filterStatus !== "all" || filterType !== "all" || dateRange !== "all") && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -373,8 +377,9 @@ export default function AdminTransactionsPage() {
                     setSearchTerm("");
                     setFilterStatus("all");
                     setFilterType("all");
+                    setDateRange("all");
                   }}
-                  className="text-neutral-600"
+                  className="text-zinc-400 hover:text-zinc-100"
                 >
                   Clear
                 </Button>
@@ -391,12 +396,12 @@ export default function AdminTransactionsPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
       >
-        <Card>
+        <Card className="border-zinc-800 bg-zinc-900/50">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-black">Recent Transactions</CardTitle>
-                <p className="text-sm text-neutral-600 mt-1">
+                <CardTitle className="text-zinc-100">Recent Transactions</CardTitle>
+                <p className="text-sm text-zinc-400 mt-1">
                   {filteredTransactions.length} transactions found
                 </p>
               </div>
@@ -405,10 +410,10 @@ export default function AdminTransactionsPage() {
           <CardContent>
             {filteredTransactions.length === 0 ? (
               <div className="text-center py-12">
-                <CreditCard className="h-16 w-16 text-neutral-300 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-neutral-900 mb-2">No transactions found</h3>
-                <p className="text-neutral-600">
-                  {searchTerm || filterStatus !== "all" || filterType !== "all"
+                <CreditCard className="h-16 w-16 text-zinc-600 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-zinc-100 mb-2">No transactions found</h3>
+                <p className="text-zinc-400">
+                  {searchTerm || filterStatus !== "all" || filterType !== "all" || dateRange !== "all"
                     ? "Try adjusting your filters"
                     : "No transactions available"}
                 </p>
@@ -417,32 +422,37 @@ export default function AdminTransactionsPage() {
               <>
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-neutral-50 border-b-2 border-neutral-200">
+                    <thead className="bg-zinc-800/50 border-b border-zinc-700">
                       <tr>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Transaction ID</th>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Customer</th>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Event</th>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Type</th>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Amount</th>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Status</th>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Date</th>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-neutral-600 uppercase">Actions</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-zinc-400 uppercase">Transaction ID</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-zinc-400 uppercase">Customer</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-zinc-400 uppercase">Event</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-zinc-400 uppercase">Type</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-zinc-400 uppercase">Amount</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-zinc-400 uppercase">Status</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-zinc-400 uppercase">Date</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-zinc-400 uppercase">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-neutral-100">
+                    <tbody className="divide-y divide-zinc-800">
                       {filteredTransactions.map((t) => (
-                        <tr key={t.id} className="hover:bg-neutral-50 transition-colors">
+                        <tr key={t.id} className="hover:bg-zinc-800/50 transition-colors">
                           <td className="py-3 px-4">
-                            <span className="text-xs font-mono text-neutral-600">#{t.id}</span>
+                            <span className="text-xs font-mono text-zinc-400">#{t.id}</span>
                           </td>
                           <td className="py-3 px-4">
                             <div>
-                              <p className="text-sm font-medium text-neutral-900">{t.customer}</p>
-                              <p className="text-xs text-neutral-500">{t.customerEmail}</p>
+                              <p className="text-sm font-medium text-zinc-100">{t.customer}</p>
+                              <p className="text-xs text-zinc-500">{t.customerEmail}</p>
                             </div>
                           </td>
-                          <td className="py-3 px-4">
-                            <span className="text-sm text-neutral-700">{t.event}</span>
+                          <td className="py-4 px-4">
+                            <Link 
+                              href={`/dashboard/admin/events/${t.eventId}`}
+                              className="text-sm font-bold text-zinc-100 hover:text-zinc-300 transition-colors underline decoration-zinc-600 underline-offset-4"
+                            >
+                              {t.event}
+                            </Link>
                           </td>
                           <td className="py-3 px-4">
                             <Badge variant={t.type === "Payment" ? "default" : "outline"} className="text-xs">
@@ -450,20 +460,20 @@ export default function AdminTransactionsPage() {
                             </Badge>
                           </td>
                           <td className="py-3 px-4">
-                            <span className="text-sm font-bold text-neutral-900">{formatCurrency(t.amount)}</span>
+                            <span className="text-sm font-bold text-zinc-100">{formatCurrency(t.amount)}</span>
                           </td>
                           <td className="py-3 px-4">
                             {getStatusBadge(t.status)}
                           </td>
                           <td className="py-3 px-4">
-                            <span className="text-sm text-neutral-600">{formatDate(t.date)}</span>
+                            <span className="text-sm text-zinc-400">{formatDate(t.date)}</span>
                           </td>
                           <td className="py-3 px-4">
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => handleViewTransaction(t.id)}
-                              className="text-neutral-600 hover:bg-neutral-100"
+                              className="text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
@@ -477,7 +487,7 @@ export default function AdminTransactionsPage() {
                 {/* Pagination */}
                 {totalPages > 1 && (
                   <div className="flex items-center justify-between mt-6 pt-6 border-t">
-                    <p className="text-sm text-neutral-600">
+                    <p className="text-sm text-zinc-400">
                       Page {page} of {totalPages}
                     </p>
                     <div className="flex items-center gap-2">
@@ -498,7 +508,7 @@ export default function AdminTransactionsPage() {
                               variant={page === pageNum ? "default" : "outline"}
                               size="sm"
                               onClick={() => setPage(pageNum)}
-                              className={page === pageNum ? "bg-neutral-900" : ""}
+                              className={page === pageNum ? "bg-zinc-700" : "border-zinc-700 text-zinc-300"}
                             >
                               {pageNum}
                             </Button>

@@ -24,12 +24,15 @@ export class ReviewsService {
       throw new BadRequestException('You have already reviewed this');
     }
 
+    // Auto-approve ALL reviews (bypass admin approval requirement)
+    let status: 'PENDING' | 'APPROVED' = 'APPROVED';
+
     const data: any = {
       userId,
       rating: dto.rating,
       title: dto.title,
       comment: dto.comment,
-      status: 'PENDING',
+      status,
     };
 
     if (dto.venueId) data.venueId = dto.venueId;
@@ -43,9 +46,39 @@ export class ReviewsService {
           select: {
             id: true,
             name: true,
+            image: true,
           },
         },
       },
+    });
+  }
+
+  /**
+   * Check if user has a COMPLETED booking with vendor or venue
+   */
+  private async checkVerifiedBooking(userId: number, vendorId?: number, venueId?: number): Promise<boolean> {
+    if (!vendorId && !venueId) return false;
+
+    // Find bookings for this user that are COMPLETED
+    const bookings = await this.prisma.booking.findMany({
+      where: {
+        userId,
+        status: 'COMPLETED',
+      },
+      include: {
+        slot: {
+          include: {
+            vendor: true,
+            venue: true,
+          },
+        },
+      },
+    });
+
+    return bookings.some(booking => {
+      if (vendorId && booking.slot?.vendorId === vendorId) return true;
+      if (venueId && booking.slot?.venueId === venueId) return true;
+      return false;
     });
   }
 

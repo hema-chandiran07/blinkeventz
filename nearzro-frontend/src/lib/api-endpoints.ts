@@ -82,7 +82,7 @@ export const transactionsApi = {
   getById: (id: number) => api.get(`/payments/${id}`),
   approve: (id: number) => api.patch(`/payments/${id}/approve`),
   reject: (id: number) => api.patch(`/payments/${id}/reject`),
-  refund: (id: number, data: any) => api.post(`/payments/${id}/refund`, data),
+  refund: (id: number, data: any) => api.patch(`/payments/${id}/refund`, data),
   export: () => api.get("/payments/export", { responseType: "blob" }),
 };
 
@@ -190,6 +190,14 @@ export const vendorApi = {
   getEarnings: () => api.get("/vendors/me/earnings"),
   submitKyc: (data: any) => api.post("/kyc/vendor", data, { headers: { 'Content-Type': 'multipart/form-data' } }),
   getKycStatus: () => api.get("/kyc/vendor/me"),
+  // Portfolio endpoints
+  getPortfolio: () => api.get("/vendors/me/portfolio"),
+  addPortfolioItem: (data: any) => api.post("/vendors/me/portfolio", data, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  deletePortfolioItem: (id: number) => api.delete(`/vendors/me/portfolio/${id}`),
+  // Reviews
+  getReviews: () => api.get("/vendors/me/reviews"),
+  // Dashboard stats
+  getDashboardStats: () => api.get("/dashboard/vendor/stats"),
 };
 
 // ==================== VENUE (ME) API ====================
@@ -197,7 +205,7 @@ export const venueApi = {
   getMyProfile: () => api.get("/venues/me"),
   updateProfile: (data: any) => api.patch("/venues/me", data),
   getBookings: () => api.get("/venues/me/bookings"),
-  updateBookingStatus: (bookingId: number, status: string) => api.patch(`/booking/${bookingId}/status`, { status }),
+  updateBookingStatus: (bookingId: number, status: string) => api.patch(`/venues/me/bookings/${bookingId}/status`, { status }),
   getAvailability: () => api.get("/venues/me/availability"),
   updateAvailability: (data: any) => api.patch("/venues/me/availability", data),
   getAnalytics: () => api.get("/venues/me/analytics"),
@@ -205,6 +213,12 @@ export const venueApi = {
   getKycStatus: () => api.get("/kyc/venue-owner/me"),
   getPayouts: () => api.get("/payouts/venue-owner/me"),
   getPayoutStats: () => api.get("/payouts/venue-owner/stats"),
+  // Reviews
+  getReviews: () => api.get("/venues/me/reviews"),
+  // Dashboard stats
+  getDashboardStats: () => api.get("/dashboard/venue/stats"),
+  // Earnings
+  getEarnings: () => api.get("/venues/me/earnings"),
 };
 
 // ==================== ANALYTICS API ====================

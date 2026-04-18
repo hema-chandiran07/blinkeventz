@@ -36,16 +36,19 @@ export default function AdminVendorsPage() {
   const [filterStatus, setFilterStatus] = useState("all");
 
   useEffect(() => {
-    loadVendors();
+    const controller = new AbortController();
+    loadVendors(controller.signal);
+    return () => controller.abort();
   }, []);
 
-  const loadVendors = async () => {
+  const loadVendors = async (signal?: AbortSignal) => {
     try {
       setLoading(true);
-      const response = await api.get("/vendors");
+      const response = await api.get("/vendors", { signal });
       const vendorsData = extractArray<Vendor>(response);
       setVendors(vendorsData);
     } catch (error: any) {
+      if (error?.name === 'AbortError' || error?.code === 'ERR_CANCELED') return;
       console.error("Failed to load vendors:", error);
       toast.error("Failed to load vendors");
     } finally {
@@ -88,70 +91,70 @@ export default function AdminVendorsPage() {
   };
 
   return (
-    <div className="space-y-6 bg-neutral-50 min-h-screen">
+    <div className="space-y-6 bg-zinc-950 min-h-screen">
       {/* Header */}
-      <div className="bg-white border-b border-neutral-200 px-6 py-4">
+      <div className="bg-zinc-900 border-b border-zinc-800 px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-neutral-900">Vendor Management</h1>
-            <p className="text-sm text-neutral-600 mt-1">Manage all registered vendors</p>
+            <h1 className="text-2xl font-bold text-zinc-100">Vendor Management</h1>
+            <p className="text-sm text-zinc-400 mt-1">Manage all registered vendors</p>
           </div>
         </div>
       </div>
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-4 px-6">
-        <Card className="border-2 border-neutral-200">
+        <Card className="border-zinc-700 bg-zinc-900/50">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-600">Total Vendors</p>
-                <p className="text-3xl font-bold text-neutral-900 mt-1">{stats.total}</p>
+                <p className="text-sm font-medium text-zinc-400">Total Vendors</p>
+                <p className="text-3xl font-bold text-zinc-100 mt-1">{stats.total}</p>
               </div>
-              <div className="p-3 rounded-full bg-neutral-100">
-                <Store className="h-6 w-6 text-neutral-600" />
+              <div className="p-3 rounded-full bg-zinc-800">
+                <Store className="h-6 w-6 text-zinc-400" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-2 border-emerald-200">
+        <Card className="border-emerald-800 bg-emerald-950/20">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-600">Verified</p>
-                <p className="text-3xl font-bold text-emerald-600 mt-1">{stats.verified}</p>
+                <p className="text-sm font-medium text-emerald-400">Verified</p>
+                <p className="text-3xl font-bold text-emerald-400 mt-1">{stats.verified}</p>
               </div>
-              <div className="p-3 rounded-full bg-emerald-100">
-                <CheckCircle2 className="h-6 w-6 text-emerald-600" />
+              <div className="p-3 rounded-full bg-emerald-950/30">
+                <CheckCircle2 className="h-6 w-6 text-emerald-400" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-2 border-amber-200">
+        <Card className="border-amber-800 bg-amber-950/20">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-600">Pending</p>
-                <p className="text-3xl font-bold text-amber-600 mt-1">{stats.pending}</p>
+                <p className="text-sm font-medium text-amber-400">Pending</p>
+                <p className="text-3xl font-bold text-amber-400 mt-1">{stats.pending}</p>
               </div>
-              <div className="p-3 rounded-full bg-amber-100">
-                <Clock className="h-6 w-6 text-amber-600" />
+              <div className="p-3 rounded-full bg-amber-950/30">
+                <Clock className="h-6 w-6 text-amber-400" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-2 border-red-200">
+        <Card className="border-red-800 bg-red-950/20">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-600">Rejected</p>
-                <p className="text-3xl font-bold text-red-600 mt-1">{stats.rejected}</p>
+                <p className="text-sm font-medium text-red-400">Rejected</p>
+                <p className="text-3xl font-bold text-red-400 mt-1">{stats.rejected}</p>
               </div>
-              <div className="p-3 rounded-full bg-red-100">
-                <XCircle className="h-6 w-6 text-red-600" />
+              <div className="p-3 rounded-full bg-red-950/30">
+                <XCircle className="h-6 w-6 text-red-400" />
               </div>
             </div>
           </CardContent>
@@ -159,23 +162,23 @@ export default function AdminVendorsPage() {
       </div>
 
       {/* Filters */}
-      <Card className="border-2 border-neutral-200 mx-6">
+      <Card className="border-zinc-800 bg-zinc-900/50 mx-6">
         <CardContent className="p-4">
           <div className="flex gap-4">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500" />
               <input
                 type="text"
                 placeholder="Search by business name or owner..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
+                className="w-full pl-10 pr-4 py-2 border border-zinc-700 bg-zinc-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-600 text-zinc-100 placeholder:text-zinc-500"
               />
             </div>
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
+              className="px-4 py-2 border border-zinc-700 bg-zinc-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-600 text-zinc-100"
             >
               <option value="all">All Status</option>
               <option value="PENDING">Pending</option>
@@ -189,45 +192,45 @@ export default function AdminVendorsPage() {
       {/* Vendors Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 px-6">
         {loading ? (
-          <div className="col-span-full text-center py-8 text-neutral-600">Loading vendors...</div>
+          <div className="col-span-full text-center py-8 text-zinc-400">Loading vendors...</div>
         ) : filteredVendors.length === 0 ? (
-          <div className="col-span-full text-center py-8 text-neutral-600">No vendors found</div>
+          <div className="col-span-full text-center py-8 text-zinc-400">No vendors found</div>
         ) : (
           filteredVendors.map((vendor) => (
-            <Card key={vendor.id} className="border-2 border-neutral-200 hover:border-black transition-colors">
+            <Card key={vendor.id} className="border-zinc-800 bg-zinc-900/50 hover:border-zinc-700 transition-colors">
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <CardTitle className="text-black">{vendor.businessName}</CardTitle>
-                    <p className="text-sm text-neutral-600 mt-1">{vendor.user?.name}</p>
+                    <CardTitle className="text-zinc-100">{vendor.businessName || "N/A"}</CardTitle>
+                    <p className="text-sm text-zinc-400 mt-1">{vendor.user?.name || "N/A"}</p>
                   </div>
                   <Badge className={`text-xs ${
-                    vendor.verificationStatus === "VERIFIED" ? "bg-emerald-100 text-emerald-700" :
-                    vendor.verificationStatus === "PENDING" ? "bg-amber-100 text-amber-700" :
-                    "bg-red-100 text-red-700"
+                    vendor.verificationStatus === "VERIFIED" ? "bg-emerald-950/30 text-emerald-400 border-emerald-700" :
+                    vendor.verificationStatus === "PENDING" ? "bg-amber-950/30 text-amber-400 border-amber-700" :
+                    "bg-red-950/30 text-red-400 border-red-700"
                   }`}>
-                    {vendor.verificationStatus}
+                    {vendor.verificationStatus || "N/A"}
                   </Badge>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="flex items-center gap-2 text-sm text-neutral-600">
+                <div className="flex items-center gap-2 text-sm text-zinc-400">
                   <Mail className="h-4 w-4" />
-                  <span>{vendor.user?.email}</span>
+                  <span>{vendor.user?.email || "N/A"}</span>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-neutral-600">
+                <div className="flex items-center gap-2 text-sm text-zinc-400">
                   <MapPin className="h-4 w-4" />
-                  <span>{vendor.area}, {vendor.city}</span>
+                  <span>{vendor.area || "N/A"}, {vendor.city || "N/A"}</span>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-neutral-600">
+                <div className="flex items-center gap-2 text-sm text-zinc-400">
                   <DollarSign className="h-4 w-4" />
-                  <span>From ₹{vendor.services?.[0]?.baseRate?.toLocaleString() || "0"}</span>
+                  <span>From ₹{vendor.services?.[0]?.baseRate?.toLocaleString() ?? "0"}</span>
                 </div>
                 <div className="pt-3 flex gap-2">
                   <Button
                     variant="outline"
                     size="sm"
-                    className="flex-1 border-black"
+                    className="flex-1 border-zinc-700 text-zinc-300 hover:bg-zinc-800"
                     onClick={() => router.push(`/dashboard/admin/vendors/${vendor.id}`)}
                   >
                     <Eye className="h-4 w-4 mr-1" /> View
@@ -237,7 +240,7 @@ export default function AdminVendorsPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="flex-1 border-emerald-600 text-emerald-600 hover:bg-emerald-50"
+                        className="flex-1 border-emerald-700 text-emerald-400 hover:bg-emerald-950/30"
                         onClick={() => handleApprove(vendor.id)}
                       >
                         <CheckCircle2 className="h-4 w-4 mr-1" /> Approve
@@ -245,7 +248,7 @@ export default function AdminVendorsPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="flex-1 border-red-600 text-red-600 hover:bg-red-50"
+                        className="flex-1 border-red-800 text-red-400 hover:bg-red-950/30"
                         onClick={() => handleReject(vendor.id)}
                       >
                         <XCircle className="h-4 w-4 mr-1" /> Reject

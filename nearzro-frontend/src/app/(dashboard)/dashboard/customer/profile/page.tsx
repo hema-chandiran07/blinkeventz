@@ -27,17 +27,36 @@ export default function CustomerProfilePage() {
       router.push("/login");
       return;
     }
-    
-    // Load user data
-    if (user) {
-      setFormData({
-        name: user.name || "",
-        email: user.email || "",
-        phone: "",
-        city: "",
-      });
-    }
-  }, [isAuthenticated, user, router]);
+
+    const controller = new AbortController();
+
+    const loadProfile = async () => {
+      try {
+        const response = await api.get("/auth/me", { signal: controller.signal });
+        const data = response.data;
+        setFormData({
+          name: data.name || user?.name || "",
+          email: data.email || user?.email || "",
+          phone: data.phone || "",
+          city: data.city || "",
+        });
+      } catch (error: any) {
+        if (error.name === 'AbortError' || error.code === 'ERR_CANCELED') return;
+        // Fallback to auth context data
+        if (user) {
+          setFormData({
+            name: user.name || "",
+            email: user.email || "",
+            phone: "",
+            city: "",
+          });
+        }
+      }
+    };
+
+    loadProfile();
+    return () => controller.abort();
+  }, [isAuthenticated, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,40 +103,40 @@ export default function CustomerProfilePage() {
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-4xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-black mb-2">Profile Settings</h1>
-          <p className="text-neutral-600">Manage your personal information and preferences</p>
+          <h1 className="text-3xl font-bold text-zinc-100 mb-2">Profile Settings</h1>
+          <p className="text-zinc-400">Manage your personal information and preferences</p>
         </div>
 
         <div className="grid gap-6 md:grid-cols-3">
           {/* Sidebar */}
           <div className="md:col-span-1">
-            <Card className="border-silver-200">
+            <Card className="border-zinc-800 bg-zinc-900/50">
               <CardContent className="pt-6">
                 <div className="flex flex-col items-center text-center">
-                  <div className="h-24 w-24 rounded-full bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center text-white text-3xl font-bold mb-4">
-                    {user?.name?.charAt(0) || "U"}
+                  <div className="h-24 w-24 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-100 text-3xl font-bold mb-4">
+                    {(user?.name || "U").charAt(0)}
                   </div>
-                  <h3 className="font-semibold text-black text-lg">{user?.name}</h3>
-                  <p className="text-sm text-neutral-600">{user?.email}</p>
-                  <div className="mt-4 px-3 py-1 rounded-full bg-neutral-100 text-xs font-medium">
-                    {user?.role?.replace("_", " ")}
+                  <h3 className="font-semibold text-zinc-100 text-lg">{user?.name || "Unknown User"}</h3>
+                  <p className="text-sm text-zinc-400">{user?.email || "No email"}</p>
+                  <div className="mt-4 px-3 py-1 rounded-full bg-zinc-800 text-xs font-medium text-zinc-300">
+                    {(user?.role || "CUSTOMER").replace("_", " ")}
                   </div>
                 </div>
 
                 <div className="mt-6 space-y-2">
-                  <Button variant="ghost" className="w-full justify-start gap-2" onClick={() => router.push("/dashboard/customer")}>
+                  <Button variant="ghost" className="w-full justify-start gap-2 text-zinc-300 hover:text-zinc-100" onClick={() => router.push("/dashboard/customer")}>
                     <Calendar className="h-4 w-4" />
                     My Events
                   </Button>
-                  <Button variant="ghost" className="w-full justify-start gap-2" onClick={() => router.push("/dashboard/customer/bookings")}>
+                  <Button variant="ghost" className="w-full justify-start gap-2 text-zinc-300 hover:text-zinc-100" onClick={() => router.push("/dashboard/customer/bookings")}>
                     <User className="h-4 w-4" />
                     My Bookings
                   </Button>
-                  <Button variant="ghost" className="w-full justify-start gap-2" onClick={() => router.push("/dashboard/customer/notifications")}>
+                  <Button variant="ghost" className="w-full justify-start gap-2 text-zinc-300 hover:text-zinc-100" onClick={() => router.push("/dashboard/customer/notifications")}>
                     <Mail className="h-4 w-4" />
                     Notifications
                   </Button>
-                  <Button variant="ghost" className="w-full justify-start gap-2 text-red-600 hover:text-red-700" onClick={handleLogout}>
+                  <Button variant="ghost" className="w-full justify-start gap-2 text-red-400 hover:text-red-300 hover:bg-red-950/30" onClick={handleLogout}>
                     <User className="h-4 w-4" />
                     Logout
                   </Button>
@@ -128,68 +147,68 @@ export default function CustomerProfilePage() {
 
           {/* Main Content */}
           <div className="md:col-span-2 space-y-6">
-            <Card className="border-silver-200">
+            <Card className="border-zinc-800 bg-zinc-900/50">
               <CardHeader>
-                <CardTitle className="text-black">
-                  <Settings className="h-5 w-5 text-neutral-800" />
+                <CardTitle className="text-zinc-100 flex items-center gap-2">
+                  <Settings className="h-5 w-5 text-zinc-400" />
                   Personal Information
                 </CardTitle>
-                <CardDescription>Update your personal details and contact information</CardDescription>
+                <CardDescription className="text-zinc-400">Update your personal details and contact information</CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="name">Full Name</Label>
+                    <Label htmlFor="name" className="text-zinc-300">Full Name</Label>
                     <div className="relative">
-                      <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
                       <Input
                         id="name"
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        className="pl-9"
+                        className="pl-9 bg-zinc-900 border-zinc-700 text-zinc-100"
                       />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email Address</Label>
+                    <Label htmlFor="email" className="text-zinc-300">Email Address</Label>
                     <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
                       <Input
                         id="email"
                         type="email"
                         value={formData.email}
                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        className="pl-9"
+                        className="pl-9 bg-zinc-900 border-zinc-700 text-zinc-100"
                       />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="phone">Phone Number</Label>
+                    <Label htmlFor="phone" className="text-zinc-300">Phone Number</Label>
                     <div className="relative">
-                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
                       <Input
                         id="phone"
                         type="tel"
                         placeholder="+91 9876543210"
                         value={formData.phone}
                         onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                        className="pl-9"
+                        className="pl-9 bg-zinc-900 border-zinc-700 text-zinc-100"
                       />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="city">City</Label>
+                    <Label htmlFor="city" className="text-zinc-300">City</Label>
                     <div className="relative">
-                      <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
+                      <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
                       <Input
                         id="city"
                         placeholder="e.g., Chennai"
                         value={formData.city}
                         onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                        className="pl-9"
+                        className="pl-9 bg-zinc-900 border-zinc-700 text-zinc-100"
                       />
                     </div>
                   </div>
@@ -216,25 +235,25 @@ export default function CustomerProfilePage() {
               </CardContent>
             </Card>
 
-            <Card className="border-silver-200 bg-gradient-to-br from-neutral-50 to-white">
+            <Card className="border-zinc-800 bg-zinc-900/50">
               <CardHeader>
-                <CardTitle className="text-black">Account Security</CardTitle>
-                <CardDescription>Manage your account security settings</CardDescription>
+                <CardTitle className="text-zinc-100">Account Security</CardTitle>
+                <CardDescription className="text-zinc-400">Manage your account security settings</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-white rounded-lg border border-neutral-200">
+                <div className="flex items-center justify-between p-4 bg-zinc-900/50 rounded-lg border border-zinc-800">
                   <div>
-                    <p className="font-medium text-black">Email Notifications</p>
-                    <p className="text-sm text-neutral-600">Receive updates about your events and bookings</p>
+                    <p className="font-medium text-zinc-100">Email Notifications</p>
+                    <p className="text-sm text-zinc-400">Receive updates about your events and bookings</p>
                   </div>
                   <Button variant="silver" size="sm" onClick={handleNotificationSettings}>
                     Manage
                   </Button>
                 </div>
-                <div className="flex items-center justify-between p-4 bg-white rounded-lg border border-neutral-200">
+                <div className="flex items-center justify-between p-4 bg-zinc-900/50 rounded-lg border border-zinc-800">
                   <div>
-                    <p className="font-medium text-black">Two-Factor Authentication</p>
-                    <p className="text-sm text-neutral-600">Add an extra layer of security to your account</p>
+                    <p className="font-medium text-zinc-100">Two-Factor Authentication</p>
+                    <p className="text-sm text-zinc-400">Add an extra layer of security to your account</p>
                   </div>
                   <Button variant="silver" size="sm" onClick={handle2FA}>
                     Enable

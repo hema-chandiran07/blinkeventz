@@ -82,9 +82,9 @@ export default function VendorDashboardPage() {
     try {
       setLoading(true);
 
-      // Load vendor stats from backend
+      // Load vendor stats from correct backend endpoint
       try {
-        const statsResponse = await api.get('/vendors/me/dashboard-stats');
+        const statsResponse = await api.get('/dashboard/vendor/stats');
         setStats(statsResponse.data || {
           totalServices: 0,
           activeBookings: 0,
@@ -110,9 +110,6 @@ export default function VendorDashboardPage() {
         setServices(servicesResponse.data || []);
       } catch (error) {
         console.warn("Could not fetch services");
-        toast.error("Failed to load services", {
-          description: "Please refresh the page to try again"
-        });
         setServices([]);
       }
     } catch (error) {
@@ -209,7 +206,7 @@ export default function VendorDashboardPage() {
 
       {/* Quick Actions */}
       <motion.div
-        className="grid gap-4 md:grid-cols-3"
+        className="grid gap-4 md:grid-cols-3 lg:grid-cols-6"
         variants={containerVariants}
         initial="hidden"
         animate="visible"
@@ -219,6 +216,9 @@ export default function VendorDashboardPage() {
           { title: "My Services", subtitle: "Manage listings", icon: Package, href: "/dashboard/vendor/services" },
           { title: "Bookings", subtitle: "View all requests", icon: CheckCircle2, href: "/dashboard/vendor/bookings" },
           { title: "Calendar", subtitle: "Check availability", icon: Calendar, href: "/dashboard/vendor/calendar" },
+          { title: "Earnings", subtitle: "Revenue & payouts", icon: DollarSign, href: "/dashboard/vendor/earnings" },
+          { title: "Portfolio", subtitle: "Showcase work", icon: Briefcase, href: "/dashboard/vendor/portfolio" },
+          { title: "KYC & Bank", subtitle: "Compliance", icon: Star, href: "/dashboard/vendor/kyc" },
         ].map((action, index) => (
           <motion.div key={index} variants={itemVariants}>
             <Card

@@ -94,4 +94,12 @@ export class CartController {
     const userId = req.user.userId;
     return this.cartService.checkout(userId, idempotencyKey);
   }
+
+  @Post('unlock')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Unlock cart - reactivate a locked cart' })
+  async unlockCart(@Req() req: any) {
+    const userId = req.user.userId;
+    return this.cartService.unlockCart(userId);
+  }
 }

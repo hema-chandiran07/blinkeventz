@@ -114,7 +114,7 @@ export class PaymentsService {
       event: 'PAYMENT_CREATE_ORDER_START',
       traceId,
       userId,
-      cartId: dto.cartId,
+      cartId: dto.cartId && dto.cartId > 0 ? dto.cartId : null,
       idempotencyKey,
     });
 
@@ -186,7 +186,7 @@ export class PaymentsService {
         const payment = await tx.payment.create({
           data: {
             userId,
-            cartId: dto.cartId,
+            cartId: dto.cartId && dto.cartId > 0 ? dto.cartId : undefined,
             provider: PaymentProvider.RAZORPAY,
             providerOrderId: order.id,
             amount,
@@ -224,7 +224,7 @@ export class PaymentsService {
 
       return this.buildOrderResponse(result.payment, traceId);
 
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error({
         event: 'PAYMENT_CREATE_ORDER_FAILED',
         traceId,
@@ -291,7 +291,7 @@ export class PaymentsService {
       const payment = await this.prisma.payment.create({
         data: {
           userId: authenticatedUserId,
-          cartId: 0, // Default to 0 for simplified checkout
+          cartId: dto.cartId && dto.cartId > 0 ? dto.cartId : null,
           provider: PaymentProvider.RAZORPAY,
           providerOrderId: order.id,
           amount: amountInPaise,
@@ -317,7 +317,7 @@ export class PaymentsService {
 
       return this.buildOrderResponse(payment, traceId);
 
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error({
         event: 'PAYMENT_CREATE_SIMPLE_FAILED',
         traceId,
@@ -463,7 +463,7 @@ export class PaymentsService {
         isMock: this.isMock,
       };
 
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error({
         event: 'PAYMENT_CONFIRM_FAILED',
         traceId,
@@ -616,7 +616,7 @@ export class PaymentsService {
 
       return { processed: true, message: 'Event processed successfully' };
 
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error({
         event: 'WEBHOOK_PROCESSING_FAILED',
         requestId,
@@ -1087,54 +1087,76 @@ export class PaymentsService {
         throw new BadRequestException('Refund amount must be greater than 0');
       }
 
-      // Get payment with all relations
-      const payment = await this.prisma.payment.findUnique({
-        where: { id: paymentId },
-        include: {
-          user: true,
-          event: true,
-          paymentEvents: true,
-        },
-      });
+      // SECURITY (HIGH-06): Wrap read, external API, and write into a single transaction
+      const { refundEvent, updatedPayment, totalRefunded, isFullRefund, originalAmount } = await this.prisma.$transaction(async (tx) => {
+        // 1. Get payment with row-level lock (using raw SQL)
+        const lockedPayments = await tx.$queryRaw<any[]>`
+          SELECT * FROM "Payment" 
+          WHERE id = ${paymentId} 
+          FOR UPDATE
+        `;
 
-      if (!payment) {
-        throw new NotFoundException(`Payment ${paymentId} not found`);
-      }
+        if (!lockedPayments || lockedPayments.length === 0) {
+          throw new NotFoundException(`Payment ${paymentId} not found`);
+        }
 
-      // Check if payment is refundable
-      if (payment.status !== 'CAPTURED') {
-        throw new BadRequestException(
-          `Payment cannot be refunded. Current status: ${payment.status}`
-        );
-      }
+        const payment = lockedPayments[0];
 
-      // Calculate total already refunded
-      const existingRefunds = await this.prisma.paymentEvent.findMany({
-        where: {
-          paymentId,
-          eventType: 'REFUND_INITIATED',
-        },
-      });
+        // 2. Check if payment is refundable
+        if (payment.status !== 'CAPTURED') {
+          throw new BadRequestException(
+            `Payment cannot be refunded. Current status: ${payment.status}`
+          );
+        }
 
-      const totalRefunded = existingRefunds.reduce((sum, event: any) => {
-        const eventData = event.eventData || {};
-        return sum + (eventData.amount || 0);
-      }, 0);
+        // 3. Calculate total already refunded
+        const existingRefunds = await tx.paymentEvent.findMany({
+          where: {
+            paymentId,
+            eventType: 'REFUND_INITIATED',
+          },
+        });
 
-      // Check if refund amount exceeds original payment
-      if (refundAmount + totalRefunded > payment.amount) {
-        throw new BadRequestException(
-          `Refund amount (${refundAmount}) plus already refunded amount (${totalRefunded}) exceeds original payment (${payment.amount})`
-        );
-      }
+        const totalRefunded = existingRefunds.reduce((sum, event: any) => {
+          const eventData = event.payload || {};
+          return sum + (eventData.amount || 0);
+        }, 0);
 
-      // Determine if this is a full or partial refund
-      const isFullRefund = refundAmount + totalRefunded >= payment.amount;
-      const newStatus = isFullRefund ? 'REFUNDED' : 'PARTIALLY_REFUNDED';
+        // 4. Check if refund amount exceeds original payment
+        const originalAmount = typeof payment.amount === 'number' ? payment.amount : Number(payment.amount);
+        if (refundAmount + totalRefunded > originalAmount) {
+          throw new BadRequestException(
+            `Refund amount (${refundAmount}) plus already refunded amount (${totalRefunded}) exceeds original payment (${originalAmount})`
+          );
+        }
 
-      // Create refund event and update payment in a transaction
-      const [refundEvent, updatedPayment] = await this.prisma.$transaction(async (tx) => {
-        // Create refund event
+        // 5. Determine if this is a full or partial refund
+        const isFullRefund = refundAmount + totalRefunded >= originalAmount;
+        const newStatus = isFullRefund ? 'REFUNDED' : 'PARTIALLY_REFUNDED';
+
+        // 6. SECURITY (CRIT-03): Integrate with Razorpay Refund API
+        if (!this.isMock && payment.providerPaymentId && payment.providerPaymentId.startsWith('pay_')) {
+          try {
+            await this.razorpay.refunds.create({
+              payment_id: payment.providerPaymentId,
+              amount: Math.round(refundAmount * 100), // Razorpay uses paise
+              notes: { 
+                reason: reason || 'Admin initiated refund',
+                adminId: String(adminUserId)
+              }
+            });
+          } catch (rzpError: any) {
+            this.logger.error(`Razorpay refund failed for payment ${paymentId}:`, rzpError);
+            throw new InternalServerErrorException(
+              `Payment gateway rejected refund: ${rzpError.error?.description || rzpError.message || 'Unknown error'}`
+            );
+          }
+        } else if (!this.isMock) {
+          this.logger.warn(`Could not refund at Razorpay level for payment ${paymentId} because providerPaymentId is missing or invalid: ${payment.providerPaymentId}`);
+          throw new BadRequestException('Cannot refund: Invalid or missing payment gateway ID');
+        }
+
+        // 7. Create refund event
         const refundEvent = await tx.paymentEvent.create({
           data: {
             paymentId,
@@ -1151,7 +1173,7 @@ export class PaymentsService {
           },
         });
 
-        // Update payment status
+        // 8. Update payment status
         const updatedPayment = await tx.payment.update({
           where: { id: paymentId },
           data: {
@@ -1169,7 +1191,7 @@ export class PaymentsService {
           },
         });
 
-        return [refundEvent, updatedPayment];
+        return { refundEvent, updatedPayment, totalRefunded, isFullRefund, originalAmount };
       });
 
       // Log refund
@@ -1180,17 +1202,8 @@ export class PaymentsService {
         reason,
         adminUserId,
         isFullRefund,
-        newStatus,
+        newStatus: updatedPayment.status,
       });
-
-      // TODO: Integrate with Razorpay Refund API for actual refund processing
-      // For now, we're just marking it as refunded in our system
-      // In production, you would call:
-      // const razorpayRefund = await this.razorpay.refunds.create({
-      //   payment_id: payment.providerPaymentId,
-      //   amount: refundAmount * 100, // Razorpay uses paise
-      //   notes: { reason: reason || 'Admin initiated refund' }
-      // });
 
       return {
         success: true,
@@ -1207,10 +1220,10 @@ export class PaymentsService {
           id: updatedPayment.id,
           status: updatedPayment.status,
           totalRefunded: totalRefunded + refundAmount,
-          originalAmount: payment.amount,
+          originalAmount: originalAmount,
         },
       };
-    } catch (error) {
+    } catch (error: any) {
       if (
         error instanceof BadRequestException ||
         error instanceof NotFoundException

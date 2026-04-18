@@ -1,11 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { MapPin, IndianRupee, CheckCircle2, ShoppingCart, Star, X } from "lucide-react";
+import { MapPin, IndianRupee, CheckCircle2, Star } from "lucide-react";
 import { motion } from "framer-motion";
-import { useCart } from "@/context/cart-context";
-import { toast } from "sonner";
-import { useState } from "react";
 import type { Vendor, VendorService } from "@/types";
 
 const getBackendUrl = () => {
@@ -21,10 +18,6 @@ interface VendorCardProps {
 }
 
 export function VendorCard({ vendor, services }: VendorCardProps) {
-  const { addItem, removeItem, isInCart } = useCart();
-  const [isAdding, setIsAdding] = useState(false);
-  const added = isInCart(`vendor-${vendor.id}`);
-
   const vendorServices = services || vendor.services || [];
   const safeName = vendor.businessName ?? "Unknown Vendor";
   const safeCity = vendor.city ?? "";
@@ -58,38 +51,6 @@ export function VendorCard({ vendor, services }: VendorCardProps) {
       imageUrl = `${backendUrl}${rawPath.startsWith('/') ? '' : '/'}${rawPath}`;
     }
   }
-
-  const handleAddToCart = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (added) {
-      removeItem(`vendor-${vendor.id}`);
-      toast.info(`${safeName} removed from cart`);
-    } else {
-      setIsAdding(true);
-      addItem({
-        id: `vendor-${vendor.id}`,
-        itemType: 'VENDOR_SERVICE',
-        name: safeName,
-        unitPrice: safePrice,
-        totalPrice: safePrice,
-        vendorServiceId: vendor.id,
-        cartId: 0,
-        venueId: null,
-        addonId: null,
-        date: null,
-        timeSlot: null,
-        quantity: 1,
-        meta: { serviceType: displayServiceType },
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      } as any);
-      toast.success(`${safeName} added to cart!`, {
-        description: `₹${safePrice.toLocaleString("en-IN")}`,
-      });
-      setIsAdding(false);
-    }
-  };
 
   return (
     <Link href={`/vendors/${vendor.id}`} className="block h-full outline-none">
@@ -158,21 +119,10 @@ export function VendorCard({ vendor, services }: VendorCardProps) {
               )}
             </div>
 
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1.5 text-silver-400">
+            <div className="flex items-center gap-1.5 text-silver-400">
                 <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" />
                 <span className="text-sm font-medium">4.5</span>
               </div>
-
-              <button
-                onClick={handleAddToCart}
-                disabled={isAdding}
-                className={`p-2.5 rounded-full text-primary-foreground transition-all duration-300 hover:scale-110 ${added ? 'bg-red-500 hover:bg-red-600' : 'bg-primary hover:bg-primary/90'}`}
-                aria-label={added ? "Remove from plan" : "Add to plan"}
-              >
-                {added ? <X className="w-4 h-4" /> : <ShoppingCart className="w-4 h-4" />}
-              </button>
-            </div>
           </div>
         </div>
       </motion.div>

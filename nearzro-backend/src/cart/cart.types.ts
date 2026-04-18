@@ -13,7 +13,7 @@ export type CartItemWithRelations = CartItem & {
 export interface CartResponse {
   id: number;
   status: string;
-  items: CartItemWithRelations[];
+  items: CartItemResponse[];
   subtotal: string;
   platformFee: string;
   tax: string;

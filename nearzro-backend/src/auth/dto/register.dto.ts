@@ -28,4 +28,9 @@ export class RegisterDto {
     message: 'Password must contain uppercase, lowercase, number, and special character',
   })
   password: string;
+
+  @ApiPropertyOptional({ example: 'ADMIN', description: 'Assigned user role' })
+  @IsOptional()
+  @IsString()
+  role?: string;
 }

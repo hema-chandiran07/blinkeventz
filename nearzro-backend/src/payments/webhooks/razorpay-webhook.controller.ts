@@ -15,6 +15,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 import { PaymentsService } from '../payments.service';
+import { Public } from '../../common/decorators/public.decorator';
 
 interface RazorpayWebhookPayload {
   event: string;
@@ -78,6 +79,7 @@ interface RazorpayWebhookPayload {
  * - Full audit trail
  */
 @Controller('webhooks/razorpay')
+@Public()
 export class RazorpayWebhookController {
   private readonly logger = new Logger(RazorpayWebhookController.name);
   private readonly webhookSecret: string;
