@@ -4,6 +4,7 @@ import {
   BadRequestException,
   NotFoundException,
   ForbiddenException,
+  InternalServerErrorException,
   Logger,
 } from '@nestjs/common';
 import { Prisma, Cart, CartItem } from '@prisma/client';
@@ -117,6 +118,7 @@ export class CartService {
 
   /**
    * Add item to cart with transaction safety
+   * FIXED: publishEvent moved OUTSIDE the transaction to prevent rollback on outbox failure
    */
   async addItem(
     userId: number,
@@ -136,29 +138,50 @@ export class CartService {
     }
 
     const result = await this.prisma.$transaction(async (tx) => {
+      // Log incoming DTO for debugging
+      this.logger.debug({ dto }, 'addItem received DTO');
+
       // Validate that exactly one item reference is provided
       const itemRefs = [dto.venueId, dto.vendorServiceId, dto.addonId].filter(
         Boolean,
       );
+      this.logger.debug({ itemRefs, count: itemRefs.length }, 'Item references');
+      
       if (itemRefs.length !== 1) {
+        this.logger.error({ dto }, 'Invalid item references - must have exactly one');
         throw new BadRequestException(
           'Exactly one of venueId, vendorServiceId, or addonId is required',
         );
       }
 
-      // Find or create cart (idempotent)
+      // Find or create cart (idempotent) - with P2002 race condition handling
       let cart = await tx.cart.findFirst({
         where: { userId, status: 'ACTIVE' },
       });
 
       if (!cart) {
-        cart = await tx.cart.create({
-          data: {
-            userId,
-            status: 'ACTIVE',
-            expiresAt: this.getExpirationDate(),
-          },
-        });
+        try {
+          cart = await tx.cart.create({
+            data: {
+              userId,
+              status: 'ACTIVE',
+              expiresAt: this.getExpirationDate(),
+            },
+          });
+        } catch (e: any) {
+          // Handle unique constraint race condition (P2002)
+          if (e.code === 'P2002') {
+            this.logger.warn('Cart unique constraint hit, finding existing cart');
+            cart = await tx.cart.findFirst({
+              where: { userId, status: 'ACTIVE' },
+            });
+            if (!cart) {
+              throw new InternalServerErrorException('Failed to find or create cart');
+            }
+          } else {
+            throw e;
+          }
+        }
       } else if (cart.status !== 'ACTIVE') {
         throw new ForbiddenException('Cart is locked and cannot be modified');
       }
@@ -202,32 +225,46 @@ export class CartService {
         const quantity = dto.quantity || 1;
         const totalPrice = new Decimal(unitPrice).mul(quantity);
 
-        item = await tx.cartItem.create({
-          data: {
-            cartId: cart.id,
-            itemType: dto.itemType as any,
-            venueId: dto.venueId,
-            vendorServiceId: dto.vendorServiceId,
-            addonId: dto.addonId,
-            date: dto.date ? new Date(dto.date) : null,
-            timeSlot: dto.timeSlot || null,
-            quantity,
-            unitPrice,
-            totalPrice: totalPrice.toNumber(),
-            meta: dto.meta as Prisma.JsonObject,
-          },
-        });
+        try {
+          item = await tx.cartItem.create({
+            data: {
+              cartId: cart.id,
+              itemType: dto.itemType as any,
+              venueId: dto.venueId,
+              vendorServiceId: dto.vendorServiceId,
+              addonId: dto.addonId,
+              date: dto.date ? new Date(dto.date) : null,
+              timeSlot: dto.timeSlot || null,
+              quantity,
+              unitPrice,
+              totalPrice: totalPrice.toNumber(),
+              meta: dto.meta as Prisma.JsonObject,
+            },
+          });
+          this.logger.log({ itemId: item.id, cartId: cart.id }, 'CartItem created successfully');
+        } catch (createError) {
+          this.logger.error({ createError, dto }, 'Failed to create CartItem');
+          throw new InternalServerErrorException(
+            `Failed to create cart item: ${createError.message}`,
+          );
+        }
       }
 
-      // Publish event
-      await this.eventService.publishEvent(tx, 'CART_ITEM_ADDED', {
-        userId,
-        cartId: cart.id,
-        itemId: item.id,
-      });
-
+      // DO NOT call publishEvent inside transaction - return immediately
       return { item, name, cartId: cart.id };
     });
+
+    // FIXED: Publish event AFTER transaction commits - cannot rollback cart
+    try {
+      await this.eventService.publishEvent(this.prisma, 'CART_ITEM_ADDED', {
+        userId,
+        cartId: result.cartId,
+        itemId: result.item.id,
+      });
+    } catch (eventError) {
+      // Already logged inside publishEvent - non-critical, continue
+      this.logger.debug({ eventError }, 'Event publishing failed but cart operation succeeded');
+    }
 
     // Invalidate cache
     await this.cacheService.invalidateCart(userId);
@@ -246,7 +283,9 @@ export class CartService {
   }
 
   /**
-   * Update cart item with authorization check
+   * Update cart item with price re-validation from database
+   * SECURITY: Never trust frontend prices - always re-validate
+   * FIXED: publishEvent moved OUTSIDE the transaction
    */
   async updateItem(
     userId: number,
@@ -256,7 +295,7 @@ export class CartService {
     const startTime = Date.now();
 
     const result = await this.prisma.$transaction(async (tx) => {
-      // Find item with cart
+      // Find item with cart and relations
       const item = await tx.cartItem.findUnique({
         where: { id: cartItemId },
         include: { cart: true },
@@ -278,59 +317,95 @@ export class CartService {
         throw new BadRequestException('Cart is locked or completed');
       }
 
-      // Recalculate price if needed using Decimal
-      let totalPrice = new Decimal(item.totalPrice.toString());
-      let unitPrice = new Decimal(item.unitPrice.toString());
+      // SECURITY: Re-validate price from database - never trust frontend
+      let currentUnitPrice: number;
+      let currentItemName: string;
 
-      // If quantity changed or meta changed for PER_PERSON pricing
-      if (dto.quantity !== undefined || dto.meta) {
-        if (item.vendorServiceId) {
-          const vendorService = await tx.vendorService.findUnique({
-            where: { id: item.vendorServiceId },
-          });
-
-          if (vendorService?.pricingModel === 'PER_PERSON') {
-            const guestCount =
-              dto.meta?.guestCount ||
-              (item.meta as any)?.guestCount ||
-              1;
-            unitPrice = new Decimal(vendorService.baseRate).mul(guestCount);
-            totalPrice = unitPrice;
-          }
+      // Handle VENUE items - re-fetch current price from DB
+      if (item.venueId) {
+        const venue = await tx.venue.findUnique({ where: { id: item.venueId } });
+        if (!venue) {
+          throw new NotFoundException('Venue is no longer available');
         }
-
-        if (dto.quantity !== undefined) {
-          totalPrice = unitPrice.mul(dto.quantity);
+        
+        // Get price based on timeSlot
+        if (item.timeSlot === 'MORNING') {
+          currentUnitPrice = venue.basePriceMorning || 0;
+        } else if (item.timeSlot === 'EVENING') {
+          currentUnitPrice = venue.basePriceEvening || 0;
+        } else {
+          currentUnitPrice = venue.basePriceFullDay || venue.basePriceEvening || venue.basePriceMorning || 0;
         }
+        currentItemName = venue.name;
       }
+      // Handle VENDOR_SERVICE items - verify still active and get current price
+      else if (item.vendorServiceId) {
+        const vendorService = await tx.vendorService.findUnique({
+          where: { id: item.vendorServiceId },
+          include: { vendor: { select: { businessName: true } } },
+        });
+
+        if (!vendorService) {
+          throw new NotFoundException('Service is no longer available');
+        }
+        
+        if (!vendorService.isActive) {
+          throw new BadRequestException('This service is no longer available');
+        }
+
+        // Handle PER_PERSON pricing
+        if (vendorService.pricingModel === 'PER_PERSON') {
+          const guestCount = dto.meta?.guestCount || (item.meta as any)?.guestCount || 1;
+          currentUnitPrice = vendorService.baseRate * guestCount;
+        } else {
+          currentUnitPrice = vendorService.baseRate;
+        }
+        currentItemName = `${vendorService.name} (${vendorService.vendor?.businessName})`;
+      }
+      // Handle ADDON items
+      else if (item.addonId) {
+        currentUnitPrice = item.unitPrice.toNumber();
+        currentItemName = 'Addon';
+      } else {
+        currentUnitPrice = item.unitPrice.toNumber();
+        currentItemName = 'Item';
+      }
+
+      // Calculate new total with validated price from DB
+      const newQuantity = dto.quantity || item.quantity || 1;
+      const totalPrice = currentUnitPrice * newQuantity;
 
       const updatedItem = await tx.cartItem.update({
         where: { id: cartItemId },
         data: {
-          quantity: dto.quantity,
+          quantity: newQuantity,
           meta: dto.meta as Prisma.JsonObject,
-          unitPrice: unitPrice.toNumber(),
-          totalPrice: totalPrice.toNumber(),
+          unitPrice: currentUnitPrice,
+          totalPrice,
         },
       });
 
-      // Publish event
-      await this.eventService.publishEvent(tx, 'CART_ITEM_UPDATED', {
+      // DO NOT call publishEvent inside transaction - return immediately
+      return { item: updatedItem, name: currentItemName };
+    });
+
+    // FIXED: Publish event AFTER transaction commits
+    try {
+      await this.eventService.publishEvent(this.prisma, 'CART_ITEM_UPDATED', {
         userId,
-        cartId: item.cartId,
+        cartId: result.item.cartId,
         itemId: cartItemId,
       });
-
-      const name = await this.getItemName(tx, item);
-      return { item: updatedItem, name };
-    });
+    } catch (eventError) {
+      // Already logged inside publishEvent - non-critical
+    }
 
     // Invalidate cache
     await this.cacheService.invalidateCart(userId);
 
     this.logger.log(
       { userId, cartItemId, duration: Date.now() - startTime },
-      'Cart item updated',
+      'Cart item updated with re-validated price',
     );
 
     return this.formatCartItemResponse(result.item, result.name);
@@ -338,6 +413,7 @@ export class CartService {
 
   /**
    * Remove item from cart with authorization check
+   * FIXED: publishEvent moved OUTSIDE the transaction
    */
   async removeItem(userId: number, cartItemId: number): Promise<{ success: boolean }> {
     const startTime = Date.now();
@@ -366,15 +442,20 @@ export class CartService {
         where: { id: cartItemId },
       });
 
-      // Publish event
-      await this.eventService.publishEvent(tx, 'CART_ITEM_REMOVED', {
-        userId,
-        cartId: item.cartId,
-        itemId: cartItemId,
-      });
-
+      // DO NOT call publishEvent inside transaction - return immediately
       return { cartId: item.cartId };
     });
+
+    // FIXED: Publish event AFTER transaction commits
+    try {
+      await this.eventService.publishEvent(this.prisma, 'CART_ITEM_REMOVED', {
+        userId,
+        cartId: result.cartId,
+        itemId: cartItemId,
+      });
+    } catch (eventError) {
+      // Already logged inside publishEvent - non-critical
+    }
 
     // Invalidate cache
     await this.cacheService.invalidateCart(userId);
@@ -389,6 +470,7 @@ export class CartService {
 
   /**
    * Clear all items from cart
+   * FIXED: publishEvent moved OUTSIDE the transaction
    */
   async clearCart(userId: number): Promise<{ success: boolean; itemCount: number }> {
     const startTime = Date.now();
@@ -406,15 +488,20 @@ export class CartService {
         where: { cartId: cart.id },
       });
 
-      // Publish event
-      await this.eventService.publishEvent(tx, 'CART_CLEARED', {
-        userId,
-        cartId: cart.id,
-        itemCount: result.count,
-      });
-
+      // DO NOT call publishEvent inside transaction - return immediately
       return { itemCount: result.count, cartId: cart.id };
     });
+
+    // FIXED: Publish event AFTER transaction commits
+    try {
+      await this.eventService.publishEvent(this.prisma, 'CART_CLEARED', {
+        userId,
+        cartId: result.cartId,
+        itemCount: result.itemCount,
+      });
+    } catch (eventError) {
+      // Already logged inside publishEvent - non-critical
+    }
 
     // Invalidate cache
     await this.cacheService.invalidateCart(userId);
@@ -428,7 +515,9 @@ export class CartService {
   }
 
   /**
-   * Process checkout - returns cart data for payment
+   * Process checkout with full validation - locks cart and returns secure payload
+   * SECURITY: All prices re-validated from DB, never trust frontend calculations
+   * FIXED: publishEvent wrapped in try/catch and OUTSIDE any transaction
    */
   async checkout(
     userId: number,
@@ -470,25 +559,117 @@ export class CartService {
       throw new BadRequestException('Cart is empty');
     }
 
+    // SECURITY: Validate all items are still available before locking
+    interface ValidatedCartItem {
+      id: number;
+      itemType: string;
+      venueId: number | null;
+      vendorServiceId: number | null;
+      addonId: number | null;
+      date: Date | null;
+      timeSlot: string | null;
+      quantity: number;
+      meta: any;
+      totalPrice: any;
+      validatedPrice: number;
+      itemName: string;
+    }
+    
+    const validatedItems: ValidatedCartItem[] = [];
+    for (const item of cart.items) {
+      let validatedPrice: number;
+      let itemName: string;
+
+      if (item.venueId) {
+        const venue = await this.prisma.venue.findUnique({ where: { id: item.venueId } });
+        if (!venue) {
+          throw new BadRequestException(`Venue "${item.venue?.name || 'Unknown'}" is no longer available`);
+        }
+        // Re-calculate price with current DB value
+        if (item.timeSlot === 'MORNING') {
+          validatedPrice = venue.basePriceMorning || 0;
+        } else if (item.timeSlot === 'EVENING') {
+          validatedPrice = venue.basePriceEvening || 0;
+        } else {
+          validatedPrice = venue.basePriceFullDay || venue.basePriceEvening || venue.basePriceMorning || 0;
+        }
+        itemName = venue.name;
+      } 
+      else if (item.vendorServiceId) {
+        const service = await this.prisma.vendorService.findUnique({ 
+          where: { id: item.vendorServiceId },
+          include: { vendor: { select: { businessName: true } } }
+        });
+        if (!service || !service.isActive) {
+          throw new BadRequestException(`Service "${item.vendorService?.name || 'Unknown'}" is no longer available`);
+        }
+        validatedPrice = service.baseRate;
+        itemName = `${service.name} (${service.vendor?.businessName})`;
+      } 
+      else {
+        validatedPrice = Number(item.totalPrice);
+        itemName = 'Item';
+      }
+
+      validatedItems.push({
+        id: item.id,
+        itemType: item.itemType,
+        venueId: item.venueId,
+        vendorServiceId: item.vendorServiceId,
+        addonId: item.addonId,
+        date: item.date,
+        timeSlot: item.timeSlot,
+        quantity: item.quantity,
+        meta: item.meta,
+        totalPrice: item.totalPrice,
+        validatedPrice,
+        itemName,
+      });
+    }
+
     // Lock cart during checkout
     await this.prisma.cart.update({
       where: { id: cart.id },
       data: { status: 'LOCKED' },
     });
 
-    const totals = this.calculateTotals(cart.items);
-
-    const items = cart.items.map((item) =>
-      this.formatCartItemResponse(item, item.venue?.name || 'Unknown'),
+    // Calculate totals using validated prices from DB
+    const subtotal = validatedItems.reduce(
+      (sum, item) => sum.add(new Decimal(item.validatedPrice * (item.quantity || 1))),
+      new Decimal(0)
     );
+    const platformFee = subtotal.mul(PLATFORM_FEE_PERCENTAGE);
+    const tax = subtotal.add(platformFee).mul(TAX_PERCENTAGE);
+    const totalAmount = subtotal.add(platformFee).add(tax);
 
-    // Publish checkout event
-    await this.eventService.publishEvent(this.prisma, 'CART_CHECKED_OUT', {
-      userId,
-      cartId: cart.id,
-      totalAmount: totals.total.toString(),
-      itemCount: cart.items.length,
-    });
+    const items = validatedItems.map((item) => ({
+      id: item.id,
+      itemType: item.itemType,
+      venueId: item.venueId,
+      vendorServiceId: item.vendorServiceId,
+      addonId: item.addonId,
+      date: item.date,
+      timeSlot: item.timeSlot,
+      quantity: item.quantity,
+      unitPrice: item.validatedPrice.toString(),
+      totalPrice: (item.validatedPrice * (item.quantity || 1)).toString(),
+      meta: item.meta as Record<string, unknown> | undefined,
+      name: item.itemName,
+    }));
+
+    // FIXED: Publish checkout event AFTER operation with try/catch
+    // Not inside a transaction - but still wrapped for safety
+    try {
+      await this.eventService.publishEvent(this.prisma, 'CART_CHECKED_OUT', {
+        userId,
+        cartId: cart.id,
+        totalAmount: totalAmount.toString(),
+        itemCount: cart.items.length,
+      });
+    } catch (eventError) {
+      // Already logged inside publishEvent - non-critical, checkout succeeded
+      this.logger.debug({ eventError }, 'Checkout event publishing failed but checkout succeeded');
+    }
 
     // Invalidate cache
     await this.cacheService.invalidateCart(userId);
@@ -497,19 +678,19 @@ export class CartService {
       { 
         userId, 
         cartId: cart.id, 
-        totalAmount: totals.total.toString(),
+        totalAmount: totalAmount.toString(),
         duration: Date.now() - startTime,
       },
-      'Checkout completed',
+      'Checkout completed with validated prices',
     );
 
     return {
       cartId: cart.id,
       items,
-      subtotal: totals.subtotal.toString(),
-      platformFee: totals.platformFee.toString(),
-      tax: totals.tax.toString(),
-      totalAmount: totals.total.toString(),
+      subtotal: subtotal.toString(),
+      platformFee: platformFee.toString(),
+      tax: tax.toString(),
+      totalAmount: totalAmount.toString(),
       status: 'CHECKOUT_SUCCESS',
     };
   }
@@ -629,17 +810,26 @@ export class CartService {
   }
 
   /**
-   * Format cart response
+   * Format cart response - FIXED to resolve item names from relations
    */
   private formatCartResponse(
-    cart: Cart & { items: CartItem[] },
+    cart: Cart & { items: CartItemWithRelations[] },
   ): CartResponse {
-    const totals = this.calculateTotals(cart.items as CartItemWithRelations[]);
+    const totals = this.calculateTotals(cart.items);
 
     return {
       id: cart.id,
       status: cart.status,
-      items: cart.items as CartItemWithRelations[],
+      // Map to CartItemResponse with resolved names from included relations
+      items: cart.items.map((item) => {
+        let name = 'Item';
+        if (item.venue) {
+          name = item.venue.name;
+        } else if (item.vendorService) {
+          name = `${item.vendorService.name} (${item.vendorService.vendor?.businessName ?? ''})`;
+        }
+        return this.formatCartItemResponse(item, name);
+      }),
       subtotal: totals.subtotal.toString(),
       platformFee: totals.platformFee.toString(),
       tax: totals.tax.toString(),
@@ -671,6 +861,28 @@ export class CartService {
       meta: item.meta as Record<string, unknown> | undefined,
       name,
     };
+  }
+
+  /**
+   * Unlock cart - reactivate a locked cart so user can add items again
+   * Used when user leaves checkout without completing payment
+   */
+  async unlockCart(userId: number): Promise<{ success: boolean }> {
+    const startTime = Date.now();
+
+    await this.prisma.cart.updateMany({
+      where: { userId, status: 'LOCKED' },
+      data: { status: 'ACTIVE' },
+    });
+
+    await this.cacheService.invalidateCart(userId);
+
+    this.logger.log(
+      { userId, duration: Date.now() - startTime },
+      'Cart unlocked',
+    );
+
+    return { success: true };
   }
 
   /**

@@ -22,7 +22,7 @@ export class CreatePaymentDto {
   @IsNumber({}, { message: 'Cart ID must be a number' })
   @Min(1, { message: 'Cart ID must be at least 1' })
   @Type(() => Number)
-  cartId: number;
+  cartId!: number;
 
   @ApiPropertyOptional({ 
     type: String, 
@@ -58,19 +58,28 @@ export class CreateSimplePaymentDto {
   @IsNumber({}, { message: 'Amount must be a number' })
   @Min(1, { message: 'Amount must be at least 1 rupee' })
   @Type(() => Number)
-  amount: number;
+  amount!: number;
 
-  @ApiPropertyOptional({ 
-    type: String, 
-    description: 'Currency code',
-    default: 'INR',
-    enum: ['INR', 'USD']
-  })
-  @IsOptional()
-  @IsEnum(['INR', 'USD'], { message: 'Currency must be INR or USD' })
-  currency?: string = 'INR';
+@ApiPropertyOptional({ 
+  type: String, 
+  description: 'Currency code',
+  default: 'INR',
+  enum: ['INR', 'USD']
+})
+@IsOptional()
+@IsEnum(['INR', 'USD'], { message: 'Currency must be INR or USD' })
+currency?: string = 'INR';
 
-  @ApiPropertyOptional({ 
+@ApiPropertyOptional({ 
+  type: Number, 
+  description: 'Cart ID to verify against (optional - for security verification)',
+})
+@IsOptional()
+@IsNumber({}, { message: 'Cart ID must be a number' })
+@Type(() => Number)
+cartId?: number;
+
+@ApiPropertyOptional({
     type: [Object], 
     description: 'Items being purchased' 
   })

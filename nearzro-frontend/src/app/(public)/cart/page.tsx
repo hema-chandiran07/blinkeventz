@@ -2,57 +2,63 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
-  ShoppingBag, Trash2, Plus, Minus, Calendar, Users, MapPin,
-  Clock, CheckCircle2, ArrowRight
+  ShoppingBag,
+  Trash2,
+  Calendar,
+  Users,
+  MapPin,
+  ArrowRight,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
+import { SmartImage } from "@/components/ui/smart-image";
 
 interface CartItem {
   id: number;
   itemType: "VENUE" | "VENDOR_SERVICE" | "ADDON";
   name: string;
   description?: string;
+  image?: string;
   date?: string;
   timeSlot?: string;
-  unitPrice: number;
+  unitPrice: string;
   quantity: number;
-  totalPrice: number;
+  totalPrice: string;
   meta?: {
     guestCount?: number;
     area?: string;
     city?: string;
     serviceType?: string;
+    image?: string;
   };
 }
 
 interface CartSummary {
-  subtotal: number;
-  discount: number;
-  platformFee: number;
-  tax: number;
-  total: number;
+  subtotal: string;
+  discount: string;
+  platformFee: string;
+  tax: string;
+  total: string;
 }
 
-const PLATFORM_FEE_PERCENTAGE = 0.02; // 2%
-const TAX_PERCENTAGE = 0.18; // 18% GST
+const PLATFORM_FEE_PERCENTAGE = 0.02;
+const TAX_PERCENTAGE = 0.18;
 
 export default function CartPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<CartItem[]>([]);
   const [summary, setSummary] = useState<CartSummary>({
-    subtotal: 0,
-    discount: 0,
-    platformFee: 0,
-    tax: 0,
-    total: 0,
+    subtotal: "0",
+    discount: "0",
+    platformFee: "0",
+    tax: "0",
+    total: "0",
   });
   const [promoCode, setPromoCode] = useState("");
   const [appliedPromo, setAppliedPromo] = useState<any>(null);
@@ -81,17 +87,20 @@ export default function CartPage() {
   };
 
   const calculateSummary = (cartItems: CartItem[]) => {
-    const subtotal = cartItems.reduce((sum, item) => sum + item.totalPrice, 0);
+    const subtotal = cartItems.reduce(
+      (sum, item) => sum + parseFloat(String(item.totalPrice)),
+      0
+    );
     const platformFee = Math.round(subtotal * PLATFORM_FEE_PERCENTAGE);
     const tax = Math.round((subtotal + platformFee) * TAX_PERCENTAGE);
     const total = subtotal + platformFee + tax;
 
     setSummary({
-      subtotal,
-      discount: 0,
-      platformFee,
-      tax,
-      total,
+      subtotal: subtotal.toString(),
+      discount: "0",
+      platformFee: platformFee.toString(),
+      tax: tax.toString(),
+      total: total.toString(),
     });
   };
 
@@ -111,7 +120,13 @@ export default function CartPage() {
 
       const updatedItems = items.map((i) =>
         i.id === itemId
-          ? { ...i, quantity: newQuantity, totalPrice: i.unitPrice * newQuantity }
+          ? {
+              ...i,
+              quantity: newQuantity,
+              totalPrice: (
+                parseFloat(String(i.unitPrice)) * newQuantity
+              ).toString(),
+            }
           : i
       );
 
@@ -142,13 +157,17 @@ export default function CartPage() {
         meta: { ...item.meta, guestCount },
       });
 
-      // Recalculate price for PER_PERSON pricing
-      const pricePerPerson = item.unitPrice / (item.meta.guestCount || 1);
-      const newTotalPrice = Math.round(pricePerPerson * guestCount);
+      const pricePerPerson =
+        parseFloat(String(item.unitPrice)) / (item.meta.guestCount || 1);
+      const newTotalPrice = Math.round(pricePerPerson * guestCount).toString();
 
       const updatedItems = items.map((i) =>
         i.id === itemId
-          ? { ...i, meta: { ...i.meta, guestCount }, totalPrice: newTotalPrice }
+          ? {
+              ...i,
+              meta: { ...i.meta, guestCount },
+              totalPrice: newTotalPrice.toString(),
+            }
           : i
       );
 
@@ -177,8 +196,6 @@ export default function CartPage() {
   };
 
   const handleClearCart = async () => {
-    if (!confirm("Are you sure you want to clear your cart?")) return;
-
     try {
       await api.delete("/cart/clear");
       setItems([]);
@@ -190,17 +207,15 @@ export default function CartPage() {
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    if (amount >= 10000000) return `₹${(amount / 10000000).toFixed(2)}Cr`;
-    if (amount >= 100000) return `₹${(amount / 100000).toFixed(2)}L`;
-    return `₹${(amount / 1000).toFixed(2)}K`;
-  };
-
-  const handleRemovePromo = () => {
-    setAppliedPromo(null);
-    setPromoCode("");
-    calculateSummary(items);
-    toast.success("Promo code removed");
+  const formatCurrency = (amount: string | number) => {
+    const num = typeof amount === "string" ? parseFloat(amount) : amount;
+    if (isNaN(num)) return "₹0";
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(num);
   };
 
   const handleApplyPromoCode = async () => {
@@ -222,34 +237,59 @@ export default function CartPage() {
     }
   };
 
-  const getItemIcon = (itemType: string) => {
-    switch (itemType) {
-      case "VENUE":
-        return <MapPin className="h-5 w-5" />;
-      case "VENDOR_SERVICE":
-        return <Users className="h-5 w-5" />;
-      default:
-        return <ShoppingBag className="h-5 w-5" />;
+  const getItemImage = (item: CartItem) => {
+    const rawPath = item.image || item.meta?.image;
+    
+    if (rawPath && typeof rawPath === 'string') {
+      if (rawPath.startsWith('http')) {
+        return rawPath;
+      }
+      if (rawPath.startsWith('[') || rawPath.startsWith('"')) {
+        try {
+          const parsed = JSON.parse(rawPath);
+          if (Array.isArray(parsed)) {
+            return parsed[0] || null;
+          }
+        } catch {
+          return rawPath;
+        }
+      }
+      return rawPath;
     }
+    
+    if (Array.isArray(rawPath)) {
+      return rawPath[0] || null;
+    }
+    
+    return null;
   };
 
   const getStatusColor = (itemType: string) => {
     switch (itemType) {
       case "VENUE":
-        return "bg-blue-100 text-blue-800 border-blue-200";
+        return "bg-blue-500/10 text-blue-400 border-blue-500/20";
       case "VENDOR_SERVICE":
-        return "bg-purple-100 text-purple-800 border-purple-200";
+        return "bg-purple-500/10 text-purple-400 border-purple-500/20";
       default:
-        return "bg-neutral-100 text-neutral-800 border-neutral-200";
+        return "bg-zinc-500/10 text-zinc-400 border-zinc-500/20";
     }
+  };
+
+  const formatTimeSlot = (slot: string) => {
+    return slot
+      .replace("_", " ")
+      .toLowerCase()
+      .split(" ")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <div className="h-12 w-12 rounded-full border-4 border-neutral-200 border-t-black animate-spin mx-auto mb-4" />
-          <p className="text-black">Loading your cart...</p>
+      <div className="min-h-screen bg-zinc-950 text-white flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-10 w-10 animate-spin text-zinc-400" />
+          <p className="text-zinc-400 font-medium">Loading your cart...</p>
         </div>
       </div>
     );
@@ -257,72 +297,110 @@ export default function CartPage() {
 
   if (items.length === 0) {
     return (
-      <div className="container mx-auto px-4 py-12">
-        <div className="flex flex-col items-center justify-center min-h-[60vh]">
-          <ShoppingBag className="h-24 w-24 text-neutral-300 mb-4" />
-          <h2 className="text-2xl font-bold text-black mb-2">Your cart is empty</h2>
-          <p className="text-neutral-600 mb-6">Start adding venues and vendors to plan your event!</p>
-          <Button
-            variant="default"
-            className="h-12 px-8 bg-black hover:bg-neutral-800"
-            onClick={() => router.push("/venues")}
-          >
-            Browse Venues
-          </Button>
+      <div className="min-h-screen bg-zinc-950 text-white">
+        <div className="container mx-auto px-4 py-24">
+          <div className="flex flex-col items-center justify-center max-w-md mx-auto text-center">
+            <div className="w-24 h-24 rounded-3xl bg-white/[0.02] border border-white/[0.05] backdrop-blur-3xl flex items-center justify-center mb-6">
+              <ShoppingBag className="h-12 w-12 text-zinc-400" />
+            </div>
+            <h2 className="text-2xl font-medium tracking-tight text-zinc-100 mb-2">
+              Your cart is empty
+            </h2>
+            <p className="text-zinc-400 mb-8">
+              Start adding venues and vendors to plan your perfect event!
+            </p>
+            <Button
+              onClick={() => router.push("/venues")}
+              className="h-12 px-8 bg-zinc-100 text-zinc-950 font-semibold rounded-xl transition-all hover:bg-white hover:shadow-[0_0_30px_-5px_rgba(255,255,255,0.3)]"
+            >
+              Browse Venues
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-black">Your Event Cart</h1>
-          <p className="text-neutral-600 mt-1">Review and manage your selected items</p>
+    <div className="min-h-screen bg-zinc-950 text-white">
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-medium tracking-tight text-zinc-100">
+              Your Event Cart
+            </h1>
+            <div className="flex items-center gap-3 mt-2">
+              <span className="text-zinc-400">{items.length}</span>
+              <span className="text-zinc-500">item{items.length !== 1 ? "s" : ""}</span>
+              <span className="text-zinc-600">•</span>
+              <span className="text-zinc-100 font-medium">
+                {formatCurrency(summary.total)}
+              </span>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            onClick={handleClearCart}
+            className="text-zinc-500 hover:text-red-400 transition-colors"
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Clear Cart
+          </Button>
         </div>
-        <Button
-          variant="outline"
-          className="border-red-300 text-red-600 hover:bg-red-50"
-          onClick={handleClearCart}
-        >
-          <Trash2 className="h-4 w-4 mr-2" />
-          Clear Cart
-        </Button>
-      </div>
 
-      <div className="grid gap-8 lg:grid-cols-3">
-        {/* Cart Items */}
-        <div className="lg:col-span-2 space-y-4">
-          {items.map((item) => (
-            <Card key={item.id} className="border-2 border-neutral-200 hover:border-black transition-colors">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-start gap-4 flex-1">
-                    <div className="h-12 w-12 rounded-lg bg-neutral-100 flex items-center justify-center flex-shrink-0">
-                      {getItemIcon(item.itemType)}
+        <div className="grid gap-8 lg:grid-cols-3">
+          <div className="lg:col-span-2 space-y-4">
+            {items.map((item) => {
+              const itemImage = getItemImage(item);
+              return (
+                <div
+                  key={item.id}
+                  className="bg-white/[0.02] border border-white/[0.05] backdrop-blur-3xl rounded-3xl p-6 transition-all hover:border-white/[0.08]"
+                >
+                  <div className="flex flex-col sm:flex-row items-start gap-4">
+                    <div className="relative w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 overflow-hidden rounded-xl border border-white/10">
+                      <SmartImage
+                        src={itemImage}
+                        alt={item.name}
+                        className="object-cover"
+                        fallbackSrc="https://images.unsplash.com/photo-1519167758481-83f550bb49b3?q=80&w=400"
+                      />
                     </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Badge className={getStatusColor(item.itemType)}>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
+                        <span className="bg-white/5 border border-white/10 text-zinc-300 text-xs px-2 py-1 rounded-md">
                           {item.itemType.replace("_", " ")}
-                        </Badge>
-                        {item.meta?.serviceType && (
-                          <Badge variant="outline">{item.meta.serviceType}</Badge>
+                        </span>
+                        {item.timeSlot && (
+                          <span className="bg-white/5 border border-white/10 text-zinc-300 text-xs px-2 py-1 rounded-md">
+                            {formatTimeSlot(item.timeSlot)}
+                          </span>
                         )}
                       </div>
-                      <h3 className="text-lg font-bold text-black mb-1">{item.name}</h3>
+                      <h3 className="text-lg font-medium text-zinc-100 mb-1 truncate">
+                        {item.name}
+                      </h3>
+                      {(item.meta?.area || item.meta?.city) && (
+                        <p className="text-sm text-zinc-400 mb-3 flex items-center gap-1">
+                          <MapPin className="h-3 w-3 flex-shrink-0" />
+                          {item.meta?.area}
+                          {item.meta?.area && item.meta?.city && ", "}
+                          {item.meta?.city}
+                        </p>
+                      )}
                       {item.description && (
-                        <p className="text-sm text-neutral-600 mb-3">{item.description}</p>
+                        <p className="text-sm text-zinc-400 mb-3">
+                          {item.description}
+                        </p>
                       )}
 
-                      {/* Item Details Grid */}
-                      <div className="grid sm:grid-cols-2 gap-3 mb-4">
+                      <div className="grid sm:grid-cols-2 gap-2 mb-4">
                         {item.date && (
                           <div className="flex items-center gap-2 text-sm">
-                            <Calendar className="h-4 w-4 text-neutral-400" />
-                            <span className="text-black">
+                            <Calendar className="h-4 w-4 text-zinc-500" />
+                            <span className="text-zinc-400">
                               {new Date(item.date).toLocaleDateString("en-IN", {
                                 weekday: "short",
                                 day: "numeric",
@@ -332,210 +410,128 @@ export default function CartPage() {
                             </span>
                           </div>
                         )}
-                        {item.timeSlot && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <Clock className="h-4 w-4 text-neutral-400" />
-                            <span className="text-black">{item.timeSlot.replace("_", " ")}</span>
-                          </div>
-                        )}
-                        {item.meta?.area && item.meta?.city && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <MapPin className="h-4 w-4 text-neutral-400" />
-                            <span className="text-black">{item.meta.area}, {item.meta.city}</span>
-                          </div>
-                        )}
                         {item.meta?.guestCount && (
                           <div className="flex items-center gap-2 text-sm">
-                            <Users className="h-4 w-4 text-neutral-400" />
-                            <span className="text-black">{item.meta.guestCount} guests</span>
+                            <Users className="h-4 w-4 text-zinc-500" />
+                            <span className="text-zinc-400">
+                              {item.meta.guestCount} guests
+                            </span>
                           </div>
                         )}
                       </div>
 
-                      {/* Quantity & Guest Count Controls */}
-                      <div className="flex items-center gap-4">
+                      {item.meta?.guestCount && (
                         <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => handleUpdateQuantity(item.id, -1)}
-                            disabled={updatingItemId === item.id || item.quantity <= 1}
-                          >
-                            <Minus className="h-4 w-4" />
-                          </Button>
-                          <span className="font-medium w-8 text-center text-black">
-                            {item.quantity}
-                          </span>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => handleUpdateQuantity(item.id, 1)}
+                          <span className="text-sm text-zinc-500">Guests:</span>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={item.meta.guestCount}
+                            onChange={(e) =>
+                              handleUpdateGuestCount(
+                                item.id,
+                                parseInt(e.target.value) || 1
+                              )
+                            }
                             disabled={updatingItemId === item.id}
-                          >
-                            <Plus className="h-4 w-4" />
-                          </Button>
-                          <span className="text-sm text-neutral-600 ml-2">Qty</span>
+                            className="w-24 h-8 bg-white/[0.02] border border-white/[0.05] text-zinc-100"
+                          />
                         </div>
+                      )}
+                    </div>
 
-                        {item.meta?.guestCount && (
-                          <div className="flex items-center gap-2">
-                            <Label htmlFor={`guests-${item.id}`} className="text-sm text-neutral-600">
-                              Guests:
-                            </Label>
-                            <Input
-                              id={`guests-${item.id}`}
-                              type="number"
-                              min="1"
-                              value={item.meta.guestCount}
-                              onChange={(e) =>
-                                handleUpdateGuestCount(item.id, parseInt(e.target.value) || 1)
-                              }
-                              disabled={updatingItemId === item.id}
-                              className="w-24 h-8"
-                            />
-                          </div>
-                        )}
+                    <div className="flex sm:flex-col items-start sm:items-end justify-between w-full sm:w-auto gap-2 sm:gap-0 pt-2 sm:pt-0">
+                      <div className="text-xl font-semibold text-zinc-100">
+                        {formatCurrency(item.totalPrice)}
                       </div>
+                      {item.quantity > 1 && (
+                        <div className="text-xs text-zinc-500">
+                          {formatCurrency(item.unitPrice)} each
+                        </div>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-zinc-500 hover:text-red-400 transition-colors"
+                        onClick={() => handleRemoveItem(item.id)}
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Remove
+                      </Button>
                     </div>
-                  </div>
-
-                  {/* Price & Actions */}
-                  <div className="text-right flex flex-col items-end gap-2">
-                    <div className="text-xl font-bold text-black">
-                      {formatCurrency(item.totalPrice)}
-                    </div>
-                    {item.quantity > 1 && (
-                      <div className="text-xs text-neutral-600">
-                        {formatCurrency(item.unitPrice)} each
-                      </div>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                      onClick={() => handleRemoveItem(item.id)}
-                    >
-                      <Trash2 className="h-4 w-4 mr-1" />
-                      Remove
-                    </Button>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+              );
+            })}
+          </div>
 
-        {/* Order Summary */}
-        <div className="lg:col-span-1">
-          <Card className="border-2 border-black sticky top-8">
-            <CardHeader>
-              <CardTitle className="text-black">Order Summary</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Promo Code */}
-              <div className="space-y-2">
-                <Label className="text-black font-medium">Promo Code</Label>
-                {appliedPromo ? (
-                  <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
-                    <div>
-                      <p className="font-semibold text-green-800">{appliedPromo.code}</p>
-                      <p className="text-xs text-green-600">
-                        {appliedPromo.discountType === "PERCENTAGE" 
-                          ? `${appliedPromo.discountValue}% off` 
-                          : `₹${appliedPromo.discountValue} off`}
-                      </p>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleRemovePromo}
-                      className="text-red-600 hover:bg-red-50"
-                    >
-                      Remove
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Enter promo code"
-                      value={promoCode}
-                      onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
-                      className="flex-1 border-neutral-300"
-                    />
-                    <Button
-                      onClick={handleApplyPromoCode}
-                      disabled={applyingPromo || !promoCode.trim()}
-                      className="bg-black hover:bg-neutral-800"
-                    >
-                      {applyingPromo ? "Applying..." : "Apply"}
-                    </Button>
-                  </div>
-                )}
+          <div className="lg:col-span-1">
+            <div className="bg-white/[0.02] border border-white/[0.05] backdrop-blur-3xl rounded-3xl p-6 lg:sticky lg:top-24">
+              <h2 className="text-xl font-medium tracking-tight text-zinc-100 mb-6">
+                Order Summary
+              </h2>
+
+              <div className="space-y-2 mb-6">
+                <Input
+                  placeholder="Enter promo code"
+                  value={promoCode}
+                  onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                  className="bg-white/[0.02] border border-white/[0.05] text-zinc-100 placeholder:text-zinc-500"
+                />
+                <Button
+                  onClick={handleApplyPromoCode}
+                  disabled={applyingPromo || !promoCode.trim()}
+                  variant="outline"
+                  className="w-full border border-white/10 text-zinc-400 hover:bg-white/10 hover:text-zinc-100 transition-all"
+                >
+                  {applyingPromo ? "Applying..." : "Apply Promo"}
+                </Button>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-3 border-t border-white/[0.05] pt-4">
                 <div className="flex justify-between text-sm">
-                  <span className="text-neutral-600">Subtotal</span>
-                  <span className="font-medium text-black">{formatCurrency(summary.subtotal)}</span>
-                </div>
-                {appliedPromo && (
-                  <div className="flex justify-between text-sm text-green-600">
-                    <span>Discount ({appliedPromo.code})</span>
-                    <span className="font-medium">-₹{appliedPromo.discountAmount}</span>
-                  </div>
-                )}
-                <div className="flex justify-between text-sm">
-                  <span className="text-neutral-600">Platform Fee (2%)</span>
-                  <span className="font-medium text-black">{formatCurrency(summary.platformFee)}</span>
+                  <span className="text-zinc-400">Subtotal</span>
+                  <span className="font-medium text-zinc-100">
+                    {formatCurrency(summary.subtotal)}
+                  </span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-neutral-600">GST (18%)</span>
-                  <span className="font-medium text-black">{formatCurrency(summary.tax)}</span>
+                  <span className="text-zinc-400">Platform Fee (2%)</span>
+                  <span className="font-medium text-zinc-100">
+                    {formatCurrency(summary.platformFee)}
+                  </span>
                 </div>
-                <div className="border-t-2 border-neutral-200 pt-3 flex justify-between font-bold text-lg">
-                  <span className="text-black">Total</span>
-                  <span className="text-black">{formatCurrency(summary.total)}</span>
+                <div className="flex justify-between text-sm">
+                  <span className="text-zinc-400">GST (18%)</span>
+                  <span className="font-medium text-zinc-100">
+                    {formatCurrency(summary.tax)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-lg font-medium pt-3 border-t border-white/[0.05]">
+                  <span className="text-zinc-100">Total</span>
+                  <span className="text-zinc-100">
+                    {formatCurrency(summary.total)}
+                  </span>
                 </div>
               </div>
 
-              {/* Trust Badges */}
-              <div className="pt-4 space-y-3">
-                <div className="flex items-center gap-2 text-xs text-neutral-600">
-                  <CheckCircle2 className="h-4 w-4 text-green-600" />
-                  <span>Best price guarantee</span>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-neutral-600">
-                  <CheckCircle2 className="h-4 w-4 text-green-600" />
-                  <span>Secure payment via Razorpay</span>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-neutral-600">
-                  <CheckCircle2 className="h-4 w-4 text-green-600" />
-                  <span>Free cancellation up to 24 hours</span>
-                </div>
-              </div>
-
-              {/* Checkout Button */}
               <Button
-                variant="default"
-                className="w-full h-14 text-lg font-semibold bg-black hover:bg-neutral-800 mt-4"
                 onClick={() => router.push("/checkout")}
+                className="w-full bg-zinc-100 text-zinc-950 font-semibold py-4 rounded-xl hover:bg-white hover:shadow-[0_0_30px_-5px_rgba(255,255,255,0.3)] transition-all"
               >
                 Proceed to Checkout
-                <ArrowRight className="h-5 w-5 ml-2" />
+                <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
 
-              {/* Continue Shopping */}
               <Button
                 variant="ghost"
-                className="w-full text-neutral-600"
                 onClick={() => router.push("/venues")}
+                className="w-full mt-3 text-zinc-500 hover:text-zinc-300 transition-all"
               >
                 Continue Shopping
               </Button>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
       </div>
     </div>

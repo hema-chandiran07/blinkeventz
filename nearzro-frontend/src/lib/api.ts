@@ -82,9 +82,14 @@ api.interceptors.response.use(
 
     if (status === 401) {
       if (typeof window !== 'undefined') {
-        localStorage.removeItem('NearZro_user');
-        toast.error(message || "Session expired. Please login again.");
-        window.location.href = '/login';
+        // Only redirect to /login for non-cart routes
+        // Cart API calls should fail gracefully without redirecting
+        const isCartRequest = error.config?.url?.includes('/cart');
+        if (!isCartRequest) {
+          localStorage.removeItem('NearZro_user');
+          toast.error(message || "Session expired. Please login again.");
+          window.location.href = '/login';
+        }
       }
       return Promise.reject(error);
     }

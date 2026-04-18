@@ -161,14 +161,6 @@ export function VenueCard({ venue }: VenueCardProps) {
                 <Users className="h-4 w-4" />
                 <span className="text-sm font-medium">{safeCapacity > 0 ? safeCapacity : 'TBD'}</span>
               </div>
-
-              <button
-                onClick={handleAddToCart}
-                className="p-2.5 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-all duration-300 hover:scale-110"
-                aria-label="Add to plan"
-              >
-                <ShoppingCart className="w-4 h-4" />
-              </button>
             </div>
           </div>
         </div>

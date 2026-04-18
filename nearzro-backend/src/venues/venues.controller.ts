@@ -441,7 +441,8 @@ export class VenuesController {
     }
 
     // Verify booking belongs to this venue owner
-    if ((booking as any).slot.entityType !== 'VENUE' || !venueIds.includes((booking as any).slot.venueId)) {
+    const slot = (booking as any).slot;
+    if (!slot || slot.entityType !== 'VENUE' || !venueIds.includes(slot.venueId)) {
       throw new ForbiddenException('This booking does not belong to your venues');
     }
 
@@ -574,11 +575,20 @@ export class VenuesController {
     const venueIds = venues.map(v => v.id);
     const bookings = await this.prisma.booking.findMany({
       where: { slot: { venueId: { in: venueIds } } as any },
-      include: { slot: true },
+      include: { slot: { include: { venue: true } } },
     });
-    const totalRevenue = bookings.reduce((sum, b: any) => sum + ((b as any).totalAmount || 0), 0);
+
+    const calculateBookingAmount = (b: any) => {
+      const v = b.slot?.venue;
+      if (!v) return 0;
+      if (b.slot?.timeSlot === 'morning') return v.basePriceMorning || v.basePriceFullDay || 0;
+      if (b.slot?.timeSlot === 'evening') return v.basePriceEvening || v.basePriceFullDay || 0;
+      return v.basePriceFullDay || v.basePriceEvening || 0;
+    };
+
+    const totalRevenue = bookings.reduce((sum, b: any) => sum + calculateBookingAmount(b), 0);
     const completedBookings = bookings.filter(b => b.status === 'COMPLETED');
-    const completedRevenue = completedBookings.reduce((sum, b: any) => sum + ((b as any).totalAmount || 0), 0);
+    const completedRevenue = completedBookings.reduce((sum, b: any) => sum + calculateBookingAmount(b), 0);
     const confirmedBookings = bookings.filter(b => b.status === 'CONFIRMED');
     const pendingBookings = bookings.filter(b => b.status === 'PENDING');
     const cancelledBookings = bookings.filter(b => b.status === 'CANCELLED');
@@ -594,7 +604,7 @@ export class VenuesController {
         const bd = new Date(b.createdAt);
         return bd >= monthStart && bd <= monthEnd;
       });
-      const monthRevenue = monthBookings.reduce((sum, b: any) => sum + ((b as any).totalAmount || 0), 0);
+      const monthRevenue = monthBookings.reduce((sum, b: any) => sum + calculateBookingAmount(b), 0);
       monthlyRevenue.push({
         month: d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
         revenue: monthRevenue,
@@ -606,7 +616,7 @@ export class VenuesController {
     // Venue performance
     const venuePerformance: any[] = await Promise.all(venues.map(async v => {
       const vBookings = bookings.filter(b => (b as any).slot?.venueId === v.id);
-      const vRevenue = vBookings.reduce((sum, b: any) => sum + ((b as any).totalAmount || 0), 0);
+      const vRevenue = vBookings.reduce((sum, b: any) => sum + calculateBookingAmount(b), 0);
       return { id: v.id, name: v.name, bookings: vBookings.length, revenue: vRevenue };
     }));
 
@@ -656,16 +666,25 @@ export class VenuesController {
     const venueIds = venues.map(v => v.id);
     const bookings = await this.prisma.booking.findMany({
       where: { slot: { venueId: { in: venueIds } } as any, status: { in: ['COMPLETED', 'CONFIRMED'] } },
-      include: { slot: true },
+      include: { slot: { include: { venue: true } } },
     });
-    const totalGrossRevenue = bookings.reduce((sum, b: any) => sum + ((b as any).totalAmount || 0), 0);
+
+    const calculateBookingAmount = (b: any) => {
+      const v = b.slot?.venue;
+      if (!v) return 0;
+      if (b.slot?.timeSlot === 'morning') return v.basePriceMorning || v.basePriceFullDay || 0;
+      if (b.slot?.timeSlot === 'evening') return v.basePriceEvening || v.basePriceFullDay || 0;
+      return v.basePriceFullDay || v.basePriceEvening || 0;
+    };
+
+    const totalGrossRevenue = bookings.reduce((sum, b: any) => sum + calculateBookingAmount(b), 0);
     const totalPlatformFee = Math.round(totalGrossRevenue * 0.05);
     const totalNetRevenue = totalGrossRevenue - totalPlatformFee;
 
     // By venue breakdown
     const breakdown = venues.map(v => {
       const vBookings = bookings.filter(b => (b as any).slot?.venueId === v.id);
-      const vRevenue = vBookings.reduce((sum, b: any) => sum + ((b as any).totalAmount || 0), 0);
+      const vRevenue = vBookings.reduce((sum, b: any) => sum + calculateBookingAmount(b), 0);
       return { venueId: v.id, venueName: v.name, grossRevenue: vRevenue, platformFee: Math.round(vRevenue * 0.05), netRevenue: vRevenue - Math.round(vRevenue * 0.05), bookings: vBookings.length };
     });
 
@@ -677,7 +696,7 @@ export class VenuesController {
       const monthStart = new Date(d.getFullYear(), d.getMonth(), 1);
       const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
       const monthBookings = bookings.filter(b => { const bd = new Date(b.createdAt); return bd >= monthStart && bd <= monthEnd; });
-      const monthRevenue = monthBookings.reduce((sum, b: any) => sum + ((b as any).totalAmount || 0), 0);
+      const monthRevenue = monthBookings.reduce((sum, b: any) => sum + calculateBookingAmount(b), 0);
       trends.push({ month: d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }), revenue: monthRevenue, bookings: monthBookings.length });
     }
 
@@ -719,14 +738,23 @@ export class VenuesController {
     const venueIds = venues.map(v => v.id);
     const bookings = await this.prisma.booking.findMany({
       where: { slot: { venueId: { in: venueIds } } as any },
-      include: { slot: true },
+      include: { slot: { include: { venue: true } } },
     });
+
+    const calculateBookingAmount = (b: any) => {
+      const v = b.slot?.venue;
+      if (!v) return 0;
+      if (b.slot?.timeSlot === 'morning') return v.basePriceMorning || v.basePriceFullDay || 0;
+      if (b.slot?.timeSlot === 'evening') return v.basePriceEvening || v.basePriceFullDay || 0;
+      return v.basePriceFullDay || v.basePriceEvening || 0;
+    };
+
     const eventTypeMap: Record<string, { count: number; revenue: number }> = {};
     bookings.forEach(b => {
       const type = (b as any).slot?.eventType || 'VENUE_BOOKING';
       if (!eventTypeMap[type]) eventTypeMap[type] = { count: 0, revenue: 0 };
       eventTypeMap[type].count++;
-      eventTypeMap[type].revenue += (b as any).totalAmount || 0;
+      eventTypeMap[type].revenue += calculateBookingAmount(b);
     });
     const eventTypes = Object.entries(eventTypeMap).map(([type, data]) => ({ type, ...data }));
     return { eventTypes, currency: 'INR' };

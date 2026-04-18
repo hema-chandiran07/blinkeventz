@@ -114,7 +114,7 @@ export class PaymentsService {
       event: 'PAYMENT_CREATE_ORDER_START',
       traceId,
       userId,
-      cartId: dto.cartId,
+      cartId: dto.cartId && dto.cartId > 0 ? dto.cartId : null,
       idempotencyKey,
     });
 
@@ -186,7 +186,7 @@ export class PaymentsService {
         const payment = await tx.payment.create({
           data: {
             userId,
-            cartId: dto.cartId,
+            cartId: dto.cartId && dto.cartId > 0 ? dto.cartId : undefined,
             provider: PaymentProvider.RAZORPAY,
             providerOrderId: order.id,
             amount,
@@ -224,7 +224,7 @@ export class PaymentsService {
 
       return this.buildOrderResponse(result.payment, traceId);
 
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error({
         event: 'PAYMENT_CREATE_ORDER_FAILED',
         traceId,
@@ -291,7 +291,7 @@ export class PaymentsService {
       const payment = await this.prisma.payment.create({
         data: {
           userId: authenticatedUserId,
-          cartId: 0, // Default to 0 for simplified checkout
+          cartId: dto.cartId && dto.cartId > 0 ? dto.cartId : null,
           provider: PaymentProvider.RAZORPAY,
           providerOrderId: order.id,
           amount: amountInPaise,
@@ -317,7 +317,7 @@ export class PaymentsService {
 
       return this.buildOrderResponse(payment, traceId);
 
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error({
         event: 'PAYMENT_CREATE_SIMPLE_FAILED',
         traceId,
@@ -463,7 +463,7 @@ export class PaymentsService {
         isMock: this.isMock,
       };
 
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error({
         event: 'PAYMENT_CONFIRM_FAILED',
         traceId,
@@ -616,7 +616,7 @@ export class PaymentsService {
 
       return { processed: true, message: 'Event processed successfully' };
 
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error({
         event: 'WEBHOOK_PROCESSING_FAILED',
         requestId,
@@ -1145,7 +1145,7 @@ export class PaymentsService {
                 adminId: String(adminUserId)
               }
             });
-          } catch (rzpError) {
+          } catch (rzpError: any) {
             this.logger.error(`Razorpay refund failed for payment ${paymentId}:`, rzpError);
             throw new InternalServerErrorException(
               `Payment gateway rejected refund: ${rzpError.error?.description || rzpError.message || 'Unknown error'}`
@@ -1223,7 +1223,7 @@ export class PaymentsService {
           originalAmount: originalAmount,
         },
       };
-    } catch (error) {
+    } catch (error: any) {
       if (
         error instanceof BadRequestException ||
         error instanceof NotFoundException
