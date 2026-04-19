@@ -51,7 +51,7 @@ export class VenuesController {
     private readonly venuesService: VenuesService,
     private readonly prisma: PrismaService,
     private readonly storageService: DatabaseStorageService,
-  ) {}
+  ) { }
 
   // ============================================
   // BLOCK 1: ALL STATIC GET ROUTES (MUST BE FIRST)
@@ -116,7 +116,7 @@ export class VenuesController {
   async getMyVenueAvailability(@Req() req: any) {
     const venues = await this.venuesService.getVenuesByOwner(req.user.userId);
     if (!venues || venues.length === 0) return [];
-    
+
     return this.prisma.availabilitySlot.findMany({
       where: { venueId: { in: venues.map(v => v.id) } },
       orderBy: { date: 'asc' },
@@ -158,7 +158,7 @@ export class VenuesController {
     // Redirect logic would be better but simple fetch is safer for connectivity check
     const venues = await this.prisma.venue.findMany({ where: { ownerId: req.user.userId }, select: { id: true } });
     if (venues.length === 0) return { reviews: [] };
-    
+
     const reviews = await this.prisma.review.findMany({
       where: { venueId: { in: venues.map(v => v.id) } },
       include: { user: { select: { name: true } } },
@@ -195,12 +195,12 @@ export class VenuesController {
     }),
   )
   async createVenue(
-    @Req() req: any, 
+    @Req() req: any,
     @Body() dto: CreateVenueDto,
     @UploadedFiles() files: { venueImages?: Express.Multer.File[], kycDocFiles?: Express.Multer.File[], venueGovtCertificateFiles?: Express.Multer.File[] },
   ) {
     const ownerId = req.user.userId;
-    
+
     // Helper to parse Base64 or existing URLs from DTO
     const parseBodyUrls = (field: any): string[] => {
       if (!field) return [];
@@ -277,25 +277,47 @@ export class VenuesController {
     };
 
     // 1. Process Venue Images
+    const oldVenue = venues[0] as any;
+    const oldImageUrls = oldVenue.venueImages || [];
     const uploadedImageUrls = files?.venueImages
-      ? await Promise.all(files.venueImages.map(f => this.storageService.storeFile(f)))
+      ? await Promise.all(files.venueImages.map(f => this.storageService.storeFile(f, 'venues')))
       : [];
     const bodyImageUrls = parseBodyUrls((dto as any).venueImages);
     const finalImageUrls = [...new Set([...bodyImageUrls, ...uploadedImageUrls])];
 
+    // Purge orphaned venue images
+    const orphanedImages = oldImageUrls.filter(url => !finalImageUrls.includes(url));
+    for (const url of orphanedImages) {
+      await this.storageService.deleteFile(url);
+    }
+
     // 2. Process KYC Documents
+    const oldKycUrls = oldVenue.kycDocFiles || [];
     const uploadedKycUrls = files?.kycDocFiles
-      ? await Promise.all(files.kycDocFiles.map(f => this.storageService.storeFile(f)))
+      ? await Promise.all(files.kycDocFiles.map(f => this.storageService.storeFile(f, 'kyc')))
       : [];
     const bodyKycUrls = parseBodyUrls((dto as any).kycDocFiles);
     const finalKycUrls = [...new Set([...bodyKycUrls, ...uploadedKycUrls])];
 
+    // Purge orphaned KYC docs
+    const orphanedKyc = oldKycUrls.filter(url => !finalKycUrls.includes(url));
+    for (const url of orphanedKyc) {
+      await this.storageService.deleteFile(url);
+    }
+
     // 3. Process Government Certificates
+    const oldGovtUrls = oldVenue.venueGovtCertificateFiles || [];
     const uploadedGovtUrls = files?.venueGovtCertificateFiles
-      ? await Promise.all(files.venueGovtCertificateFiles.map(f => this.storageService.storeFile(f)))
+      ? await Promise.all(files.venueGovtCertificateFiles.map(f => this.storageService.storeFile(f, 'certificates')))
       : [];
     const bodyGovtUrls = parseBodyUrls((dto as any).venueGovtCertificateFiles);
     const finalGovtUrls = [...new Set([...bodyGovtUrls, ...uploadedGovtUrls])];
+
+    // Purge orphaned Govt certificates
+    const orphanedGovt = oldGovtUrls.filter(url => !finalGovtUrls.includes(url));
+    for (const url of orphanedGovt) {
+      await this.storageService.deleteFile(url);
+    }
 
     return this.venuesService.updateVenue(venues[0].id, dto, ownerId, finalImageUrls, finalKycUrls, finalGovtUrls);
   }
@@ -354,133 +376,24 @@ export class VenuesController {
     return venues;
   }
 
-  /// 🏢 VENUE OWNER → Get my bookings
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.VENUE_OWNER)
   @Get('me/bookings')
-  async getMyBookings(@Req() req: any) {
-    const venues = await this.venuesService.getVenuesByOwner(req.user.userId);
-    const venueIds = venues.map(v => v.id);
-
-    // Query bookings through AvailabilitySlot (venueId)
-    const bookings = await this.prisma.booking.findMany({
-      where: {
-        slot: {
-          venueId: { in: venueIds },
-        } as any,
-      },
-      include: {
-        slot: {
-          include: {
-            venue: true,
-          },
-        },
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-    // Calculate totalAmount dynamically if missing based on timeSlot using Prisma JSON enums or mapped strings
-    return bookings.map(b => {
-      const slot = (b as any).slot;
-      const v = slot?.venue;
-      let amount = 0;
-      if (v) {
-        if (slot?.timeSlot === 'morning') amount = v.basePriceMorning || v.basePriceFullDay || 0;
-        else if (slot?.timeSlot === 'evening') amount = v.basePriceEvening || v.basePriceFullDay || 0;
-        else amount = v.basePriceFullDay || v.basePriceEvening || 0;
-      }
-      return { ...b, totalAmount: amount };
-    });
+  getMyBookings(@Req() req: any) {
+    return this.venuesService.getVenueOwnerBookings(req.user.userId);
   }
 
-  /// 🏢 VENUE OWNER → Update booking status
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.VENUE_OWNER)
   @Patch('me/bookings/:id/status')
-  @ApiOperation({ summary: 'Update venue booking status' })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      required: ['status'],
-      properties: {
-        status: { type: 'string', enum: ['PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED'] },
-        reason: { type: 'string' }
-      }
-    }
-  })
-  async updateBookingStatus(
+  updateBookingStatus(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { status: string },
     @Req() req: any,
-    @Param('id', ParseIntPipe) bookingId: number,
-    @Body() body: { status: string; reason?: string },
   ) {
-    const venues = await this.venuesService.getVenuesByOwner(req.user.userId);
-    const venueIds = venues.map(v => v.id);
-
-    // Get booking
-    const booking = await this.prisma.booking.findUnique({
-      where: { id: bookingId },
-      include: {
-        slot: true,
-        user: {
-          select: { id: true, name: true, email: true, phone: true },
-        },
-      },
-    });
-
-    if (!booking) {
-      throw new NotFoundException('Booking not found');
-    }
-
-    // Verify booking belongs to this venue owner
-    const slot = (booking as any).slot;
-    if (!slot || slot.entityType !== 'VENUE' || !venueIds.includes(slot.venueId)) {
-      throw new ForbiddenException('This booking does not belong to your venues');
-    }
-
-    // Validate status transition
-    const validStatuses = ['PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED'];
-    if (!validStatuses.includes(body.status)) {
-      throw new BadRequestException(`Invalid status. Must be one of: ${validStatuses.join(', ')}`);
-    }
-
-    // Prevent invalid transitions
-    if (booking.status === 'CANCELLED' && body.status !== 'CANCELLED') {
-      throw new BadRequestException('Cannot change status of a cancelled booking');
-    }
-    if (booking.status === 'COMPLETED' && body.status !== 'COMPLETED') {
-      throw new BadRequestException('Cannot change status of a completed booking');
-    }
-
-    // Build update data
-    const updateData: any = { status: body.status as any };
-    if (body.status === 'COMPLETED') {
-      updateData.completedAt = new Date();
-    }
-
-    // Update booking
-    const updatedBooking = await this.prisma.booking.update({
-      where: { id: bookingId },
-      data: updateData,
-      include: {
-        slot: { include: { venue: true } },
-        user: { select: { id: true, name: true, email: true, phone: true } },
-      },
-    });
-
-    return {
-      success: true,
-      message: `Booking status updated to ${body.status}`,
-      booking: updatedBooking,
-    };
+    return this.venuesService.updateVenueBookingStatus(id, body.status, req.user.userId);
   }
 
   /// 🏢 VENUE OWNER → Get my availability
@@ -510,7 +423,7 @@ export class VenuesController {
   async getMyAnalytics(@Req() req: any) {
     const venues = await this.venuesService.getVenuesByOwner(req.user.userId);
     const venueIds = venues.map(v => v.id);
-    
+
     // Get booking stats by status
     const bookings = await this.prisma.booking.findMany({
       where: {
@@ -771,7 +684,7 @@ export class VenuesController {
   @Get('me/portfolio')
   async getMyPortfolio(@Req() req: any) {
     const venues = await this.venuesService.getVenuesByOwner(req.user.userId);
-    
+
     // Get photos from all venues
     const venueIds = venues.map(v => v.id);
     const portfolioImages = await this.prisma.venuePhoto.findMany({
@@ -822,11 +735,11 @@ export class VenuesController {
   ) {
     const venues = await this.venuesService.getVenuesByOwner(req.user.userId);
     const venue = venues.find(v => v.id === parseInt(body.venueId));
-    
+
     if (!venue && venues.length > 0) {
       throw new NotFoundException('Venue not found');
     }
-    
+
     const targetVenue = venue || venues[0];
 
     let imageUrl: string;
@@ -1103,8 +1016,29 @@ export class VenuesController {
   }
 
   // ============================================
-  // BLOCK 3: ALL DYNAMIC :id ROUTES (ABSOLUTELY LAST)
+  // BLOCK 3: ADMIN ROUTES (ABSOLUTELY LAST BEFORE DYNAMIC :id)
   // ============================================
+
+  /// 👑 ADMIN → Get all venues with full details
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @Get('admin/all')
+  @ApiOperation({ summary: 'Get all venues (admin only)' })
+  async getAllVenuesAdmin() {
+    return this.venuesService.findAllAdmin();
+  }
+
+  /// 👑 ADMIN → Get single venue with full details and KYC
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @Get('admin/:id')
+  @ApiOperation({ summary: 'Get venue by ID with full admin details' })
+  @ApiParam({ name: 'id', type: Number })
+  async getVenueByIdAdmin(@Param('id', ParseIntPipe) id: number) {
+    return this.venuesService.findByIdAdmin(id);
+  }
 
   /// 👑 ADMIN → Approve venue
   @ApiBearerAuth()
@@ -1316,11 +1250,11 @@ export class VenuesController {
     if (!date || isNaN(new Date(date).getTime())) {
       throw new BadRequestException('Invalid date format');
     }
-    
+
     // Map 'slot' from frontend to 'timeSlot' logic if needed, 
     // but the service handles the string. Ensure it's not undefined.
     const timeSlot = slot || 'FULL_DAY';
-    
+
     await this.venuesService.unblockTimeSlot(req.user.userId, date, timeSlot);
     return { success: true, message: 'Slot unblocked successfully' };
   }

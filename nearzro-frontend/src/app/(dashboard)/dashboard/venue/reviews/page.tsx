@@ -72,7 +72,7 @@ export default function VenueReviewsPage() {
     try {
       setLoading(true);
 
-      const reviewsResponse = await api.get("/venues/reviews/me", {
+      const reviewsResponse = await api.get("/reviews/venues/me", {
         params: {
           status: statusFilter !== "all" ? statusFilter : undefined,
           rating: ratingFilter !== "all" ? ratingFilter : undefined,
@@ -80,8 +80,28 @@ export default function VenueReviewsPage() {
       });
 
       if (reviewsResponse.data) {
-        setReviews(reviewsResponse.data.reviews || []);
-        setAnalytics(reviewsResponse.data.analytics || null);
+        const rawReviews = reviewsResponse.data.reviews || [];
+        const analyticsData = reviewsResponse.data.analytics || null;
+        
+        // Transform to match Review interface
+        const transformed: Review[] = rawReviews.map((r: any) => ({
+          id: r.id,
+          venueName: r.venue?.name || "Venue",
+          venueCity: r.venue?.city || "",
+          customerName: r.user?.name || "Customer",
+          customerEmail: r.user?.email || "",
+          rating: r.rating,
+          title: r.title || "Review",
+          comment: r.comment,
+          status: r.status,
+          createdAt: r.createdAt,
+          helpful: r.helpful || 0,
+          response: r.response,
+          respondedAt: r.respondedAt || r.updatedAt,
+        }));
+
+        setReviews(transformed);
+        setAnalytics(analyticsData);
       }
     } catch (error: any) {
       console.error("Failed to load reviews:", error);

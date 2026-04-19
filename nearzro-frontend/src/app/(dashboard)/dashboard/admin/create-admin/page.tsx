@@ -7,10 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { 
-  Shield, UserPlus, Eye, EyeOff, ArrowLeft, 
-  ShieldCheck, RefreshCw, AlertCircle, Loader2, 
-  Users, CheckCircle2, IndianRupee 
+import {
+  Shield, UserPlus, Eye, EyeOff, ArrowLeft,
+  ShieldCheck, RefreshCw, AlertCircle, Loader2,
+  Users, CheckCircle2, IndianRupee
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
@@ -30,6 +30,7 @@ export default function CreateAdminPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -37,26 +38,46 @@ export default function CreateAdminPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrors({});
     
-    if (formData.password !== formData.confirmPassword) {
-      toast.error("Passwords do not match");
-      return;
-    }
-
     setLoading(true);
 
     try {
+      // Client-side validation as exceptions
+      if (!formData.name.trim()) throw new Error("IDENT_NAME_REQUIRED");
+      if (!formData.email.trim()) throw new Error("IDENT_EMAIL_REQUIRED");
+      if (formData.password.length < 8) throw new Error("AUTH_TOKEN_TOO_SHORT");
+      if (formData.password !== formData.confirmPassword) throw new Error("AUTH_TOKEN_MISMATCH");
+
       await api.post("/auth/register-admin", {
-        name: formData.email.split('@')[0],
+        name: formData.name,
         email: formData.email,
-        phone: "",
+        phone: formData.phone || "0000000000",
         role: "ADMIN",
         password: formData.password
       });
-      toast.success("Admin account created successfully!");
+
+      toast.success("Authorization successful", {
+        description: "Admin account provisioned and active.",
+        icon: <ShieldCheck className="h-5 w-5 text-green-500" />
+      });
+      
       router.push("/dashboard/admin/users");
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Failed to create admin");
+      const message = error.message;
+      const responseMessage = error?.response?.data?.message;
+
+      // Map internal exceptions to UI errors
+      if (message === "IDENT_NAME_REQUIRED") setErrors(prev => ({ ...prev, name: "Identity name is required" }));
+      else if (message === "IDENT_EMAIL_REQUIRED") setErrors(prev => ({ ...prev, email: "Valid email is required" }));
+      else if (message === "AUTH_TOKEN_TOO_SHORT") setErrors(prev => ({ ...prev, password: "Access token must be at least 8 characters" }));
+      else if (message === "AUTH_TOKEN_MISMATCH") setErrors(prev => ({ ...prev, confirmPassword: "Tokens do not match" }));
+      else {
+        toast.error("Provisioning Failed", {
+          description: responseMessage || "Could not initialize administrative entity.",
+          icon: <AlertCircle className="h-5 w-5 text-red-500" />
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -104,7 +125,23 @@ export default function CreateAdminPage() {
             </CardHeader>
             <CardContent className="pt-6">
               <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid md:grid-cols-1 gap-6">
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="name" className="text-[10px] uppercase tracking-widest font-black text-zinc-500">Identity Name *</Label>
+                    <Input
+                      id="name"
+                      name="name"
+                      placeholder="Principal Admin"
+                      required
+                      value={formData.name}
+                      onChange={handleChange}
+                      className={cn(
+                        "h-11 bg-zinc-900/50 border-zinc-800 text-white focus:border-blue-500 transition-all",
+                        errors.name && "border-red-500/50 bg-red-500/5"
+                      )}
+                    />
+                    {errors.name && <p className="text-[10px] text-red-500 font-bold uppercase tracking-tight">{errors.name}</p>}
+                  </div>
                   <div className="space-y-2">
                     <Label htmlFor="email" className="text-[10px] uppercase tracking-widest font-black text-zinc-500">Email Address *</Label>
                     <Input
@@ -114,6 +151,20 @@ export default function CreateAdminPage() {
                       placeholder="admin@nearzro.com"
                       required
                       value={formData.email}
+                      onChange={handleChange}
+                      className="h-11 bg-zinc-900/50 border-zinc-800 text-white focus:border-blue-500 transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-1 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="phone" className="text-[10px] uppercase tracking-widest font-black text-zinc-500">Contact Number</Label>
+                    <Input
+                      id="phone"
+                      name="phone"
+                      placeholder="+91 00000 00000"
+                      value={formData.phone}
                       onChange={handleChange}
                       className="h-11 bg-zinc-900/50 border-zinc-800 text-white focus:border-blue-500 transition-all"
                     />
@@ -132,7 +183,10 @@ export default function CreateAdminPage() {
                         required
                         value={formData.password}
                         onChange={handleChange}
-                        className="h-11 pr-10 bg-zinc-900/50 border-zinc-800 text-white focus:border-blue-500 transition-all"
+                        className={cn(
+                          "h-11 pr-10 bg-zinc-900/50 border-zinc-800 text-white focus:border-blue-500 transition-all",
+                          errors.password && "border-red-500/50 bg-red-500/5"
+                        )}
                       />
                       <button
                         type="button"
@@ -142,6 +196,7 @@ export default function CreateAdminPage() {
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
+                    {errors.password && <p className="text-[10px] text-red-500 font-bold uppercase tracking-tight">{errors.password}</p>}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="confirmPassword" title="Required" className="text-[10px] uppercase tracking-widest font-black text-zinc-500">Verify Token</Label>
@@ -154,7 +209,10 @@ export default function CreateAdminPage() {
                         required
                         value={formData.confirmPassword}
                         onChange={handleChange}
-                        className="h-11 pr-10 bg-zinc-900/50 border-zinc-800 text-white focus:border-blue-500 transition-all"
+                        className={cn(
+                          "h-11 pr-10 bg-zinc-900/50 border-zinc-800 text-white focus:border-blue-500 transition-all",
+                          errors.confirmPassword && "border-red-500/50 bg-red-500/5"
+                        )}
                       />
                       <button
                         type="button"
@@ -164,6 +222,7 @@ export default function CreateAdminPage() {
                         {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
+                    {errors.confirmPassword && <p className="text-[10px] text-red-500 font-bold uppercase tracking-tight">{errors.confirmPassword}</p>}
                   </div>
                 </div>
 

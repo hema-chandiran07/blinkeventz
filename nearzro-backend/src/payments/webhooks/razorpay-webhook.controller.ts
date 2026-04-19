@@ -10,8 +10,11 @@ import {
   UnauthorizedException,
   Logger,
   Inject,
-  forwardRef
+  forwardRef,
+  Req
 } from '@nestjs/common';
+import type { RawBodyRequest } from '@nestjs/common';
+import type { Request } from 'express';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 import { PaymentsService } from '../payments.service';
@@ -106,6 +109,7 @@ export class RazorpayWebhookController {
   @Post()
   @HttpCode(HttpStatus.OK)
   async handleWebhook(
+    @Req() req: RawBodyRequest<Request>,
     @Body() payload: RazorpayWebhookPayload,
     @Headers('x-razorpay-signature') signature: string,
     @Headers('x-razorpay-webhook-version') webhookVersion?: string,
@@ -153,7 +157,7 @@ export class RazorpayWebhookController {
         throw new UnauthorizedException('Webhook signature verification is not configured');
       }
 
-      this.verifyWebhookSignature(payload, signature, traceId);
+      this.verifyWebhookSignature(req.rawBody, signature, traceId);
 
       // === 3. VERIFY REQUIRED FIELDS ===
       if (!payload.event || !payload.id) {
@@ -234,7 +238,7 @@ export class RazorpayWebhookController {
    * Razorpay uses HMAC-SHA256 with webhook secret
    */
   private verifyWebhookSignature(
-    payload: RazorpayWebhookPayload,
+    rawBody: Buffer | undefined,
     signature: string,
     traceId: string,
   ): void {
@@ -246,12 +250,14 @@ export class RazorpayWebhookController {
       throw new UnauthorizedException('Missing webhook signature');
     }
 
+    if (!rawBody) throw new UnauthorizedException('Raw body missing for signature check');
+
     // Note: In production, Razorpay sends the signature in a specific format
     // The actual verification depends on how Razorpay sends the payload
     // For Razorpay, they send: sha256=signature
     const expectedSignature = crypto
       .createHmac('sha256', this.webhookSecret)
-      .update(JSON.stringify(payload))
+      .update(rawBody)
       .digest('hex');
 
     // Razorpay signature format: sha256=<signature>

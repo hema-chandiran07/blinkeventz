@@ -37,6 +37,7 @@ if (!envLoaded) {
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    rawBody: true,
     logger: ['error', 'warn', 'log', 'debug', 'verbose'],
   });
 

@@ -6,12 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  ArrowLeft, Save, X, RefreshCw, User
+  ArrowLeft, Save, X, RefreshCw, User, Shield, Info, AlertTriangle
 } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { useAuth } from "@/context/auth-context";
+import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 interface UserEdit {
   id: number;
@@ -49,7 +52,7 @@ export default function EditUserPage() {
       const foundUser = response.data;
 
       if (!foundUser) {
-        toast.error("User not found");
+        toast.error("Identity Record Not Found");
         router.push("/dashboard/admin/users");
         return;
       }
@@ -81,7 +84,7 @@ export default function EditUserPage() {
 
   const handleSave = async () => {
     if (!formData.name || !formData.email) {
-      toast.error("Please fill in all required fields");
+      toast.error("Required Parameters Missing");
       return;
     }
 
@@ -89,18 +92,18 @@ export default function EditUserPage() {
     try {
       const userId = parseInt(params.id as string);
       await api.patch(`/users/${userId}`, formData);
-      toast.success("User updated successfully");
+      toast.success("Identity Records Updated Successfully");
       router.push(`/dashboard/admin/users/${userId}`);
     } catch (error: any) {
       console.error("Update error:", error);
-      toast.error(error?.response?.data?.message || "Failed to update user");
+      toast.error(error?.response?.data?.message || "Transmission Error");
     } finally {
       setSaving(false);
     }
   };
 
   const handleCancel = () => {
-    router.back();
+    router.push(`/dashboard/admin/users/${params.id}`);
   };
 
   if (loading) {
@@ -117,25 +120,25 @@ export default function EditUserPage() {
   return (
     <div className="space-y-6 bg-zinc-950 min-h-screen p-6">
       {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={handleCancel} className="text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center overflow-hidden">
-                {user?.image ? (
-                  <img src={user.image} alt={user?.name || 'User'} className="h-full w-full object-cover" />
-                ) : (
-                  <User className="h-5 w-5 text-zinc-400" />
-                )}
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold text-zinc-100">Edit User</h1>
-                <p className="text-zinc-400">{user?.name || 'User'}</p>
-              </div>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={handleCancel} className="text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center overflow-hidden">
+              {user?.image ? (
+                <img src={user.image} alt={user?.name || 'User'} className="h-full w-full object-cover" />
+              ) : (
+                <User className="h-5 w-5 text-zinc-400" />
+              )}
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-zinc-100">Edit User</h1>
+              <p className="text-zinc-400">{user?.name || 'User'}</p>
             </div>
           </div>
+        </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={handleCancel} className="border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100" disabled={saving}>
             <X className="h-4 w-4 mr-2" /> Cancel
@@ -238,6 +241,9 @@ export default function EditUserPage() {
               </div>
               {isSelf && <p className="text-[10px] text-zinc-500 font-medium">Platform policies prevent admins from deactivating their own accounts.</p>}
             </div>
+            <p className="text-[9px] font-black uppercase tracking-[0.3em] text-zinc-700 leading-relaxed italic group-hover:text-zinc-500 transition-all">
+              Verification required: Finalize all data nodes before authorizing the OVERWRITE protocol. Every modification is logged to the encrypted global audit stream for security compliance.
+            </p>
           </CardContent>
         </Card>
       </div>

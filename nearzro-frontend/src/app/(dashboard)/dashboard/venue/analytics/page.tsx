@@ -22,6 +22,7 @@ interface VenueAnalytics {
   completedBookings: number;
   totalRevenue: number;
   currency: string;
+  revenueGrowth: number;
 }
 
 interface MonthlyData {
@@ -69,116 +70,39 @@ export default function VenueAnalyticsPage() {
         setLoading(true);
       }
 
-      // Load venue analytics from API
-      const analyticsResponse = await api.get('/venues/me/analytics');
-      const analyticsData = analyticsResponse.data || {
-        totalVenues: 0,
-        totalBookings: 0,
-        confirmedBookings: 0,
-        completedBookings: 0,
-        totalRevenue: 0,
-        currency: 'INR',
-      };
+      // Load rich venue analytics from standardized API
+      const response = await api.get('/venues/me/analytics');
+      const data = response.data;
       
-      setAnalytics(analyticsData);
+      setAnalytics({
+        totalVenues: data.totalVenues || 0,
+        totalBookings: data.totalBookings || 0,
+        confirmedBookings: data.confirmedBookings || 0,
+        completedBookings: data.completedBookings || 0,
+        totalRevenue: data.totalRevenue || 0,
+        currency: data.currency || 'INR',
+        revenueGrowth: data.revenueGrowth || 0,
+      });
 
-      // Load bookings for monthly data calculation
-      try {
-        const bookingsResponse = await api.get('/venues/me/bookings');
-        const bookings = bookingsResponse.data || [];
-        
-        // Calculate monthly data from bookings
-        const monthlyMap = new Map<string, { revenue: number; bookings: number }>();
-        
-        // Initialize last 6 months
-        const now = new Date();
-        for (let i = 5; i >= 0; i--) {
-          const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-          const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-          const label = date.toLocaleString('default', { month: 'short', year: '2-digit' });
-          monthlyMap.set(key, { revenue: 0, bookings: 0 });
-        }
-        
-        // Aggregate bookings by month
-        bookings.forEach((booking: any) => {
-          const date = new Date(booking.slot?.date || booking.createdAt);
-          const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-          const existing = monthlyMap.get(key) || { revenue: 0, bookings: 0 };
-          monthlyMap.set(key, {
-            revenue: existing.revenue + (booking.totalAmount || 0),
-            bookings: existing.bookings + 1,
-          });
-        });
-        
-        const monthly: MonthlyData[] = Array.from(monthlyMap.entries()).map(([key, data]) => {
-          const [year, month] = key.split('-');
-          const date = new Date(parseInt(year), parseInt(month) - 1, 1);
-          return {
-            month: date.toLocaleString('default', { month: 'short', year: '2-digit' }),
-            revenue: data.revenue,
-            bookings: data.bookings,
-            occupancy: Math.min(100, Math.round((data.bookings / 30) * 100)), // Simplified occupancy calc
-          };
-        });
-        
-        setMonthlyData(monthly);
-        
-        // Calculate event type distribution
-        const typeMap = new Map<string, { count: number; revenue: number }>();
-        bookings.forEach((booking: any) => {
-          const type = booking.slot?.entityType || 'VENUE';
-          const existing = typeMap.get(type) || { count: 0, revenue: 0 };
-          typeMap.set(type, {
-            count: existing.count + 1,
-            revenue: existing.revenue + (booking.totalAmount || 0),
-          });
-        });
-        
-        const totalBookings = bookings.length;
-        const types: EventTypeDef[] = Array.from(typeMap.entries()).map(([type, data]) => ({
-          type: type === 'VENUE' ? 'Venue Booking' : 'Service Booking',
-          count: data.count,
-          revenue: data.revenue,
-          percentage: totalBookings > 0 ? Math.round((data.count / totalBookings) * 100) : 0,
-        })).sort((a, b) => b.count - a.count);
-        
-        setEventTypes(types);
-        
-        // Load venues for performance data
-        try {
-          const venuesResponse = await api.get('/venues/my');
-          const venues = venuesResponse.data || [];
-          
-          const performance: VenuePerformance[] = venues.map((venue: any, index: number) => {
-            const venueBookings = bookings.filter((b: any) => b.slot?.entityId === venue.id);
-            const venueRevenue = venueBookings.reduce((sum: number, b: any) => sum + (b.totalAmount || 0), 0);
-
-            // Calculate rating from venue data if available, otherwise show N/A
-            const venueRating = venue.rating ?? venue.averageRating ?? null;
-
-            return {
-              id: venue.id,
-              name: venue.name,
-              bookings: venueBookings.length,
-              revenue: venueRevenue,
-              rating: venueRating || 0,
-              occupancyRate: Math.min(100, Math.round((venueBookings.length / 30) * 100)),
-            };
-          }).sort((a: VenuePerformance, b: VenuePerformance) => b.revenue - a.revenue);
-          setVenuePerformance(performance);
-        } catch (error) {
-          console.warn("Could not load venue performance");
-        }
-      } catch (error) {
-        console.warn("Could not load bookings for analytics");
+      setMonthlyData(data.monthlyRevenue || []);
+      setVenuePerformance(data.venuePerformance || []);
+      
+      // Map event types if provided by backend
+      if (data.eventTypeBreakdown) {
+        const total = data.totalBookings || 1;
+        setEventTypes(data.eventTypeBreakdown.map((item: any) => ({
+          type: item.type.replace(/_/g, ' '),
+          count: item.count,
+          revenue: item.revenue || 0,
+          percentage: Math.round((item.count / total) * 100)
+        })));
+      } else {
+        setEventTypes([]);
       }
+
     } catch (error: any) {
       console.error("Failed to load analytics:", error);
       toast.error("Failed to load analytics data");
-      setAnalytics(null);
-      setMonthlyData([]);
-      setVenuePerformance([]);
-      setEventTypes([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -206,15 +130,15 @@ export default function VenueAnalyticsPage() {
         m.bookings,
         `${m.occupancy}%`,
       ]);
-      
+
       const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-      
+
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
       link.download = `venue-analytics-${new Date().toISOString().split('T')[0]}.csv`;
       link.click();
-      
+
       toast.success("Report exported successfully");
     } catch (error) {
       toast.error("Failed to export report");
@@ -228,16 +152,7 @@ export default function VenueAnalyticsPage() {
     return `₹${(amount / 1000).toFixed(2)}K`;
   };
 
-  // Calculate growth
-  const calculateGrowth = () => {
-    if (monthlyData.length < 2) return 0;
-    const lastMonth = monthlyData[monthlyData.length - 1];
-    const secondLastMonth = monthlyData[monthlyData.length - 2];
-    if (secondLastMonth.revenue === 0) return lastMonth.revenue > 0 ? 100 : 0;
-    return Math.round(((lastMonth.revenue - secondLastMonth.revenue) / secondLastMonth.revenue) * 100);
-  };
-
-  const revenueGrowth = calculateGrowth();
+  const revenueGrowth = (analytics as any)?.revenueGrowth || 0;
 
   if (loading) {
     return (

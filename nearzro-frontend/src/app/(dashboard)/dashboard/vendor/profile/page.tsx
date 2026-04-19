@@ -13,7 +13,8 @@ import api from "@/lib/api";
 import {
   Store, Mail, Phone, MapPin, DollarSign, Edit2, Save, X, CheckCircle2,
   Upload, Utensils, Palette, Camera, Film, Scissors, Music, Cake,
-  ClipboardList, Car, MoreHorizontal, RefreshCw, Loader2, AlertCircle, Clock, XCircle
+  ClipboardList, Car, MoreHorizontal, RefreshCw, Loader2, AlertCircle, Clock, XCircle,
+  Plus, Image
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -93,6 +94,9 @@ export default function VendorProfilePage() {
     verificationStatus: "NOT_SUBMITTED",
     businessImages: [],
   });
+
+  // New images to upload
+  const [newImages, setNewImages] = useState<File[]>([]);
 
   // Separate string state for number fields to allow empty input
   const [experienceStr, setExperienceStr] = useState("");
@@ -191,24 +195,60 @@ export default function VendorProfilePage() {
     setSaving(true);
 
     try {
-      // Only send fields that the backend DTO accepts
-      const payload = {
-        businessName: formData.businessName,
-        ownerName: formData.ownerName,
-        email: formData.email,
-        phone: formData.phone,
-        description: formData.description,
-        serviceCategory: formData.serviceCategory,
-        city: formData.city,
-        area: formData.area,
-        serviceRadiusKm: formData.serviceRadiusKm,
-        basePrice: formData.basePrice,
-        pricingModel: formData.pricingModel,
-        experience: formData.experience,
-      };
-      // Use the dedicated profile update endpoint (without file uploads)
-      await api.patch("/vendors/me/profile", payload);
+      // Prepare submission data
+      const hasNewImages = newImages.length > 0;
+      
+      if (hasNewImages) {
+        // Use FormData for file uploads (/vendors/me)
+        const formDataObj = new FormData();
+        formDataObj.append("businessName", formData.businessName);
+        formDataObj.append("ownerName", formData.ownerName);
+        formDataObj.append("email", formData.email);
+        formDataObj.append("phone", formData.phone);
+        formDataObj.append("description", formData.description);
+        formDataObj.append("serviceCategory", formData.serviceCategory);
+        formDataObj.append("city", formData.city);
+        formDataObj.append("area", formData.area);
+        formDataObj.append("serviceRadiusKm", formData.serviceRadiusKm.toString());
+        formDataObj.append("basePrice", formData.basePrice.toString());
+        formDataObj.append("pricingModel", formData.pricingModel);
+        formDataObj.append("experience", (formData.experience || 0).toString());
+        
+        // Add existing images to keep
+        formData.businessImages?.forEach(url => {
+          formDataObj.append("businessImages", url);
+        });
+        
+        // Add new image files
+        newImages.forEach(file => {
+          formDataObj.append("businessImages", file);
+        });
+        
+        await api.patch("/vendors/me", formDataObj, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+      } else {
+        // Use JSON for simple updates (/vendors/me/profile)
+        const payload = {
+          businessName: formData.businessName,
+          ownerName: formData.ownerName,
+          email: formData.email,
+          phone: formData.phone,
+          description: formData.description,
+          serviceCategory: formData.serviceCategory,
+          city: formData.city,
+          area: formData.area,
+          serviceRadiusKm: formData.serviceRadiusKm,
+          basePrice: formData.basePrice,
+          pricingModel: formData.pricingModel,
+          experience: formData.experience,
+          businessImages: formData.businessImages, // Send list of existing images to keep
+        };
+        await api.patch("/vendors/me/profile", payload);
+      }
+
       toast.success("Profile updated successfully!");
+      setNewImages([]);
 
       // Reload profile
       await loadProfile();
@@ -588,6 +628,99 @@ export default function VendorProfilePage() {
                     className="border border-neutral-300 bg-white text-black placeholder:text-neutral-400 disabled:bg-neutral-100 disabled:text-neutral-500 focus-visible:ring-neutral-600 focus-visible:border-neutral-500"
                   />
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Business Photos */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-black">Business Photos</CardTitle>
+                <CardDescription>Main photos displayed on your profile (Max 5)</CardDescription>
+              </div>
+              {isEditing && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="relative pointer-events-auto"
+                  onClick={(e) => e.stopPropagation()}
+                  disabled={((formData.businessImages?.length || 0) + newImages.length) >= 5}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Photo
+                  <input
+                    type="file"
+                    className="absolute inset-0 opacity-0 cursor-pointer"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        if (file.size > 5 * 1024 * 1024) {
+                          toast.error("Image size must be less than 5MB");
+                          return;
+                        }
+                        setNewImages(prev => [...prev, file]);
+                      }
+                    }}
+                  />
+                </Button>
+              )}
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {/* Existing Images */}
+                {formData.businessImages?.map((url: string, idx: number) => (
+                  <div key={`existing-${idx}`} className="relative aspect-square rounded-xl overflow-hidden bg-neutral-100 group border border-neutral-200">
+                    <img src={getImageUrl(url)} alt={`Business ${idx}`} className="w-full h-full object-cover" />
+                    {isEditing && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          const updated = [...(formData.businessImages || [])];
+                          updated.splice(idx, 1);
+                          setFormData({ ...formData, businessImages: updated });
+                        }}
+                        className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg z-10"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                
+                {/* New Images previews */}
+                {newImages.map((file, idx) => (
+                  <div key={`new-${idx}`} className="relative aspect-square rounded-xl overflow-hidden bg-neutral-100 border-2 border-blue-500 group">
+                    <img src={URL.createObjectURL(file)} alt="New" className="w-full h-full object-cover opacity-70" />
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <Badge className="bg-blue-600 text-[10px]">NEW</Badge>
+                    </div>
+                    {isEditing && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          const updated = [...newImages];
+                          updated.splice(idx, 1);
+                          setNewImages(updated);
+                        }}
+                        className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg z-10"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+
+                {/* Empty State */}
+                {((formData.businessImages?.length || 0) + newImages.length) === 0 && (
+                  <div className="col-span-full py-8 text-center border-2 border-dashed border-neutral-200 rounded-xl">
+                    <Image className="h-8 w-8 text-neutral-300 mx-auto mb-2" />
+                    <p className="text-xs text-neutral-500 uppercase font-bold tracking-widest">No photos uploaded</p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

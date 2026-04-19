@@ -27,7 +27,7 @@ export class DatabaseStorageService {
    * Store a file heavily optimized on local disk
    * Avoids Base64 memory explosions
    */
-  async storeFile(file: Express.Multer.File): Promise<string> {
+  async storeFile(file: Express.Multer.File, folder: string = 'general'): Promise<string> {
     if (!file) throw new BadRequestException('No file provided');
 
     if (!file.mimetype || !ALLOWED_MIME_TYPES.includes(file.mimetype)) {
@@ -42,9 +42,15 @@ export class DatabaseStorageService {
       );
     }
 
+    // Ensure folder-specific directory exists
+    const targetDir = path.join(this.uploadDir, folder);
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+    }
+
     const ext = path.extname(file.originalname) || this.fallbackExt(file.mimetype);
     const filename = `${randomUUID()}${ext}`;
-    const filePath = path.join(this.uploadDir, filename);
+    const filePath = path.join(targetDir, filename);
 
     if (file.buffer) {
       fs.writeFileSync(filePath, file.buffer);
@@ -59,10 +65,29 @@ export class DatabaseStorageService {
       throw new BadRequestException('No file data available (no buffer or path)');
     }
 
-    this.logger.log(`File stored successfully: ${filename} (${(file.size / 1024).toFixed(2)} KB)`);
+    this.logger.log(`File stored successfully in ${folder}: ${filename} (${(file.size / 1024).toFixed(2)} KB)`);
 
     // Return the correct relative path for NextJS and static serving
-    return `/api/uploads/${filename}`;
+    return `/api/uploads/${folder}/${filename}`;
+  }
+
+  /**
+   * Delete a file from the local storage
+   */
+  async deleteFile(url: string): Promise<void> {
+    if (!url || !url.startsWith('/api/uploads/')) return;
+
+    try {
+      const relativePath = url.replace('/api/uploads/', '');
+      const filePath = path.join(this.uploadDir, relativePath);
+
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+        this.logger.log(`File deleted successfully: ${filePath}`);
+      }
+    } catch (error) {
+      this.logger.error(`Failed to delete file ${url}: ${error.message}`);
+    }
   }
 
   private fallbackExt(mimetype: string): string {
@@ -74,7 +99,7 @@ export class DatabaseStorageService {
   }
 
   async uploadKycDocument(file: Express.Multer.File): Promise<string> {
-    return this.storeFile(file);
+    return this.storeFile(file, 'kyc');
   }
 
   async uploadVendorServiceImage(file: Express.Multer.File): Promise<string> {
@@ -83,13 +108,13 @@ export class DatabaseStorageService {
         `Invalid file type "${file.mimetype}". Allowed: image/jpeg, image/png, image/webp`,
       );
     }
-    return this.storeFile(file);
+    return this.storeFile(file, 'services');
   }
 
   validateImageUrl(url: string): boolean {
     if (!url) return false;
     if (url.startsWith('/api/uploads/')) return true;
-    
+
     try {
       const parsed = new URL(url);
       if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;

@@ -36,6 +36,17 @@ export class PaginationDto {
   limit?: number = 20;
 }
 
+// Redefine VenueStatus to match Prisma schema + 'ALL' for admin filtering
+const VenueStatusQuery = {
+  PENDING_APPROVAL: 'PENDING_APPROVAL',
+  ACTIVE: 'ACTIVE',
+  INACTIVE: 'INACTIVE',
+  SUSPENDED: 'SUSPENDED',
+  DELISTED: 'DELISTED',
+  ALL: 'ALL',
+} as const;
+type VenueStatusQuery = typeof VenueStatusQuery[keyof typeof VenueStatusQuery];
+
 /**
  * Venue query parameters for filtering and pagination
  */
@@ -55,10 +66,10 @@ export class VenueQueryDto extends PaginationDto {
   @IsEnum(VenueType)
   type?: VenueType;
 
-  @ApiPropertyOptional({ enum: VenueStatus, description: 'Filter by status' })
+  @ApiPropertyOptional({ enum: VenueStatusQuery, description: 'Filter by status' })
   @IsOptional()
-  @IsEnum(VenueStatus)
-  status?: VenueStatus;
+  @IsEnum(VenueStatusQuery)
+  status?: VenueStatusQuery;
 
   @ApiPropertyOptional({ description: 'Minimum capacity' })
   @IsOptional()
@@ -79,19 +90,19 @@ export class VenueQueryDto extends PaginationDto {
   @IsInt()
   maxPrice?: number;
 
-  @ApiPropertyOptional({ 
-    enum: ['name', 'city', 'createdAt', 'price'], 
+  @ApiPropertyOptional({
+    enum: ['name', 'city', 'createdAt', 'price'],
     default: 'createdAt',
-    description: 'Sort field' 
+    description: 'Sort field'
   })
   @IsOptional()
   @IsString()
   sortBy?: 'name' | 'city' | 'createdAt' | 'price' = 'createdAt';
 
-  @ApiPropertyOptional({ 
-    enum: ['asc', 'desc'], 
+  @ApiPropertyOptional({
+    enum: ['asc', 'desc'],
     default: 'desc',
-    description: 'Sort order' 
+    description: 'Sort order'
   })
   @IsOptional()
   @IsString()

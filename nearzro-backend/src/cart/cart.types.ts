@@ -13,6 +13,8 @@ export type CartItemWithRelations = CartItem & {
 export interface CartResponse {
   id: number;
   status: string;
+  isExpress: boolean;
+  expressFee: string;
   items: CartItemResponse[];
   subtotal: string;
   platformFee: string;
@@ -45,6 +47,8 @@ export interface CheckoutResponse {
   platformFee: string;
   tax: string;
   totalAmount: string;
+  isExpress: boolean;
+  expressFee: string;
   status: 'CHECKOUT_SUCCESS';
 }
 

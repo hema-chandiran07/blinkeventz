@@ -40,7 +40,7 @@ interface AuthenticatedRequest extends Request {
 @UseGuards(JwtAuthGuard)
 @Controller('bank-account')  // Changed to singular for frontend compatibility
 export class BankAccountController {
-  constructor(private readonly bankAccountService: BankAccountService) {}
+  constructor(private readonly bankAccountService: BankAccountService) { }
 
   @Get()
   @ApiOperation({ summary: 'Get my bank accounts' })
@@ -68,9 +68,9 @@ export class BankAccountController {
   async getVenueOwnerBankAccount(@Req() req: AuthenticatedRequest) {
     const accounts = await this.bankAccountService.getBankAccounts(req.user.userId);
     if (!accounts || accounts.length === 0) {
-      return { message: 'No bank account found', account: null };
+      return { success: true, data: null, message: 'No bank account found' };
     }
-    return accounts[0];
+    return { success: true, data: accounts[0] };
   }
 
   @Get('vendor')
@@ -160,25 +160,5 @@ export class BankAccountController {
     @Param('id', ParseIntPipe) id: number,
   ) {
     return this.bankAccountService.deleteBankAccount(req.user.userId, id);
-  }
-}
-
-// ─────────────────────────────────────────────────────────────
-// Bank Account Controller (Alias for /bank-account singular)
-// ─────────────────────────────────────────────────────────────
-
-@Controller('bank-account')
-export class BankAccountAliasController {
-  constructor(private readonly bankAccountService: BankAccountService) {}
-
-  @Get('venue-owner')
-  @ApiOperation({ summary: 'Get venue owner bank account (alias)' })
-  @UseGuards(JwtAuthGuard)
-  async getVenueOwnerBankAccount(@Req() req: AuthenticatedRequest) {
-    const accounts = await this.bankAccountService.getBankAccounts(req.user.userId);
-    if (!accounts || accounts.length === 0) {
-      throw new NotFoundException('No bank account found for venue owner');
-    }
-    return accounts[0];
   }
 }

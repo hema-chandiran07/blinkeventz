@@ -1,10 +1,19 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventStatus, VendorVerificationStatus, VenueStatus } from '@prisma/client';
+import * as os from 'os';
+import { VendorsService } from '../vendors/vendors.service';
+import { VenuesService } from '../venues/venues.service';
 
 @Injectable()
 export class DashboardService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(forwardRef(() => VendorsService))
+    private readonly vendorsService: VendorsService,
+    @Inject(forwardRef(() => VenuesService))
+    private readonly venuesService: VenuesService,
+  ) { }
 
   async getAdminStats() {
     const [
@@ -15,6 +24,7 @@ export class DashboardService {
       pendingApprovals,
       totalRevenue,
       monthlyRevenue,
+      activeUsers,
     ] = await Promise.all([
       this.prisma.user.count(),
       this.prisma.venue.count(),
@@ -26,6 +36,11 @@ export class DashboardService {
         where: { status: { in: [EventStatus.CONFIRMED, EventStatus.COMPLETED] } },
       }),
       this.getMonthlyRevenue(),
+      this.prisma.user.count({ 
+        where: { 
+          updatedAt: { gte: new Date(Date.now() - 3600000) } // Active in last 1 hour
+        } 
+      }),
     ]);
 
     const confirmedEvents = await this.prisma.event.count({
@@ -46,6 +61,8 @@ export class DashboardService {
       monthlyRevenue,
       confirmedEvents,
       inProgressEvents,
+      activeUsers: activeUsers || 0,
+      systemUptime: Math.round(os.uptime() / 3600) + ' hours'
     };
   }
 
@@ -254,127 +271,11 @@ export class DashboardService {
   // NEW: Separate Vendor and Venue Stats
   // ============================================
 
-  /// Get vendor-specific dashboard stats
   async getVendorStats(userId: number) {
-    const vendor = await this.prisma.vendor.findUnique({
-      where: { userId },
-    });
-
-    if (!vendor) {
-      return {
-        totalServices: 0,
-        activeServices: 0,
-        totalBookings: 0,
-        confirmedBookings: 0,
-        pendingBookings: 0,
-        totalEarnings: 0,
-        pendingEarnings: 0,
-      };
-    }
-
-    const [totalServices, activeServices, totalBookings] = await Promise.all([
-      this.prisma.vendorService.count({ where: { vendorId: vendor.id } }),
-      this.prisma.vendorService.count({ where: { vendorId: vendor.id, isActive: true } }),
-      this.prisma.booking.count({
-        where: {
-          slot: {
-            vendorId: vendor.id,
-          },
-        },
-      }),
-    ]);
-
-    // Get bookings with status for accurate counts
-    const bookingsWithStatus = await this.prisma.booking.findMany({
-      where: {
-        slot: {
-          vendorId: vendor.id,
-        },
-      },
-    });
-
-    // Calculate earnings based on completed bookings
-    // Note: Booking model doesn't have status field in schema, using all bookings as confirmed
-    const completedBookings = bookingsWithStatus;
-    const pendingBookingsCount = 0;
-
-    // Calculate total earnings (sum of completed booking amounts)
-    // Note: Booking.totalAmount field may need to be added to schema
-    // For now, we'll calculate from booking count and average service price
-    const averageServicePrice = await this.prisma.vendorService.aggregate({
-      where: { vendorId: vendor.id },
-      _avg: { baseRate: true },
-    });
-
-    const totalEarnings = completedBookings.length * (averageServicePrice._avg.baseRate || 0);
-    const pendingEarnings = pendingBookingsCount * (averageServicePrice._avg.baseRate || 0);
-
-    return {
-      totalServices,
-      activeServices,
-      totalBookings,
-      confirmedBookings: completedBookings.length,
-      pendingBookings: pendingBookingsCount,
-      totalEarnings: Math.round(totalEarnings),
-      pendingEarnings: Math.round(pendingEarnings),
-      platformFees: Math.round(totalEarnings * 0.05), // 5% platform fee
-      netEarnings: Math.round(totalEarnings * 0.95), // After platform fees
-    };
+    return this.vendorsService.getVendorStats(userId);
   }
 
-  /// Get venue owner-specific dashboard stats
   async getVenueStats(userId: number) {
-    const venues = await this.prisma.venue.findMany({
-      where: { ownerId: userId },
-      select: { id: true },
-    });
-
-    const venueIds = venues.map(v => v.id);
-
-    if (venueIds.length === 0) {
-      return {
-        totalVenues: 0,
-        activeVenues: 0,
-        totalBookings: 0,
-        confirmedBookings: 0,
-        pendingBookings: 0,
-        totalRevenue: 0,
-      };
-    }
-
-    const [activeVenues, totalBookings] = await Promise.all([
-      this.prisma.venue.count({ where: { ownerId: userId, status: 'ACTIVE' } }),
-      this.prisma.booking.count({
-        where: {
-          slot: {
-            venueId: { in: venueIds },
-          },
-        },
-      }),
-    ]);
-
-    // Get revenue from payments through cart items
-    const revenue = await this.prisma.payment.aggregate({
-      where: {
-        cart: {
-          items: {
-            some: {
-              venueId: { in: venueIds },
-            },
-          },
-        },
-        status: 'CAPTURED',
-      },
-      _sum: { amount: true },
-    });
-
-    return {
-      totalVenues: venues.length,
-      activeVenues,
-      totalBookings,
-      confirmedBookings: totalBookings, // Would need Booking.status field
-      pendingBookings: 0, // Would need Booking.status field
-      totalRevenue: revenue._sum.amount || 0,
-    };
+    return this.venuesService.getVenueOwnerStats(userId);
   }
 }

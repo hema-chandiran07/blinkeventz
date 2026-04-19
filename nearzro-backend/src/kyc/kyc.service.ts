@@ -129,6 +129,11 @@ export class KycService {
     let kyc: KycDocument;
     
     if (rejectedKyc) {
+      // 1. Delete old file (Physical purge)
+      if (rejectedKyc.docFileUrl) {
+        await this.storageService.deleteFile(rejectedKyc.docFileUrl);
+      }
+
       // Update the rejected KYC record with new details
       kyc = await this.prisma.$transaction(async (tx) => {
         return tx.kycDocument.update({
@@ -526,6 +531,11 @@ export class KycService {
       let kyc: KycDocument;
 
       if (rejectedKyc) {
+        // 1. Delete old file (Physical purge)
+        if (rejectedKyc.docFileUrl) {
+          await this.storageService.deleteFile(rejectedKyc.docFileUrl);
+        }
+
         // Update rejected KYC record
         kyc = await tx.kycDocument.update({
           where: { id: rejectedKyc.id },

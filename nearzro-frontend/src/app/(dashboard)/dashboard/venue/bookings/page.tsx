@@ -31,6 +31,7 @@ interface Booking {
   venueName: string;
   createdAt: string;
   notes?: string;
+  slot?: any;
 }
 
 const TIME_SLOT_LABELS: Record<TimeSlotType, string> = {
@@ -82,6 +83,7 @@ export default function VenueBookingsPage() {
         venueName: booking.slot?.venue?.name,
         notes: booking.notes,
         createdAt: booking.createdAt,
+        slot: booking.slot || booking,
       }));
 
       setBookings(transformedBookings);
@@ -394,7 +396,9 @@ export default function VenueBookingsPage() {
                             <p className="text-black font-medium">
                               {new Date(booking.date).toLocaleDateString("en-IN", { weekday: "short", year: "numeric", month: "long", day: "numeric" })}
                             </p>
-                            <p className="text-sm text-neutral-600 mt-1">{TIME_SLOT_LABELS[booking.timeSlot]}</p>
+                            <p className="text-sm text-neutral-600 mt-1">{booking.slot?.meta?.startTime && booking.slot?.meta?.endTime
+                              ? `${booking.slot.meta.startTime} – ${booking.slot.meta.endTime}`
+                              : TIME_SLOT_LABELS[booking.timeSlot] || booking.timeSlot}</p>
                           </div>
                         </div>
                         <div className="flex items-start gap-2">
@@ -500,7 +504,9 @@ export default function VenueBookingsPage() {
                   <p className="text-sm text-neutral-600">
                     {new Date(selectedBooking.date).toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
                   </p>
-                  <p className="text-sm text-neutral-600">{TIME_SLOT_LABELS[selectedBooking.timeSlot]}</p>
+                  <p className="text-sm text-neutral-600">{selectedBooking.slot?.meta?.startTime && selectedBooking.slot?.meta?.endTime
+                    ? `${selectedBooking.slot.meta.startTime} – ${selectedBooking.slot.meta.endTime}`
+                    : TIME_SLOT_LABELS[selectedBooking.timeSlot] || selectedBooking.timeSlot}</p>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-black">Venue</p>

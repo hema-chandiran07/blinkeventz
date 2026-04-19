@@ -8,7 +8,7 @@ import * as crypto from 'crypto';
 
 @Injectable()
 export class VendorsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   /**
    * Get all vendors with their services and user info
@@ -24,12 +24,21 @@ export class VendorsService {
               name: true,
               email: true,
               phone: true,
+              isActive: true,
+              createdAt: true,
+            },
+          },
+          _count: {
+            select: {
+              services: true,
+              payouts: true,
+              reviews: true,
             },
           },
         },
+        orderBy: { createdAt: 'desc' },
       });
     } catch (error) {
-      // Preserve original Prisma error message
       const message = error instanceof Error ? error.message : 'Failed to fetch vendors';
       throw new InternalServerErrorException(message);
     }
@@ -59,7 +68,14 @@ export class VendorsService {
               email: true,
               phone: true,
               image: true,
+              isActive: true,
             },
+          },
+          availabilitySlots: true,
+          reviews: {
+            include: {
+              user: { select: { id: true, name: true, image: true } }
+            }
           },
         },
       });
@@ -73,10 +89,31 @@ export class VendorsService {
       if (error instanceof NotFoundException) {
         throw error;
       }
-      // Preserve original Prisma error message
       const message = error instanceof Error ? error.message : 'Failed to fetch vendor';
       throw new InternalServerErrorException(message);
     }
+  }
+
+  /**
+   * Get vendor by ID with full administrative access (PII, KYC, Bank)
+   */
+  async findByIdAdmin(id: number) {
+    const vendor = await this.findById(id);
+    if (!vendor) throw new NotFoundException(`Vendor with ID ${id} not found`);
+
+    // Use existing logic to enrich with KYC and Bank accounts
+    const enriched = await this.getVendorByUserId(vendor.userId);
+
+    // Also include portfolio images
+    const portfolioImages = await this.prisma.portfolioImage.findMany({
+      where: { vendorId: id, isActive: true },
+      orderBy: { order: 'asc' },
+    });
+
+    return {
+      ...enriched,
+      portfolio: portfolioImages,
+    };
   }
 
   /**
@@ -155,8 +192,8 @@ export class VendorsService {
         },
       });
     } catch (error) {
-      if (error instanceof BadRequestException || 
-          error instanceof NotFoundException) {
+      if (error instanceof BadRequestException ||
+        error instanceof NotFoundException) {
         throw error;
       }
       // Handle Prisma unique constraint error
@@ -176,7 +213,7 @@ export class VendorsService {
     try {
       const vendor = await this.prisma.vendor.findUnique({
         where: { userId },
-        include: { 
+        include: {
           services: true,
           user: {
             select: {
@@ -300,13 +337,13 @@ export class VendorsService {
       if (dto.city !== undefined) updateData.city = dto.city.trim();
       if (dto.area !== undefined) updateData.area = dto.area.trim();
       if (dto.serviceRadiusKm !== undefined) updateData.serviceRadiusKm = Number(dto.serviceRadiusKm);
-      
+
       // Handle businessType - update the first service if exists
       if (dto.businessType !== undefined && dto.businessType) {
         const existingServices = await this.prisma.vendorService.findMany({
           where: { vendorId: vendor.id },
         });
-        
+
         if (existingServices.length > 0) {
           // Update the first service with new business type
           await this.prisma.vendorService.update({
@@ -331,22 +368,25 @@ export class VendorsService {
         }
       }
 
-      // Handle business images - append new images to existing ones
-      if (businessImageUrls && businessImageUrls.length > 0) {
-        const existingImages = vendor.businessImages || [];
-        updateData.businessImages = [...existingImages, ...businessImageUrls];
+      // Handle business images - allow replacement and appending
+      if (dto.businessImages !== undefined || (businessImageUrls && businessImageUrls.length > 0)) {
+        const baseImages = dto.businessImages ?? vendor.businessImages ?? [];
+        const newImages = businessImageUrls ?? [];
+        updateData.businessImages = [...baseImages, ...newImages];
       }
 
-      // Handle KYC documents stored directly on Vendor model
-      if (kycDocUrls && kycDocUrls.length > 0) {
-        const existingKycFiles = vendor.kycDocFiles || [];
-        updateData.kycDocFiles = [...existingKycFiles, ...kycDocUrls];
+      // Handle KYC files stored directly on Vendor model
+      if (dto.kycDocFiles !== undefined || (kycDocUrls && kycDocUrls.length > 0)) {
+        const baseKycFiles = dto.kycDocFiles ?? vendor.kycDocFiles ?? [];
+        const newKycFiles = kycDocUrls ?? [];
+        updateData.kycDocFiles = [...baseKycFiles, ...newKycFiles];
       }
 
-      // Handle FSSAI food license (CONDITIONAL for CATERING)
-      if (foodLicenseUrls && foodLicenseUrls.length > 0) {
-        const existingFoodLicenses = vendor.foodLicenseFiles || [];
-        updateData.foodLicenseFiles = [...existingFoodLicenses, ...foodLicenseUrls];
+      // Handle FSSAI food license
+      if (dto.foodLicenseFiles !== undefined || (foodLicenseUrls && foodLicenseUrls.length > 0)) {
+        const baseFoodLicenses = dto.foodLicenseFiles ?? vendor.foodLicenseFiles ?? [];
+        const newFoodLicenses = foodLicenseUrls ?? [];
+        updateData.foodLicenseFiles = [...baseFoodLicenses, ...newFoodLicenses];
       }
 
       // Handle KYC documents - Safe Upsert by Document Hash (fixes duplicate test data crashes)
@@ -714,4 +754,285 @@ export class VendorsService {
 
     return { success: true, updatedSlots: results.length };
   }
+
+  /**
+   * Get comprehensive vendor analytics
+   */
+  async getVendorAnalytics(userId: number) {
+    const vendor = await this.prisma.vendor.findUnique({
+      where: { userId },
+      include: { services: true },
+    });
+
+    if (!vendor) {
+      throw new NotFoundException('Vendor profile not found');
+    }
+
+    const serviceIds = vendor.services.map(s => s.id);
+
+    // 1. Get all bookings for this vendor
+    const bookings = await this.prisma.booking.findMany({
+      where: {
+        slot: { vendorId: vendor.id },
+      },
+      include: {
+        slot: true,
+      },
+    });
+
+    // 2. Get revenue from payments (through cart items)
+    const capturedPayments = await this.prisma.payment.findMany({
+      where: {
+        cart: {
+          items: {
+            some: { vendorServiceId: { in: serviceIds } },
+          },
+        },
+        status: 'CAPTURED',
+      },
+      include: {
+        cart: {
+          include: {
+            items: {
+              where: { vendorServiceId: { in: serviceIds } },
+            },
+          },
+        },
+      },
+    });
+
+    let totalRevenue = 0;
+    capturedPayments.forEach(payment => {
+      payment.cart?.items?.forEach(item => {
+        totalRevenue += Number(item.totalPrice) || 0;
+      });
+    });
+
+    // 3. Monthly trends & Growth Calculation (last 12 months)
+    const now = new Date();
+    const monthlyData: any[] = [];
+    let currentMonthRevenue = 0;
+    let lastMonthRevenue = 0;
+    let currentMonthBookings = 0;
+    let lastMonthBookings = 0;
+
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthStart = new Date(d.getFullYear(), d.getMonth(), 1);
+      const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
+
+      const monthBookings = bookings.filter(b => {
+        const bd = new Date(b.createdAt);
+        return bd >= monthStart && bd <= monthEnd;
+      });
+
+      const monthPayments = capturedPayments.filter(p => {
+        const pd = new Date(p.createdAt);
+        return pd >= monthStart && pd <= monthEnd;
+      });
+
+      let monthRevenue = 0;
+      monthPayments.forEach(p => {
+        p.cart?.items?.forEach(item => {
+          monthRevenue += Number(item.totalPrice) || 0;
+        });
+      });
+
+      if (i === 0) { // Current month
+        currentMonthRevenue = monthRevenue;
+        currentMonthBookings = monthBookings.length;
+      } else if (i === 1) { // Prev month
+        lastMonthRevenue = monthRevenue;
+        lastMonthBookings = monthBookings.length;
+      }
+
+      monthlyData.push({
+        month: d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
+        revenue: monthRevenue,
+        bookings: monthBookings.length,
+      });
+    }
+
+    // 4. Calculate Growth Percentages
+    const revenueGrowth = lastMonthRevenue > 0
+      ? Math.round(((currentMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100)
+      : (currentMonthRevenue > 0 ? 100 : 0);
+
+    const bookingsGrowth = lastMonthBookings > 0
+      ? Math.round(((currentMonthBookings - lastMonthBookings) / lastMonthBookings) * 100)
+      : (currentMonthBookings > 0 ? 100 : 0);
+
+    // 5. Service-wise performance
+    const servicePerformance = await Promise.all(vendor.services.map(async service => {
+      const serviceCartItems = await this.prisma.cartItem.findMany({
+        where: {
+          vendorServiceId: service.id,
+          cart: { status: 'COMPLETED' },
+        },
+      });
+
+      const serviceBookings = serviceCartItems.length;
+      const serviceRevenue = serviceCartItems.reduce((sum, item) => sum + Number(item.totalPrice), 0);
+
+      return {
+        id: service.id,
+        name: service.name,
+        bookings: serviceBookings,
+        revenue: serviceRevenue,
+        rating: 4.5,
+      };
+    }));
+
+    // 6. Booking distribution by service type
+    const typeMap: Record<string, number> = {};
+    vendor.services.forEach(s => {
+      const type = s.serviceType || 'OTHER';
+      typeMap[type] = (typeMap[type] || 0) + 1;
+    });
+    const bookingDistribution = Object.entries(typeMap).map(([type, count]) => ({
+      type: type.replace(/_/g, ' '),
+      count,
+      percentage: Math.round((count / Math.max(1, vendor.services.length)) * 100),
+    }));
+
+    const totalBookingsCount = bookings.length;
+    const confirmedCount = bookings.filter(b => b.status === 'CONFIRMED' || b.status === 'COMPLETED').length;
+    const conversionRate = totalBookingsCount > 0 ? Math.round((confirmedCount / totalBookingsCount) * 100) : 0;
+
+    const platformFee = Math.round(totalRevenue * 0.05);
+
+    return {
+      totalRevenue,
+      netRevenue: totalRevenue - platformFee,
+      platformFee,
+      totalBookings: totalBookingsCount,
+      confirmedBookings: confirmedCount,
+      completedBookings: bookings.filter(b => b.status === 'COMPLETED').length,
+      pendingBookings: bookings.filter(b => b.status === 'PENDING').length,
+      totalServices: vendor.services.length,
+      revenueGrowth,
+      bookingsGrowth,
+      conversionRate,
+      currency: 'INR',
+      monthlyData,
+      servicePerformance,
+      bookingDistribution,
+    };
+  }
+
+  async getVendorBookings(userId: number) {
+    // Find vendor record for this user
+    const vendor = await this.prisma.vendor.findFirst({
+      where: { userId },
+    });
+    if (!vendor) return [];
+
+    // Find all vendorServices belonging to this vendor
+    const services = await this.prisma.vendorService.findMany({
+      where: { vendorId: vendor.id },
+      select: { id: true, name: true },
+    });
+    const serviceIds = services.map(s => s.id);
+
+    // Fetch Events for these services
+    const events = await this.prisma.event.findMany({
+      where: {
+        vendorServiceId: { in: serviceIds },
+      },
+      include: {
+        customer: {
+          select: { id: true, name: true, email: true, phone: true },
+        },
+        vendorService: {
+          select: { id: true, name: true, baseRate: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Shape into format the frontend expects
+    return events.map(event => ({
+      id: event.id,
+      status: event.status,
+      guestCount: (event.meta as any)?.guestCount || 0,
+      totalAmount: event.totalAmount,
+      notes: (event.meta as any)?.specialNotes || null,
+      createdAt: event.createdAt,
+      user: event.customer,
+      slot: {
+        date: event.date,
+        timeSlot: event.timeSlot?.toLowerCase() || 'full_day',
+        entityType: 'VENDOR',
+        eventTitle: 'Service Booking',
+        name: event.vendorService?.name || 'Service',
+        venue: null,
+      },
+    }));
+  }
+
+  async updateVendorBookingStatus(
+    bookingId: number,
+    status: string,
+    userId: number,
+  ) {
+    const vendor = await this.prisma.vendor.findFirst({ where: { userId } });
+    if (!vendor) throw new Error('Vendor not found');
+
+    const event = await this.prisma.event.findUnique({
+      where: { id: bookingId },
+      include: { vendorService: true },
+    });
+
+    if (!event || event.vendorService?.vendorId !== vendor.id) {
+      throw new Error('Booking not found or unauthorized');
+    }
+
+    // Map frontend status to EventStatus
+    const statusMap: Record<string, string> = {
+      CONFIRMED: 'CONFIRMED',
+      CANCELLED: 'CANCELLED',
+      COMPLETED: 'COMPLETED',
+      IN_PROGRESS: 'IN_PROGRESS',
+    };
+
+    return this.prisma.event.update({
+      where: { id: bookingId },
+      data: { status: (statusMap[status] || status) as any },
+    });
+  }
+
+  async getVendorStats(userId: number) {
+    const vendor = await this.prisma.vendor.findFirst({ where: { userId } });
+    if (!vendor) return { totalServices: 0, activeBookings: 0, totalEarnings: 0, pendingRequests: 0 };
+
+    const services = await this.prisma.vendorService.findMany({
+      where: { vendorId: vendor.id },
+      select: { id: true },
+    });
+    const serviceIds = services.map(s => s.id);
+
+    const [activeBookings, pendingRequests, earnings] = await Promise.all([
+      this.prisma.event.count({
+        where: { vendorServiceId: { in: serviceIds }, status: 'CONFIRMED' },
+      }),
+      this.prisma.event.count({
+        where: { vendorServiceId: { in: serviceIds }, status: 'PENDING_PAYMENT' },
+      }),
+      this.prisma.event.aggregate({
+        where: {
+          vendorServiceId: { in: serviceIds },
+          status: { in: ['CONFIRMED', 'COMPLETED'] as any },
+        },
+        _sum: { totalAmount: true },
+      }),
+    ]);
+
+    return {
+      totalServices: services.length,
+      activeBookings,
+      pendingRequests,
+      totalEarnings: earnings._sum.totalAmount || 0,
+    };
+  }
 }
+

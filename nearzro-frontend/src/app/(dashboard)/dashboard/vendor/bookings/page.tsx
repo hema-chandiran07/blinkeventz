@@ -10,7 +10,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { motion } from "framer-motion";
+import { type TimeSlotType } from "@/components/venues/availability-calendar";
 
+const TIME_SLOT_LABELS: Record<TimeSlotType, string> = {
+  morning: "Morning (6:00 AM - 12:00 PM)",
+  evening: "Evening (4:00 PM - 10:00 PM)",
+  full_day: "Full Day (6:00 AM - 12:00 AM)",
+  night: "Night (8:00 PM - 2:00 AM)"
+};
 interface Booking {
   id: number;
   customerName: string;
@@ -27,6 +34,7 @@ interface Booking {
   venueAddress?: string;
   notes?: string;
   createdAt: string;
+  slot?: any;
 }
 
 export default function VendorBookingsPage() {
@@ -65,6 +73,7 @@ export default function VendorBookingsPage() {
         venueAddress: booking.slot?.venue?.address,
         notes: booking.notes,
         createdAt: booking.createdAt,
+        slot: booking.slot || booking,
       }));
 
       setBookings(transformedBookings);
@@ -366,7 +375,9 @@ export default function VendorBookingsPage() {
 
                             <div className="flex items-center gap-2 text-sm text-neutral-500">
                               <Clock className="h-4 w-4" />
-                              <span>{booking.timeSlot}</span>
+                              <span>{booking.slot?.meta?.startTime && booking.slot?.meta?.endTime
+                                ? `${booking.slot.meta.startTime} – ${booking.slot.meta.endTime}`
+                                : TIME_SLOT_LABELS[booking.timeSlot as TimeSlotType] || booking.timeSlot}</span>
                               <span>•</span>
                               <Users className="h-4 w-4" />
                               <span>{booking.guestCount} guests</span>
@@ -458,7 +469,9 @@ export default function VendorBookingsPage() {
                     <p className="text-black">
                       {new Date(selectedBooking.date).toLocaleDateString("en-IN")}
                     </p>
-                    <p className="text-black">{selectedBooking.timeSlot}</p>
+                    <p className="text-black">{selectedBooking.slot?.meta?.startTime && selectedBooking.slot?.meta?.endTime
+                      ? `${selectedBooking.slot.meta.startTime} – ${selectedBooking.slot.meta.endTime}`
+                      : TIME_SLOT_LABELS[selectedBooking.timeSlot as TimeSlotType] || selectedBooking.timeSlot}</p>
                   </div>
                   <div className="space-y-2">
                     <p className="text-sm font-medium text-neutral-600">Location</p>

@@ -27,7 +27,7 @@ export class VendorsController {
     private readonly vendorServicesService: VendorServicesService,
     private readonly prisma: PrismaService,
     private readonly databaseStorageService: DatabaseStorageService,
-  ) {}
+  ) { }
 
   // 👤 PUBLIC → view all vendors
   @Public()
@@ -51,7 +51,7 @@ export class VendorsController {
     @Req() req: AuthRequest,
     @Body() dto: CreateVendorDto,
   ) {
-    return this.vendorsService.createVendor(req.user.userId,dto);
+    return this.vendorsService.createVendor(req.user.userId, dto);
   }
 
   /**
@@ -88,16 +88,34 @@ export class VendorsController {
     @Body() dto: Partial<CreateVendorDto>,
     @UploadedFiles() files: { businessImages?: Express.Multer.File[], kycDocFiles?: Express.Multer.File[], foodLicenseFiles?: Express.Multer.File[] },
   ) {
-    const businessImageUrls = files?.businessImages 
-      ? await Promise.all(files.businessImages.map(f => this.databaseStorageService.storeFile(f)))
+    const vendor = await this.vendorsService.getVendorByUserId(req.user.userId);
+    const oldBusinessImages = vendor.businessImages || [];
+
+    const businessImageUrls = files?.businessImages
+      ? await Promise.all(files.businessImages.map(f => this.databaseStorageService.storeFile(f, 'vendors')))
       : [];
+    
+    // Parse which existing images to keep from the body
+    const bodyImages = typeof dto.businessImages === 'string' 
+      ? [dto.businessImages] 
+      : (Array.isArray(dto.businessImages) ? dto.businessImages : []);
+    
+    const finalBusinessImages = [...new Set([...bodyImages, ...businessImageUrls])];
+
+    // Purge orphaned physical files
+    const orphaned = oldBusinessImages.filter(url => !finalBusinessImages.includes(url));
+    for (const url of orphaned) {
+      await this.databaseStorageService.deleteFile(url);
+    }
+
     const kycDocUrls = files?.kycDocFiles
-      ? await Promise.all(files.kycDocFiles.map(f => this.databaseStorageService.storeFile(f)))
+      ? await Promise.all(files.kycDocFiles.map(f => this.databaseStorageService.storeFile(f, 'kyc')))
       : [];
     const foodLicenseUrls = files?.foodLicenseFiles
-      ? await Promise.all(files.foodLicenseFiles.map(f => this.databaseStorageService.storeFile(f)))
+      ? await Promise.all(files.foodLicenseFiles.map(f => this.databaseStorageService.storeFile(f, 'licenses')))
       : [];
-    return this.vendorsService.updateVendorByUserId(req.user.userId, dto, businessImageUrls, kycDocUrls, foodLicenseUrls);
+
+    return this.vendorsService.updateVendorByUserId(req.user.userId, dto, finalBusinessImages, kycDocUrls, foodLicenseUrls);
   }
 
   // ============================================
@@ -111,9 +129,23 @@ export class VendorsController {
   @Get('me/dashboard-stats')
   @ApiOperation({ summary: 'Get vendor dashboard statistics' })
   async getDashboardStats(@Req() req: AuthRequest) {
+    return this.vendorsService.getVendorByUserId(req.user.userId);
+  }
+
+  /// 🧑‍🔧 VENDOR → Get my analytics
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENDOR)
+  @Get('me/analytics')
+  @ApiOperation({ summary: 'Get detailed vendor analytics' })
+  async getMyAnalytics(@Req() req: AuthRequest) {
+    return this.vendorsService.getVendorAnalytics(req.user.userId);
+  }
+
+  // Get bookings for this vendor
+  async getDashboardStatsLegacy(@Req() req: AuthRequest) {
     const vendor = await this.vendorsService.getVendorByUserId(req.user.userId);
 
-    // Get bookings for this vendor
     const bookings = await this.prisma.booking.findMany({
       where: {
         slot: {
@@ -175,45 +207,12 @@ export class VendorsController {
     return this.vendorServicesService.findByVendorUserId(req.user.userId);
   }
 
-  /// 🧑‍🔧 VENDOR → Get my bookings
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.VENDOR)
   @Get('me/bookings')
-  async getMyBookings(@Req() req: AuthRequest) {
-    const vendor = await this.vendorsService.getVendorByUserId(req.user.userId);
-    
-    // Query bookings through AvailabilitySlot (vendorId)
-    const bookings = await this.prisma.booking.findMany({
-      where: {
-        slot: {
-          vendorId: vendor.id,
-        } as any,
-      },
-      include: {
-        slot: {
-          include: {
-            venue: true,
-          },
-        },
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-    // Calculate based on service baseRate or fallback to vendor basePrice
-    const fallbackRate = vendor.basePrice || vendor.services?.[0]?.baseRate || 0;
-    
-    return bookings.map(b => ({
-      ...b,
-      totalAmount: vendor.services?.find(s => s.id === (b as any).slot?.vendorId)?.baseRate || fallbackRate,
-    }));
+  getMyBookings(@Req() req: any) {
+    return this.vendorsService.getVendorBookings(req.user.userId);
   }
   /// 🧑‍🔧 VENDOR → Get my earnings
   @ApiBearerAuth()
@@ -222,7 +221,7 @@ export class VendorsController {
   @Get('me/earnings')
   async getMyEarnings(@Req() req: AuthRequest) {
     const vendor = await this.vendorsService.getVendorByUserId(req.user.userId);
-    
+
     // Get all bookings for this vendor
     const bookings = await this.prisma.booking.findMany({
       where: {
@@ -242,14 +241,14 @@ export class VendorsController {
         },
       },
     });
-    
+
     // Calculate earnings from bookings
     const PLATFORM_FEE_PERCENTAGE = 5; // 5% platform fee
-    
+
     // Total earnings from completed bookings
     const completedBookings = bookings.filter(b => b.status === 'COMPLETED' || b.status === 'CONFIRMED');
     const pendingBookings = bookings.filter(b => b.status === 'PENDING');
-    
+
     // Calculate based on service baseRate for each booking
     const totalGrossEarnings = completedBookings.reduce((sum, booking: any) => {
       // Find the vendor service for this booking
@@ -265,13 +264,13 @@ export class VendorsController {
       );
       return sum + (service?.baseRate || 0);
     }, 0);
-    
+
     const platformFee = Math.round(totalGrossEarnings * (PLATFORM_FEE_PERCENTAGE / 100));
     const netEarnings = totalGrossEarnings - platformFee;
-    
+
     // Get vendor's base price from profile for fallback calculation
     const fallbackRate = vendor.basePrice || 0;
-    
+
     // If no services found, use vendor base price
     const totalEarnings = totalGrossEarnings > 0 ? totalGrossEarnings : (completedBookings.length * fallbackRate);
     const pendingTotal = pendingEarnings > 0 ? pendingEarnings : (pendingBookings.length * fallbackRate);
@@ -328,24 +327,24 @@ export class VendorsController {
   @Roles(Role.VENDOR)
   @Patch('me/availability')
   @ApiOperation({ summary: 'Update vendor availability slots' })
-  @ApiBody({ 
-    schema: { 
-      type: 'object', 
-      required: ['availability'], 
-      properties: { 
-        availability: { 
-          type: 'array', 
-          items: { 
-            type: 'object', 
-            properties: { 
-              date: { type: 'string', format: 'date' }, 
-              timeSlot: { type: 'string', enum: ['MORNING', 'EVENING', 'FULL_DAY'] }, 
-              status: { type: 'string', enum: ['AVAILABLE', 'BLOCKED', 'BOOKED'] } 
-            } 
-          } 
-        } 
-      } 
-    } 
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['availability'],
+      properties: {
+        availability: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              date: { type: 'string', format: 'date' },
+              timeSlot: { type: 'string', enum: ['MORNING', 'EVENING', 'FULL_DAY'] },
+              status: { type: 'string', enum: ['AVAILABLE', 'BLOCKED', 'BOOKED'] }
+            }
+          }
+        }
+      }
+    }
   })
   async updateMyAvailability(
     @Req() req: AuthRequest,
@@ -415,7 +414,7 @@ export class VendorsController {
     @Param('slotId', ParseIntPipe) slotId: number
   ) {
     const vendor = await this.vendorsService.getVendorByUserId(req.user.userId);
-    
+
     // Verify slot belongs to this vendor
     const slot = await this.prisma.availabilitySlot.findFirst({
       where: {
@@ -451,7 +450,7 @@ export class VendorsController {
     @Body() body: { date: string; timeSlot: string; status?: string }
   ) {
     const vendor = await this.vendorsService.getVendorByUserId(req.user.userId);
-    
+
     // Check if slot already exists
     const existingSlot = await this.prisma.availabilitySlot.findFirst({
       where: {
@@ -483,25 +482,16 @@ export class VendorsController {
   // VENDOR BOOKING STATUS UPDATE (CRITICAL BUSINESS LOGIC)
   // ============================================
 
-  /// 🧑‍🔧 VENDOR → Update booking status (accept/reject)
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.VENDOR)
-  @Patch('me/bookings/:bookingId/status')
-  @ApiOperation({ summary: 'Update booking status (accept/reject)' })
-  @ApiParam({ name: 'bookingId', type: Number, description: 'Booking ID' })
-  @ApiBody({ schema: { type: 'object', required: ['status'], properties: { status: { type: 'string', enum: ['CONFIRMED', 'REJECTED', 'CANCELLED', 'COMPLETED'] }, reason: { type: 'string' } } } })
-  async updateBookingStatus(
-    @Req() req: AuthRequest,
-    @Param('bookingId', ParseIntPipe) bookingId: number,
-    @Body() body: { status: string; reason?: string }
+  @Patch('me/bookings/:id/status')
+  updateBookingStatus(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { status: string },
+    @Req() req: any,
   ) {
-    return this.vendorsService.updateBookingStatus(
-      req.user.userId,
-      bookingId,
-      body.status,
-      body.reason
-    );
+    return this.vendorsService.updateVendorBookingStatus(id, body.status, req.user.userId);
   }
 
   // ============================================
@@ -602,7 +592,7 @@ export class VendorsController {
       'WEDDING', 'ENGAGEMENT', 'RECEPTION', 'PREWEDDING', 'CORPORATE', 'BIRTHDAY', 'OTHER' // Event categories
     ];
     const normalizedCategory = body.category?.toUpperCase() || 'GALLERY';
-    
+
     if (!validCategories.includes(normalizedCategory)) {
       throw new BadRequestException(
         `Invalid category: "${body.category}". Must be one of: ${validCategories.join(', ')}`
@@ -856,10 +846,14 @@ export class VendorsController {
       throw new ForbiddenException('You do not have permission to delete this image');
     }
 
-    // Soft delete
-    await this.prisma.portfolioImage.update({
+    // 1. Physical purge (Best effort)
+    if (existingImage.imageUrl) {
+      await this.databaseStorageService.deleteFile(existingImage.imageUrl);
+    }
+
+    // 2. Soft/Hard delete in DB
+    await this.prisma.portfolioImage.delete({
       where: { id: imageId },
-      data: { isActive: false, updatedAt: new Date() },
     });
 
     return {
@@ -921,6 +915,29 @@ export class VendorsController {
   // ============================================
   // ADMIN ROUTES - Must be BEFORE :id route
   // ============================================
+
+  /// 👨‍💼 ADMIN → Get all vendors with full details
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @Get('admin/all')
+  @ApiOperation({ summary: 'Get all vendors (admin only)' })
+  async getAllVendorsAdmin() {
+    return this.vendorsService.findAll();
+  }
+
+  /// 👨‍💼 ADMIN → Get single vendor with KYC and Bank accounts
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @Get('admin/:id')
+  @ApiOperation({ summary: 'Get vendor by ID with full admin details' })
+  @ApiParam({ name: 'id', type: Number })
+  async getVendorByIdAdmin(@Param('id', ParseIntPipe) id: number) {
+    return this.vendorsService.findByIdAdmin(id);
+  }
+
+  /// 👨‍💼 ADMIN → Approve vendor
 
   /// 👨‍💼 ADMIN → Approve vendor
   @ApiBearerAuth()

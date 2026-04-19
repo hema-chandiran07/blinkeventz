@@ -153,14 +153,18 @@ export default function VendorAnalyticsPage() {
         };
       }).sort((a: ServicePerformance, b: ServicePerformance) => b.revenue - a.revenue);
 
+      const data = analyticsRes.data;
+      const reviewsData = reviewsRes.data;
+      const reviewsAnalytics = reviewsData.analytics || { averageRating: 0 };
+
       setAnalytics({
-        totalRevenue,
-        totalBookings,
-        totalServices,
-        averageRating,
-        conversionRate,
-        revenueGrowth: analyticsData?.revenueGrowth || bookingsGrowth,
-        bookingsGrowth,
+        totalRevenue: data.totalRevenue || 0,
+        totalBookings: data.totalBookings || 0,
+        totalServices: data.totalServices || 0,
+        averageRating: reviewsAnalytics.averageRating || 0,
+        conversionRate: data.conversionRate || 0,
+        revenueGrowth: data.revenueGrowth || 0,
+        bookingsGrowth: data.bookingsGrowth || 0,
       });
 
       setMonthlyData(monthly);
@@ -448,8 +452,8 @@ export default function VendorAnalyticsPage() {
                 </div>
                 <p className="text-2xl font-bold text-black">{analytics?.conversionRate || 0}%</p>
                 <p className="text-xs text-neutral-500 mt-1">
-                  {analytics && analytics.conversionRate >= 50 ? "Excellent conversion rate" : 
-                   analytics && analytics.conversionRate >= 30 ? "Good conversion rate" : "Room for improvement"}
+                  {analytics && analytics.conversionRate >= 50 ? "Excellent conversion rate" :
+                    analytics && analytics.conversionRate >= 30 ? "Good conversion rate" : "Room for improvement"}
                 </p>
               </div>
 
@@ -481,8 +485,8 @@ export default function VendorAnalyticsPage() {
                 </div>
                 <p className="text-2xl font-bold text-black">{analytics?.averageRating || 0}</p>
                 <p className="text-xs text-neutral-500 mt-1">
-                  {analytics && analytics.averageRating >= 4.5 ? "Excellent rating" : 
-                   analytics && analytics.averageRating >= 3.5 ? "Good rating" : "Needs improvement"}
+                  {analytics && analytics.averageRating >= 4.5 ? "Excellent rating" :
+                    analytics && analytics.averageRating >= 3.5 ? "Good rating" : "Needs improvement"}
                 </p>
               </div>
             </div>

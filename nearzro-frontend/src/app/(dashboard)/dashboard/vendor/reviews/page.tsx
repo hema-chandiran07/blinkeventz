@@ -46,23 +46,28 @@ export default function VendorReviewsPage() {
       else setLoading(true);
 
       // Load reviews from real API
-      const reviewsRes = await api.get('/vendors/reviews/me').catch(() => ({ data: { reviews: [] } }));
-      const reviewsData = reviewsRes.data?.reviews || reviewsRes.data || [];
+      const reviewsRes = await api.get('/reviews/vendors/me').catch((err) => {
+        console.error("Reviews fetch failed:", err);
+        return { data: { reviews: [], analytics: null } };
+      });
+      
+      const reviewsData = reviewsRes.data?.reviews || [];
+      const analyticsData = reviewsRes.data?.analytics || null;
 
       // Transform API data to frontend format
       const transformedReviews: Review[] = Array.isArray(reviewsData)
         ? reviewsData.map((review: any) => ({
             id: review.id,
             rating: review.rating,
-            title: review.title || `Review for ${review.vendorService?.name || 'Service'}`,
+            title: review.title || `Review for ${analyticsData?.businessName || 'Service'}`,
             comment: review.comment,
-            customerName: review.customer?.name || 'Customer',
-            serviceName: review.vendorService?.name || 'Service',
+            customerName: review.user?.name || 'Customer',
+            serviceName: analyticsData?.businessName || 'Service',
             createdAt: review.createdAt,
             isApproved: review.status === 'APPROVED',
-            hasVendorResponse: !!review.vendorResponse || !!review.response || !!review.vendorReply,
-            helpful: review.helpfulCount || 0,
-            notHelpful: review.notHelpfulCount || 0,
+            hasVendorResponse: !!review.response || !!review.vendorResponse,
+            helpful: review.helpful || 0,
+            notHelpful: 0,
           }))
         : [];
 

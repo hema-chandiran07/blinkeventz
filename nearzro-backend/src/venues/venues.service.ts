@@ -8,14 +8,14 @@ import type { Cache } from 'cache-manager';
 import { KycDocType } from '@prisma/client';
 import * as crypto from 'crypto';
 
-// Define VenueStatus locally
+// Define VenueStatus locally - must match Prisma schema + 'ALL' for queries
 const VenueStatus = {
   PENDING_APPROVAL: 'PENDING_APPROVAL',
   ACTIVE: 'ACTIVE',
   INACTIVE: 'INACTIVE',
   SUSPENDED: 'SUSPENDED',
   DELISTED: 'DELISTED',
-  REJECTED: 'REJECTED',
+  ALL: 'ALL',
 } as const;
 export type VenueStatus = typeof VenueStatus[keyof typeof VenueStatus];
 
@@ -36,7 +36,7 @@ export class VenuesService {
   constructor(
     private prisma: PrismaService,
     @Inject(CACHE_MANAGER) private cache: Cache,
-  ) {}
+  ) { }
 
   /**
    * Find venue by ID - Public endpoint
@@ -44,7 +44,7 @@ export class VenuesService {
    */
   async findById(id: number): Promise<VenueResponseDto> {
     const cacheKey = `venue:${id}`;
-    
+
     // Try cache first
     const cached = await this.cache.get<VenueResponseDto>(cacheKey);
     if (cached) {
@@ -54,7 +54,17 @@ export class VenuesService {
     const venue = await this.prisma.venue.findUnique({
       where: { id },
       include: {
-        photos: true,
+        photos: { where: { isActive: true } },
+        owner: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            isActive: true,
+          },
+        },
+        availabilitySlots: true,
       },
     });
 
@@ -75,8 +85,8 @@ export class VenuesService {
    * Create a new venue
    */
   async createVenue(
-    dto: CreateVenueDto, 
-    ownerId: number, 
+    dto: CreateVenueDto,
+    ownerId: number,
     venueImageUrls: string[] = [],
     kycDocUrls: string[] = [],
     govtCertUrls: string[] = []
@@ -130,9 +140,9 @@ export class VenuesService {
    */
   async getApprovedVenues(query: VenueQueryDto): Promise<PaginatedVenueResponseDto> {
     const { page = 1, limit = 20, city, area, type, status } = query;
-    
+
     const cacheKey = `venue:list:${page}:${limit}:${city || 'all'}:${area || 'all'}:${type || 'all'}`;
-    
+
     // Try cache first for basic list
     if (!city && !area && !type) {
       const cached = await this.cache.get<PaginatedVenueResponseDto>(cacheKey);
@@ -141,9 +151,20 @@ export class VenuesService {
       }
     }
 
-    const where: any = {
-      status: status || VenueStatus.ACTIVE,
-    };
+    const where: any = {};
+
+    // Logic: 
+    // 1. If status is explicitly 'ALL', we show everything (Admin view)
+    // 2. If a specific status is provided, show that status
+    // 3. Otherwise default to ACTIVE (Public/Landing page view)
+    if (status) {
+      if ((status as any) !== 'ALL') {
+        where.status = status;
+      }
+      // if ALL, we leave where.status undefined to fetch all
+    } else {
+      where.status = VenueStatus.ACTIVE;
+    }
 
     if (city) where.city = city;
     if (area) where.area = area;
@@ -152,7 +173,18 @@ export class VenuesService {
     const [venues, total] = await Promise.all([
       this.prisma.venue.findMany({
         where,
-        include: { photos: true },
+        include: {
+          photos: { where: { isActive: true } },
+          owner: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              phone: true,
+              isActive: true,
+            },
+          },
+        },
         skip: (page - 1) * limit,
         take: limit,
         orderBy: { createdAt: 'desc' },
@@ -217,8 +249,8 @@ export class VenuesService {
 
     const updated = await this.prisma.venue.update({
       where: { id },
-      data: { 
-       status: VenueStatus.DELISTED,
+      data: {
+        status: VenueStatus.INACTIVE,
         rejectionReason: reason,
       },
       include: { photos: true },
@@ -232,12 +264,82 @@ export class VenuesService {
   }
 
   /**
+   * Admin: Get all venues regardless of status
+   */
+  async findAllAdmin(): Promise<any[]> {
+    return this.prisma.venue.findMany({
+      include: {
+        owner: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+          },
+        },
+        _count: {
+          select: {
+            photos: true,
+            availabilitySlots: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /**
+   * Admin: Get full venue details including PII and KYC
+   */
+  async findByIdAdmin(id: number): Promise<any> {
+    const venue = await this.prisma.venue.findUnique({
+      where: { id },
+      include: {
+        photos: true,
+        owner: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            role: true,
+            isActive: true,
+            createdAt: true,
+          },
+        },
+        availabilitySlots: {
+          take: 50,
+          orderBy: { date: 'desc' },
+        },
+      },
+    });
+
+    if (!venue) {
+      throw new NotFoundException(`Venue with ID ${id} not found`);
+    }
+
+    // Standardize with the same KYC/Bank enrichment as Vendors
+    const kycDocuments = await this.prisma.kycDocument.findMany({
+      where: { userId: venue.ownerId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return {
+      ...venue,
+      kyc: {
+        status: kycDocuments[0]?.status || 'NOT_SUBMITTED',
+        documents: kycDocuments,
+      },
+    };
+  }
+
+  /**
    * Get venues by owner - ENHANCED with KYC status and bank accounts
    */
   async getVenuesByOwner(ownerId: number): Promise<any[]> {
     const venues = await this.prisma.venue.findMany({
       where: { ownerId },
-      include: { 
+      include: {
         photos: true,
         owner: {
           select: {
@@ -328,9 +430,9 @@ export class VenuesService {
    */
   async searchVenues(query: VenueSearchQueryDto): Promise<PaginatedVenueResponseDto> {
     const { q, page = 1, limit = 20, city, type } = query;
-    
+
     const cacheKey = `venue:search:${q || 'all'}:${page}:${limit}:${city || 'all'}:${type || 'all'}`;
-    
+
     // Try cache
     const cached = await this.cache.get<PaginatedVenueResponseDto>(cacheKey);
     if (cached && q) {
@@ -415,8 +517,8 @@ export class VenuesService {
       area: dto.area,
       pincode: dto.pincode,
       // Convert amenities array to JSON string if it's an array
-      amenities: Array.isArray(dto.amenities) 
-        ? dto.amenities.join(', ') 
+      amenities: Array.isArray(dto.amenities)
+        ? dto.amenities.join(', ')
         : dto.amenities,
       policies: dto.policies,
     };
@@ -512,60 +614,8 @@ export class VenuesService {
   }
 
   /**
-   * Get venue owner stats - for dashboard
+   * Old getVenueOwnerStats removed; replaced with new implementation at the end of class.
    */
-  async getVenueOwnerStats(ownerId: number): Promise<{
-    totalVenues: number;
-    activeVenues: number;
-    pendingVenues: number;
-    totalBookings: number;
-    confirmedBookings: number;
-    pendingBookings: number;
-    totalRevenue: number;
-  }> {
-    const venues = await this.prisma.venue.findMany({
-      where: { ownerId },
-      select: { id: true, status: true },
-    });
-
-    const venueIds = venues.map(v => v.id);
-    const totalVenues = venues.length;
-    const activeVenues = venues.filter(v => v.status === 'ACTIVE').length;
-    const pendingVenues = venues.filter(v => v.status === 'PENDING_APPROVAL').length;
-
-    // Get booked slots count for these venues
-    const bookedSlots = await this.prisma.availabilitySlot.findMany({
-      where: {
-        venueId: { in: venueIds },
-        entityType: 'VENUE',
-        status: 'BOOKED',
-      },
-      select: { id: true },
-    });
-
-    // Get total captured payments for revenue
-    const payments = await this.prisma.payment.findMany({
-      where: {
-        status: 'CAPTURED',
-      },
-      select: { amount: true },
-    });
-
-    const totalBookings = bookedSlots.length;
-    const confirmedBookings = bookedSlots.length;
-    const pendingBookings = 0;
-    const totalRevenue = payments.reduce((sum, p) => sum + p.amount, 0);
-
-    return {
-      totalVenues,
-      activeVenues,
-      pendingVenues,
-      totalBookings,
-      confirmedBookings,
-      pendingBookings,
-      totalRevenue,
-    };
-  }
 
   /**
    * Update venue availability
@@ -834,12 +884,12 @@ export class VenuesService {
     dto.basePriceMorning = venue.basePriceMorning;
     dto.basePriceEvening = venue.basePriceEvening;
     dto.basePriceFullDay = venue.basePriceFullDay;
-    
+
     // Convert comma-separated string to array for frontend compatibility
-    dto.amenities = venue.amenities 
+    dto.amenities = venue.amenities
       ? venue.amenities.split(',').map((a: string) => a.trim()).filter(Boolean)
       : [];
-    
+
     dto.policies = venue.policies;
     dto.status = venue.status;
     dto.images = venue.venueImages || [];
@@ -869,8 +919,211 @@ export class VenuesService {
    * In production, consider using cache tags or separate cache keys
    */
   private async invalidateListCache(): Promise<void> {
-    // Note: In production, implement proper cache invalidation strategy
-    // For now, we'll need to wait for TTL expiration
-    this.logger.warn('List cache invalidation not fully implemented - using TTL');
+    // Proactive cache invalidation: reset all venue lists when data changes
+    // Using any cast to handle interface discrepancy in some cache-manager versions
+    await (this.cache as any).clear();
+  }
+  /**
+   * Get rich analytics for venue owner
+   */
+  async getVenueOwnerAnalytics(ownerId: number) {
+    const venues = await this.prisma.venue.findMany({
+      where: { ownerId },
+    });
+
+    if (venues.length === 0) {
+      return {
+        totalRevenue: 0,
+        completedRevenue: 0,
+        totalBookings: 0,
+        confirmedBookings: 0,
+        completedBookings: 0,
+        pendingBookings: 0,
+        cancelledBookings: 0,
+        totalVenues: 0,
+        currency: 'INR',
+        monthlyRevenue: [],
+        venuePerformance: [],
+        eventTypeBreakdown: [],
+      };
+    }
+
+    const venueIds = venues.map(v => v.id);
+
+    // Get all bookings for these venues
+    const bookings = await this.prisma.booking.findMany({
+      where: {
+        slot: { venueId: { in: venueIds } } as any,
+      },
+      include: {
+        slot: true,
+      },
+    });
+
+    // Monthly Trends & Growth Calculation
+    const now = new Date();
+    const monthlyRevenue: any[] = [];
+    let currentMonthRevenue = 0;
+    let lastMonthRevenue = 0;
+
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthStart = new Date(d.getFullYear(), d.getMonth(), 1);
+      const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
+
+      const monthBookings = bookings.filter(b => {
+        const bd = new Date(b.createdAt);
+        return bd >= monthStart && bd <= monthEnd;
+      });
+
+      const monthRevenue = monthBookings.reduce((sum, b: any) => sum + (Number(b.totalAmount) || 0), 0);
+
+      if (i === 0) currentMonthRevenue = monthRevenue;
+      else if (i === 1) lastMonthRevenue = monthRevenue;
+
+      monthlyRevenue.push({
+        month: d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
+        revenue: monthRevenue,
+        bookings: monthBookings.length,
+        occupancy: Math.min(100, Math.round((monthBookings.length / (venues.length * 30)) * 100)),
+      });
+    }
+
+    const revenueGrowth = lastMonthRevenue > 0
+      ? Math.round(((currentMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100)
+      : (currentMonthRevenue > 0 ? 100 : 0);
+
+    // Calculate revenue totals
+    let totalRevenue = 0;
+    let completedRevenue = 0;
+
+    bookings.forEach((b: any) => {
+      const amount = Number((b as any).totalAmount) || 0;
+      totalRevenue += amount;
+      if (b.status === 'COMPLETED') {
+        completedRevenue += amount;
+      }
+    });
+
+    // Venue performance
+    const venuePerformance = await Promise.all(venues.map(async v => {
+      const vBookings = bookings.filter((b: any) => b.slot?.venueId === v.id);
+      const vRevenue = vBookings.reduce((sum, b: any) => sum + (Number((b as any).totalAmount) || 0), 0);
+      return {
+        id: v.id,
+        name: v.name,
+        bookings: vBookings.length,
+        revenue: vRevenue,
+        rating: 4.8,
+        occupancyRate: Math.min(100, Math.round((vBookings.length / 30) * 100)),
+      };
+    }));
+
+    const platformFee = Math.round(totalRevenue * 0.05);
+
+    return {
+      totalRevenue,
+      netRevenue: totalRevenue - platformFee,
+      platformFee,
+      completedRevenue,
+      totalBookings: bookings.length,
+      confirmedBookings: bookings.filter(b => b.status === "CONFIRMED").length,
+      completedBookings: bookings.filter(b => b.status === "COMPLETED").length,
+      pendingBookings: bookings.filter(b => b.status === "PENDING").length,
+      cancelledBookings: bookings.filter(b => b.status === "CANCELLED").length,
+      totalVenues: venues.length,
+      activeVenues: venues.filter(v => v.status === 'ACTIVE').length,
+      currency: 'INR',
+      revenueGrowth,
+      monthlyRevenue,
+      venuePerformance,
+    };
+  }
+
+  async getVenueOwnerBookings(userId: number) {
+    // Find all venues owned by this user
+    const venues = await this.prisma.venue.findMany({
+      where: { ownerId: userId },
+      select: { id: true, name: true, city: true, area: true, address: true },
+    });
+    const venueIds = venues.map(v => v.id);
+    const venueMap = new Map(venues.map(v => [v.id, v]));
+
+    const events = await this.prisma.event.findMany({
+      where: { venueId: { in: venueIds } },
+      include: {
+        customer: {
+          select: { id: true, name: true, email: true, phone: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return events.map(event => ({
+      id: event.id,
+      status: event.status,
+      guestCount: (event.meta as any)?.guestCount || 0,
+      totalAmount: event.totalAmount,
+      notes: (event.meta as any)?.specialNotes || null,
+      createdAt: event.createdAt,
+      user: event.customer,
+      slot: {
+        date: event.date,
+        timeSlot: event.timeSlot?.toLowerCase() || 'full_day',
+        entityType: 'VENUE',
+        eventTitle: 'Venue Booking',
+        name: 'Venue Booking',
+        venue: venueMap.get(event.venueId!),
+      },
+    }));
+  }
+
+  async updateVenueBookingStatus(bookingId: number, status: string, userId: number) {
+    const venues = await this.prisma.venue.findMany({
+      where: { ownerId: userId },
+      select: { id: true },
+    });
+    const venueIds = venues.map(v => v.id);
+
+    const event = await this.prisma.event.findUnique({ where: { id: bookingId } });
+    if (!event || !venueIds.includes(event.venueId!)) {
+      throw new Error('Booking not found or unauthorized');
+    }
+
+    return this.prisma.event.update({
+      where: { id: bookingId },
+      data: { status: status as any },
+    });
+  }
+
+  async getVenueOwnerStats(userId: number) {
+    const venues = await this.prisma.venue.findMany({
+      where: { ownerId: userId },
+      select: { id: true },
+    });
+    const venueIds = venues.map(v => v.id);
+
+    const [activeBookings, pendingRequests, earnings] = await Promise.all([
+      this.prisma.event.count({
+        where: { venueId: { in: venueIds }, status: 'CONFIRMED' },
+      }),
+      this.prisma.event.count({
+        where: { venueId: { in: venueIds }, status: 'PENDING_PAYMENT' },
+      }),
+      this.prisma.event.aggregate({
+        where: {
+          venueId: { in: venueIds },
+          status: { in: ['CONFIRMED', 'COMPLETED'] as any },
+        },
+        _sum: { totalAmount: true },
+      }),
+    ]);
+
+    return {
+      totalVenues: venues.length,
+      activeBookings,
+      pendingRequests,
+      totalEarnings: earnings._sum.totalAmount || 0,
+    };
   }
 }

@@ -20,6 +20,8 @@ import {
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { extractArray } from "@/lib/api-response";
+import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 interface Venue {
   id: number;
@@ -35,6 +37,10 @@ interface Venue {
     name: string;
     email: string;
     phone?: string;
+  };
+  _count?: {
+    photos: number;
+    availabilitySlots: number;
   };
   createdAt: string;
 }
@@ -61,6 +67,7 @@ export default function AdminVenuesPage() {
     try {
       setLoading(true);
       const response = await api.get("/venues", {
+        params: { status: "ALL" },
         signal: abortRef.current.signal,
       });
       const venuesData = extractArray<Venue>(response);
@@ -103,21 +110,26 @@ export default function AdminVenuesPage() {
 
   const handleApprove = async (id: number) => {
     try {
-      await api.post(`/venues/${id}/approve`);
+      await api.patch(`/approvals/${id}/approve`, { approvalType: 'VENUE' });
       setVenues(prev => prev.map(v => v.id === id ? { ...v, status: "ACTIVE" } : v));
       toast.success("Venue approved successfully");
-    } catch {
-      toast.error("Failed to approve venue");
+    } catch (error: any) {
+      console.error("Approval error:", error);
+      toast.error(error?.response?.data?.message || "Failed to approve venue");
     }
   };
 
   const handleReject = async (id: number) => {
     try {
-      await api.post(`/venues/${id}/reject`, { reason: "Rejected by admin" });
+      await api.patch(`/approvals/${id}/reject`, {
+        approvalType: 'VENUE',
+        reason: "Rejected by admin"
+      });
       setVenues(prev => prev.map(v => v.id === id ? { ...v, status: "REJECTED" } : v));
       toast.success("Venue rejected");
-    } catch {
-      toast.error("Failed to reject venue");
+    } catch (error: any) {
+      console.error("Rejection error:", error);
+      toast.error(error?.response?.data?.message || "Failed to reject venue");
     }
   };
 
@@ -329,5 +341,6 @@ export default function AdminVenuesPage() {
         )}
       </div>
     </div>
+
   );
 }
