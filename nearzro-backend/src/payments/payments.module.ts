@@ -8,11 +8,15 @@ import { RazorpayWebhookController } from './webhooks/razorpay-webhook.controlle
 import { PaymentReconciliationJob } from './jobs/payment-reconciliation.job';
 import { PrismaModule } from '../prisma/prisma.module';
 import { CartModule } from '../cart/cart.module';
+import { SettingsModule } from '../settings/settings.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
     PrismaModule,
     forwardRef(() => CartModule),
+    forwardRef(() => SettingsModule),
+    forwardRef(() => NotificationsModule),
     ScheduleModule.forRoot(),
   ],
   controllers: [

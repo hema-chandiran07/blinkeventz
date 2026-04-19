@@ -5,6 +5,8 @@ import Redis from 'ioredis';
 export interface CartCacheData {
   id: number;
   status: string;
+  isExpress: boolean;
+  expressFee: string;
   items: any[];
   subtotal: string;
   platformFee: string;

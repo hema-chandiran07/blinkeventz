@@ -63,6 +63,20 @@ export class SettingsService {
     return { featureFlags, integrations, security };
   }
 
+  async getPublicFees() {
+    const expressFee = await this.prisma.settings.findUnique({ where: { key: 'EXPRESS_FEE' } });
+    const platformFee = await this.prisma.settings.findUnique({ where: { key: 'PLATFORM_FEE_PERCENTAGE' } });
+    const taxRate = await this.prisma.settings.findUnique({ where: { key: 'TAX_PERCENTAGE' } });
+    const minOrderAmountSetting = await this.prisma.settings.findUnique({ where: { key: 'MIN_ORDER_AMOUNT' } });
+
+    return {
+      deliveryFee: expressFee ? Number(expressFee.value) : 50000,
+      platformFee: platformFee ? Number(platformFee.value) : 0.02,
+      taxRate: taxRate ? Number(taxRate.value) : 0.18,
+      minOrderAmount: minOrderAmountSetting ? Number(minOrderAmountSetting.value) : 0,
+    };
+  }
+
   async getFeatureFlags() {
     const settings = await this.prisma.settings.findMany({
       where: { key: { startsWith: 'FEATURE_' } },
@@ -111,6 +125,58 @@ export class SettingsService {
 
   async updateSecuritySettings(settings: Record<string, any>, actorId?: number, actorEmail?: string) {
     return this.processBatchUpdate(settings, 'SECURITY' as SettingsCategory, actorId, actorEmail);
+  }
+
+  async updateSettings(settings: Record<string, any>, actorId?: number, actorEmail?: string) {
+    const results: { success: string[]; failed: string[] } = { success: [], failed: [] };
+    
+    for (const [key, value] of Object.entries(settings)) {
+      try {
+        const existing = await this.prisma.settings.findUnique({ where: { key } });
+        const isNew = !existing;
+        
+        await this.prisma.settings.upsert({
+          where: { key },
+          update: { value },
+          create: { 
+            key, 
+            value, 
+            category: 'SYSTEM' as SettingsCategory,
+            description: this.getSettingDescription(key, value),
+          },
+        });
+        
+        // Audit log
+        await this.auditService.record({
+          entityType: 'SETTINGS',
+          entityId: key,
+          action: isNew ? 'CREATE' : 'UPDATE',
+          severity: AuditSeverity.INFO,
+          actorId,
+          actorEmail,
+          actorRole: Role.ADMIN,
+          oldValue: existing ? { value: existing.value as any } : null,
+          newValue: { value },
+          description: `Administrator ${actorEmail || 'System'} modified system setting: ${key}`,
+        });
+        
+        results.success.push(key);
+      } catch (error) {
+        this.logger.error({ key, error }, 'Failed to update setting');
+        results.failed.push(key);
+      }
+    }
+    
+    return results;
+  }
+
+  private getSettingDescription(key: string, value: any): string {
+    const descriptions: Record<string, string> = {
+      'EXPRESS_FEE': 'Express booking fee in paise',
+      'PLATFORM_FEE_PERCENTAGE': 'Platform fee as decimal (e.g., 0.02 for 2%)',
+      'TAX_PERCENTAGE': 'GST/Tax as decimal (e.g., 0.18 for 18%)',
+    };
+    return descriptions[key] || `System setting: ${key}`;
   }
 
   private async processBatchUpdate(
@@ -188,7 +254,50 @@ export class SettingsService {
     }
   }
 
+  async getSettingByKey(key: string) {
+    const setting = await this.prisma.settings.findUnique({
+      where: { key },
+    });
+    if (!setting) {
+      throw new NotFoundException(`Setting with key "${key}" not found`);
+    }
+    return {
+      ...setting,
+      id: Number(setting.id),
+    };
+  }
+
   async initializeDefaultSettings() {
+    // First, clean up corrupted entries
+    const allSettings = await this.prisma.settings.findMany();
+    const corruptedKeys: string[] = [];
+    const wrapperPattern = /^(FEATURE|INTEGRATION|SECURITY)_\d+$/;
+
+    for (const setting of allSettings) {
+      const value = setting.value as any;
+      // Check if value is corrupted (nested object with id/key)
+      if (
+        typeof value === 'object' &&
+        value !== null &&
+        (value.id || value.key) &&
+        typeof value.id === 'number'
+      ) {
+        corruptedKeys.push(setting.key);
+      }
+      // Check if it's a wrapper entry
+      if (wrapperPattern.test(setting.key)) {
+        corruptedKeys.push(setting.key);
+      }
+    }
+
+    // Delete corrupted entries
+    if (corruptedKeys.length > 0) {
+      await this.prisma.settings.deleteMany({
+        where: { key: { in: corruptedKeys } },
+      });
+    }
+
+// Now initialize clean defaults
     this.logger.log('Initializing industrialized system settings...');
 
     const defaultSettings: Array<{
@@ -203,6 +312,11 @@ export class SettingsService {
         { key: 'FEATURE_EXPRESS_BOOKING', value: true, description: 'Allow high-velocity booking flows', category: SettingsCategory.FEATURE },
         { key: 'FEATURE_AUTO_APPROVE_VENUES', value: false, description: 'Autonomous venue approval protocol', category: SettingsCategory.FEATURE },
         { key: 'FEATURE_MAINTENANCE_MODE', value: false, description: 'Lock platform for core maintenance', category: SettingsCategory.FEATURE },
+
+      // System Fees
+      { key: 'EXPRESS_FEE', value: 50000, description: 'Express booking fee in paise (₹500)', category: SettingsCategory.SYSTEM },
+      { key: 'PLATFORM_FEE_PERCENTAGE', value: 0.02, description: 'Platform fee as decimal (2%)', category: SettingsCategory.SYSTEM },
+      { key: 'TAX_PERCENTAGE', value: 0.18, description: 'GST/Tax as decimal (18%)', category: SettingsCategory.SYSTEM },
 
         // Uplinks (Integrations)
         { key: 'INTEGRATION_RAZORPAY', value: { enabled: false, keyId: '', keySecret: '' }, category: SettingsCategory.INTEGRATION },

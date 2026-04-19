@@ -127,6 +127,12 @@ export default function AdminSystemSettingsPage() {
   const [systemStats, setSystemStats] = useState<SystemStats | null>(null);
   const [kernelMetadata, setKernelMetadata] = useState<KernelMetadata | null>(null);
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
+  
+  // System fees state
+  const [expressFee, setExpressFee] = useState<number>(500);
+  const [platformFeePercent, setPlatformFeePercent] = useState<number>(2);
+  const [gstPercent, setGstPercent] = useState<number>(18);
+  const [isSavingFee, setIsSavingFee] = useState(false);
 
   // Valid feature flag keys
   const VALID_FEATURE_KEYS = [
@@ -196,6 +202,36 @@ export default function AdminSystemSettingsPage() {
         }
       } catch (error) {
         console.warn("Could not load supplementary system diagnostics");
+      }
+
+      // Load EXPRESS_FEE from settings (stored in paise, convert to rupees)
+      try {
+        const expressFeeRes = await api.get("/settings/EXPRESS_FEE", { signal });
+        if (expressFeeRes.data?.value) {
+          setExpressFee(Number(expressFeeRes.data.value) / 100);
+        }
+      } catch (error) {
+        console.warn("Could not load EXPRESS_FEE setting");
+      }
+
+      // Load PLATFORM_FEE_PERCENTAGE (stored as decimal, e.g., 0.02 = 2%)
+      try {
+        const platformFeeRes = await api.get("/settings/PLATFORM_FEE_PERCENTAGE", { signal });
+        if (platformFeeRes.data?.value) {
+          setPlatformFeePercent(Number(platformFeeRes.data.value) * 100);
+        }
+      } catch (error) {
+        console.warn("Could not load PLATFORM_FEE_PERCENTAGE setting");
+      }
+
+      // Load GST_PERCENTAGE (stored as decimal, e.g., 0.18 = 18%)
+      try {
+        const gstRes = await api.get("/settings/TAX_PERCENTAGE", { signal });
+        if (gstRes.data?.value) {
+          setGstPercent(Number(gstRes.data.value) * 100);
+        }
+      } catch (error) {
+        console.warn("Could not load TAX_PERCENTAGE setting");
       }
     } catch (error: any) {
       if (error?.name === 'AbortError' || error?.code === 'ERR_CANCELED') return;
@@ -270,6 +306,24 @@ export default function AdminSystemSettingsPage() {
       toast.error(error?.response?.data?.message || "Failed to initialize defaults");
     } finally {
       setSaving(false);
+    }
+  };
+
+  // ==================== Save Financial Settings ====================
+  const saveFinancialSettings = async () => {
+    try {
+      setIsSavingFee(true);
+      await api.post("/settings", {
+        EXPRESS_FEE: Math.round(expressFee * 100), // Convert rupees to paise
+        PLATFORM_FEE_PERCENTAGE: platformFeePercent / 100, // Convert % to decimal
+        TAX_PERCENTAGE: gstPercent / 100, // Convert % to decimal
+      });
+      toast.success("Financial settings updated successfully!");
+    } catch (error: any) {
+      console.error("Failed to save financial settings:", error);
+      toast.error(error?.response?.data?.message || "Failed to update settings");
+    } finally {
+      setIsSavingFee(false);
     }
   };
 
@@ -862,6 +916,71 @@ export default function AdminSystemSettingsPage() {
           animate={{ opacity: 1, y: 0 }}
           className="space-y-6"
         >
+          {/* Financial Settings Card */}
+          <Card className="border-zinc-800 bg-zinc-900/50">
+            <CardHeader>
+              <CardTitle className="text-zinc-100 flex items-center gap-2">
+                <Zap className="h-5 w-5 text-yellow-500" />
+                Global Financial Settings
+              </CardTitle>
+              <CardDescription className="text-zinc-500">Configure platform fees, taxes, and booking charges</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-3">
+                <div>
+                  <Label className="text-zinc-300">Platform Fee (%)</Label>
+                  <Input
+                    type="number"
+                    value={platformFeePercent}
+                    onChange={(e) => setPlatformFeePercent(parseFloat(e.target.value) || 0)}
+                    placeholder="2"
+                    className="bg-zinc-800 border-zinc-700 text-zinc-100 mt-1"
+                  />
+                  <p className="text-xs text-zinc-500 mt-1">Applied to subtotal + express fee</p>
+                </div>
+                <div>
+                  <Label className="text-zinc-300">GST (%)</Label>
+                  <Input
+                    type="number"
+                    value={gstPercent}
+                    onChange={(e) => setGstPercent(parseFloat(e.target.value) || 0)}
+                    placeholder="18"
+                    className="bg-zinc-800 border-zinc-700 text-zinc-100 mt-1"
+                  />
+                  <p className="text-xs text-zinc-500 mt-1">Applied to subtotal + platform fee</p>
+                </div>
+                <div>
+                  <Label className="text-zinc-300">Express Booking Fee (₹)</Label>
+                  <Input
+                    type="number"
+                    value={expressFee}
+                    onChange={(e) => setExpressFee(parseFloat(e.target.value) || 0)}
+                    placeholder="500"
+                    className="bg-zinc-800 border-zinc-700 text-zinc-100 mt-1"
+                  />
+                  <p className="text-xs text-zinc-500 mt-1">Priority processing charge</p>
+                </div>
+              </div>
+              <Button
+                onClick={saveFinancialSettings}
+                disabled={isSavingFee}
+                className="w-full mt-4 bg-zinc-100 text-zinc-950 hover:bg-white"
+              >
+                {isSavingFee ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4 mr-2" />
+                    Save Financial Settings
+                  </>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+
           <Card className="border-zinc-800 bg-zinc-900/50">
             <CardHeader>
               <CardTitle className="text-zinc-100 flex items-center gap-2">

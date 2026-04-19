@@ -376,133 +376,24 @@ export class VenuesController {
     return venues;
   }
 
-  /// 🏢 VENUE OWNER → Get my bookings
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.VENUE_OWNER)
   @Get('me/bookings')
-  async getMyBookings(@Req() req: any) {
-    const venues = await this.venuesService.getVenuesByOwner(req.user.userId);
-    const venueIds = venues.map(v => v.id);
-
-    // Query bookings through AvailabilitySlot (venueId)
-    const bookings = await this.prisma.booking.findMany({
-      where: {
-        slot: {
-          venueId: { in: venueIds },
-        } as any,
-      },
-      include: {
-        slot: {
-          include: {
-            venue: true,
-          },
-        },
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-    // Calculate totalAmount dynamically if missing based on timeSlot using Prisma JSON enums or mapped strings
-    return bookings.map(b => {
-      const slot = (b as any).slot;
-      const v = slot?.venue;
-      let amount = 0;
-      if (v) {
-        if (slot?.timeSlot === 'morning') amount = v.basePriceMorning || v.basePriceFullDay || 0;
-        else if (slot?.timeSlot === 'evening') amount = v.basePriceEvening || v.basePriceFullDay || 0;
-        else amount = v.basePriceFullDay || v.basePriceEvening || 0;
-      }
-      return { ...b, totalAmount: amount };
-    });
+  getMyBookings(@Req() req: any) {
+    return this.venuesService.getVenueOwnerBookings(req.user.userId);
   }
 
-  /// 🏢 VENUE OWNER → Update booking status
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.VENUE_OWNER)
   @Patch('me/bookings/:id/status')
-  @ApiOperation({ summary: 'Update venue booking status' })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      required: ['status'],
-      properties: {
-        status: { type: 'string', enum: ['PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED'] },
-        reason: { type: 'string' }
-      }
-    }
-  })
-  async updateBookingStatus(
+  updateBookingStatus(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { status: string },
     @Req() req: any,
-    @Param('id', ParseIntPipe) bookingId: number,
-    @Body() body: { status: string; reason?: string },
   ) {
-    const venues = await this.venuesService.getVenuesByOwner(req.user.userId);
-    const venueIds = venues.map(v => v.id);
-
-    // Get booking
-    const booking = await this.prisma.booking.findUnique({
-      where: { id: bookingId },
-      include: {
-        slot: true,
-        user: {
-          select: { id: true, name: true, email: true, phone: true },
-        },
-      },
-    });
-
-    if (!booking) {
-      throw new NotFoundException('Booking not found');
-    }
-
-    // Verify booking belongs to this venue owner
-    const slot = (booking as any).slot;
-    if (!slot || slot.entityType !== 'VENUE' || !venueIds.includes(slot.venueId)) {
-      throw new ForbiddenException('This booking does not belong to your venues');
-    }
-
-    // Validate status transition
-    const validStatuses = ['PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED'];
-    if (!validStatuses.includes(body.status)) {
-      throw new BadRequestException(`Invalid status. Must be one of: ${validStatuses.join(', ')}`);
-    }
-
-    // Prevent invalid transitions
-    if (booking.status === 'CANCELLED' && body.status !== 'CANCELLED') {
-      throw new BadRequestException('Cannot change status of a cancelled booking');
-    }
-    if (booking.status === 'COMPLETED' && body.status !== 'COMPLETED') {
-      throw new BadRequestException('Cannot change status of a completed booking');
-    }
-
-    // Build update data
-    const updateData: any = { status: body.status as any };
-    if (body.status === 'COMPLETED') {
-      updateData.completedAt = new Date();
-    }
-
-    // Update booking
-    const updatedBooking = await this.prisma.booking.update({
-      where: { id: bookingId },
-      data: updateData,
-      include: {
-        slot: { include: { venue: true } },
-        user: { select: { id: true, name: true, email: true, phone: true } },
-      },
-    });
-
-    return {
-      success: true,
-      message: `Booking status updated to ${body.status}`,
-      booking: updatedBooking,
-    };
+    return this.venuesService.updateVenueBookingStatus(id, body.status, req.user.userId);
   }
 
   /// 🏢 VENUE OWNER → Get my availability

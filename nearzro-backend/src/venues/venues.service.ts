@@ -614,60 +614,8 @@ export class VenuesService {
   }
 
   /**
-   * Get venue owner stats - for dashboard
+   * Old getVenueOwnerStats removed; replaced with new implementation at the end of class.
    */
-  async getVenueOwnerStats(ownerId: number): Promise<{
-    totalVenues: number;
-    activeVenues: number;
-    pendingVenues: number;
-    totalBookings: number;
-    confirmedBookings: number;
-    pendingBookings: number;
-    totalRevenue: number;
-  }> {
-    const venues = await this.prisma.venue.findMany({
-      where: { ownerId },
-      select: { id: true, status: true },
-    });
-
-    const venueIds = venues.map(v => v.id);
-    const totalVenues = venues.length;
-    const activeVenues = venues.filter(v => v.status === 'ACTIVE').length;
-    const pendingVenues = venues.filter(v => v.status === 'PENDING_APPROVAL').length;
-
-    // Get booked slots count for these venues
-    const bookedSlots = await this.prisma.availabilitySlot.findMany({
-      where: {
-        venueId: { in: venueIds },
-        entityType: 'VENUE',
-        status: 'BOOKED',
-      },
-      select: { id: true },
-    });
-
-    // Get total captured payments for revenue
-    const payments = await this.prisma.payment.findMany({
-      where: {
-        status: 'CAPTURED',
-      },
-      select: { amount: true },
-    });
-
-    const totalBookings = bookedSlots.length;
-    const confirmedBookings = bookedSlots.length;
-    const pendingBookings = 0;
-    const totalRevenue = payments.reduce((sum, p) => sum + p.amount, 0);
-
-    return {
-      totalVenues,
-      activeVenues,
-      pendingVenues,
-      totalBookings,
-      confirmedBookings,
-      pendingBookings,
-      totalRevenue,
-    };
-  }
 
   /**
    * Update venue availability
@@ -1089,6 +1037,93 @@ export class VenuesService {
       revenueGrowth,
       monthlyRevenue,
       venuePerformance,
+    };
+  }
+
+  async getVenueOwnerBookings(userId: number) {
+    // Find all venues owned by this user
+    const venues = await this.prisma.venue.findMany({
+      where: { ownerId: userId },
+      select: { id: true, name: true, city: true, area: true, address: true },
+    });
+    const venueIds = venues.map(v => v.id);
+    const venueMap = new Map(venues.map(v => [v.id, v]));
+
+    const events = await this.prisma.event.findMany({
+      where: { venueId: { in: venueIds } },
+      include: {
+        customer: {
+          select: { id: true, name: true, email: true, phone: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return events.map(event => ({
+      id: event.id,
+      status: event.status,
+      guestCount: (event.meta as any)?.guestCount || 0,
+      totalAmount: event.totalAmount,
+      notes: (event.meta as any)?.specialNotes || null,
+      createdAt: event.createdAt,
+      user: event.customer,
+      slot: {
+        date: event.date,
+        timeSlot: event.timeSlot?.toLowerCase() || 'full_day',
+        entityType: 'VENUE',
+        eventTitle: 'Venue Booking',
+        name: 'Venue Booking',
+        venue: venueMap.get(event.venueId!),
+      },
+    }));
+  }
+
+  async updateVenueBookingStatus(bookingId: number, status: string, userId: number) {
+    const venues = await this.prisma.venue.findMany({
+      where: { ownerId: userId },
+      select: { id: true },
+    });
+    const venueIds = venues.map(v => v.id);
+
+    const event = await this.prisma.event.findUnique({ where: { id: bookingId } });
+    if (!event || !venueIds.includes(event.venueId!)) {
+      throw new Error('Booking not found or unauthorized');
+    }
+
+    return this.prisma.event.update({
+      where: { id: bookingId },
+      data: { status: status as any },
+    });
+  }
+
+  async getVenueOwnerStats(userId: number) {
+    const venues = await this.prisma.venue.findMany({
+      where: { ownerId: userId },
+      select: { id: true },
+    });
+    const venueIds = venues.map(v => v.id);
+
+    const [activeBookings, pendingRequests, earnings] = await Promise.all([
+      this.prisma.event.count({
+        where: { venueId: { in: venueIds }, status: 'CONFIRMED' },
+      }),
+      this.prisma.event.count({
+        where: { venueId: { in: venueIds }, status: 'PENDING_PAYMENT' },
+      }),
+      this.prisma.event.aggregate({
+        where: {
+          venueId: { in: venueIds },
+          status: { in: ['CONFIRMED', 'COMPLETED'] as any },
+        },
+        _sum: { totalAmount: true },
+      }),
+    ]);
+
+    return {
+      totalVenues: venues.length,
+      activeBookings,
+      pendingRequests,
+      totalEarnings: earnings._sum.totalAmount || 0,
     };
   }
 }

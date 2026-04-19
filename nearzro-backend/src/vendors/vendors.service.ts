@@ -919,4 +919,120 @@ export class VendorsService {
       bookingDistribution,
     };
   }
+
+  async getVendorBookings(userId: number) {
+    // Find vendor record for this user
+    const vendor = await this.prisma.vendor.findFirst({
+      where: { userId },
+    });
+    if (!vendor) return [];
+
+    // Find all vendorServices belonging to this vendor
+    const services = await this.prisma.vendorService.findMany({
+      where: { vendorId: vendor.id },
+      select: { id: true, name: true },
+    });
+    const serviceIds = services.map(s => s.id);
+
+    // Fetch Events for these services
+    const events = await this.prisma.event.findMany({
+      where: {
+        vendorServiceId: { in: serviceIds },
+      },
+      include: {
+        customer: {
+          select: { id: true, name: true, email: true, phone: true },
+        },
+        vendorService: {
+          select: { id: true, name: true, baseRate: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Shape into format the frontend expects
+    return events.map(event => ({
+      id: event.id,
+      status: event.status,
+      guestCount: (event.meta as any)?.guestCount || 0,
+      totalAmount: event.totalAmount,
+      notes: (event.meta as any)?.specialNotes || null,
+      createdAt: event.createdAt,
+      user: event.customer,
+      slot: {
+        date: event.date,
+        timeSlot: event.timeSlot?.toLowerCase() || 'full_day',
+        entityType: 'VENDOR',
+        eventTitle: 'Service Booking',
+        name: event.vendorService?.name || 'Service',
+        venue: null,
+      },
+    }));
+  }
+
+  async updateVendorBookingStatus(
+    bookingId: number,
+    status: string,
+    userId: number,
+  ) {
+    const vendor = await this.prisma.vendor.findFirst({ where: { userId } });
+    if (!vendor) throw new Error('Vendor not found');
+
+    const event = await this.prisma.event.findUnique({
+      where: { id: bookingId },
+      include: { vendorService: true },
+    });
+
+    if (!event || event.vendorService?.vendorId !== vendor.id) {
+      throw new Error('Booking not found or unauthorized');
+    }
+
+    // Map frontend status to EventStatus
+    const statusMap: Record<string, string> = {
+      CONFIRMED: 'CONFIRMED',
+      CANCELLED: 'CANCELLED',
+      COMPLETED: 'COMPLETED',
+      IN_PROGRESS: 'IN_PROGRESS',
+    };
+
+    return this.prisma.event.update({
+      where: { id: bookingId },
+      data: { status: (statusMap[status] || status) as any },
+    });
+  }
+
+  async getVendorStats(userId: number) {
+    const vendor = await this.prisma.vendor.findFirst({ where: { userId } });
+    if (!vendor) return { totalServices: 0, activeBookings: 0, totalEarnings: 0, pendingRequests: 0 };
+
+    const services = await this.prisma.vendorService.findMany({
+      where: { vendorId: vendor.id },
+      select: { id: true },
+    });
+    const serviceIds = services.map(s => s.id);
+
+    const [activeBookings, pendingRequests, earnings] = await Promise.all([
+      this.prisma.event.count({
+        where: { vendorServiceId: { in: serviceIds }, status: 'CONFIRMED' },
+      }),
+      this.prisma.event.count({
+        where: { vendorServiceId: { in: serviceIds }, status: 'PENDING_PAYMENT' },
+      }),
+      this.prisma.event.aggregate({
+        where: {
+          vendorServiceId: { in: serviceIds },
+          status: { in: ['CONFIRMED', 'COMPLETED'] as any },
+        },
+        _sum: { totalAmount: true },
+      }),
+    ]);
+
+    return {
+      totalServices: services.length,
+      activeBookings,
+      pendingRequests,
+      totalEarnings: earnings._sum.totalAmount || 0,
+    };
+  }
 }
+

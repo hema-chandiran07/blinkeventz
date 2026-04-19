@@ -4,7 +4,8 @@ import {
   IsString, 
   Min, 
   MaxLength,
-  IsObject
+  IsObject,
+  IsNotEmpty
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type, Transform } from 'class-transformer';
@@ -30,34 +31,36 @@ export class ConfirmPaymentDto {
     description: 'Razorpay order ID',
     example: 'order_xxxxxxxxxxxxx'
   })
+  @IsNotEmpty({ message: 'Razorpay order ID is required' })
   @IsString({ message: 'Razorpay order ID must be a string' })
   @MaxLength(100, { message: 'Razorpay order ID must not exceed 100 characters' })
-  razorpayOrderId: string;
+  razorpayOrderId!: string;
 
   @ApiProperty({ 
     type: String, 
     description: 'Razorpay payment ID',
     example: 'pay_xxxxxxxxxxxxx'
   })
+  @IsNotEmpty({ message: 'Razorpay payment ID is required' })
   @IsString({ message: 'Razorpay payment ID must be a string' })
   @MaxLength(100, { message: 'Razorpay payment ID must not exceed 100 characters' })
-  razorpayPaymentId: string;
+  razorpayPaymentId!: string;
 
   @ApiProperty({ 
     type: String, 
     description: 'Razorpay signature for verification',
     example: 'a9f28d8b9c4...'
   })
+  @IsNotEmpty({ message: 'Razorpay signature is required' })
   @IsString({ message: 'Razorpay signature must be a string' })
   @MaxLength(500, { message: 'Razorpay signature must not exceed 500 characters' })
-  razorpaySignature: string;
+  razorpaySignature!: string;
 
   @ApiPropertyOptional({ 
     type: [Object], 
     description: 'Items (for simplified checkout)',
   })
   @IsOptional()
-  @IsObject({ each: true })
   @Transform(({ value }) => {
     if (typeof value === 'string') {
       try {

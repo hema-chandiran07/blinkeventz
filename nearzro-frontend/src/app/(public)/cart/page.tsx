@@ -14,6 +14,7 @@ import {
   ArrowRight,
   Loader2,
 } from "lucide-react";
+import axios from "axios";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { SmartImage } from "@/components/ui/smart-image";
@@ -46,13 +47,16 @@ interface CartSummary {
   total: string;
 }
 
-const PLATFORM_FEE_PERCENTAGE = 0.02;
-const TAX_PERCENTAGE = 0.18;
-
 export default function CartPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<CartItem[]>([]);
+  const [settings, setSettings] = useState({
+    deliveryFee: 0,
+    platformFee: 0.02,
+    taxRate: 0.18,
+    minOrderAmount: 0,
+  });
   const [summary, setSummary] = useState<CartSummary>({
     subtotal: "0",
     discount: "0",
@@ -66,8 +70,41 @@ export default function CartPage() {
   const [updatingItemId, setUpdatingItemId] = useState<number | null>(null);
 
   useEffect(() => {
-    loadCart();
+    const init = async () => {
+      await loadSettings();
+      await loadCart();
+    };
+    init();
+    // Auto-unlock any stale cart lock on page load (safety net)
+    api.post('/cart/unlock').catch(() => { });
   }, []);
+
+  useEffect(() => {
+    calculateSummary(items);
+  }, [settings.platformFee, settings.taxRate]);
+
+  const loadSettings = async () => {
+    try {
+      const { data } = await axios.get(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/settings/fees`
+      );
+      setSettings({
+        deliveryFee: data.deliveryFee ?? 0,
+        platformFee: data.platformFee ?? 0.02,
+        taxRate: data.taxRate ?? 0.18,
+        minOrderAmount: data.minOrderAmount ?? 0,
+      });
+    } catch (error: any) {
+      console.error('[Cart] Failed to load fee settings:', error);
+      toast.error(
+        error?.response?.status === 404
+          ? 'Fee configuration not found. Please contact support.'
+          : 'Unable to load fee information. Totals may be inaccurate.',
+        { duration: 5000 }
+      );
+      setSettings({ deliveryFee: 0, platformFee: 0.02, taxRate: 0.18, minOrderAmount: 0 });
+    }
+  };
 
   const loadCart = async () => {
     try {
@@ -91,8 +128,8 @@ export default function CartPage() {
       (sum, item) => sum + parseFloat(String(item.totalPrice)),
       0
     );
-    const platformFee = Math.round(subtotal * PLATFORM_FEE_PERCENTAGE);
-    const tax = Math.round((subtotal + platformFee) * TAX_PERCENTAGE);
+    const platformFee = Math.round(subtotal * settings.platformFee);
+    const tax = Math.round((subtotal + platformFee) * settings.taxRate);
     const total = subtotal + platformFee + tax;
 
     setSummary({
@@ -121,12 +158,12 @@ export default function CartPage() {
       const updatedItems = items.map((i) =>
         i.id === itemId
           ? {
-              ...i,
-              quantity: newQuantity,
-              totalPrice: (
-                parseFloat(String(i.unitPrice)) * newQuantity
-              ).toString(),
-            }
+            ...i,
+            quantity: newQuantity,
+            totalPrice: (
+              parseFloat(String(i.unitPrice)) * newQuantity
+            ).toString(),
+          }
           : i
       );
 
@@ -164,10 +201,10 @@ export default function CartPage() {
       const updatedItems = items.map((i) =>
         i.id === itemId
           ? {
-              ...i,
-              meta: { ...i.meta, guestCount },
-              totalPrice: newTotalPrice.toString(),
-            }
+            ...i,
+            meta: { ...i.meta, guestCount },
+            totalPrice: newTotalPrice.toString(),
+          }
           : i
       );
 
@@ -239,7 +276,7 @@ export default function CartPage() {
 
   const getItemImage = (item: CartItem) => {
     const rawPath = item.image || item.meta?.image;
-    
+
     if (rawPath && typeof rawPath === 'string') {
       if (rawPath.startsWith('http')) {
         return rawPath;
@@ -256,11 +293,11 @@ export default function CartPage() {
       }
       return rawPath;
     }
-    
+
     if (Array.isArray(rawPath)) {
       return rawPath[0] || null;
     }
-    
+
     return null;
   };
 
@@ -496,13 +533,13 @@ export default function CartPage() {
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-zinc-400">Platform Fee (2%)</span>
+                  <span className="text-zinc-400">Platform Fee ({(settings.platformFee * 100).toFixed(0)}%)</span>
                   <span className="font-medium text-zinc-100">
                     {formatCurrency(summary.platformFee)}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-zinc-400">GST (18%)</span>
+                  <span className="text-zinc-400">GST ({(settings.taxRate * 100).toFixed(0)}%)</span>
                   <span className="font-medium text-zinc-100">
                     {formatCurrency(summary.tax)}
                   </span>

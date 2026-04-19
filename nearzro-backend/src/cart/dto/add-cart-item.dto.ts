@@ -57,5 +57,8 @@ export class AddCartItemDto {
     area?: string;
     city?: string;
     serviceType?: string;
+    startTime?: string;
+    endTime?: string;
+    isExpress?: boolean;
   };
 }

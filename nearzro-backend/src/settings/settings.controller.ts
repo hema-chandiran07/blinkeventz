@@ -1,8 +1,9 @@
-import { Controller, Get, Post, Body, UseGuards, Req } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiProperty } from '@nestjs/swagger';
+import { Controller, Get, Post, Patch, Body, Param, UseGuards, Req } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiProperty, ApiParam, ApiBody } from '@nestjs/swagger';
 import { SettingsService } from './settings.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { Public } from '../common/decorators/public.decorator';
 import { Role } from '@prisma/client';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { IsBoolean, IsObject, IsOptional, IsString } from 'class-validator';
@@ -73,12 +74,46 @@ export class SettingsController {
   // MAIN SETTINGS 
   // ============================================================================
 
+  @Public()
+  @Get('fees')
+  @ApiOperation({ summary: 'Get public fee information' })
+  @ApiResponse({ status: 200, description: 'Returns public fee settings' })
+  async getPublicFees() {
+    return this.settingsService.getPublicFees();
+  }
+
   @Get()
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Uplink: Synchronize all system settings' })
   @ApiResponse({ status: 200, description: 'Returns all settings grouped by operational category' })
   async getAllSettings() {
     return this.settingsService.getAllSettings();
+  }
+
+  @Get(':key')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Get a single setting by key' })
+  @ApiParam({ name: 'key', description: 'Setting key (e.g., EXPRESS_FEE)' })
+  @ApiResponse({ status: 200, description: 'Returns the setting value' })
+  async getSettingByKey(@Param('key') key: string) {
+    return this.settingsService.getSettingByKey(key);
+  }
+
+  @Post()
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Update system settings' })
+  @ApiBody({ schema: { type: 'object' } })
+  @ApiResponse({ status: 200, description: 'Settings updated successfully' })
+  async updateSettings(@Body() body: Record<string, any>) {
+    return this.settingsService.updateSettings(body);
+  }
+
+  @Patch()
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Update system settings (PATCH)' })
+  @ApiBody({ schema: { type: 'object' } })
+  async updateSettingsPatch(@Body() body: Record<string, any>) {
+    return this.settingsService.updateSettings(body);
   }
 
   // ============================================================================

@@ -207,45 +207,12 @@ export class VendorsController {
     return this.vendorServicesService.findByVendorUserId(req.user.userId);
   }
 
-  /// 🧑‍🔧 VENDOR → Get my bookings
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.VENDOR)
   @Get('me/bookings')
-  async getMyBookings(@Req() req: AuthRequest) {
-    const vendor = await this.vendorsService.getVendorByUserId(req.user.userId);
-
-    // Query bookings through AvailabilitySlot (vendorId)
-    const bookings = await this.prisma.booking.findMany({
-      where: {
-        slot: {
-          vendorId: vendor.id,
-        } as any,
-      },
-      include: {
-        slot: {
-          include: {
-            venue: true,
-          },
-        },
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-    // Calculate based on service baseRate or fallback to vendor basePrice
-    const fallbackRate = vendor.basePrice || vendor.services?.[0]?.baseRate || 0;
-
-    return bookings.map(b => ({
-      ...b,
-      totalAmount: vendor.services?.find(s => s.id === (b as any).slot?.vendorId)?.baseRate || fallbackRate,
-    }));
+  getMyBookings(@Req() req: any) {
+    return this.vendorsService.getVendorBookings(req.user.userId);
   }
   /// 🧑‍🔧 VENDOR → Get my earnings
   @ApiBearerAuth()
@@ -515,25 +482,16 @@ export class VendorsController {
   // VENDOR BOOKING STATUS UPDATE (CRITICAL BUSINESS LOGIC)
   // ============================================
 
-  /// 🧑‍🔧 VENDOR → Update booking status (accept/reject)
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.VENDOR)
-  @Patch('me/bookings/:bookingId/status')
-  @ApiOperation({ summary: 'Update booking status (accept/reject)' })
-  @ApiParam({ name: 'bookingId', type: Number, description: 'Booking ID' })
-  @ApiBody({ schema: { type: 'object', required: ['status'], properties: { status: { type: 'string', enum: ['CONFIRMED', 'REJECTED', 'CANCELLED', 'COMPLETED'] }, reason: { type: 'string' } } } })
-  async updateBookingStatus(
-    @Req() req: AuthRequest,
-    @Param('bookingId', ParseIntPipe) bookingId: number,
-    @Body() body: { status: string; reason?: string }
+  @Patch('me/bookings/:id/status')
+  updateBookingStatus(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { status: string },
+    @Req() req: any,
   ) {
-    return this.vendorsService.updateBookingStatus(
-      req.user.userId,
-      bookingId,
-      body.status,
-      body.reason
-    );
+    return this.vendorsService.updateVendorBookingStatus(id, body.status, req.user.userId);
   }
 
   // ============================================

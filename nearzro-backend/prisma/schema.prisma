@@ -169,6 +169,7 @@ model VendorService {
   updatedAt    DateTime           @updatedAt
   cartItems    CartItem[]
   EventService EventService[]
+  events       Event[]            // Bidirectional relation with Event model
   vendor       Vendor             @relation(fields: [vendorId], references: [id])
 
   @@index([vendorId])
@@ -347,6 +348,8 @@ model Cart {
   id        Int        @id @default(autoincrement())
   userId    Int
   status    CartStatus @default(ACTIVE)
+  isExpress Boolean   @default(false)
+  expressFee Int      @default(0)
   expiresAt DateTime?
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
@@ -354,8 +357,6 @@ model Cart {
   items     CartItem[]
   Payment   Payment[]
 
-  // Ensure only one ACTIVE cart per user
-  @@unique([userId, status])
   @@index([userId])
   @@index([status])
 }
@@ -597,23 +598,26 @@ model BankWebhookLog {
 /// ////////////////////////////////
 model Event {
   id                Int             @id @default(autoincrement())
-  customerId        Int
+  customerId        Int             @default(0)
   assignedManagerId Int?
-  eventType         String
+  eventType         String          @default("BOOKING")
   title             String?
   date              DateTime
   timeSlot          String
-  city              String
+  city              String          @default("Chennai")
   area              String?
   venueId           Int?
-  guestCount        Int
-  status            EventStatus     @default(CONFIRMED)
+  vendorServiceId   Int?
+  guestCount        Int             @default(1)
+  status            EventStatus     @default(PENDING_PAYMENT)
   isExpress         Boolean         @default(false)
-  subtotal          Int
+  expressFee        Int             @default(0)
+  subtotal          Int             @default(0)
   discount          Int             @default(0)
   platformFee       Int             @default(0)
   tax               Int             @default(0)
-  totalAmount       Int
+  totalAmount       Int             @default(0)
+  meta              Json?
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
   userId            Int?
@@ -624,6 +628,7 @@ model Event {
   promotion         Promotion?      @relation(fields: [promotionId], references: [id])
   User              User?           @relation(fields: [userId], references: [id])
   venue             Venue?          @relation(fields: [venueId], references: [id])
+  vendorService     VendorService?  @relation(fields: [vendorServiceId], references: [id])
   services          EventService[]
   expressRequest    ExpressRequest?
   notifications     Notification[]
@@ -1124,6 +1129,8 @@ enum NotificationPriority {
 
 enum BookingStatus {
   PENDING
+  ACCEPTED
+  REJECTED
   CONFIRMED
   IN_PROGRESS
   COMPLETED

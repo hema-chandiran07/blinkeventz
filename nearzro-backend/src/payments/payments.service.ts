@@ -22,6 +22,8 @@ import {
   PaymentStatusResponseDto 
 } from './dto/payment-response.dto';
 import { CartService } from '../cart/cart.service';
+import { SettingsService } from '../settings/settings.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 /**
  * Payment Service - Industry Standard Implementation
@@ -49,6 +51,8 @@ export class PaymentsService {
     private readonly configService: ConfigService,
     @Inject(forwardRef(() => CartService))
     private readonly cartService: CartService,
+    private readonly settingsService: SettingsService,
+    private readonly notificationsService: NotificationsService,
   ) {
     this.razorpay = razorpayClient;
     this.razorpayKeySecret = this.configService.get<string>('RAZORPAY_KEY_SECRET') || '';
@@ -354,9 +358,13 @@ export class PaymentsService {
 
     try {
       // 1. Find payment by order ID
+      const feeSettings = await this.settingsService.getPublicFees();
+      const PLATFORM_FEE_RATE = feeSettings.platformFee;
+      const TAX_RATE = feeSettings.taxRate;
+
       const payment = await this.prisma.payment.findUnique({
         where: { providerOrderId: dto.razorpayOrderId },
-        include: { cart: true },
+        include: { cart: { include: { items: true } } },
       });
 
       if (!payment) {
@@ -424,12 +432,24 @@ export class PaymentsService {
           },
         });
 
-        // Complete cart if exists
+        // Complete cart if exists and create Events
         if (payment.cartId && payment.cartId > 0) {
+          const cart = await tx.cart.findUnique({
+            where: { id: payment.cartId },
+            include: { items: true }
+          });
+          
+          if (!cart) {
+            throw new Error(`Cart with ID ${payment.cartId} not found during payment confirmation.`);
+          }
+
           await tx.cart.update({
             where: { id: payment.cartId },
             data: { status: CartStatus.COMPLETED },
           });
+
+          // Create Event records from cart items
+          await this.createEventsFromCart(tx, payment, cart, traceId);
         }
 
         // Create audit event
@@ -446,6 +466,8 @@ export class PaymentsService {
           },
         });
       });
+
+      await this.sendBookingNotifications(payment, payment.cart?.items || [], traceId);
 
       this.logger.log({
         event: 'PAYMENT_CONFIRMED',
@@ -470,6 +492,107 @@ export class PaymentsService {
         error: error.message,
       });
       throw error;
+    }
+  }
+
+  private async createEventsFromCart(
+    tx: any,
+    payment: any,
+    cart: any,
+    traceId: string,
+  ): Promise<void> {
+    const feeSettings = await this.settingsService.getPublicFees();
+    const PLATFORM_FEE_RATE = feeSettings.platformFee;
+    const TAX_RATE = feeSettings.taxRate;
+    for (const item of cart.items) {
+      const metaData = item.meta !== null && typeof item.meta === 'object'
+        ? (item.meta as Record<string, unknown>) : {};
+      const startTime = (metaData as any)?.startTime || null;
+      const endTime = (metaData as any)?.endTime || null;
+      const itemTotal = Number(item.totalPrice || 0);
+      const itemExpressFee = cart.isExpress && cart.expressFee
+        ? Math.round(cart.expressFee / cart.items.length) : 0;
+      const itemSubtotal = itemTotal - itemExpressFee;
+      const itemPlatformFee = Math.round((itemSubtotal + itemExpressFee) * PLATFORM_FEE_RATE);
+      const itemTax = Math.round((itemSubtotal + itemPlatformFee) * TAX_RATE);
+      const itemTotalAmount = itemSubtotal + itemExpressFee + itemPlatformFee + itemTax;
+      const eventBase = {
+        userId: payment.userId,
+        customerId: payment.userId,
+        date: item.date || new Date(),
+        timeSlot: item.timeSlot || 'FULL_DAY',
+        status: 'CONFIRMED' as any,
+        isExpress: cart.isExpress || false,
+        expressFee: cart.expressFee || 0,
+        subtotal: itemSubtotal,
+        platformFee: itemPlatformFee,
+        tax: itemTax,
+        totalAmount: itemTotalAmount,
+        meta: {
+          ...metaData,
+          startTime,
+          endTime,
+          quantity: item.quantity || 1,
+          unitPrice: String(item.unitPrice || 0),
+          totalPrice: String(item.totalPrice || 0),
+          traceId,
+        },
+      };
+      if (item.venueId) {
+        await tx.event.create({ data: { ...eventBase, venueId: item.venueId } });
+      } else if (item.vendorServiceId) {
+        await tx.event.create({ data: { ...eventBase, vendorServiceId: item.vendorServiceId } });
+      }
+    }
+  }
+
+  private async sendBookingNotifications(
+    payment: any,
+    cartItems: any[],
+    traceId: string,
+  ): Promise<void> {
+    try {
+      for (const item of cartItems) {
+        if (item.venueId) {
+          const venue = await this.prisma.venue.findUnique({
+            where: { id: item.venueId },
+            select: { ownerId: true, name: true },
+          });
+          if (venue?.ownerId) {
+            await this.notificationsService.send({
+              userId: venue.ownerId,
+              title: 'New Booking Received',
+              message: `A new booking confirmed for ${venue.name}. Please review and respond.`,
+              type: 'BOOKING_CONFIRMED',
+              metadata: { paymentId: payment.id, venueId: item.venueId, traceId },
+            } as any);
+          }
+        }
+        if (item.vendorServiceId) {
+          const service = await this.prisma.vendorService.findUnique({
+            where: { id: item.vendorServiceId },
+            include: { vendor: { select: { userId: true, businessName: true } } },
+          });
+          if (service?.vendor?.userId) {
+            await this.notificationsService.send({
+              userId: service.vendor.userId,
+              title: 'New Service Booking',
+              message: `A booking confirmed for ${service.vendor.businessName}. Please review and respond.`,
+              type: 'BOOKING_CONFIRMED',
+              metadata: { paymentId: payment.id, vendorServiceId: item.vendorServiceId, traceId },
+            } as any);
+          }
+        }
+      }
+      await this.notificationsService.send({
+        userId: payment.userId,
+        title: 'Booking Confirmed!',
+        message: 'Your payment was successful and your booking is confirmed. Track it in your dashboard.',
+        type: 'BOOKING_CONFIRMED',
+        metadata: { paymentId: payment.id, traceId },
+      } as any);
+    } catch (notifError: any) {
+      this.logger.error({ event: 'BOOKING_NOTIFICATION_FAILED', traceId, error: notifError.message });
     }
   }
 
@@ -592,6 +715,24 @@ export class PaymentsService {
           }
         }
 
+        if (newStatus === PaymentStatus.CAPTURED && payment.cartId && payment.cartId > 0) {
+          const existingCount = await tx.event.count({
+            where: {
+              userId: payment.userId,
+              createdAt: { gte: new Date(Date.now() - 300000) },
+            },
+          });
+          if (existingCount === 0) {
+            const cartWithItems = await tx.cart.findUnique({
+              where: { id: payment.cartId },
+              include: { items: true },
+            });
+            if (cartWithItems) {
+              await this.createEventsFromCart(tx, payment, cartWithItems, requestId || 'webhook');
+            }
+          }
+        }
+
         // Create audit event
         await tx.paymentEvent.create({
           data: {
@@ -605,6 +746,16 @@ export class PaymentsService {
           },
         });
       });
+
+      if (newStatus === PaymentStatus.CAPTURED) {
+        const cartItems = payment.cartId
+          ? (await this.prisma.cart.findUnique({
+              where: { id: payment.cartId },
+              include: { items: true },
+            }))?.items || []
+          : [];
+        await this.sendBookingNotifications(payment, cartItems, requestId || 'webhook');
+      }
 
       this.logger.log({
         event: 'WEBHOOK_PROCESSED',

@@ -47,17 +47,19 @@ export class DashboardController {
   // NEW: Separate Vendor and Venue Dashboard Stats
   // ============================================
 
-  /// 🧑‍🔧 VENDOR → Get vendor dashboard stats
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.VENDOR)
   @Get('vendor/stats')
-  async getVendorStats(@Req() req) {
+  getVendorStats(@Req() req: any) {
     return this.dashboardService.getVendorStats(req.user.userId);
   }
 
-  /// 🏢 VENUE OWNER → Get venue dashboard stats
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.VENUE_OWNER)
   @Get('venue/stats')
-  async getVenueStats(@Req() req) {
+  getVenueStats(@Req() req: any) {
     return this.dashboardService.getVenueStats(req.user.userId);
   }
 }

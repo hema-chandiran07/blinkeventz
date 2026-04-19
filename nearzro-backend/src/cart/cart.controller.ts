@@ -102,4 +102,15 @@ export class CartController {
     const userId = req.user.userId;
     return this.cartService.unlockCart(userId);
   }
+
+  @Post('express')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Toggle express booking on cart' })
+  async toggleExpress(
+    @Req() req: any,
+    @Body() body: { isExpress: boolean },
+  ) {
+    const userId = req.user.userId;
+    return this.cartService.toggleCartExpress(userId, body.isExpress);
+  }
 }

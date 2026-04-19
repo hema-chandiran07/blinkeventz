@@ -192,6 +192,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       vendorServiceId: vendorServiceId || undefined,
       timeSlot: item.timeSlot || undefined,
       quantity: item.quantity || 1,
+      meta: item.meta || undefined,
     };
 
     console.log('Adding to cart:', apiPayload);
@@ -199,6 +200,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     try {
       const response = await api.post("/cart/items", apiPayload);
       console.log('Cart add success:', response.data);
+      
+      if (item.meta?.isExpress) {
+        try {
+          await api.post('/cart/express', { isExpress: true });
+          console.log('Express Cart mode enabled');
+        } catch (expressError) {
+          console.error('Failed to set express mode:', expressError);
+          // Non-fatal, so we don't throw, just log
+        }
+      }
       
       setItems((prev) => {
         const existingIndex = prev.findIndex((i) => i.id === item.id);

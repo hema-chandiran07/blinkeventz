@@ -10,6 +10,7 @@ import {
 import { Prisma, Cart, CartItem } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaService } from '../prisma/prisma.service';
+import { SettingsService } from '../settings/settings.service';
 import { AddCartItemDto } from './dto/add-cart-item.dto';
 import { UpdateCartItemDto } from './dto/update-cart-item.dto';
 import {
@@ -24,8 +25,12 @@ import {
 } from './cart.types';
 import { CartCacheService } from './cart.cache.service';
 import { CartEventService, CartEventType } from './cart-event.service';
+import { getMinHoursForExpressByArea } from '../express/express.rules';
+import { AREA_TIER_MAP } from '../express/express.constants';
 
 type TransactionClient = Prisma.TransactionClient;
+
+const DEFAULT_EXPRESS_FEE = 50000;
 
 @Injectable()
 export class CartService {
@@ -35,6 +40,7 @@ export class CartService {
     private readonly prisma: PrismaService,
     private readonly cacheService: CartCacheService,
     private readonly eventService: CartEventService,
+    private readonly settingsService: SettingsService,
   ) {}
 
   /**
@@ -481,7 +487,7 @@ export class CartService {
       });
 
       if (!cart) {
-        throw new NotFoundException('Cart not found');
+        return { itemCount: 0, cartId: null, alreadyCleared: true };
       }
 
       const result = await tx.cartItem.deleteMany({
@@ -489,14 +495,19 @@ export class CartService {
       });
 
       // DO NOT call publishEvent inside transaction - return immediately
-      return { itemCount: result.count, cartId: cart.id };
+      return { itemCount: result.count, cartId: cart.id, alreadyCleared: false };
     });
+
+    // Handle case where cart was already cleared
+    if (result.alreadyCleared) {
+      return { success: true, itemCount: 0 };
+    }
 
     // FIXED: Publish event AFTER transaction commits
     try {
       await this.eventService.publishEvent(this.prisma, 'CART_CLEARED', {
         userId,
-        cartId: result.cartId,
+        cartId: result.cartId!,
         itemCount: result.itemCount,
       });
     } catch (eventError) {
@@ -557,6 +568,39 @@ export class CartService {
 
     if (cart.items.length === 0) {
       throw new BadRequestException('Cart is empty');
+    }
+
+    // EXPRESS VALIDATION: Check time constraints if express booking
+    if (cart.isExpress && cart.items.some(item => item.date)) {
+      const areas = new Map<string, Date>();
+      for (const item of cart.items) {
+        if (!item.date) continue;
+        if (item.venueId) {
+          const venue = await this.prisma.venue.findUnique({ where: { id: item.venueId } });
+          if (venue) {
+            areas.set(venue.area, item.date);
+          }
+        } else if (item.vendorServiceId) {
+          const service = await this.prisma.vendorService.findUnique({
+            where: { id: item.vendorServiceId },
+            include: { vendor: { select: { area: true } } }
+          });
+          if (service?.vendor?.area) {
+            areas.set(service.vendor.area, item.date);
+          }
+        }
+      }
+      for (const [area, eventDate] of areas) {
+        const minHours = getMinHoursForExpressByArea(area);
+        const eventTime = new Date(eventDate).getTime();
+        const now = Date.now();
+        const hoursUntilEvent = (eventTime - now) / (1000 * 60 * 60);
+        
+        if (hoursUntilEvent < minHours) {
+          const message = `Express booking for area "${area}" requires at least ${minHours} hour(s) before the event. Current lead time: ${hoursUntilEvent.toFixed(1)} hours`;
+          throw new BadRequestException(message);
+        }
+      }
     }
 
     // SECURITY: Validate all items are still available before locking
@@ -638,9 +682,27 @@ export class CartService {
       (sum, item) => sum.add(new Decimal(item.validatedPrice * (item.quantity || 1))),
       new Decimal(0)
     );
-    const platformFee = subtotal.mul(PLATFORM_FEE_PERCENTAGE);
+
+    // EXPRESS FEE: Fetch dynamic fee from settings if express booking
+    let expressFeeDecimal = new Decimal(0);
+    if (cart.isExpress) {
+      try {
+        const setting = await this.settingsService.getSettingByKey('EXPRESS_FEE');
+        expressFeeDecimal = new Decimal(Number(setting?.value ?? DEFAULT_EXPRESS_FEE));
+      } catch {
+        expressFeeDecimal = new Decimal(DEFAULT_EXPRESS_FEE);
+      }
+      await this.prisma.cart.update({
+        where: { id: cart.id },
+        data: { expressFee: expressFeeDecimal.toNumber() },
+      });
+    }
+
+    // Platform fee calculated on (subtotal + expressFee)
+    const platformFee = subtotal.add(expressFeeDecimal).mul(PLATFORM_FEE_PERCENTAGE);
+    // Tax calculated on (subtotal + platformFee) - expressFee is NOT taxable
     const tax = subtotal.add(platformFee).mul(TAX_PERCENTAGE);
-    const totalAmount = subtotal.add(platformFee).add(tax);
+    const totalAmount = subtotal.add(expressFeeDecimal).add(platformFee).add(tax);
 
     const items = validatedItems.map((item) => ({
       id: item.id,
@@ -691,8 +753,44 @@ export class CartService {
       platformFee: platformFee.toString(),
       tax: tax.toString(),
       totalAmount: totalAmount.toString(),
+      isExpress: cart.isExpress,
+      expressFee: expressFeeDecimal.toString(),
       status: 'CHECKOUT_SUCCESS',
     };
+  }
+
+  /**
+   * Toggle express booking on cart
+   */
+  async toggleCartExpress(userId: number, isExpress: boolean): Promise<{ success: boolean; isExpress: boolean; expressFee: string }> {
+    const cart = await this.prisma.cart.findFirst({
+      where: { userId, status: 'ACTIVE' },
+    });
+
+    if (!cart) {
+      throw new NotFoundException('Cart not found');
+    }
+
+    let expressFee = 0;
+    if (isExpress) {
+      try {
+        const setting = await this.settingsService.getSettingByKey('EXPRESS_FEE');
+        expressFee = Number(setting?.value ?? DEFAULT_EXPRESS_FEE);
+      } catch {
+        expressFee = DEFAULT_EXPRESS_FEE;
+      }
+    }
+
+    await this.prisma.cart.update({
+      where: { id: cart.id },
+      data: { isExpress, expressFee },
+    });
+
+    await this.cacheService.invalidateCart(userId);
+
+    this.logger.log({ userId, cartId: cart.id, isExpress, expressFee }, 'Express toggle updated');
+
+    return { success: true, isExpress, expressFee: expressFee.toString() };
   }
 
   // ============================================
@@ -809,9 +907,9 @@ export class CartService {
     };
   }
 
-  /**
-   * Format cart response - FIXED to resolve item names from relations
-   */
+/**
+    * Format cart response - FIXED to resolve item names from relations
+    */
   private formatCartResponse(
     cart: Cart & { items: CartItemWithRelations[] },
   ): CartResponse {
@@ -820,6 +918,8 @@ export class CartService {
     return {
       id: cart.id,
       status: cart.status,
+      isExpress: cart.isExpress,
+      expressFee: cart.expressFee?.toString() ?? '0',
       // Map to CartItemResponse with resolved names from included relations
       items: cart.items.map((item) => {
         let name = 'Item';
