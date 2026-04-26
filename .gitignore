@@ -1,72 +1,75 @@
-# compiled output
-/dist
-/node_modules
-/build
+# --- Build & Output ---
+dist/
+build/
+out/
+.next/
+/generated/prisma
+*.tsbuildinfo
+next-env.d.ts
 
-# Logs
+# --- Dependencies ---
+node_modules/
+/*/node_modules/
+.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# --- Environment & Secrets ---
+.env
+.env.*
+!.env.example
+*.pem
+
+# --- Debug & Logs ---
 logs
 *.log
 npm-debug.log*
-pnpm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 lerna-debug.log*
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+.pnpm-debug.log*
 
-# OS
-.DS_Store
+# --- Testing ---
+coverage/
+nearzro-backend/coverage/
+.nyc_output
+.jest-cache/
 
-# Tests
-/coverage
-/.nyc_output
-
-# IDEs and editors
-/.idea
+# --- IDEs & Editors ---
+.idea/
 .project
 .classpath
 .c9/
 *.launch
 .settings/
 *.sublime-workspace
-
-# IDE - VSCode
 .vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
 
-# dotenv environment variable files
-.env
-.env.development.local
-.env.test.local
-.env.production.local
-.env.local
-.env.test
+# --- OS & System ---
+.DS_Store
+Thumbs.db
+.temp/
+.tmp/
 
-# temp directory
-.temp
-.tmp
-
-# Runtime data
+# --- Infrastructure & Runtime ---
+docker-compose.yml
+postgres_data/
+.vercel
 pids
 *.pid
 *.seed
 *.pid.lock
+.kilo/
 
-# Diagnostic reports (https://nodejs.org/api/report.html)
-report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
-
-/generated/prisma
-
-/generated/prisma
-# Docker volumes
-postgres_data
-docker-compose.yml
-
-/*/node_modules/
-/*/dist/
-
+# --- Project Specific ---
 uploads/
-coverage/
-nearzro-backend/coverage/
-.jest-cache/
