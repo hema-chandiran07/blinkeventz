@@ -69,3 +69,4 @@ docker-compose.yml
 uploads/
 coverage/
 nearzro-backend/coverage/
+.jest-cache/

@@ -19,6 +19,12 @@ export class AnalyticsController {
     return this.service.getOverview();
   }
 
+  // Alias for frontend compatibility
+  @Get('platform')
+  getPlatformAnalytics() {
+    return this.service.getOverview();
+  }
+
   @Get('gmv')
   getGMV() {
     return this.service.getGMV();

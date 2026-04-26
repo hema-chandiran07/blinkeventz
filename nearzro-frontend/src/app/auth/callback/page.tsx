@@ -15,6 +15,20 @@ export default function AuthCallbackPage() {
     const handleCallback = async () => {
       const token = searchParams.get("token");
       const userParam = searchParams.get("user");
+      const error = searchParams.get("error");
+
+      // Handle error from OAuth backend
+      if (error) {
+        const errorMessages: Record<string, string> = {
+          'google_auth_failed': 'Google authentication failed. Please try again.',
+          'no_user_data': 'No user data received from Google. Please try again.',
+          'role_mismatch': 'This email is already registered with a different role. Please use the correct portal.',
+        };
+        setStatus("error");
+        setMessage(errorMessages[error] || 'Authentication failed. Please try again.');
+        setTimeout(() => router.push("/login"), 3000);
+        return;
+      }
 
       if (!token || !userParam) {
         setStatus("error");
@@ -44,7 +58,7 @@ export default function AuthCallbackPage() {
           "ADMIN": "/dashboard/admin",
           "VENDOR": "/dashboard/vendor",
           "VENUE_OWNER": "/dashboard/venue",
-          "CUSTOMER": "/dashboard/customer",
+          "CUSTOMER": "/",
         };
 
         setTimeout(() => {

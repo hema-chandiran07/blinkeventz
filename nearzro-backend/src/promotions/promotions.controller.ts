@@ -37,8 +37,10 @@ export class PromotionsController {
   // List All Promotions (Admin Only)
   @Roles(Role.ADMIN)
   @Get()
-  findAll(@Query('page') page: number = 1, @Query('limit') limit: number = 20) {
-    return this.service.findAll({ page, limit });
+  findAll(@Query('page') page: string = '1', @Query('limit') limit: string = '20') {
+    const pageNum = parseInt(page, 10) || 1;
+    const limitNum = parseInt(limit, 10) || 20;
+    return this.service.findAll({ page: pageNum, limit: limitNum });
   }
 
   // Validate Promotion Code (Public - for cart)

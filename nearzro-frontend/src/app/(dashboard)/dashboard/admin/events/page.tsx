@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  Calendar, CheckCircle2, Clock, Eye, Search, TrendingUp
+  Calendar, CheckCircle2, Clock, Eye, Search, TrendingUp, UserPlus, Loader2
 } from "lucide-react";
+import * as Popover from "@radix-ui/react-popover";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { extractArray } from "@/lib/api-response";
@@ -38,22 +39,47 @@ export default function AdminEventsPage() {
   const [filterStatus, setFilterStatus] = useState("all");
 
   useEffect(() => {
-    loadEvents();
+    const controller = new AbortController();
+    loadEvents(controller.signal);
+    return () => controller.abort();
   }, []);
 
-  const loadEvents = async () => {
+  const loadEvents = async (signal?: AbortSignal) => {
     try {
       setLoading(true);
-      const response = await api.get("/events");
+      const response = await api.get("/events", { signal });
       const eventsData = extractArray<Event>(response);
       setEvents(eventsData);
     } catch (error: any) {
+      if (error.name === 'AbortError' || error.code === 'ERR_CANCELED') {
+        return;
+      }
       console.error("Failed to load events:", error);
       toast.error("Failed to load events");
     } finally {
       setLoading(false);
     }
   };
+
+  const assignManagerToEvent = async (eventId: number, managerId: string) => {
+    const loadingKey = `assign-${eventId}`;
+    setLoadingState((prev) => ({ ...prev, [loadingKey]: true }));
+    try {
+      await api.patch(`/events/${eventId}/assign-manager`, { managerId });
+      toast.success("Manager assigned successfully");
+      setManagerInput((prev) => ({ ...prev, [eventId]: "" }));
+      setShowAssignPopover((prev) => ({ ...prev, [eventId]: false }));
+    } catch (error: any) {
+      console.error("Failed to assign manager:", error);
+      toast.error(error?.response?.data?.message || "Failed to assign manager");
+    } finally {
+      setLoadingState((prev) => ({ ...prev, [loadingKey]: false }));
+    }
+  };
+
+  const [showAssignPopover, setShowAssignPopover] = useState<Record<number, boolean>>({});
+  const [managerInput, setManagerInput] = useState<Record<number, string>>({});
+  const [loadingState, setLoadingState] = useState<Record<string, boolean>>({});
 
   const filteredEvents = events.filter(event => {
     const matchesSearch = event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -77,84 +103,84 @@ export default function AdminEventsPage() {
   };
 
   return (
-    <div className="space-y-6 bg-neutral-50 min-h-screen">
+    <div className="space-y-6 bg-zinc-950 min-h-screen">
       {/* Header */}
-      <div className="bg-white border-b border-neutral-200 px-6 py-4">
+      <div className="bg-zinc-900 border-b border-zinc-800 px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-neutral-900">Event Management</h1>
-            <p className="text-sm text-neutral-600 mt-1">Manage all events</p>
+            <h1 className="text-2xl font-bold text-zinc-100">Event Management</h1>
+            <p className="text-sm text-zinc-400 mt-1">Manage all events</p>
           </div>
         </div>
       </div>
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-5 px-6">
-        <Card className="border-2 border-neutral-200">
+        <Card className="border-zinc-800 bg-zinc-900/50">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-600">Total Events</p>
-                <p className="text-3xl font-bold text-neutral-900 mt-1">{stats.total}</p>
+                <p className="text-sm font-medium text-zinc-400">Total Events</p>
+                <p className="text-3xl font-bold text-zinc-100 mt-1">{stats.total}</p>
               </div>
-              <div className="p-3 rounded-full bg-neutral-100">
-                <Calendar className="h-6 w-6 text-neutral-600" />
+              <div className="p-3 rounded-full bg-zinc-800">
+                <Calendar className="h-6 w-6 text-zinc-400" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-2 border-emerald-200">
+        <Card className="border-emerald-800 bg-emerald-950/20">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-600">Confirmed</p>
-                <p className="text-3xl font-bold text-emerald-600 mt-1">{stats.confirmed}</p>
+                <p className="text-sm font-medium text-zinc-400">Confirmed</p>
+                <p className="text-3xl font-bold text-emerald-400 mt-1">{stats.confirmed}</p>
               </div>
-              <div className="p-3 rounded-full bg-emerald-100">
-                <CheckCircle2 className="h-6 w-6 text-emerald-600" />
+              <div className="p-3 rounded-full bg-emerald-950/30">
+                <CheckCircle2 className="h-6 w-6 text-emerald-400" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-2 border-blue-200">
+        <Card className="border-blue-800 bg-blue-950/20">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-600">In Progress</p>
-                <p className="text-3xl font-bold text-blue-600 mt-1">{stats.inProgress}</p>
+                <p className="text-sm font-medium text-zinc-400">In Progress</p>
+                <p className="text-3xl font-bold text-blue-400 mt-1">{stats.inProgress}</p>
               </div>
-              <div className="p-3 rounded-full bg-blue-100">
-                <Clock className="h-6 w-6 text-blue-600" />
+              <div className="p-3 rounded-full bg-blue-950/30">
+                <Clock className="h-6 w-6 text-blue-400" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-2 border-purple-200">
+        <Card className="border-purple-800 bg-purple-950/20">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-600">Completed</p>
-                <p className="text-3xl font-bold text-purple-600 mt-1">{stats.completed}</p>
+                <p className="text-sm font-medium text-zinc-400">Completed</p>
+                <p className="text-3xl font-bold text-purple-400 mt-1">{stats.completed}</p>
               </div>
-              <div className="p-3 rounded-full bg-purple-100">
-                <CheckCircle2 className="h-6 w-6 text-purple-600" />
+              <div className="p-3 rounded-full bg-purple-950/30">
+                <CheckCircle2 className="h-6 w-6 text-purple-400" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-2 border-emerald-200">
+        <Card className="border-emerald-800 bg-emerald-950/20">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-600">Revenue</p>
-                <p className="text-2xl font-bold text-emerald-600 mt-1">{formatCurrency(stats.totalRevenue)}</p>
+                <p className="text-sm font-medium text-zinc-400">Revenue</p>
+                <p className="text-2xl font-bold text-emerald-400 mt-1">{formatCurrency(stats.totalRevenue)}</p>
               </div>
-              <div className="p-3 rounded-full bg-emerald-100">
-                <TrendingUp className="h-6 w-6 text-emerald-600" />
+              <div className="p-3 rounded-full bg-emerald-950/30">
+                <TrendingUp className="h-6 w-6 text-emerald-400" />
               </div>
             </div>
           </CardContent>
@@ -162,23 +188,23 @@ export default function AdminEventsPage() {
       </div>
 
       {/* Filters */}
-      <Card className="border-2 border-neutral-200 mx-6">
+      <Card className="border-zinc-800 bg-zinc-900/50 mx-6">
         <CardContent className="p-4">
           <div className="flex gap-4">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500" />
               <input
                 type="text"
                 placeholder="Search by event title or customer..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
+                className="w-full pl-10 pr-4 py-2 border border-zinc-700 bg-zinc-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-600 text-zinc-100"
               />
             </div>
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
+              className="px-4 py-2 border border-zinc-700 bg-zinc-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-600 text-zinc-100"
             >
               <option value="all">All Status</option>
               <option value="CONFIRMED">Confirmed</option>
@@ -191,72 +217,112 @@ export default function AdminEventsPage() {
       </Card>
 
       {/* Events Table */}
-      <Card className="border-2 border-neutral-200 mx-6">
+      <Card className="border-zinc-800 bg-zinc-900/50 mx-6">
         <CardHeader>
-          <CardTitle className="text-neutral-900">All Events</CardTitle>
+          <CardTitle className="text-zinc-100">All Events</CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="text-center py-8 text-neutral-600">Loading events...</div>
+            <div className="text-center py-8 text-zinc-400">Loading events...</div>
           ) : filteredEvents.length === 0 ? (
-            <div className="text-center py-8 text-neutral-600">No events found</div>
+            <div className="text-center py-8 text-zinc-400">No events found</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="border-b border-neutral-200">
+                <thead className="border-b border-zinc-800">
                   <tr>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Event</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Customer</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Date & Time</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Location</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Amount</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-neutral-700">Status</th>
-                    <th className="text-right py-3 px-4 text-sm font-semibold text-neutral-700">Actions</th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-zinc-400">Event</th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-zinc-400">Customer</th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-zinc-400">Date & Time</th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-zinc-400">Location</th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-zinc-400">Amount</th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-zinc-400">Status</th>
+                    <th className="text-right py-3 px-4 text-sm font-semibold text-zinc-400">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredEvents.map((event) => (
-                    <tr key={event.id} className="border-b border-neutral-100 hover:bg-neutral-50">
+                    <tr key={event.id} className="border-b border-zinc-800 hover:bg-zinc-800/50">
                       <td className="py-3 px-4">
                         <div>
-                          <p className="font-medium text-neutral-900">{event.title || event.eventType}</p>
-                          <p className="text-sm text-neutral-600">{event.eventType}</p>
+                          <p className="font-medium text-zinc-100">{event.title || event.eventType}</p>
+                          <p className="text-sm text-zinc-400">{event.eventType}</p>
                         </div>
                       </td>
-                      <td className="py-3 px-4">
-                        <div>
-                          <p className="text-sm font-medium text-neutral-900">{event.customer?.name}</p>
-                          <p className="text-xs text-neutral-600">{event.customer?.email}</p>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 text-sm text-neutral-600">
+                       <td className="py-3 px-4">
+                         <div>
+                           <p className="text-sm font-medium text-zinc-100">{event.customer?.name || "Guest"}</p>
+                           <p className="text-xs text-zinc-500">{event.customer?.email || "No email"}</p>
+                         </div>
+                       </td>
+                      <td className="py-3 px-4 text-sm text-zinc-400">
                         <div>{new Date(event.date).toLocaleDateString("en-IN")}</div>
                         <div className="text-xs">{event.timeSlot}</div>
                       </td>
-                      <td className="py-3 px-4 text-sm text-neutral-600">
+                      <td className="py-3 px-4 text-sm text-zinc-400">
                         {event.area}, {event.city}
                       </td>
                       <td className="py-3 px-4">
-                        <span className="font-medium text-neutral-900">{formatCurrency(event.totalAmount)}</span>
+                        <span className="font-medium text-zinc-100">{formatCurrency(event.totalAmount)}</span>
                       </td>
                       <td className="py-3 px-4">
                         <Badge className={`text-xs ${
-                          event.status === "COMPLETED" ? "bg-purple-100 text-purple-700" :
-                          event.status === "IN_PROGRESS" ? "bg-blue-100 text-blue-700" :
-                          event.status === "CONFIRMED" ? "bg-emerald-100 text-emerald-700" :
-                          "bg-red-100 text-red-700"
+                          event.status === "COMPLETED" ? "bg-purple-950/30 text-purple-400 border-purple-700" :
+                          event.status === "IN_PROGRESS" ? "bg-blue-950/30 text-blue-400 border-blue-700" :
+                          event.status === "CONFIRMED" ? "bg-emerald-950/30 text-emerald-400 border-emerald-700" :
+                          "bg-red-950/30 text-red-400 border-red-700"
                         }`}>
                           {event.status}
                         </Badge>
                       </td>
                       <td className="py-3 px-4 text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => router.push(`/dashboard/admin/events/${event.id}`)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center justify-end gap-2">
+                          <Popover.Root open={showAssignPopover[event.id]} onOpenChange={(open) => setShowAssignPopover((prev) => ({ ...prev, [event.id]: open }))}>
+                            <Popover.Trigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                              >
+                                <UserPlus className="h-4 w-4" />
+                              </Button>
+                            </Popover.Trigger>
+                            <Popover.Portal>
+                              <Popover.Content className="bg-zinc-900 border border-zinc-700 rounded-lg p-3 shadow-lg z-50" sideOffset={5}>
+                                <div className="space-y-2">
+                                  <p className="text-sm font-medium text-zinc-100">Assign Manager</p>
+                                  <input
+                                    type="text"
+                                    placeholder="Enter Manager ID"
+                                    value={managerInput[event.id] || ""}
+                                    onChange={(e) => setManagerInput((prev) => ({ ...prev, [event.id]: e.target.value }))}
+                                    className="w-full px-3 py-1.5 text-sm border border-zinc-700 bg-zinc-800 rounded-md text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-600"
+                                  />
+                                  <Button
+                                    size="sm"
+                                    className="w-full"
+                                    onClick={() => assignManagerToEvent(event.id, managerInput[event.id])}
+                                    disabled={loadingState[`assign-${event.id}`] || !managerInput[event.id]}
+                                  >
+                                    {loadingState[`assign-${event.id}`] ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      "Assign"
+                                    )}
+                                  </Button>
+                                </div>
+                                <Popover.Arrow className="fill-zinc-700" />
+                              </Popover.Content>
+                            </Popover.Portal>
+                          </Popover.Root>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => router.push(`/dashboard/admin/events/${event.id}`)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}

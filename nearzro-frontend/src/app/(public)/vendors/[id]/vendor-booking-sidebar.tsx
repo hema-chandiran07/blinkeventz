@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Mail, Phone, MessageCircle, Shield, Globe, CheckCircle2, Calendar as CalendarIcon, Clock, DollarSign, Star, MapPin } from "lucide-react";
+import { Mail, Phone, MessageCircle, Shield, Globe, CheckCircle2, Calendar as CalendarIcon, Clock, DollarSign, Star, MapPin, Zap, AlertCircle } from "lucide-react";
 import { AddToCartButton } from "./add-to-cart-button";
 import { BookNowButton } from "./book-now-button";
 import { AvailabilityCalendar, type TimeSlot, type TimeSlotType } from "@/components/venues/availability-calendar";
@@ -29,6 +29,39 @@ export function VendorBookingSidebar({ vendor }: VendorBookingSidebarProps) {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<TimeSlotType | null>(null);
 
+  const [startTime, setStartTime] = useState<string>('09:00');
+  const [endTime, setEndTime] = useState<string>('17:00');
+  const [isExpress, setIsExpress] = useState<boolean>(false);
+  const [expressError, setExpressError] = useState<string | null>(null);
+  const [vendorArea, setVendorArea] = useState<string>('');
+
+  const classifyTimeSlot = (start: string, end: string): string => {
+    const s = parseInt(start.split(':')[0]);
+    const e = parseInt(end.split(':')[0]);
+    if (s >= 6 && e <= 13) return 'MORNING';
+    if (s >= 14 && e <= 21) return 'EVENING';
+    return 'FULL_DAY';
+  };
+
+  const validateExpress = (date: Date | null, start: string): boolean => {
+    if (!isExpress) return true;
+    if (!date) return true;
+    const eventDateTime = new Date(date);
+    const [h, m] = start.split(':').map(Number);
+    eventDateTime.setHours(h, m, 0, 0);
+    const hoursUntil = (eventDateTime.getTime() - Date.now()) / 3600000;
+    const minHours = 2; // dynamic per area later
+    if (hoursUntil < minHours) {
+      const earliest = new Date(Date.now() + minHours * 3600000);
+      setExpressError(
+        `Express requires ${minHours}h lead time. Earliest: ${earliest.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}`
+      );
+      return false;
+    }
+    setExpressError(null);
+    return true;
+  };
+
   const basePrice = vendor.basePrice || 35000;
   const selectedPrice = selectedSlot 
     ? Math.round(basePrice * TIME_SLOT_MULTIPLIERS[selectedSlot])
@@ -39,8 +72,11 @@ export function VendorBookingSidebar({ vendor }: VendorBookingSidebarProps) {
     setSelectedSlot(slot.type);
   };
 
-  const isReadyToBook = selectedDate && selectedSlot;
+  const isReadyToBook = selectedDate && startTime && endTime;
 
+  // Use the new classification instead of the calendar slot
+  const actualSlot = classifyTimeSlot(startTime, endTime) as TimeSlotType;
+  const timeSlotLower = actualSlot.toLowerCase() as TimeSlotType;
   return (
     <div className="lg:col-span-1">
       <div className="sticky top-6 space-y-6">
@@ -96,6 +132,65 @@ export function VendorBookingSidebar({ vendor }: VendorBookingSidebarProps) {
             )}
           </div>
 
+          {/* Custom Time Selection (Overrides Calendar Slot) */}
+          <div className="mb-6 space-y-4">
+            <div className="space-y-3">
+              <label className="text-sm font-medium text-black">Event Time</label>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-neutral-500 mb-1 block">Start Time</label>
+                  <input
+                    type="time"
+                    value={startTime}
+                    onChange={(e) => {
+                      setStartTime(e.target.value);
+                      validateExpress(selectedDate, e.target.value);
+                    }}
+                    className="w-full bg-white border border-neutral-300 rounded-lg px-3 py-2 text-black text-sm focus:border-black focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-neutral-500 mb-1 block">End Time</label>
+                  <input
+                    type="time"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
+                    className="w-full bg-white border border-neutral-300 rounded-lg px-3 py-2 text-black text-sm focus:border-black focus:outline-none"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-neutral-500">
+                Slot: {classifyTimeSlot(startTime, endTime).replace('_', ' ')} •
+                Duration: {Math.max(0, parseInt(endTime) - parseInt(startTime))}h
+              </p>
+            </div>
+
+            <div className="flex items-center justify-between p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+              <div className="flex items-center gap-2">
+                <Zap className="h-4 w-4 text-amber-500" />
+                <div>
+                  <p className="text-sm font-medium text-amber-700">Express Booking</p>
+                  <p className="text-xs text-amber-600">Priority processing + express fee</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setIsExpress(!isExpress);
+                  if (!isExpress) validateExpress(selectedDate, startTime);
+                  else setExpressError(null);
+                }}
+                className={`w-12 h-6 rounded-full transition-colors ${isExpress ? 'bg-amber-500' : 'bg-neutral-300'}`}
+              >
+                <div className={`w-4 h-4 bg-white rounded-full mx-1 transition-transform ${isExpress ? 'translate-x-6' : 'translate-x-0'}`} />
+              </button>
+            </div>
+            {expressError && (
+              <p className="text-xs text-red-500 flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" /> {expressError}
+              </p>
+            )}
+          </div>
+
           {/* Action Buttons */}
           <div className="space-y-3 mb-6">
             <BookNowButton
@@ -103,15 +198,15 @@ export function VendorBookingSidebar({ vendor }: VendorBookingSidebarProps) {
               vendorName={vendor.businessName || vendor.name}
               price={selectedPrice}
               basePrice={basePrice}
-              selectedTime={selectedSlot ? TIME_SLOT_LABELS[selectedSlot] : undefined}
+              selectedTime={`${startTime} - ${endTime}`}
               selectedDate={selectedDate}
-              selectedSlot={selectedSlot}
+              selectedSlot={timeSlotLower}
               serviceType={vendor.serviceType}
             />
             <AddToCartButton
-              itemId={`vendor-${vendor.id}-${selectedDate?.toISOString()}-${selectedSlot}`}
+              itemId={`vendor-${vendor.id}-${selectedDate?.toISOString()}-${actualSlot}`}
               itemType="vendor"
-              itemName={`${vendor.businessName || vendor.name} - ${selectedSlot ? TIME_SLOT_LABELS[selectedSlot] : 'Booking'}`}
+              itemName={`${vendor.businessName || vendor.name} - ${actualSlot.replace('_', ' ')}`}
               itemDescription={vendor.description || ""}
               itemPrice={selectedPrice}
               basePrice={basePrice}
@@ -119,14 +214,17 @@ export function VendorBookingSidebar({ vendor }: VendorBookingSidebarProps) {
                 city: vendor.city,
                 area: vendor.area,
                 serviceType: vendor.serviceType,
-                timeSlot: selectedSlot,
-                timeSlotLabel: selectedSlot ? TIME_SLOT_LABELS[selectedSlot] : undefined,
+                timeSlot: actualSlot,
+                timeSlotLabel: `${startTime} - ${endTime}`,
                 basePrice: basePrice,
                 selectedDate: selectedDate?.toISOString(),
-                selectedSlot,
+                selectedSlot: timeSlotLower,
+                startTime,
+                endTime,
+                isExpress,
                 verificationStatus: vendor.verificationStatus,
               }}
-              disabled={!isReadyToBook}
+              disabled={!isReadyToBook || !!expressError}
             />
           </div>
 
@@ -140,11 +238,11 @@ export function VendorBookingSidebar({ vendor }: VendorBookingSidebarProps) {
                   <div className="text-xs text-green-700 mt-1 space-y-1">
                     <div className="flex items-center gap-2">
                       <CalendarIcon className="h-3 w-3" />
-                      <span>{selectedDate.toLocaleDateString("en-IN", { weekday: "short", year: "numeric", month: "long", day: "numeric" })}</span>
+                      <span>{selectedDate?.toLocaleDateString("en-IN", { weekday: "short", year: "numeric", month: "long", day: "numeric" })}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Clock className="h-3 w-3" />
-                      <span>{TIME_SLOT_LABELS[selectedSlot]}</span>
+                      <span>{startTime} - {endTime}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <DollarSign className="h-3 w-3" />

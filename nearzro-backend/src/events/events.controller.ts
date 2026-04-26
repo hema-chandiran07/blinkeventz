@@ -27,7 +27,6 @@ import { EventOwnerGuard } from './guards/event-owner.guard';
 import { EventManagerGuard } from './guards/event-manager.guard';
 
 @ApiTags('Events')
-@ApiBearerAuth()
 @Controller('events')
 export class EventsController {
   constructor(private readonly eventsService: EventsService) {}
@@ -50,6 +49,8 @@ export class EventsController {
    * 
    * Creates a new event for the authenticated customer.
    */
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.CUSTOMER)
   @Post()
   @ApiBody({ type: CreateEventDto })
@@ -62,6 +63,8 @@ export class EventsController {
    * 
    * Returns events owned by the current user.
    */
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.CUSTOMER)
   @Get('my')
   @ApiQuery({ type: EventQueryDto })
@@ -74,6 +77,8 @@ export class EventsController {
    * 
    * Returns event details. Accessible by owner, assigned manager, or admin.
    */
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.CUSTOMER, Role.EVENT_MANAGER, Role.ADMIN)
   @Get(':id')
   @ApiParam({ name: 'id', example: 1 })
@@ -86,11 +91,12 @@ export class EventsController {
    * 
    * Updates an event. Only owner or admin can update.
    */
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard, EventOwnerGuard)
   @Roles(Role.CUSTOMER, Role.ADMIN)
   @Patch(':id')
   @ApiParam({ name: 'id', example: 1 })
   @ApiBody({ type: UpdateEventDto })
-  @UseGuards(EventOwnerGuard)
   update(
     @Req() req, 
     @Param('id', ParseIntPipe) id: number, 
@@ -104,10 +110,11 @@ export class EventsController {
    * 
    * Deletes an event and all related services.
    */
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard, EventOwnerGuard)
   @Roles(Role.ADMIN)
   @Delete(':id')
   @ApiParam({ name: 'id', example: 1 })
-  @UseGuards(EventOwnerGuard)
   delete(@Param('id', ParseIntPipe) id: number) {
     return this.eventsService.deleteEvent(id);
   }
@@ -117,11 +124,12 @@ export class EventsController {
    * 
    * Adds a service to an event. Owner, assigned manager, or admin can add.
    */
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard, EventManagerGuard)
   @Roles(Role.CUSTOMER, Role.EVENT_MANAGER, Role.ADMIN)
   @Post(':id/services')
   @ApiParam({ name: 'id', example: 1 })
   @ApiBody({ type: AddEventServiceDto })
-  @UseGuards(EventManagerGuard)
   addService(
     @Req() req,
     @Param('id', ParseIntPipe) id: number, 
@@ -132,9 +140,11 @@ export class EventsController {
 
   /**
    * ASSIGN EVENT MANAGER (ADMIN ONLY)
-   * 
+   *
    * Assigns an event manager to an event.
    */
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
   @Patch(':id/assign-manager')
   @ApiParam({ name: 'id', example: 1 })
@@ -144,5 +154,22 @@ export class EventsController {
     @Body() dto: AssignManagerDto,
   ) {
     return this.eventsService.assignManager(id, dto.managerId);
+  }
+
+  /**
+   * UPDATE EVENT STATUS (ADMIN ONLY)
+   *
+   * Updates the status of an event.
+   */
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @Patch(':id/status')
+  @ApiParam({ name: 'id', example: 1 })
+  updateStatus(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { status: string },
+  ) {
+    return this.eventsService.updateEventStatus(id, body.status);
   }
 }

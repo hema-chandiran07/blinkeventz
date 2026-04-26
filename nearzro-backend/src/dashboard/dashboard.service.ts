@@ -1,10 +1,19 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventStatus, VendorVerificationStatus, VenueStatus } from '@prisma/client';
+import * as os from 'os';
+import { VendorsService } from '../vendors/vendors.service';
+import { VenuesService } from '../venues/venues.service';
 
 @Injectable()
 export class DashboardService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(forwardRef(() => VendorsService))
+    private readonly vendorsService: VendorsService,
+    @Inject(forwardRef(() => VenuesService))
+    private readonly venuesService: VenuesService,
+  ) { }
 
   async getAdminStats() {
     const [
@@ -15,6 +24,7 @@ export class DashboardService {
       pendingApprovals,
       totalRevenue,
       monthlyRevenue,
+      activeUsers,
     ] = await Promise.all([
       this.prisma.user.count(),
       this.prisma.venue.count(),
@@ -26,6 +36,11 @@ export class DashboardService {
         where: { status: { in: [EventStatus.CONFIRMED, EventStatus.COMPLETED] } },
       }),
       this.getMonthlyRevenue(),
+      this.prisma.user.count({ 
+        where: { 
+          updatedAt: { gte: new Date(Date.now() - 3600000) } // Active in last 1 hour
+        } 
+      }),
     ]);
 
     const confirmedEvents = await this.prisma.event.count({
@@ -46,6 +61,8 @@ export class DashboardService {
       monthlyRevenue,
       confirmedEvents,
       inProgressEvents,
+      activeUsers: activeUsers || 0,
+      systemUptime: Math.round(os.uptime() / 3600) + ' hours'
     };
   }
 
@@ -248,5 +265,17 @@ export class DashboardService {
     }
 
     return {};
+  }
+
+  // ============================================
+  // NEW: Separate Vendor and Venue Stats
+  // ============================================
+
+  async getVendorStats(userId: number) {
+    return this.vendorsService.getVendorStats(userId);
+  }
+
+  async getVenueStats(userId: number) {
+    return this.venuesService.getVenueOwnerStats(userId);
   }
 }

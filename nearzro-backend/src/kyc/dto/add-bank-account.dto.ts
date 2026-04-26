@@ -32,8 +32,8 @@ export class AddBankAccountDto {
     example: 'SBIN0001234',
   })
   @IsString()
-  @Matches(/^[A-Z]{4}0[A-Z0-9]{6}$/, {
-    message: 'Invalid IFSC code format',
+  @Matches(/^[A-Za-z]{4}0[A-Za-z0-9]{6}$/, {
+    message: 'Invalid IFSC code format (e.g., SBIN0001234)',
   })
   ifsc: string;
 

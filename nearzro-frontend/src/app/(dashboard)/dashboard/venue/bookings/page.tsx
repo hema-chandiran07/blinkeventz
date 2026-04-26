@@ -27,10 +27,11 @@ interface Booking {
   guests: number;
   baseAmount: number;
   finalAmount: number;
-  status: "pending" | "confirmed" | "completed" | "cancelled";
+  status: "pending" | "confirmed" | "completed" | "cancelled" | "rejected";
   venueName: string;
   createdAt: string;
   notes?: string;
+  slot?: any;
 }
 
 const TIME_SLOT_LABELS: Record<TimeSlotType, string> = {
@@ -61,9 +62,31 @@ export default function VenueBookingsPage() {
   const loadBookings = async () => {
     try {
       setLoading(true);
-      // Fetch bookings from API
-      const response = await api.get('/venue-owner/bookings');
-      setBookings(response.data || []);
+      // Fetch venue bookings from API
+      const response = await api.get('/venues/me/bookings');
+      const data = response.data || [];
+
+      // Transform backend data to frontend format
+      const transformedBookings: Booking[] = data.map((booking: any) => ({
+        id: booking.id,
+        customerName: booking.user?.name || 'Unknown',
+        customerEmail: booking.user?.email || '',
+        customerPhone: booking.user?.phone || '',
+        eventName: booking.slot?.eventTitle || booking.slot?.name || 'Event',
+        eventType: booking.slot?.entityType === 'VENUE' ? 'VENUE' : 'SERVICE',
+        date: booking.slot?.date || '',
+        timeSlot: (booking.slot?.timeSlot || 'evening') as any,
+        guests: booking.guestCount || 0,
+        baseAmount: booking.totalAmount || 0,
+        finalAmount: booking.totalAmount || 0,
+        status: (booking.status || 'pending').toLowerCase() as any,
+        venueName: booking.slot?.venue?.name,
+        notes: booking.notes,
+        createdAt: booking.createdAt,
+        slot: booking.slot || booking,
+      }));
+
+      setBookings(transformedBookings);
     } catch (error) {
       console.error("Failed to load bookings:", error);
       toast.error("Failed to load bookings");
@@ -107,13 +130,18 @@ export default function VenueBookingsPage() {
 
     setActionLoading(true);
     try {
-      const newStatus: "confirmed" | "cancelled" = actionType === "approve" ? "confirmed" : "cancelled";
+      const newStatus: "CONFIRMED" | "CANCELLED" | "REJECTED" =
+        actionType === "approve" ? "CONFIRMED" :
+        actionType === "cancel" ? "CANCELLED" : "REJECTED";
 
-      // API call (commented out for mock data)
-      // await api.put(`/venue-owner/bookings/${selectedBooking.id}/status`, { status: newStatus });
-      
+      // Call the booking status update API
+      await api.patch(`/venues/me/bookings/${selectedBooking.id}/status`, {
+        status: newStatus
+      });
+
+      // Update local state
       setBookings(bookings.map(b =>
-        b.id === selectedBooking.id ? { ...b, status: newStatus } : b
+        b.id === selectedBooking.id ? { ...b, status: newStatus.toLowerCase() as any } : b
       ));
 
       const messages = {
@@ -122,7 +150,7 @@ export default function VenueBookingsPage() {
         cancel: "Booking cancelled. Customer has been notified."
       };
       toast.success(messages[actionType]);
-      
+
       setActionDialogOpen(false);
       setViewDialogOpen(false);
       setSelectedBooking(null);
@@ -162,7 +190,7 @@ export default function VenueBookingsPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
-          <div className="h-12 w-12 rounded-full border-4 border-neutral-200 border-t-black animate-spin mx-auto mb-4" />
+          <div className="h-12 w-12 rounded-full border-4 border-neutral-800 border-t-neutral-400 animate-spin mx-auto mb-4" />
           <p className="text-neutral-600">Loading bookings...</p>
         </div>
       </div>
@@ -170,7 +198,12 @@ export default function VenueBookingsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <motion.div
+      className="space-y-6"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+    >
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
@@ -185,19 +218,19 @@ export default function VenueBookingsPage() {
 
       {/* Stats Cards */}
       <motion.div
-        className="grid gap-4 md:grid-cols-2 lg:grid-cols-5"
+        className="grid gap-6 md:grid-cols-2 lg:grid-cols-5"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
       >
-        <Card>
+        <Card className="border-neutral-200 bg-white hover:shadow-xl hover:shadow-black/10 transition-all duration-300">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-600">Total Bookings</p>
+                <p className="text-sm font-medium text-black">Total Bookings</p>
                 <p className="text-2xl font-bold text-black mt-1">{stats.total}</p>
               </div>
-              <div className="p-3 rounded-full bg-silver-100 text-neutral-700">
+              <div className="p-3 rounded-full bg-neutral-100 text-neutral-700 shadow-lg shadow-black/10">
                 <Calendar className="h-5 w-5" />
               </div>
             </div>
@@ -207,7 +240,7 @@ export default function VenueBookingsPage() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-600">Pending</p>
+                <p className="text-sm font-medium text-black">Pending</p>
                 <p className="text-2xl font-bold text-yellow-600 mt-1">{stats.pending}</p>
               </div>
               <div className="p-3 rounded-full bg-yellow-50 text-yellow-600">
@@ -220,7 +253,7 @@ export default function VenueBookingsPage() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-600">Confirmed</p>
+                <p className="text-sm font-medium text-black">Confirmed</p>
                 <p className="text-2xl font-bold text-green-600 mt-1">{stats.confirmed}</p>
               </div>
               <div className="p-3 rounded-full bg-green-50 text-green-600">
@@ -233,7 +266,7 @@ export default function VenueBookingsPage() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-600">Completed</p>
+                <p className="text-sm font-medium text-black">Completed</p>
                 <p className="text-2xl font-bold text-blue-600 mt-1">{stats.completed}</p>
               </div>
               <div className="p-3 rounded-full bg-blue-50 text-blue-600">
@@ -246,8 +279,8 @@ export default function VenueBookingsPage() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-600">Revenue</p>
-                <p className="text-2xl font-bold text-black mt-1">₹{(stats.revenue / 100000).toFixed(2)}L</p>
+                <p className="text-sm font-medium text-black">Revenue</p>
+                <p className="text-2xl font-bold text-black mt-1">Rs{(stats.revenue / 100000).toFixed(2)}L</p>
               </div>
               <div className="p-3 rounded-full bg-green-50 text-green-600">
                 <DollarSign className="h-5 w-5" />
@@ -272,13 +305,13 @@ export default function VenueBookingsPage() {
                   placeholder="Search by customer name, email, or event..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 text-black"
                 />
               </div>
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                className="flex h-10 rounded-md border border-silver-200 bg-white px-4 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-600"
+                className="flex h-10 rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-600"
               >
                 <option value="all">All Status</option>
                 <option value="pending">Pending</option>
@@ -290,7 +323,7 @@ export default function VenueBookingsPage() {
                 <select
                   value={filterVenue}
                   onChange={(e) => setFilterVenue(e.target.value)}
-                  className="flex h-10 rounded-md border border-silver-200 bg-white px-4 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-600"
+                  className="flex h-10 rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-600"
                 >
                   <option value="all">All Venues</option>
                   {venues.map(v => (
@@ -335,44 +368,46 @@ export default function VenueBookingsPage() {
                       <div className="flex items-center gap-3 mb-3 flex-wrap">
                         <h3 className="text-xl font-bold text-black">{booking.eventName}</h3>
                         {getStatusBadge(booking.status)}
-                        <Badge variant="outline" className="text-neutral-600">
+                        <Badge variant="outline" className="text-black">
                           {booking.eventType}
                         </Badge>
                       </div>
 
                       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
                         <div className="flex items-start gap-2">
-                          <Users className="h-5 w-5 text-neutral-400 mt-0.5" />
+                          <Users className="h-5 w-5 text-neutral-500 mt-0.5" />
                           <div>
-                            <p className="text-xs font-medium text-neutral-600">Customer</p>
+                            <p className="text-sm font-medium text-black">Customer</p>
                             <p className="text-black font-medium">{booking.customerName}</p>
-                            <div className="flex items-center gap-2 text-xs text-neutral-500 mt-1">
+                            <div className="flex items-center gap-2 text-sm text-neutral-600 mt-1">
                               <Phone className="h-3 w-3" />
                               {booking.customerPhone}
                             </div>
-                            <div className="flex items-center gap-2 text-xs text-neutral-500 mt-1">
+                            <div className="flex items-center gap-2 text-sm text-neutral-600 mt-1">
                               <Mail className="h-3 w-3" />
                               {booking.customerEmail}
                             </div>
                           </div>
                         </div>
                         <div className="flex items-start gap-2">
-                          <Calendar className="h-5 w-5 text-neutral-400 mt-0.5" />
+                          <Calendar className="h-5 w-5 text-neutral-500 mt-0.5" />
                           <div>
-                            <p className="text-xs font-medium text-neutral-600">Date & Time</p>
+                            <p className="text-sm font-medium text-black">Date & Time</p>
                             <p className="text-black font-medium">
                               {new Date(booking.date).toLocaleDateString("en-IN", { weekday: "short", year: "numeric", month: "long", day: "numeric" })}
                             </p>
-                            <p className="text-sm text-neutral-600 mt-1">{TIME_SLOT_LABELS[booking.timeSlot]}</p>
+                            <p className="text-sm text-neutral-600 mt-1">{booking.slot?.meta?.startTime && booking.slot?.meta?.endTime
+                              ? `${booking.slot.meta.startTime} – ${booking.slot.meta.endTime}`
+                              : TIME_SLOT_LABELS[booking.timeSlot] || booking.timeSlot}</p>
                           </div>
                         </div>
                         <div className="flex items-start gap-2">
-                          <DollarSign className="h-5 w-5 text-neutral-400 mt-0.5" />
+                          <DollarSign className="h-5 w-5 text-neutral-500 mt-0.5" />
                           <div>
-                            <p className="text-xs font-medium text-neutral-600">Amount</p>
-                            <p className="text-black font-bold text-lg">₹{booking.finalAmount.toLocaleString("en-IN")}</p>
-                            <p className="text-xs text-neutral-500">
-                              {booking.guests} guests • {booking.venueName}
+                            <p className="text-sm font-medium text-black">Amount</p>
+                            <p className="text-black font-bold text-lg">Rs{booking.finalAmount.toLocaleString("en-IN")}</p>
+                            <p className="text-sm text-neutral-600">
+                              {booking.guests} guests - {booking.venueName}
                             </p>
                           </div>
                         </div>
@@ -382,14 +417,14 @@ export default function VenueBookingsPage() {
                         <div className="flex items-start gap-2 p-3 bg-amber-50 rounded-lg border border-amber-200">
                           <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5" />
                           <div>
-                            <p className="text-xs font-medium text-amber-800">Customer Notes</p>
+                            <p className="text-sm font-medium text-amber-800">Customer Notes</p>
                             <p className="text-sm text-amber-700 mt-0.5">{booking.notes}</p>
                           </div>
                         </div>
                       )}
                     </div>
 
-                    <div className="flex flex-col gap-2 lg:border-l lg:border-silver-200 lg:pl-4">
+                    <div className="flex flex-col gap-2 lg:border-l lg:border-neutral-200 lg:pl-4">
                       <Button
                         variant="outline"
                         size="sm"
@@ -445,7 +480,7 @@ export default function VenueBookingsPage() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Booking Details</DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-neutral-600">
               Complete information about the booking
             </DialogDescription>
           </DialogHeader>
@@ -458,34 +493,36 @@ export default function VenueBookingsPage() {
 
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
-                  <p className="text-sm font-medium text-neutral-600">Customer</p>
+                  <p className="text-sm font-medium text-black">Customer</p>
                   <p className="text-black font-medium">{selectedBooking.customerName}</p>
                   <p className="text-sm text-neutral-600">{selectedBooking.customerEmail}</p>
                   <p className="text-sm text-neutral-600">{selectedBooking.customerPhone}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-neutral-600">Event Details</p>
+                  <p className="text-sm font-medium text-black">Event Details</p>
                   <p className="text-black">{selectedBooking.eventType}</p>
                   <p className="text-sm text-neutral-600">
                     {new Date(selectedBooking.date).toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
                   </p>
-                  <p className="text-sm text-neutral-600">{TIME_SLOT_LABELS[selectedBooking.timeSlot]}</p>
+                  <p className="text-sm text-neutral-600">{selectedBooking.slot?.meta?.startTime && selectedBooking.slot?.meta?.endTime
+                    ? `${selectedBooking.slot.meta.startTime} – ${selectedBooking.slot.meta.endTime}`
+                    : TIME_SLOT_LABELS[selectedBooking.timeSlot] || selectedBooking.timeSlot}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-neutral-600">Venue</p>
+                  <p className="text-sm font-medium text-black">Venue</p>
                   <p className="text-black">{selectedBooking.venueName}</p>
                   <p className="text-sm text-neutral-600">{selectedBooking.guests} guests</p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-neutral-600">Payment</p>
-                  <p className="text-black font-bold text-lg">₹{selectedBooking.finalAmount.toLocaleString("en-IN")}</p>
-                  <p className="text-xs text-neutral-500">Booked on {new Date(selectedBooking.createdAt).toLocaleDateString("en-IN")}</p>
+                  <p className="text-sm font-medium text-black">Payment</p>
+                  <p className="text-black font-bold text-lg">Rs{selectedBooking.finalAmount.toLocaleString("en-IN")}</p>
+                  <p className="text-sm text-neutral-600">Booked on {new Date(selectedBooking.createdAt).toLocaleDateString("en-IN")}</p>
                 </div>
               </div>
 
               {selectedBooking.notes && (
-                <div className="p-3 bg-silver-50 rounded-lg border border-silver-200">
-                  <p className="text-sm font-medium text-neutral-600 mb-1">Notes</p>
+                <div className="p-3 bg-neutral-50 rounded-lg border border-neutral-200">
+                  <p className="text-sm font-medium text-black mb-1">Notes</p>
                   <p className="text-sm text-black">{selectedBooking.notes}</p>
                 </div>
               )}
@@ -534,7 +571,7 @@ export default function VenueBookingsPage() {
               {actionType === "reject" && "Confirm Rejection"}
               {actionType === "cancel" && "Confirm Cancellation"}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-neutral-600">
               {actionType === "approve" && "This will confirm the booking and notify the customer."}
               {actionType === "reject" && "This will reject the booking and notify the customer."}
               {actionType === "cancel" && "This will cancel the confirmed booking and notify the customer."}
@@ -545,9 +582,9 @@ export default function VenueBookingsPage() {
               <p className="text-sm text-neutral-600 mb-2">Booking:</p>
               <p className="font-semibold text-black">{selectedBooking.eventName}</p>
               <p className="text-sm text-neutral-600 mt-2">Customer:</p>
-              <p className="font-medium">{selectedBooking.customerName}</p>
+              <p className="font-medium text-black">{selectedBooking.customerName}</p>
               <p className="text-sm text-neutral-600 mt-2">Date:</p>
-              <p className="font-medium">
+              <p className="font-medium text-black">
                 {new Date(selectedBooking.date).toLocaleDateString("en-IN", { weekday: "short", year: "numeric", month: "long", day: "numeric" })}
               </p>
             </div>
@@ -560,8 +597,8 @@ export default function VenueBookingsPage() {
               onClick={confirmAction}
               disabled={actionLoading}
               className={
-                actionType === "approve" ? "bg-green-600 hover:bg-green-700" :
-                actionType === "reject" ? "text-red-600 hover:text-red-700" :
+                actionType === "approve" ? "bg-green-600 hover:bg-green-700 text-white" :
+                actionType === "reject" ? "bg-red-600 hover:bg-red-700 text-white" :
                 "bg-amber-600 hover:bg-amber-700 text-white"
               }
             >
@@ -584,6 +621,6 @@ export default function VenueBookingsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </motion.div>
   );
 }

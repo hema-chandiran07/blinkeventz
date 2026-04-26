@@ -5,11 +5,16 @@ FROM node:20-alpine AS deps
 
 WORKDIR /app
 
+# Install dependencies and build tools needed for native modules (like lightningcss in Tailwind v4)
+RUN apk add --no-cache libc6-compat python3 make g++
+
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci
+# Explicitly install the MUSL version of lightningcss to avoid module loading errors
+# Using install instead of ci to ensure the .node binary matching Alpine's libc is fetched
+RUN npm install lightningcss-linux-x64-musl
+RUN npm install
 
 # =====================================================
 # Stage 2: Builder
@@ -30,6 +35,9 @@ ENV NODE_OPTIONS="--max-old-space-size=4096"
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 
+# Force build from source if necessary as a fail-safe
+ENV npm_config_build_from_source=true
+
 # Build the Next.js application
 RUN npm run build
 
@@ -44,22 +52,23 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Create non-root user for security
+# Create non-root user for security (Alpine style)
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
-
-# Copy standalone server from builder
-COPY --from=builder /app/.next/standalone ./
-
-# Copy static files - CRITICAL for fixing 404 errors
-# Next.js standalone mode does NOT serve static files automatically
-COPY --from=builder /app/.next/static ./.next/static
 
 # Copy public folder if it exists
 COPY --from=builder /app/public ./public
 
-# Set ownership
-RUN chown nextjs:nodejs /app
+# Set the correct permission for prerender cache
+RUN mkdir .next
+RUN chown nextjs:nodejs .next
+
+# Copy standalone server from builder
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+
+# Copy static files - CRITICAL for fixing 404 errors
+# Next.js standalone mode does NOT serve static files automatically
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 # Switch to non-root user
 USER nextjs

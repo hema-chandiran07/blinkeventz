@@ -38,11 +38,36 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       return done(new UnauthorizedException('Google account has no email'), false);
     }
 
+    // Parse state parameter to extract intendedRole and callbackUrl
+    let intendedRole: string | undefined;
+    let callbackUrl: string | undefined;
+
+    if (req.query?.state) {
+      try {
+        let stateString = req.query.state as string;
+
+        // Handle both base64-encoded and URL-encoded state
+        if (!stateString.includes('%') && !stateString.includes('{')) {
+          stateString = Buffer.from(stateString, 'base64').toString('utf-8');
+        } else {
+          stateString = decodeURIComponent(stateString);
+        }
+
+        const stateData = JSON.parse(stateString);
+        intendedRole = stateData.intendedRole;
+        callbackUrl = stateData.callbackUrl;
+      } catch (e) {
+        console.log('⚠️ Could not parse OAuth state parameter:', (e as Error).message);
+      }
+    }
+
     const user = {
       email,
       name: profile.displayName,
       picture: profile.photos?.[0]?.value,
       googleId: profile.id,
+      intendedRole,
+      callbackUrl,
     };
 
     done(null, user);

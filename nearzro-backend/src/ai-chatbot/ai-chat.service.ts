@@ -1,7 +1,8 @@
-import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, NotFoundException, Inject } from '@nestjs/common';
 import { createHash } from 'crypto';
 import { ConversationService } from './conversation.service';
-import { OpenAIProvider } from '../ai-planner/providers/openai.provider';
+import type { AIProvider } from '../ai-planner/ai-providers/ai-provider.interface';
+import { AI_PROVIDER_TOKEN } from '../ai-planner/openai.module';
 import { AIPlannerQueue } from '../ai-planner/queue/ai-planner.queue';
 import { AIPlannerService } from '../ai-planner/ai-planner.service';
 import { InputSanitizer } from '../ai-planner/utils/input-sanitizer';
@@ -71,7 +72,7 @@ export class AIChatService {
 
   constructor(
     private readonly conversationService: ConversationService,
-    private readonly openAIProvider: OpenAIProvider,
+    @Inject(AI_PROVIDER_TOKEN) private readonly openAIProvider: AIProvider,
     private readonly aiPlannerQueue: AIPlannerQueue,
     private readonly aiPlannerService: AIPlannerService,
   ) {}
@@ -92,6 +93,7 @@ export class AIChatService {
     planId?: number;
     state?: ConversationState;
     requiresAuth?: boolean;
+    jobId?: string;
   }> {
     const sanitizedMessage = InputSanitizer.sanitizeForPrompt(message, 1000);
     this.logger.log(`[${requestId || 'unknown'}] Processing message for user ${userId}: ${sanitizedMessage.substring(0, 50)}...`);
@@ -166,9 +168,20 @@ export class AIChatService {
     status: string;
     planId?: number;
     state?: ConversationState;
+    jobId?: string;
   }> {
     // Step 1: Extract entities from message
     const extraction = await this.extractEntities(message, conversation.state);
+
+    // Check if service is unavailable
+    if (extraction.intent === ConversationIntent.SERVICE_UNAVAILABLE) {
+      return {
+        conversationId: conversation.id,
+        reply: 'Currently the service is unavailable. Please try again later.',
+        status: 'COLLECTING',
+        state: conversation.state,
+      };
+    }
 
     // Step 2: Merge extracted entities into state
     const newState: ConversationState = {
@@ -218,6 +231,7 @@ export class AIChatService {
         status: planResult.status,
         planId: planResult.planId,
         state: newState,
+        jobId: planResult.jobId,
       };
     }
 
@@ -254,6 +268,7 @@ export class AIChatService {
     reply: string;
     status: string;
     planId?: number;
+    jobId?: string;
   }> {
     // Extract intent from message
     const extraction = await this.extractEntities(message, conversation.state);
@@ -392,6 +407,23 @@ export class AIChatService {
       return result;
     } catch (error) {
       this.logger.error(`Entity extraction failed: ${error}`);
+      
+      // Check if it's a quota/service unavailable error
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      if (
+        errorMsg.includes('quota') ||
+        errorMsg.includes('billing') ||
+        errorMsg.includes('insufficient') ||
+        errorMsg.includes('SERVICE_UNAVAILABLE') ||
+        errorMsg.includes('Currently the service is unavailable')
+      ) {
+        // Return a special result that triggers fallback in the chat
+        return {
+          intent: ConversationIntent.SERVICE_UNAVAILABLE,
+          confidence: 0,
+        };
+      }
+      
       // Return default on failure
       return {
         intent: ConversationIntent.COLLECT_INFO,
@@ -412,6 +444,11 @@ export class AIChatService {
     planId?: number;
     errorMessage?: string;
   }): Promise<string> {
+    // Check if service is unavailable
+    if (input.intent === ConversationIntent.SERVICE_UNAVAILABLE) {
+      return "Currently the service is unavailable. Please try again later.";
+    }
+    
     const prompt = buildResponseGenerationPrompt(input);
 
     try {
@@ -419,6 +456,18 @@ export class AIChatService {
       return response.trim();
     } catch (error) {
       this.logger.error(`Response generation failed: ${error}`);
+      
+      // Check if it's a quota/service unavailable error
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      if (
+        errorMsg.includes('quota') ||
+        errorMsg.includes('billing') ||
+        errorMsg.includes('insufficient') ||
+        errorMsg.includes('SERVICE_UNAVAILABLE') ||
+        errorMsg.includes('Currently the service is unavailable')
+      ) {
+        return "Currently the service is unavailable. Please try again later.";
+      }
       
       // Fallback responses
       const fieldQuestions: Record<string, string> = {
@@ -436,10 +485,6 @@ export class AIChatService {
     }
   }
 
-  /**
-   * Trigger AI plan generation via queue
-   * Includes idempotency via jobId hash
-   */
   private async triggerPlanGeneration(
     conversationId: string,
     state: ConversationState,
@@ -448,6 +493,7 @@ export class AIChatService {
     reply: string;
     status: string;
     planId?: number;
+    jobId?: string;
   }> {
     await this.conversationService.updateStatus(conversationId, 'GENERATING', userId);
 
@@ -476,6 +522,7 @@ export class AIChatService {
       return {
         reply: "I've received all the details! Your event plan is being generated. This will take a moment. You can check back shortly!",
         status: 'GENERATING',
+        jobId: jobId,
       };
     } catch (error) {
       this.logger.error(`Failed to trigger plan generation: ${error}`);
@@ -560,6 +607,7 @@ export class AIChatService {
     state?: ConversationState;
     requiresAuth: boolean;
     tempState?: ConversationState;
+    jobId?: string;
   }> {
     const sanitizedMessage = InputSanitizer.sanitizeForPrompt(message, 1000);
     this.logger.log(`Processing GUEST message: ${sanitizedMessage.substring(0, 50)}...`);
@@ -571,6 +619,17 @@ export class AIChatService {
 
     // Extract entities from message
     const extraction = await this.extractEntities(message, currentState);
+
+    // Check if service is unavailable
+    if (extraction.intent === ConversationIntent.SERVICE_UNAVAILABLE) {
+      return {
+        conversationId: 'guest-session',
+        reply: 'Currently the service is unavailable. Please try again later.',
+        status: 'COLLECTING',
+        requiresAuth: true,
+        tempState: currentState,
+      };
+    }
 
     // Merge extracted entities into state (but don't persist)
     currentState = {

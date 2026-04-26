@@ -1,3 +1,10 @@
+/**
+ * Notification Service - Real Backend Integration
+ * NO MOCK DATA - All calls go to actual backend API
+ */
+
+import api from '@/lib/api';
+
 // Notification types matching the backend schema
 export type NotificationType =
   | "BOOKING_CONFIRMED"
@@ -45,182 +52,124 @@ export interface NotificationPreference {
   enabled: boolean;
 }
 
-// Mock notifications data
-export const MOCK_NOTIFICATIONS: Notification[] = [
-  {
-    id: 1,
-    userId: 1,
-    eventId: 1,
-    type: "BOOKING_CONFIRMED",
-    priority: "HIGH",
-    title: "New Booking Confirmed!",
-    message: "Priya & Karthik Wedding has been confirmed for June 15, 2024",
-    metadata: { bookingId: "BK001", amount: 150000, customerName: "Rajesh Kumar" },
-    read: false,
-    status: "SENT",
-    createdAt: new Date(Date.now() - 1000 * 60 * 5).toISOString(), // 5 minutes ago
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: 2,
-    userId: 1,
-    eventId: 2,
-    type: "PAYMENT_SUCCESS",
-    priority: "HIGH",
-    title: "Payment Received",
-    message: "₹35,000 received for Wedding Photography Package",
-    metadata: { paymentId: "PAY001", amount: 35000, serviceName: "Wedding Photography" },
-    read: false,
-    status: "SENT",
-    createdAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(), // 30 minutes ago
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: 3,
-    userId: 1,
-    eventId: 3,
-    type: "VENDOR_APPROVED",
-    priority: "NORMAL",
-    title: "Vendor Application Approved",
-    message: "Elegant Decor Studio has been approved and is now live on the platform",
-    metadata: { vendorId: "V001", vendorName: "Elegant Decor Studio" },
-    read: true,
-    readAt: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
-    status: "SENT",
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), // 2 hours ago
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: 4,
-    userId: 1,
-    eventId: 4,
-    type: "EVENT_REMINDER",
-    priority: "HIGH",
-    title: "Event Reminder - Tomorrow",
-    message: "Rahul & Sneha Pre-Wedding is scheduled for tomorrow at 6:00 AM",
-    metadata: { eventId: "E001", eventDate: "2024-05-20", time: "06:00 AM" },
-    read: false,
-    status: "SENT",
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(), // 3 hours ago
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: 5,
-    userId: 1,
-    eventId: 5,
-    type: "BOOKING_CANCELLED",
-    priority: "CRITICAL",
-    title: "Booking Cancelled",
-    message: "Corporate Annual Meet has been cancelled. Refund will be processed within 5-7 business days.",
-    metadata: { bookingId: "BK002", refundAmount: 50000, reason: "Client request" },
-    read: true,
-    readAt: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
-    status: "SENT",
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(), // 5 hours ago
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: 6,
-    userId: 1,
-    eventId: 6,
-    type: "VENUE_APPROVED",
-    priority: "NORMAL",
-    title: "Venue Listing Approved",
-    message: "Royal Convention Center has been approved and is now visible to customers",
-    metadata: { venueId: "VN001", venueName: "Royal Convention Center" },
-    read: true,
-    status: "SENT",
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), // 1 day ago
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: 7,
-    userId: 1,
-    eventId: 7,
-    type: "PAYMENT_FAILED",
-    priority: "CRITICAL",
-    title: "Payment Failed",
-    message: "Payment of ₹25,000 failed for Event Videography. Please contact the customer.",
-    metadata: { paymentId: "PAY002", amount: 25000, reason: "Insufficient funds" },
-    read: false,
-    status: "SENT",
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(), // 2 days ago
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: 8,
-    userId: 1,
-    eventId: 8,
-    type: "SYSTEM_ALERT",
-    priority: "LOW",
-    title: "Platform Maintenance Scheduled",
-    message: "Scheduled maintenance on Feb 25, 2024 from 2:00 AM to 4:00 AM IST",
-    metadata: { maintenanceDate: "2024-02-25", duration: "2 hours" },
-    read: true,
-    status: "SENT",
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString(), // 3 days ago
-    updatedAt: new Date().toISOString()
+/**
+ * Get all notifications for current user from backend
+ */
+export const getUserNotifications = async (
+  page: number = 1,
+  limit: number = 20
+): Promise<{ notifications: Notification[]; pagination: any; unreadCount: number }> => {
+  try {
+    const response = await api.get('/notifications', {
+      params: { page, limit }
+    });
+    return response.data;
+  } catch (error) {
+    // Don't log errors for 401 or timeout - they're expected during auth transitions
+    const status = (error as any)?.response?.status;
+    const code = (error as any)?.code;
+    if (status !== 401 && code !== 'ECONNABORTED') {
+      console.error('Failed to fetch notifications:', error);
+    }
+    return { notifications: [], pagination: { total: 0 }, unreadCount: 0 };
   }
-];
-
-// Mock notification preferences
-export const MOCK_NOTIFICATION_PREFERENCES: NotificationPreference[] = [
-  { id: 1, userId: 1, type: "BOOKING_CONFIRMED", channel: "IN_APP", enabled: true },
-  { id: 2, userId: 1, type: "BOOKING_CONFIRMED", channel: "EMAIL", enabled: true },
-  { id: 3, userId: 1, type: "BOOKING_CONFIRMED", channel: "SMS", enabled: false },
-  { id: 4, userId: 1, type: "PAYMENT_SUCCESS", channel: "IN_APP", enabled: true },
-  { id: 5, userId: 1, type: "PAYMENT_SUCCESS", channel: "EMAIL", enabled: true },
-  { id: 6, userId: 1, type: "EVENT_REMINDER", channel: "IN_APP", enabled: true },
-  { id: 7, userId: 1, type: "EVENT_REMINDER", channel: "SMS", enabled: true },
-  { id: 8, userId: 1, type: "VENDOR_APPROVED", channel: "IN_APP", enabled: true },
-  { id: 9, userId: 1, type: "VENDOR_APPROVED", channel: "EMAIL", enabled: true },
-  { id: 10, userId: 1, type: "SYSTEM_ALERT", channel: "IN_APP", enabled: true },
-];
-
-// Get notifications for a user
-export const getUserNotifications = async (userId: number): Promise<Notification[]> => {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 300));
-  return MOCK_NOTIFICATIONS.filter(n => n.userId === userId);
 };
 
-// Mark notification as read
+/**
+ * Mark notification as read (POST method - backend expects POST)
+ */
 export const markNotificationAsRead = async (notificationId: number): Promise<void> => {
-  await new Promise(resolve => setTimeout(resolve, 200));
-  // In real app, this would update the backend
-  console.log(`Marked notification ${notificationId} as read`);
+  try {
+    await api.post(`/notifications/${notificationId}/read`);
+  } catch (error) {
+    console.error('Failed to mark notification as read:', error);
+    throw error;
+  }
 };
 
-// Mark all notifications as read
-export const markAllNotificationsAsRead = async (userId: number): Promise<void> => {
-  await new Promise(resolve => setTimeout(resolve, 300));
-  console.log(`Marked all notifications as read for user ${userId}`);
+/**
+ * Mark all notifications as read (POST method - backend expects POST)
+ */
+export const markAllNotificationsAsRead = async (): Promise<void> => {
+  try {
+    await api.post('/notifications/read-all');
+  } catch (error) {
+    console.error('Failed to mark all notifications as read:', error);
+    throw error;
+  }
 };
 
-// Get unread count
-export const getUnreadCount = async (userId: number): Promise<number> => {
-  await new Promise(resolve => setTimeout(resolve, 200));
-  return MOCK_NOTIFICATIONS.filter(n => n.userId === userId && !n.read).length;
+/**
+ * Get unread notification count
+ */
+export const getUnreadCount = async (): Promise<number> => {
+  try {
+    const response = await api.get('/notifications/unread-count');
+    return response.data;
+  } catch (error) {
+    console.error('Failed to get unread count:', error);
+    return 0;
+  }
 };
 
-// Get notification preferences
-export const getNotificationPreferences = async (userId: number): Promise<NotificationPreference[]> => {
-  await new Promise(resolve => setTimeout(resolve, 300));
-  return MOCK_NOTIFICATION_PREFERENCES.filter(p => p.userId === userId);
+/**
+ * Delete a notification
+ */
+export const deleteNotification = async (notificationId: number): Promise<void> => {
+  try {
+    await api.delete(`/notifications/${notificationId}`);
+  } catch (error) {
+    console.error('Failed to delete notification:', error);
+    throw error;
+  }
 };
 
-// Update notification preference
+/**
+ * Delete all notifications (clear all)
+ */
+export const deleteAllNotifications = async (): Promise<number> => {
+  try {
+    const response = await api.delete('/notifications');
+    return response.data.deleted;
+  } catch (error) {
+    console.error('Failed to delete all notifications:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get notification preferences
+ */
+export const getNotificationPreferences = async (): Promise<NotificationPreference[]> => {
+  try {
+    const response = await api.get('/notifications/preferences');
+    return response.data;
+  } catch (error) {
+    console.error('Failed to fetch notification preferences:', error);
+    return [];
+  }
+};
+
+/**
+ * Update notification preference
+ */
 export const updateNotificationPreference = async (
-  userId: number,
   type: NotificationType,
   channel: NotificationChannel,
   enabled: boolean
-): Promise<void> => {
-  await new Promise(resolve => setTimeout(resolve, 200));
-  console.log(`Updated preference: ${type} - ${channel} - ${enabled}`);
+): Promise<NotificationPreference> => {
+  try {
+    const response = await api.patch('/notifications/preferences', { type, channel, enabled });
+    return response.data;
+  } catch (error) {
+    console.error('Failed to update notification preference:', error);
+    throw error;
+  }
 };
 
-// Get notification icon based on type (returns Lucide icon name)
+/**
+ * Get notification icon based on type (returns Lucide icon name)
+ */
 export const getNotificationIconName = (type: NotificationType): string => {
   switch (type) {
     case "BOOKING_CONFIRMED":
@@ -249,31 +198,35 @@ export const getNotificationIconName = (type: NotificationType): string => {
   }
 };
 
-// Get notification color based on priority
+/**
+ * Get notification color based on priority
+ */
 export const getNotificationColor = (priority: NotificationPriority): string => {
   switch (priority) {
     case "CRITICAL":
-      return "bg-red-50 border-red-200";
+      return "text-error bg-error-bg/10";
     case "HIGH":
-      return "bg-orange-50 border-orange-200";
+      return "text-warning bg-warning-bg/10";
     case "NORMAL":
-      return "bg-blue-50 border-blue-200";
+      return "text-info bg-info-bg/10";
     case "LOW":
-      return "bg-silver-50 border-silver-200";
+      return "text-silver-400 bg-silver-900/10";
     default:
-      return "bg-silver-50 border-silver-200";
+      return "text-silver-400 bg-silver-900/10";
   }
 };
 
-// Format time ago
+/**
+ * Format time ago
+ */
 export const formatTimeAgo = (dateString: string): string => {
   const date = new Date(dateString);
   const now = new Date();
   const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
   if (seconds < 60) return "Just now";
-  if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
-  if (seconds < 604800) return `${Math.floor(seconds / 86400)} days ago`;
-  return date.toLocaleDateString("en-IN", { month: "short", day: "numeric" });
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
+  return date.toLocaleDateString("en-IN", { month: "short", day: "numeric", year: 'numeric' });
 };

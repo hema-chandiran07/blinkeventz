@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { OpenAIProvider } from './providers/openai.provider';
 import { MockAIProvider } from './ai-providers/mock-ai.provider';
 import { AIProvider } from './ai-providers/ai-provider.interface';
+import { LazyAIProvider } from './ai-providers/lazy-ai.provider';
 
 /**
  * Injection token for AI Provider
@@ -31,9 +32,9 @@ class AIProviderFactory implements OnModuleInit {
 
   async onModuleInit(): Promise<void> {
     const apiKey = this.config.get<string>('OPENAI_API_KEY');
-    
+
     this.logger.log(`🔍 Config check - OPENAI_API_KEY: ${apiKey ? 'present' : 'MISSING'}`);
-    
+
     if (!apiKey || apiKey.trim() === '' || apiKey.includes('YOUR_')) {
       this.logger.warn(
         '⚠️  OPENAI_API_KEY not configured or invalid!\n' +
@@ -46,23 +47,23 @@ class AIProviderFactory implements OnModuleInit {
     // Wait for OpenAIProvider to complete initialization
     // NestJS may run onModuleInit hooks in any order, so we poll until ready
     this.logger.log('⏳ Waiting for OpenAIProvider to initialize...');
-    
+
     const maxWaitTime = 15000; // 15 seconds max wait
     const startTime = Date.now();
-    
+
     while (Date.now() - startTime < maxWaitTime) {
       // Small delay between checks
       await new Promise(resolve => setTimeout(resolve, 500));
-      
+
       if (this.openAIProvider.isAvailable()) {
         this.logger.log('✅ OpenAIProvider is available - using OpenAIProvider');
         this.aiProvider = this.openAIProvider;
         return;
       }
-      
+
       this.logger.debug('OpenAIProvider not ready yet, waiting...');
     }
-    
+
     // If we get here, OpenAIProvider didn't become available in time
     this.logger.warn(
       '⚠️  OpenAIProvider did not become available in time!\n' +
@@ -114,18 +115,21 @@ class AIProviderFactory implements OnModuleInit {
     // IMPORTANT: OpenAIProvider must be FIRST so its onModuleInit runs before AIProviderFactory
     OpenAIProvider,
     MockAIProvider,
-    // AIProviderFactory must come AFTER OpenAIProvider to ensure proper initialization order
-    AIProviderFactory,
+    // LazyAIProvider - resolves provider at runtime, bypassing startup race condition
+    LazyAIProvider,
     {
       provide: AI_PROVIDER_TOKEN,
-      useFactory: (factory: AIProviderFactory) => factory.getAIProvider(),
-      inject: [AIProviderFactory],
+      useFactory: (openAI: OpenAIProvider, mock: MockAIProvider) => {
+        return new LazyAIProvider(openAI, mock);
+      },
+      inject: [OpenAIProvider, MockAIProvider],
     },
   ],
   exports: [
     OpenAIProvider,
     MockAIProvider,
+    LazyAIProvider,
     AI_PROVIDER_TOKEN,
   ],
 })
-export class OpenAIModule {}
+export class OpenAIModule { }

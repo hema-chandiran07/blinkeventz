@@ -39,15 +39,38 @@ export default function CreateEventPage() {
     e.preventDefault();
     setLoading(true);
 
+    const title = formData.title.trim();
+    const city = formData.city.trim();
+    const area = formData.area.trim();
+
+    if (title.length < 3 || title.length > 200) {
+      toast.error("Title must be between 3 and 200 characters");
+      return;
+    }
+    if (city.length < 2 || city.length > 100) {
+      toast.error("City must be between 2 and 100 characters");
+      return;
+    }
+    if (area.length < 2 || area.length > 100) {
+      toast.error("Area must be between 2 and 100 characters");
+      return;
+    }
+
     try {
       const eventData = {
-        ...formData,
+        eventType: formData.eventType,
+        title: formData.title,
+        date: formData.date,
+        timeSlot: formData.timeSlot,
+        city: formData.city,
+        area: formData.area,
         guestCount: parseInt(formData.guestCount),
+        isExpress: formData.isExpress,
       };
 
       await api.post("/events", eventData);
       toast.success("Event created successfully!");
-      router.push("/dashboard/customer");
+      router.push("/dashboard/customer/plan-event");
     } catch (error: any) {
       console.error("Event creation error:", error);
       toast.error(error?.response?.data?.message || "Failed to create event");
@@ -58,39 +81,40 @@ export default function CreateEventPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <Button variant="ghost" onClick={() => router.push("/dashboard/customer")} className="mb-6 gap-2">
+      <Button variant="ghost" onClick={() => router.push("/dashboard/customer")} className="mb-6 gap-2 text-zinc-300 hover:text-zinc-100">
         <ArrowLeft className="h-4 w-4" />
         Back to Dashboard
       </Button>
 
       <div className="max-w-2xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-black mb-2">Create New Event</h1>
-          <p className="text-neutral-600">Start planning your special occasion</p>
+          <h1 className="text-3xl font-bold text-zinc-100 mb-2">Create New Event</h1>
+          <p className="text-zinc-400">Start planning your special occasion</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <Card className="border-silver-200">
+          <Card className="border-zinc-800 bg-zinc-900/50">
             <CardHeader>
-              <CardTitle>Event Details</CardTitle>
+              <CardTitle className="text-zinc-100">Event Details</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="title">Event Title *</Label>
+                <Label htmlFor="title" className="text-zinc-300">Event Title *</Label>
                 <Input
                   id="title"
                   placeholder="e.g., Priya & Karthik Wedding"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   required
+                  className="bg-zinc-900 border-zinc-700 text-zinc-100"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="eventType">Event Type *</Label>
+                <Label htmlFor="eventType" className="text-zinc-300">Event Type *</Label>
                 <select
                   id="eventType"
-                  className="flex w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm"
+                  className="flex w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100"
                   value={formData.eventType}
                   onChange={(e) => setFormData({ ...formData, eventType: e.target.value })}
                   required
@@ -104,7 +128,7 @@ export default function CreateEventPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="date">Event Date *</Label>
+                <Label htmlFor="date" className="text-zinc-300">Event Date *</Label>
                 <Input
                   id="date"
                   type="date"
@@ -112,14 +136,15 @@ export default function CreateEventPage() {
                   onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                   required
                   min={new Date().toISOString().split("T")[0]}
+                  className="bg-zinc-900 border-zinc-700 text-zinc-100"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="timeSlot">Time Slot *</Label>
+                <Label htmlFor="timeSlot" className="text-zinc-300">Time Slot *</Label>
                 <select
                   id="timeSlot"
-                  className="flex w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm"
+                  className="flex w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100"
                   value={formData.timeSlot}
                   onChange={(e) => setFormData({ ...formData, timeSlot: e.target.value })}
                   required
@@ -134,28 +159,30 @@ export default function CreateEventPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="city">City *</Label>
+                  <Label htmlFor="city" className="text-zinc-300">City *</Label>
                   <Input
                     id="city"
                     value={formData.city}
                     onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                     required
+                    className="bg-zinc-900 border-zinc-700 text-zinc-100"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="area">Area *</Label>
+                  <Label htmlFor="area" className="text-zinc-300">Area *</Label>
                   <Input
                     id="area"
                     placeholder="e.g., T Nagar"
                     value={formData.area}
                     onChange={(e) => setFormData({ ...formData, area: e.target.value })}
                     required
+                    className="bg-zinc-900 border-zinc-700 text-zinc-100"
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="guestCount">Expected Guest Count *</Label>
+                <Label htmlFor="guestCount" className="text-zinc-300">Expected Guest Count *</Label>
                 <Input
                   id="guestCount"
                   type="number"
@@ -163,6 +190,7 @@ export default function CreateEventPage() {
                   value={formData.guestCount}
                   onChange={(e) => setFormData({ ...formData, guestCount: e.target.value })}
                   required
+                  className="bg-zinc-900 border-zinc-700 text-zinc-100"
                 />
               </div>
             </CardContent>

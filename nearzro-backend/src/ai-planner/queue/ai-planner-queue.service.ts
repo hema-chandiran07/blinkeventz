@@ -1,6 +1,7 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { OpenAIProvider } from '../providers/openai.provider';
+import type { AIProvider } from '../ai-providers/ai-provider.interface';
+import { AI_PROVIDER_TOKEN } from '../openai.module';
 import { cleanAndParseJSON } from '../utils/json-cleaner';
 import { InputSanitizer } from '../utils/input-sanitizer';
 import { budgetSplitPrompt } from '../prompts/budget-split.prompt';
@@ -62,7 +63,7 @@ export class AIPlannerQueueService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly ai: OpenAIProvider,
+    @Inject(AI_PROVIDER_TOKEN) private readonly ai: AIProvider,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
@@ -183,8 +184,45 @@ export class AIPlannerQueueService {
         };
       }
 
-      // Step 6: Call OpenAI with circuit breaker protection
-      const aiRaw = await this.ai.generateWithCircuitBreaker(prompt);
+      // Step 6: Call OpenAI with circuit breaker protection if available
+      let aiRaw: string;
+      try {
+        if ('generateWithCircuitBreaker' in this.ai) {
+          aiRaw = await (this.ai as any).generateWithCircuitBreaker(prompt);
+        } else {
+          aiRaw = await this.ai.generate(prompt);
+        }
+      } catch (aiError) {
+        const errorMsg = aiError instanceof Error ? aiError.message : String(aiError);
+        
+        // Check for quota/billing errors - these should NOT retry
+        if (
+          errorMsg.includes('quota') || 
+          errorMsg.includes('billing') || 
+          errorMsg.includes('insufficient') ||
+          errorMsg.includes('AI_QUOTA_EXCEEDED') ||
+          errorMsg.includes('Currently the service is unavailable')
+        ) {
+          this.logger.error(`[${traceId}] OpenAI quota exceeded - not retrying`);
+          
+          // Update conversation status to failed
+          if (conversationId) {
+            await this.prisma.aIConversation.update({
+              where: { id: conversationId },
+              data: { status: 'FAILED' },
+            }).catch(() => {});
+          }
+          
+          return {
+            planId: 0,
+            status: 'failed',
+            error: 'SERVICE_UNAVAILABLE',
+          };
+        }
+        
+        // Re-throw other errors to be handled by the catch block
+        throw aiError;
+      }
 
       // Step 7: Parse AI response
       const planJson = cleanAndParseJSON<AIPlanJSON>(aiRaw);

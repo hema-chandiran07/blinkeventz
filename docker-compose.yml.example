@@ -6,7 +6,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 2006
+      POSTGRES_PASSWORD: password
       POSTGRES_DB: nearzro
     ports:
       - "5432:5432"
@@ -15,7 +15,7 @@ services:
     networks:
       - nearzro-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -29,7 +29,7 @@ services:
     networks:
       - nearzro-network
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -51,9 +51,11 @@ services:
     networks:
       - nearzro-network
     restart: unless-stopped
-    command: sh -c "npx prisma migrate deploy && npm run start:prod"
+    volumes:
+      - ./nearzro-backend/uploads:/app/uploads
+    command: sh -c "npx prisma migrate deploy && npx prisma db push --accept-data-loss && npm run start:prod"
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/health"]
+      test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -73,11 +75,12 @@ services:
       - nearzro-network
     restart: unless-stopped
     environment:
-      NEXT_PUBLIC_API_URL: http://api:3000
+      NEXT_PUBLIC_API_URL: http://localhost:3000
       API_INTERNAL_URL: http://api:3000
 
 volumes:
   postgres_data:
+
 
 networks:
   nearzro-network:

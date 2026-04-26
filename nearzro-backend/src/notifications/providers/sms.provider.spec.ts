@@ -4,54 +4,50 @@
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 import { SmsProvider } from './sms.provider';
 
-// Mock sendMail function
+// Mock Twilio
 const mockMessagesCreate = jest.fn().mockResolvedValue({ sid: 'SM123456789' });
+
+jest.mock('twilio', () => ({
+  Twilio: jest.fn().mockImplementation(() => ({
+    messages: {
+      create: mockMessagesCreate,
+    },
+  })),
+}));
 
 describe('SmsProvider', () => {
   let provider: SmsProvider;
-
-  // Set up environment variables before tests
-  beforeAll(() => {
-    process.env.TWILIO_ACCOUNT_SID = 'test_sid';
-    process.env.TWILIO_AUTH_TOKEN = 'test_token';
-    process.env.TWILIO_SMS_FROM = '+1234567890';
-  });
-
-  afterAll(() => {
-    delete process.env.TWILIO_ACCOUNT_SID;
-    delete process.env.TWILIO_AUTH_TOKEN;
-    delete process.env.TWILIO_SMS_FROM;
-  });
+  let configService: ConfigService;
 
   beforeEach(async () => {
     jest.clearAllMocks();
     mockMessagesCreate.mockResolvedValue({ sid: 'SM123456789' });
-    
-    // Create a mock SmsProvider class
-    const MockSmsProvider = jest.fn().mockImplementation(() => ({
-      client: {
-        messages: {
-          create: mockMessagesCreate,
-        },
-      },
-      send: async function(to: string, message: string) {
-        await this.client.messages.create({
-          from: process.env.TWILIO_SMS_FROM,
-          to,
-          body: message,
-        });
-      },
-    }));
+
+    const mockConfigService = {
+      get: jest.fn((key: string, defaultValue?: any) => {
+        const config: Record<string, string> = {
+          TWILIO_ACCOUNT_SID: 'test_sid',
+          TWILIO_AUTH_TOKEN: 'test_token',
+          TWILIO_SMS_FROM: '+1234567890',
+          CIRCUIT_BREAKER_THRESHOLD: '5',
+          CIRCUIT_BREAKER_TIMEOUT: '60000',
+        };
+        return config[key] || defaultValue;
+      }),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        { provide: SmsProvider, useClass: MockSmsProvider },
+        SmsProvider,
+        { provide: ConfigService, useValue: mockConfigService },
       ],
     }).compile();
 
     provider = module.get<SmsProvider>(SmsProvider);
+    configService = module.get<ConfigService>(ConfigService);
   });
 
   afterEach(() => {
@@ -64,10 +60,42 @@ describe('SmsProvider', () => {
     });
   });
 
+  describe('onModuleInit()', () => {
+    it('should initialize Twilio client with valid credentials', () => {
+      provider.onModuleInit();
+      expect(provider.isConnected()).toBe(true);
+    });
+
+    it('should not initialize client without credentials', async () => {
+      const mockConfigServiceNoCreds = {
+        get: jest.fn((key: string, defaultValue?: any) => {
+          if (key === 'TWILIO_ACCOUNT_SID') return '';
+          if (key === 'TWILIO_AUTH_TOKEN') return '';
+          return defaultValue;
+        }),
+      };
+
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          SmsProvider,
+          { provide: ConfigService, useValue: mockConfigServiceNoCreds },
+        ],
+      }).compile();
+
+      const testProvider = module.get<SmsProvider>(SmsProvider);
+      testProvider.onModuleInit();
+      expect(testProvider.isConnected()).toBe(false);
+    });
+  });
+
   describe('send() - Positive Test Cases', () => {
+    beforeEach(() => {
+      provider.onModuleInit();
+    });
+
     it('should send SMS successfully', async () => {
       const result = await provider.send('+1234567890', 'Test message');
-      expect(result).toBeUndefined();
+      expect(result).toBe(true);
       expect(mockMessagesCreate).toHaveBeenCalledWith({
         from: '+1234567890',
         to: '+1234567890',
@@ -76,17 +104,14 @@ describe('SmsProvider', () => {
     });
 
     it('should send SMS with long message', async () => {
-      const longMessage = 'A'.repeat(500);
-      await provider.send('+1234567890', longMessage);
-      expect(mockMessagesCreate).toHaveBeenCalledWith({
-        from: '+1234567890',
-        to: '+1234567890',
-        body: longMessage,
-      });
+      const longMessage = 'A'.repeat(1600);
+      const result = await provider.send('+1234567890', longMessage);
+      expect(result).toBe(true);
     });
 
     it('should send SMS to international numbers', async () => {
-      await provider.send('+919876543210', 'Test message');
+      const result = await provider.send('+919876543210', 'Test message');
+      expect(result).toBe(true);
       expect(mockMessagesCreate).toHaveBeenCalledWith({
         from: '+1234567890',
         to: '+919876543210',
@@ -96,14 +121,52 @@ describe('SmsProvider', () => {
   });
 
   describe('send() - Negative Test Cases', () => {
+    beforeEach(() => {
+      provider.onModuleInit();
+    });
+
+    it('should throw error if provider is not initialized', async () => {
+      const mockConfigServiceNoCreds = {
+        get: jest.fn((key: string, defaultValue?: any) => {
+          if (key === 'TWILIO_ACCOUNT_SID') return '';
+          if (key === 'TWILIO_AUTH_TOKEN') return '';
+          return defaultValue;
+        }),
+      };
+
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          SmsProvider,
+          { provide: ConfigService, useValue: mockConfigServiceNoCreds },
+        ],
+      }).compile();
+
+      const testProvider = module.get<SmsProvider>(SmsProvider);
+      testProvider.onModuleInit();
+      
+      await expect(testProvider.send('+1234567890', 'Test')).rejects.toThrow('SMS provider not configured');
+    });
+
+    it('should reject invalid phone number', async () => {
+      await expect(provider.send('invalid', 'Test message')).rejects.toThrow('Invalid phone number');
+    });
+
+    it('should reject phone number without plus sign', async () => {
+      await expect(provider.send('1234567890', 'Test message')).rejects.toThrow('Invalid phone number');
+    });
+
+    it('should reject empty message', async () => {
+      await expect(provider.send('+1234567890', '')).rejects.toThrow('Message cannot be empty');
+    });
+
+    it('should reject message over 1600 characters', async () => {
+      const longMessage = 'A'.repeat(1601);
+      await expect(provider.send('+1234567890', longMessage)).rejects.toThrow('Message must be 1600 characters or less');
+    });
+
     it('should handle Twilio authentication error', async () => {
       mockMessagesCreate.mockRejectedValueOnce(new Error('Authentication failed'));
       await expect(provider.send('+1234567890', 'Test message')).rejects.toThrow('Authentication failed');
-    });
-
-    it('should handle invalid phone number', async () => {
-      mockMessagesCreate.mockRejectedValueOnce(new Error('Invalid phone number'));
-      await expect(provider.send('invalid', 'Test message')).rejects.toThrow('Invalid phone number');
     });
 
     it('should handle insufficient credits error', async () => {
@@ -118,41 +181,51 @@ describe('SmsProvider', () => {
   });
 
   describe('send() - Edge Cases', () => {
-    it('should handle empty message', async () => {
-      await provider.send('+1234567890', '');
-      expect(mockMessagesCreate).toHaveBeenCalledWith({
-        from: '+1234567890',
-        to: '+1234567890',
-        body: '',
-      });
+    beforeEach(() => {
+      provider.onModuleInit();
     });
 
     it('should handle special characters in message', async () => {
-      await provider.send('+1234567890', 'Hello! 🌍🎉 #test @user');
-      expect(mockMessagesCreate).toHaveBeenCalled();
+      const result = await provider.send('+1234567890', 'Hello! 🌍🎉 #test @user');
+      expect(result).toBe(true);
     });
 
     it('should handle unicode characters', async () => {
-      await provider.send('+1234567890', 'こんにちは مرحبا שלום');
-      expect(mockMessagesCreate).toHaveBeenCalled();
+      const result = await provider.send('+1234567890', 'こんにちは مرحبا שלום');
+      expect(result).toBe(true);
     });
 
-    it('should handle phone number with plus sign', async () => {
-      await provider.send('+1234567890', 'Test message');
-      expect(mockMessagesCreate).toHaveBeenCalledWith({
-        from: '+1234567890',
-        to: '+1234567890',
-        body: 'Test message',
-      });
+    it('should handle phone number with country code', async () => {
+      const result = await provider.send('+919876543210', 'Test message');
+      expect(result).toBe(true);
+    });
+  });
+
+  describe('Circuit Breaker', () => {
+    beforeEach(() => {
+      provider.onModuleInit();
     });
 
-    it('should handle phone number without plus sign', async () => {
-      await provider.send('1234567890', 'Test message');
-      expect(mockMessagesCreate).toHaveBeenCalledWith({
-        from: '+1234567890',
-        to: '1234567890',
-        body: 'Test message',
-      });
+    it('should track circuit breaker state', () => {
+      const state = provider.getCircuitBreakerState();
+      expect(state).toHaveProperty('state');
+      expect(state).toHaveProperty('failures');
+    });
+
+    it('should open circuit after threshold failures', async () => {
+      mockMessagesCreate.mockRejectedValue(new Error('Twilio failed'));
+      
+      // Fail 5 times (threshold)
+      for (let i = 0; i < 5; i++) {
+        try {
+          await provider.send('+1234567890', 'Test message');
+        } catch (e) {
+          // Expected to fail
+        }
+      }
+      
+      const state = provider.getCircuitBreakerState();
+      expect(state.state).toBe('OPEN');
     });
   });
 });

@@ -7,10 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Settings, Bell, Lock, Mail, Phone, Save, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import api from "@/lib/api";
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isInitialized } = useAuth();
   const [loading, setLoading] = useState(false);
   const [notifications, setNotifications] = useState({
     email: true,
@@ -19,19 +20,49 @@ export default function SettingsPage() {
   });
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (!isAuthenticated && isInitialized) {
       router.push("/login");
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, isInitialized, router]);
+
+  // Load preferences on mount
+  useEffect(() => {
+    const loadPreferences = async () => {
+      try {
+        const response = await api.get("/notifications/preferences");
+        const prefs = response.data || [];
+        
+        // Map backend preferences to local state
+        const newPrefs = { ...notifications };
+        prefs.forEach((p: any) => {
+          if (p.channel === 'EMAIL' && p.type === 'SYSTEM_ALERT') newPrefs.email = p.enabled;
+          if (p.channel === 'SMS' && p.type === 'SYSTEM_ALERT') newPrefs.sms = p.enabled;
+          if (p.channel === 'IN_APP' && p.type === 'SYSTEM_ALERT') newPrefs.push = p.enabled;
+        });
+        setNotifications(newPrefs);
+      } catch (error) {
+        console.error("Failed to load preferences:", error);
+      }
+    };
+
+    if (isAuthenticated) {
+      loadPreferences();
+    }
+  }, [isAuthenticated]);
 
   const handleSaveNotifications = async () => {
     setLoading(true);
     try {
-      // Save notification preferences
-      await new Promise(resolve => setTimeout(resolve, 500));
-      toast.success("Notification settings saved!");
-    } catch {
-      toast.error("Failed to save settings");
+      // Use the new global bulk update endpoint
+      await api.patch("/notifications/preferences/global", {
+        EMAIL: notifications.email,
+        SMS: notifications.sms,
+        IN_APP: notifications.push, // Mapping 'push' to 'IN_APP' for dashboard visibility
+      });
+      toast.success("Notification settings synchronized across all categories!");
+    } catch (error: any) {
+      console.error("Failed to save notification settings:", error);
+      toast.error(error?.response?.data?.message || "Failed to save settings");
     } finally {
       setLoading(false);
     }
@@ -71,7 +102,7 @@ export default function SettingsPage() {
         <div className="space-y-6">
           <Card className="border-silver-200">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="text-black">
                 <Bell className="h-5 w-5 text-neutral-800" />
                 Notification Preferences
               </CardTitle>
@@ -149,7 +180,7 @@ export default function SettingsPage() {
 
           <Card className="border-silver-200">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="text-black">
                 <Lock className="h-5 w-5 text-neutral-800" />
                 Security
               </CardTitle>
@@ -176,7 +207,7 @@ export default function SettingsPage() {
 
           <Card className="border-silver-200">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="text-black">
                 <Settings className="h-5 w-5 text-neutral-800" />
                 Account
               </CardTitle>

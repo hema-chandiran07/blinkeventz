@@ -53,6 +53,7 @@ export default function VenueCalendarPage() {
   const [blockDialogOpen, setBlockDialogOpen] = useState(false);
   const [blockReason, setBlockReason] = useState("");
   const [blockLoading, setBlockLoading] = useState(false);
+  const [venues, setVenues] = useState<any[]>([]);
 
   useEffect(() => {
     loadCalendarData();
@@ -62,18 +63,39 @@ export default function VenueCalendarPage() {
     try {
       setLoading(true);
 
+      // Load venues first (needed for unblock)
+      const venuesResponse = await api.get('/venues/my');
+      setVenues(venuesResponse.data || []);
+      
       // Load bookings from API
-      const bookingsResponse = await api.get('/venue-owner/bookings');
-      setBookings(bookingsResponse.data || []);
+      const bookingsResponse = await api.get('/venues/me/bookings');
+      const data = bookingsResponse.data || [];
 
-      // Load blocked slots from API
-      const blockedResponse = await api.get('/venues/venue-owner/blocked-slots');
-      setBlockedSlots(blockedResponse.data || []);
+      const transformedBookings: Booking[] = data.map((booking: any) => ({
+        id: booking.id,
+        customerName: booking.user?.name || 'Unknown',
+        date: booking.slot?.date || '',
+        timeSlot: (booking.slot?.timeSlot || 'MORNING') as any,
+        status: (booking.status || 'PENDING') as any,
+        amount: booking.totalAmount || 0,
+        eventName: booking.slot?.eventTitle || booking.slot?.name || 'Event',
+      }));
+      setBookings(transformedBookings);
+
+      // Load blocked slots from correct endpoint
+      try {
+        const blockedResponse = await api.get('/venues/venue-owner/blocked-slots');
+        setBlockedSlots(blockedResponse.data || []);
+      } catch (error) {
+        console.warn("Could not fetch blocked slots:", error);
+        setBlockedSlots([]);
+      }
     } catch (error) {
       console.error("Failed to load calendar data:", error);
       toast.error("Failed to load calendar data");
       setBookings([]);
       setBlockedSlots([]);
+      setVenues([]);
     } finally {
       setLoading(false);
     }
@@ -120,7 +142,10 @@ export default function VenueCalendarPage() {
   const isBlocked = (date: Date, slot?: TimeSlotType) => {
     const dateStr = date.toISOString().split('T')[0];
     if (slot) {
-      return blockedSlots.some(b => b.date === dateStr && b.timeSlot === slot);
+      return blockedSlots.some(b =>
+        b.date === dateStr &&
+        (b.timeSlot as string).toLowerCase() === slot.toLowerCase()
+      );
     }
     return blockedSlots.some(b => b.date === dateStr);
   };
@@ -180,7 +205,10 @@ export default function VenueCalendarPage() {
 
   const handleUnblockSlot = async (date: string, slot: TimeSlotType) => {
     try {
-      await api.delete(`/venues/venue-owner/blocked-slots?date=${date}&slot=${slot}`);
+      // Get the first venue ID to pass as query param
+      const venueId = venues.length > 0 ? venues[0].id : null;
+      // Use the correct endpoint under /venues/
+      await api.delete(`/venues/venue-owner/blocked-slots?date=${date}&slot=${slot}${venueId ? `&venueId=${venueId}` : ''}`);
       setBlockedSlots(blockedSlots.filter(s => !(s.date === date && s.timeSlot === slot)));
       toast.success("Slot unblocked successfully");
     } catch (error: any) {
@@ -318,8 +346,8 @@ export default function VenueCalendarPage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Availability Calendar</CardTitle>
-                <CardDescription>Click on a slot to block or view details</CardDescription>
+                <CardTitle className="text-black">Availability Calendar</CardTitle>
+                <CardDescription className="text-neutral-600">Click on a slot to block or view details</CardDescription>
               </div>
               <div className="flex items-center gap-1">
                 <Button variant="ghost" size="icon" onClick={handlePrevMonth} className="h-8 w-8">
@@ -443,7 +471,7 @@ export default function VenueCalendarPage() {
             >
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">
+                  <CardTitle className="text-black">
                     {selectedDate.toLocaleDateString("en-IN", { weekday: "long", month: "long", day: "numeric" })}
                   </CardTitle>
                 </CardHeader>
@@ -510,8 +538,8 @@ export default function VenueCalendarPage() {
           {/* Time Slots */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Block Time Slot</CardTitle>
-              <CardDescription>Select a slot to block for {selectedDate ? selectedDate.toLocaleDateString("en-IN", { month: "short", day: "numeric" }) : "a date"}</CardDescription>
+              <CardTitle className="text-black">Block Time Slot</CardTitle>
+              <CardDescription className="text-neutral-600">Select a slot to block for {selectedDate ? selectedDate.toLocaleDateString("en-IN", { month: "short", day: "numeric" }) : "a date"}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
               {(Object.keys(TIME_SLOT_LABELS) as TimeSlotType[]).map((slot) => {
@@ -543,10 +571,10 @@ export default function VenueCalendarPage() {
 
       {/* Block Dialog */}
       <Dialog open={blockDialogOpen} onOpenChange={setBlockDialogOpen}>
-        <DialogContent>
+        <DialogContent className="bg-white">
           <DialogHeader>
-            <DialogTitle>Block Time Slot</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-black">Block Time Slot</DialogTitle>
+            <DialogDescription className="text-neutral-600">
               Block this time slot to prevent bookings
             </DialogDescription>
           </DialogHeader>
@@ -567,7 +595,10 @@ export default function VenueCalendarPage() {
                     key={slot}
                     variant={selectedSlot === slot ? "default" : "outline"}
                     className={cn(
-                      selectedSlot === slot && "bg-black hover:bg-neutral-800"
+                      "w-full",
+                      selectedSlot === slot
+                        ? "bg-black hover:bg-neutral-800 text-white"
+                        : "hover:bg-neutral-100 text-black"
                     )}
                     onClick={() => setSelectedSlot(slot)}
                   >
@@ -579,7 +610,7 @@ export default function VenueCalendarPage() {
             <div>
               <p className="text-sm font-medium text-neutral-600 mb-2">Reason (optional)</p>
               <textarea
-                className="w-full min-h-[80px] rounded-md border border-silver-200 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-600"
+                className="w-full min-h-[80px] rounded-md border border-neutral-300 px-3 py-2 text-sm text-black bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-600"
                 placeholder="e.g., Maintenance, Private event, Holiday..."
                 value={blockReason}
                 onChange={(e) => setBlockReason(e.target.value)}
@@ -593,7 +624,7 @@ export default function VenueCalendarPage() {
             <Button
               onClick={handleBlockSlot}
               disabled={blockLoading || !selectedSlot}
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-red-600 hover:bg-red-700 text-white"
             >
               {blockLoading ? (
                 <>

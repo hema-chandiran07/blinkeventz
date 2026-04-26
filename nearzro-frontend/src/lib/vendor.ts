@@ -13,7 +13,7 @@ export const getMyVendor = async () => {
 export const getMyServices = async () => {
   // If backend doesn't have this yet, return empty array safely
   try {
-    const res = await api.get("/vendor-services/vendor/me");
+    const res = await api.get("/vendors/me/services");
     return res.data;
   } catch {
     return [];

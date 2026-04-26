@@ -27,6 +27,15 @@ import { Role } from '@prisma/client';
 export class ReviewsController {
   constructor(private readonly service: ReviewsService) {}
 
+  // Get All Reviews (Admin Only)
+  @Roles(Role.ADMIN)
+  @Get()
+  getAllReviews(@Query('status') status?: string, @Query('page') page: string = '1', @Query('limit') limit: string = '20') {
+    const pageNum = parseInt(page, 10) || 1;
+    const limitNum = parseInt(limit, 10) || 20;
+    return this.service.findAllForModeration(status, pageNum, limitNum);
+  }
+
   // Create Review (User)
   @Post()
   create(@Req() req: any, @Body() dto: CreateReviewDto) {
@@ -43,6 +52,20 @@ export class ReviewsController {
   @Get('vendor/:vendorId')
   getVendorReviews(@Param('vendorId') vendorId: string, @Query('approved') approved: boolean = true) {
     return this.service.findByVendor(+vendorId, approved);
+  }
+
+  // Get Reviews for Current Vendor (Vendor only)
+  @Roles(Role.VENDOR)
+  @Get('vendors/me')
+  getMyVendorReviews(@Req() req: any) {
+    return this.service.findByVendorUser(req.user.userId);
+  }
+
+  // Get Reviews for Current Venue Owner (Venue Owner only)
+  @Roles(Role.VENUE_OWNER)
+  @Get('venues/me')
+  getMyVenueReviews(@Req() req: any) {
+    return this.service.findByVenueOwner(req.user.userId);
   }
 
   // Get My Reviews (User)
@@ -69,7 +92,7 @@ export class ReviewsController {
     return this.service.vote(+id, req.user.userId, helpful);
   }
 
-  // Get All Reviews for Moderation (Admin)
+  // Get All Reviews for Moderation (Admin) - Legacy endpoint
   @Roles(Role.ADMIN)
   @Get('admin/all')
   getAllForModeration(@Query('status') status?: string) {

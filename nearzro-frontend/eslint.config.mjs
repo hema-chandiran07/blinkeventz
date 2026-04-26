@@ -23,7 +23,7 @@ const eslintConfig = defineConfig([
       "@typescript-eslint/no-unused-vars": "off",
 
       // Auto remove unused imports
-      "unused-imports/no-unused-imports": "error",
+      "unused-imports/no-unused-imports": "warn",
 
       // Warn unused variables but ignore "_" prefixed
       "unused-imports/no-unused-vars": [

@@ -9,10 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
   Building, Calendar, DollarSign, Plus, Search,
-  CheckCircle2, Clock, Star, MapPin
+  CheckCircle2, Clock, Star, MapPin, BarChart3
 } from "lucide-react";
 import api from "@/lib/api";
 import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 interface Venue {
   id: number;
@@ -50,38 +51,49 @@ const itemVariants = {
 
 export default function VenueOwnerDashboardPage() {
   const router = useRouter();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isInitialized } = useAuth();
   const [loading, setLoading] = useState(true);
   const [venues, setVenues] = useState<Venue[]>([]);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
+    if (!isInitialized) return;
     if (!isAuthenticated) {
       router.push("/login");
       return;
     }
     if (user?.role !== "VENUE_OWNER") {
-      router.push("/dashboard/venue");
+      router.push("/dashboard");
       return;
     }
     loadDashboardData();
-  }, [isAuthenticated, user, router]);
+  }, [isInitialized, isAuthenticated, user, router]);
+
+  if (!isInitialized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-zinc-950">
+        <div className="animate-pulse text-zinc-400">Loading dashboard...</div>
+      </div>
+    );
+  }
 
   const loadDashboardData = async () => {
     try {
       setLoading(true);
 
       try {
-        const venuesResponse = await api.get('/venues/my');
-        setVenues(venuesResponse.data || []);
+        const venuesResponse = await api.get('/venues/me');
+        const data = venuesResponse.data;
+        // Handle both array response and wrapped response
+        setVenues(Array.isArray(data) ? data : (data?.venues || data?.data || []));
       } catch (error) {
         console.warn("Could not fetch venues");
         setVenues([]);
       }
 
       try {
-        const statsResponse = await api.get('/venues/venue-owner/stats');
+        const statsResponse = await api.get('/dashboard/venue/stats');
         setStats(statsResponse.data || {
           totalVenues: 0,
           activeBookings: 0,
@@ -116,217 +128,236 @@ export default function VenueOwnerDashboardPage() {
   }
 
   return (
-    <motion.div 
-      className="space-y-8"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.5 }}
-    >
-      {/* Welcome Header */}
-      <motion.div 
-        className="flex items-center justify-between"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
+    <div className="min-h-screen bg-[#0a0a0b] text-white selection:bg-blue-500/30 p-8 max-w-[1600px] mx-auto">
+      <motion.div
+        className="space-y-10"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
         transition={{ duration: 0.5 }}
       >
-        <div>
-          <h1 className="text-3xl font-bold text-white">
-            Venue Owner Dashboard 🏢
-          </h1>
-          <p className="text-silver-400 mt-1">
-            Manage your venues and bookings
-          </p>
-        </div>
+        {/* Elite Venue Header */}
         <motion.div
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
+          className="flex items-center justify-between border-b border-white/5 pb-8"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
         >
-          <Button
-            variant="premium"
-            onClick={() => router.push("/dashboard/venue/details")}
-            className="h-12 px-6"
-          >
-            <Plus className="h-5 w-5 mr-2" />
-            Add Venue
-          </Button>
-        </motion.div>
-      </motion.div>
-
-      {/* Stats Cards */}
-      <motion.div 
-        className="grid gap-6 md:grid-cols-2 lg:grid-cols-4"
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-      >
-        {[
-          { title: "Total Venues", value: stats?.totalVenues || 0, subtext: "Active listings", icon: Building },
-          { title: "Active Bookings", value: stats?.activeBookings || 0, subtext: "Pending & confirmed", icon: Calendar },
-          { title: "Total Revenue", value: `₹${(stats?.totalEarnings || 0).toLocaleString()}`, subtext: "All time earnings", icon: DollarSign },
-          { title: "Pending Requests", value: stats?.pendingRequests || 0, subtext: "Awaiting approval", icon: Clock },
-        ].map((stat, index) => (
-          <motion.div key={index} variants={itemVariants}>
-            <Card className="border-silver-800 bg-gradient-to-br from-silver-900/50 to-silver-950/50 hover:shadow-xl hover:shadow-black/30 transition-all duration-300">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-silver-400">
-                  {stat.title}
-                </CardTitle>
-                <stat.icon className="h-5 w-5 text-silver-300" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-white">{stat.value}</div>
-                <p className="text-xs text-silver-500 mt-1">{stat.subtext}</p>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
-      </motion.div>
-
-      {/* Quick Actions */}
-      <motion.div 
-        className="grid gap-4 md:grid-cols-3"
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-        transition={{ delay: 0.2 }}
-      >
-        {[
-          { title: "My Venues", subtitle: "Manage properties", icon: Building, href: "/dashboard/venue/details" },
-          { title: "Bookings", subtitle: "View all requests", icon: CheckCircle2, href: "/dashboard/venue/bookings" },
-          { title: "Calendar", subtitle: "Check availability", icon: Calendar, href: "/dashboard/venue/calendar" },
-        ].map((action, index) => (
-          <motion.div key={index} variants={itemVariants}>
-            <Card 
-              className="border-silver-800 bg-gradient-to-br from-silver-900/50 to-silver-950/50 hover:shadow-xl hover:shadow-black/30 transition-all duration-300 cursor-pointer hover:-translate-y-1" 
-              onClick={() => router.push(action.href)}
-            >
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-silver-700 to-silver-800 flex items-center justify-center shadow-lg shadow-black/20">
-                    <action.icon className="h-6 w-6 text-silver-200" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-white">{action.title}</p>
-                    <p className="text-sm text-silver-400">{action.subtitle}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
-      </motion.div>
-
-      {/* Venues List */}
-      <motion.div variants={itemVariants} id="venues">
-        <Card className="border-silver-800 bg-gradient-to-br from-silver-900/50 to-silver-950/50">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-2xl text-white">Your Venues</CardTitle>
-                <CardDescription>
-                  Manage your property listings
-                </CardDescription>
-              </div>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-silver-500" />
-                <Input
-                  placeholder="Search venues..."
-                  className="pl-9 w-64"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 px-2 py-0 text-[10px] font-bold tracking-wider uppercase">
+                Asset Management
+              </Badge>
+              <div className="flex h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
+              <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Real-Time Capacity Node</span>
             </div>
-          </CardHeader>
-          <CardContent>
-            {venues.length === 0 ? (
-              <div className="text-center py-12">
-                <Building className="h-16 w-16 text-silver-600 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-white mb-2">No venues yet</h3>
-                <p className="text-silver-400 mb-6">
-                  Start by adding your first venue listing
-                </p>
-                <Button variant="premium" onClick={() => router.push("/dashboard/venue/details")}>
-                  <Plus className="h-5 w-5 mr-2" />
-                  Add Venue
-                </Button>
+            <h1 className="text-4xl font-black tracking-tight text-white uppercase italic">
+              Venue <span className="text-transparent bg-clip-text bg-gradient-to-r from-silver-100 to-silver-400">Control</span>
+            </h1>
+            <p className="text-zinc-500 text-sm mt-1 font-medium italic">
+              Centralized intelligence for property optimization and event logistics.
+            </p>
+          </div>
+          <motion.div
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <Button
+              onClick={() => router.push("/dashboard/venue/details?new=true")}
+              className="h-14 px-8 bg-white text-black hover:bg-zinc-200 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)] font-black uppercase tracking-widest text-xs"
+            >
+              <Plus className="h-5 w-5 mr-3" />
+              Register Property
+            </Button>
+          </motion.div>
+        </motion.div>
+
+        {/* Operational Metrics */}
+        <motion.div
+          className="grid gap-6 md:grid-cols-2 lg:grid-cols-4"
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+        >
+          {[
+            { title: "Property Portfolio", value: stats?.totalVenues || 0, subtext: "Active asset listings", icon: Building, color: "text-blue-400" },
+            { title: "Occupancy Logic", value: stats?.activeBookings || 0, subtext: "Scheduled operations", icon: Calendar, color: "text-purple-400" },
+            { title: "Gross Yield", value: `₹${(stats?.totalEarnings || 0).toLocaleString()}`, subtext: "Total financial velocity", icon: DollarSign, color: "text-emerald-400" },
+            { title: "Protocol Queue", value: stats?.pendingRequests || 0, subtext: "Pending approvals", icon: Clock, color: "text-amber-400" },
+          ].map((stat, index) => (
+            <motion.div key={index} variants={itemVariants}>
+              <Card className="bg-zinc-900/40 backdrop-blur-2xl border-white/5 hover:border-white/10 transition-all duration-500 shadow-2xl overflow-hidden group">
+                <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-silver-400/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-xs font-black uppercase tracking-widest text-zinc-500">
+                    {stat.title}
+                  </CardTitle>
+                  <stat.icon className={cn("h-4 w-4", stat.color)} />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-black text-white tracking-tighter">{stat.value}</div>
+                  <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-wider mt-1">{stat.subtext}</p>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </motion.div>
+
+        {/* Quick Access Modules */}
+        <motion.div
+          className="grid gap-4 md:grid-cols-3 lg:grid-cols-6"
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+          transition={{ delay: 0.2 }}
+        >
+          {[
+            { title: "Assets", subtitle: "Management", icon: Building, href: "/dashboard/venue/details" },
+            { title: "Bookings", subtitle: "Logistics", icon: CheckCircle2, href: "/dashboard/venue/bookings" },
+            { title: "Schedule", subtitle: "Timeline", icon: Calendar, href: "/dashboard/venue/calendar" },
+            { title: "Analytics", subtitle: "Performance", icon: BarChart3, href: "/dashboard/venue/analytics" },
+            { title: "Yields", subtitle: "Payouts", icon: DollarSign, href: "/dashboard/venue/payouts" },
+            { title: "Protocol", subtitle: "Compliance", icon: Star, href: "/dashboard/venue/kyc" },
+          ].map((action, index) => (
+            <motion.div key={index} variants={itemVariants}>
+              <Card
+                className="bg-zinc-950 border-white/5 hover:border-white/20 transition-all duration-500 cursor-pointer shadow-xl group overflow-hidden"
+                onClick={() => router.push(action.href)}
+              >
+                <CardContent className="pt-6 relative">
+                  <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity rotate-12">
+                     <action.icon className="h-20 w-20 text-white" />
+                  </div>
+                  <div className="flex flex-col items-center text-center gap-3">
+                    <div className="h-12 w-12 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10 group-hover:bg-white group-hover:text-black transition-all">
+                      <action.icon className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-black text-white uppercase tracking-widest mb-0.5">{action.title}</p>
+                      <p className="text-[9px] text-zinc-600 font-bold uppercase">{action.subtitle}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </motion.div>
+
+        {/* Portfolio Intelligence */}
+        <motion.div variants={itemVariants} id="venues">
+          <Card className="bg-zinc-900/40 backdrop-blur-2xl border-white/5 shadow-2xl overflow-hidden">
+            <CardHeader className="border-b border-white/5 pb-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-xl font-black text-white uppercase tracking-tight">Prime Assets</CardTitle>
+                  <CardDescription className="text-zinc-500 font-medium">
+                    Property portfolio status monitor
+                  </CardDescription>
+                </div>
+                <div className="relative group">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500 group-hover:text-white transition-colors" />
+                  <Input
+                    placeholder="SCAN PORTFOLIO..."
+                    className="pl-10 w-64 bg-black/40 border-white/5 focus:border-white/20 text-xs font-bold tracking-widest placeholder:text-zinc-700"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
               </div>
-            ) : (
-              <div className="space-y-4">
-                {venues.filter(v => v.name.toLowerCase().includes(searchQuery.toLowerCase())).map((venue) => (
-                  <div
-                    key={venue.id}
-                    className="flex items-center justify-between p-4 rounded-xl border border-silver-800 hover:shadow-lg hover:shadow-black/20 hover:border-silver-700 transition-all duration-300 bg-gradient-to-r from-silver-900/30 to-transparent"
+            </CardHeader>
+            <CardContent className="pt-6">
+              {venues.length === 0 ? (
+                <div className="text-center py-20 bg-black/20 rounded-3xl border border-dashed border-white/5">
+                  <Building className="h-16 w-16 text-zinc-800 mx-auto mb-6" />
+                  <h3 className="text-xl font-black text-white uppercase tracking-widest mb-2">Portfolio Empty</h3>
+                  <p className="text-zinc-500 text-sm mb-8 font-medium italic">
+                    Begin asset tokenization by registering your first physical location.
+                  </p>
+                  <Button 
+                    onClick={() => router.push("/dashboard/venue/details")} 
+                    className="bg-white text-black hover:bg-zinc-200 font-black uppercase tracking-widest text-xs px-8 h-12"
                   >
-                    <div className="flex items-center gap-4">
-                      <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-silver-600 to-silver-800 flex items-center justify-center text-white font-bold shadow-lg shadow-black/20">
-                        {venue.name.charAt(0)}
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-white">{venue.name}</h3>
-                        <div className="flex items-center gap-4 text-sm text-silver-400 mt-1">
-                          <span className="flex items-center gap-1">
-                            <MapPin className="h-4 w-4" />
-                            {venue.area}, {venue.city}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <DollarSign className="h-4 w-4" />
-                            ₹{venue.basePriceEvening.toLocaleString()}
-                          </span>
+                    <Plus className="h-5 w-5 mr-3" />
+                    Deploy Asset
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {venues.filter(v => v.name.toLowerCase().includes(searchQuery.toLowerCase())).map((venue) => (
+                    <div
+                      key={venue.id}
+                      className="flex items-center justify-between p-5 rounded-2xl border border-white/5 hover:border-white/10 hover:bg-white/5 transition-all duration-500 group"
+                    >
+                      <div className="flex items-center gap-5">
+                        <div className="h-14 w-14 rounded-2xl bg-zinc-800 flex items-center justify-center text-white font-black text-xl shadow-xl border border-white/5 group-hover:scale-105 transition-transform uppercase">
+                          {venue.name.charAt(0)}
+                        </div>
+                        <div>
+                          <h3 className="font-black text-white text-lg tracking-tight uppercase">{venue.name}</h3>
+                          <div className="flex items-center gap-6 text-[10px] text-zinc-500 font-black uppercase tracking-widest mt-1.5">
+                            <span className="flex items-center gap-2">
+                              <MapPin className="h-3.5 w-3.5" />
+                              {venue.area}, {venue.city}
+                            </span>
+                            <span className="flex items-center gap-2 text-emerald-500">
+                              <DollarSign className="h-3.5 w-3.5" />
+                              ₹{venue.basePriceEvening.toLocaleString()}
+                            </span>
+                          </div>
                         </div>
                       </div>
+                      <div className="flex items-center gap-4">
+                        <Badge className={cn(
+                          "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest",
+                          venue.status === "ACTIVE" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
+                          venue.status === "PENDING_APPROVAL" ? "bg-amber-500/10 text-amber-400 border-amber-500/20" :
+                          "bg-zinc-800 text-zinc-500 border-zinc-700"
+                        )}>
+                          {venue.status.replace("_", " ")}
+                        </Badge>
+                        <Button
+                          variant="ghost"
+                          className="text-white hover:bg-white/10 font-bold border border-white/5 rounded-xl px-5 h-10"
+                          onClick={() => router.push(`/dashboard/venue/details?id=${venue.id}`)}
+                        >
+                          CONFIGURE
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <Badge className={
-                        venue.status === "ACTIVE" ? "bg-green-900/50 text-green-300 border-green-700" :
-                        venue.status === "PENDING_APPROVAL" ? "bg-yellow-900/50 text-yellow-300 border-yellow-700" :
-                        "bg-silver-800/50 text-silver-300 border-silver-600"
-                      }>
-                        {venue.status.replace("_", " ")}
-                      </Badge>
-                      <Button
-                        variant="silver"
-                        size="sm"
-                        onClick={() => router.push(`/dashboard/venue/details?id=${venue.id}`)}
-                      >
-                        Edit
-                      </Button>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Growth Logic */}
+        <motion.div variants={itemVariants}>
+          <Card className="bg-zinc-900/40 backdrop-blur-2xl border-white/5 shadow-2xl">
+            <CardHeader className="border-b border-white/5 pb-4">
+              <CardTitle className="text-sm font-black text-white uppercase tracking-widest">Revenue Optimization</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <div className="grid md:grid-cols-2 gap-6">
+                {[
+                  { icon: Star, title: "Availability Synchronization", desc: "Real-time calendar precision reduces scheduling collisions and increases algorithm authority." },
+                  { icon: Building, title: "Visual Fidelity", desc: "High-resolution property dossiers increase booking probability by 42% on administrative audit." },
+                ].map((tip, index) => (
+                  <div key={index} className="flex items-start gap-4 p-5 rounded-2xl bg-black/40 border border-white/5 hover:border-white/20 transition-all duration-500">
+                    <div className="h-10 w-10 rounded-xl bg-white/5 flex items-center justify-center flex-shrink-0 border border-white/10">
+                      <tip.icon className="h-5 w-5 text-zinc-400" />
+                    </div>
+                    <div>
+                      <p className="font-black text-white text-[11px] uppercase tracking-widest mb-1">{tip.title}</p>
+                      <p className="text-[10px] text-zinc-500 font-medium leading-relaxed italic">{tip.desc}</p>
                     </div>
                   </div>
                 ))}
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </motion.div>
       </motion.div>
+    </div>
 
-      {/* Tips Section */}
-      <motion.div variants={itemVariants}>
-        <Card className="border-silver-800 bg-gradient-to-br from-silver-900/30 to-silver-950/30">
-          <CardHeader>
-            <CardTitle className="text-2xl text-white">Maximize Your Bookings</CardTitle>
-            <CardDescription>Tips for venue success</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {[
-                { icon: Star, title: "Keep Calendar Updated", desc: "Regularly update your availability to avoid booking conflicts and improve customer satisfaction" },
-                { icon: Building, title: "Showcase Your Venue", desc: "Add high-quality photos and detailed descriptions to attract more bookings" },
-              ].map((tip, index) => (
-                <div key={index} className="flex items-start gap-4 p-4 rounded-xl bg-silver-900/50 border border-silver-800">
-                  <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-silver-600 to-silver-800 flex items-center justify-center flex-shrink-0 shadow-lg shadow-black/20">
-                    <tip.icon className="h-5 w-5 text-silver-200" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-white">{tip.title}</p>
-                    <p className="text-sm text-silver-400 mt-1">{tip.desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
-    </motion.div>
   );
 }

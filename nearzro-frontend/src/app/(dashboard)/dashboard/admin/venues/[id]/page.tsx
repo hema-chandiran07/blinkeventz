@@ -1,476 +1,457 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter, useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  ArrowLeft, Eye, Edit, Trash2, MapPin, Users, DollarSign,
-  CheckCircle2, XCircle, Calendar, TrendingUp, Download, Share2,
-  MessageSquare, Star, Building2
+  ArrowLeft, Edit, MapPin, CheckCircle2, XCircle, Calendar, Download, Share2,
+  Building2, Users, Loader2, X, ShieldCheck, AlertCircle, Mail, Phone, ExternalLink,
+  History, CreditCard, Star, Image as ImageIcon, Briefcase, Map as MapIcon,
+  Maximize2, Zap, Settings2, FileText
 } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
 import { toast } from "sonner";
+import api from "@/lib/api";
 
 interface VenueDetail {
   id: number;
+  ownerId: number;
   name: string;
-  owner: string;
-  email: string;
-  phone: string;
   type: string;
+  description?: string;
   address: string;
-  area: string;
   city: string;
+  area: string;
   pincode: string;
   capacityMin: number;
   capacityMax: number;
-  basePriceMorning: number;
-  basePriceEvening: number;
-  basePriceFullDay: number;
-  amenities: string[];
+  basePriceMorning?: number;
+  basePriceEvening?: number;
+  basePriceFullDay?: number;
+  amenities?: string;
   status: string;
-  bookings: number;
-  revenue: number;
-  rating: number;
+  photos?: any[];
+  owner?: {
+    id: number;
+    name: string;
+    email: string;
+    phone?: string;
+    role: string;
+    isActive: boolean;
+    createdAt: string;
+  };
+  availabilitySlots?: any[];
+  kyc?: {
+    status: string;
+    documents: any[];
+  };
   createdAt: string;
+  updatedAt: string;
 }
 
-const MOCK_VENUE: VenueDetail = {
-  id: 1,
-  name: "Grand Ballroom ITC",
-  owner: "ITC Hotels",
-  email: "hotels@itchotels.in",
-  phone: "+91 44 2231 1111",
-  type: "BANQUET",
-  address: "123 GST Road",
-  area: "Guindy",
-  city: "Chennai",
-  pincode: "600032",
-  capacityMin: 500,
-  capacityMax: 800,
-  basePriceMorning: 100000,
-  basePriceEvening: 150000,
-  basePriceFullDay: 200000,
-  amenities: ["Parking", "AC", "Catering", "Decoration", "Sound System"],
-  status: "ACTIVE",
-  bookings: 45,
-  revenue: 6750000,
-  rating: 4.8,
-  createdAt: "2024-01-15",
+const TYPE_LABELS: Record<string, string> = {
+  HALL: "Grand Hall",
+  MANDAPAM: "Traditional Mandapam",
+  LAWN: "Open Air Lawn",
+  RESORT: "Luxury Resort",
+  BANQUET: "Banquet Suite",
+  BANQUET_HALL: "Banquet Hall",
+  MARRIAGE_HALL: "Marriage Hall",
+  BEACH_VENUE: "Beach Front",
+  HOTEL: "Business Hotel",
+  COMMUNITY_HALL: "Community Hall",
+  OTHER: "Generic Venue",
 };
 
-const STATUS_COLORS: Record<string, string> = {
-  ACTIVE: "bg-emerald-500 text-white",
-  PENDING_APPROVAL: "bg-amber-500 text-white",
-  INACTIVE: "bg-neutral-500 text-white",
-  SUSPENDED: "bg-red-500 text-white",
-};
-
-export default function VenueDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default function AdminVenueDetailPage() {
   const router = useRouter();
-  const [venue] = useState<VenueDetail>(MOCK_VENUE);
+  const params = useParams();
+  const [loading, setLoading] = useState(true);
+  const [venue, setVenue] = useState<VenueDetail | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
 
-  const formatCurrency = (amount: number) => {
-    if (amount >= 10000000) return `₹${(amount / 10000000).toFixed(2)}Cr`;
-    if (amount >= 100000) return `₹${(amount / 100000).toFixed(2)}L`;
-    return `₹${(amount / 1000).toFixed(2)}K`;
-  };
+  useEffect(() => {
+    loadVenue();
+  }, [params.id]);
 
-  const handleUpdateStatus = async (newStatus: string) => {
+  const loadVenue = async () => {
     try {
-      console.log(`Updating venue ${venue.id} status to ${newStatus}`);
-      toast.success(`Venue status updated to ${newStatus}`);
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-      window.location.reload();
+      setLoading(true);
+      // Fetching from the broad administrative dossier endpoint
+      const response = await api.get(`/venues/admin/${params.id}`);
+      setVenue(response.data || null);
     } catch (error: any) {
-      console.error("Status update error:", error);
-      toast.error("Failed to update status");
+      console.error("Transmission Error:", error);
+      toast.error("Failed to extract venue dossier from registry");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleDelete = async () => {
-    if (confirm("Are you sure you want to delete this venue?")) {
-      try {
-        console.log(`Deleting venue ${venue.id}`);
-        toast.success("Venue deleted successfully");
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 500));
-        router.push("/dashboard/admin/venues");
-      } catch (error: any) {
-        console.error("Delete error:", error);
-        toast.error("Failed to delete venue");
+  const handleStatusUpdate = async (status: string, reason?: string) => {
+    try {
+      setActionLoading(true);
+      if (status === 'ACTIVE') {
+        await api.patch(`/venues/${venue?.id}/approve`);
+      } else if (status === 'REJECTED') {
+        await api.patch(`/venues/${venue?.id}/reject`, { reason });
+      } else {
+        await api.patch(`/venues/${venue?.id}`, { status });
       }
-    }
-  };
-
-  const handleExport = async () => {
-    try {
-      console.log(`Exporting venue ${venue.id}`);
-      toast.success("Venue details exported");
+      toast.success(`Operational status updated to ${status}`);
+      loadVenue();
     } catch (error: any) {
-      console.error("Export error:", error);
-      toast.error("Failed to export venue");
+      toast.error("Failed to update asset operational status");
+    } finally {
+      setActionLoading(false);
     }
   };
 
-  const handleShare = async () => {
-    try {
-      console.log(`Sharing venue ${venue.id}`);
-      const shareUrl = `${window.location.origin}/venues/${venue.id}`;
-      await navigator.clipboard.writeText(shareUrl);
-      toast.success("Venue link copied to clipboard");
-    } catch (error: any) {
-      console.error("Share error:", error);
-      toast.error("Failed to share venue");
-    }
-  };
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <div className="h-16 w-16 border-[4px] border-black border-t-transparent rounded-full animate-spin" />
+        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-neutral-400">Syncing Asset Dossier</p>
+      </div>
+    );
+  }
 
-  const handleEdit = () => {
-    console.log(`Editing venue ${venue.id}`);
-    toast.info("Opening edit mode...");
-  };
-
-  const handleSendMessage = () => {
-    console.log(`Sending message to owner ${venue.owner}`);
-    toast.success("Message sent to owner");
-  };
-
-  const handleViewProfile = () => {
-    console.log(`Viewing owner profile`);
-    router.push("/dashboard/admin/users");
-  };
-
-  const handleViewBookings = () => {
-    console.log(`Viewing bookings for venue ${venue.id}`);
-    router.push(`/dashboard/admin/venues/${venue.id}/bookings`);
-  };
-
-  const handleManageCalendar = () => {
-    console.log(`Managing calendar for venue ${venue.id}`);
-    router.push(`/dashboard/admin/venues/${venue.id}/calendar`);
-  };
-
-  const handleViewAnalytics = () => {
-    console.log(`Viewing analytics for venue ${venue.id}`);
-    router.push(`/dashboard/admin/reports/venues?id=${venue.id}`);
-  };
+  if (!venue) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
+        <AlertCircle className="h-20 w-20 text-red-600" />
+        <div className="text-center">
+          <h3 className="text-2xl font-black text-black uppercase tracking-tight">Node Not Found</h3>
+          <p className="text-neutral-500 font-medium mt-1">Asset ID {params.id} is missing from the global registry.</p>
+        </div>
+        <Button onClick={() => router.push("/dashboard/admin/venues")} className="h-12 bg-black text-white px-8 rounded-xl font-bold">
+          <ArrowLeft className="h-4 w-4 mr-2" /> Back to Registry
+        </Button>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      {/* Header with Actions */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-between"
-      >
-        <div className="flex items-center gap-4">
+    <div className="space-y-8">
+      {/* Industrial Header */}
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 pb-6 border-b-2 border-neutral-100">
+        <div className="space-y-4">
           <Button
             variant="ghost"
-            size="icon"
             onClick={() => router.back()}
-            className="hover:bg-neutral-100 transition-colors"
+            className="p-0 hover:bg-transparent text-neutral-400 hover:text-black transition-colors font-bold uppercase tracking-widest text-[10px] flex items-center gap-2"
           >
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="h-4 w-4" /> Exit to Registry
           </Button>
-          <div>
-            <h1 className="text-3xl font-bold text-black">{venue.name}</h1>
-            <p className="text-neutral-600">Venue ID: #{venue.id}</p>
+          <div className="flex items-center gap-4">
+            <div className="h-20 w-20 rounded-[2.5rem] bg-black flex items-center justify-center font-black text-white text-3xl shadow-2xl shadow-black/20">
+              <Building2 className="h-10 w-10" />
+            </div>
+            <div>
+              <div className="flex items-center gap-3">
+                <h1 className="text-4xl font-black tracking-tighter text-black uppercase">{venue.name}</h1>
+                <Badge className={`rounded px-3 py-1 text-[10px] font-black uppercase tracking-[0.1em] ${venue.status === 'ACTIVE' ? 'bg-emerald-600' :
+                    (venue.status === 'REJECTED' || venue.status === 'INACTIVE' || venue.status === 'DELISTED') ? 'bg-red-600' : 'bg-amber-500'
+                  } text-white`}>
+                  {venue.status.replace('_', ' ')}
+                </Badge>
+              </div>
+              <p className="text-neutral-500 font-bold uppercase tracking-widest text-xs mt-1 flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-neutral-300" /> {venue.area}, {venue.city} • Capacity: {venue.capacityMax} Guests
+              </p>
+            </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" className="border-black hover:bg-neutral-100 transition-colors">
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
-          <Button variant="outline" className="border-black hover:bg-neutral-100 transition-colors">
-            <Share2 className="h-4 w-4 mr-2" />
-            Share
-          </Button>
-          <Button variant="outline" className="border-black hover:bg-neutral-100 transition-colors">
-            <Edit className="h-4 w-4 mr-2" />
-            Edit
-          </Button>
-          <Button
-            variant="outline"
-            className="border-red-300 text-red-600 hover:bg-red-50 transition-colors"
-            onClick={handleDelete}
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Delete
-          </Button>
-        </div>
-      </motion.div>
 
-      {/* Status & Quick Actions */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="flex items-center justify-between"
-      >
-        <Badge className={`${STATUS_COLORS[venue.status]} px-4 py-2 text-sm font-semibold`}>
-          {venue.status.replace("_", " ")}
-        </Badge>
-        <div className="flex items-center gap-2">
-          {venue.status === "PENDING_APPROVAL" && (
+        <div className="flex flex-wrap gap-2">
+          {venue.status === 'PENDING_APPROVAL' && (
             <>
               <Button
-                onClick={() => handleUpdateStatus("ACTIVE")}
-                className="bg-emerald-600 hover:bg-emerald-700 transition-colors"
+                onClick={() => handleStatusUpdate('ACTIVE')}
+                disabled={actionLoading}
+                className="h-12 bg-emerald-600 text-white hover:bg-emerald-700 px-6 rounded-xl font-bold border-b-4 border-emerald-800 active:border-b-0 transition-all flex items-center gap-2"
               >
-                <CheckCircle2 className="h-4 w-4 mr-2" />
-                Approve Venue
+                <CheckCircle2 className="h-5 w-5" /> AUTHORIZE ASSET
               </Button>
               <Button
-                variant="outline"
-                className="border-red-300 text-red-600 hover:bg-red-50 transition-colors"
-                onClick={() => handleUpdateStatus("INACTIVE")}
+                onClick={() => {
+                  const reason = prompt("Enter rejection reason:");
+                  if (reason) handleStatusUpdate('REJECTED', reason);
+                }}
+                disabled={actionLoading}
+                className="h-12 bg-white text-red-600 hover:bg-red-50 px-6 rounded-xl font-bold border-2 border-red-100 flex items-center gap-2"
               >
-                <XCircle className="h-4 w-4 mr-2" />
-                Reject
+                <XCircle className="h-5 w-5" /> REJECT ASSET
               </Button>
             </>
           )}
-          {venue.status === "ACTIVE" && (
-            <Button
-              variant="outline"
-              className="border-red-300 text-red-600 hover:bg-red-50 transition-colors"
-              onClick={() => handleUpdateStatus("INACTIVE")}
-            >
-              <XCircle className="h-4 w-4 mr-2" />
-              Deactivate
-            </Button>
-          )}
+          <Button
+            onClick={() => router.push(`/dashboard/admin/venues/${venue.id}/edit`)}
+            className="h-12 bg-black text-white hover:bg-neutral-800 px-6 rounded-xl font-bold border-b-4 border-neutral-900 active:border-b-0 transition-all flex items-center gap-2"
+          >
+            <Edit className="h-5 w-5" /> EDIT SPECS
+          </Button>
         </div>
-      </motion.div>
+      </div>
 
-      {/* Main Content Grid */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Venue Details */}
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.2 }}
-          className="lg:col-span-2 space-y-6"
-        >
-          <Card className="border-2 border-black hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <CardTitle className="text-black flex items-center gap-2">
-                <Building2 className="h-5 w-5" />
-                Venue Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium text-neutral-600">Venue Type</p>
-                  <p className="text-lg font-bold text-black">{venue.type}</p>
+      <Tabs defaultValue="overview" className="space-y-8">
+        <TabsList className="bg-neutral-100 p-1.5 rounded-[2rem] w-full lg:w-max flex items-center gap-1 overflow-x-auto no-scrollbar">
+          {[
+            { id: 'overview', label: 'Overview', icon: Building2 },
+            { id: 'gallery', label: 'Gallery', icon: ImageIcon },
+            { id: 'operations', label: 'Operations', icon: Settings2 },
+            { id: 'kyc', label: 'Ownership & KYC', icon: ShieldCheck },
+            { id: 'pricing', label: 'Economics', icon: CreditCard },
+          ].map((tab) => (
+            <TabsTrigger
+              key={tab.id}
+              value={tab.id}
+              className="px-8 py-3 rounded-[1.5rem] data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-lg text-[10px] font-black uppercase tracking-[0.1em] text-neutral-400 transition-all flex items-center gap-2"
+            >
+              <tab.icon className="h-4 w-4" /> {tab.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-8 mt-0 focus-visible:outline-none">
+          <div className="grid gap-6 lg:grid-cols-3">
+            <Card className="lg:col-span-2 border-2 border-neutral-100 shadow-sm rounded-[2rem] overflow-hidden">
+              <CardHeader className="bg-neutral-50 px-8 py-6 border-b-2 border-neutral-100 flex flex-row items-center justify-between">
+                <CardTitle className="text-xs font-black uppercase tracking-[0.2em] text-black">Asset Specifications</CardTitle>
+                <Building2 className="h-5 w-5 text-neutral-300" />
+              </CardHeader>
+              <CardContent className="p-8 space-y-8">
+                <div className="grid grid-cols-2 gap-8">
+                  <div className="space-y-2">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-neutral-400">Property Type</label>
+                    <p className="text-xl font-black text-black">{TYPE_LABELS[venue.type] || venue.type}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-neutral-400">Guest Capacity</label>
+                    <p className="text-xl font-black text-black">{venue.capacityMin} - {venue.capacityMax} Guests</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-neutral-600">Capacity</p>
-                  <p className="text-lg font-bold text-black">
-                    {venue.capacityMin} - {venue.capacityMax} guests
-                  </p>
+                <div className="space-y-2">
+                  <label className="text-[9px] font-black uppercase tracking-widest text-neutral-400">Dossier / Background</label>
+                  <p className="text-neutral-600 font-medium leading-relaxed">{venue.description || 'No descriptive metadata captured.'}</p>
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-neutral-600">Address</p>
-                  <div className="flex items-start gap-2">
-                    <MapPin className="h-5 w-5 text-neutral-400 mt-0.5" />
+                <div className="grid grid-cols-2 gap-8 pt-4">
+                  <div className="flex items-center gap-4 p-4 rounded-2xl bg-neutral-50">
+                    <div className="h-10 w-10 rounded-xl bg-white border border-neutral-100 flex items-center justify-center text-black">
+                      <MapIcon className="h-5 w-5" />
+                    </div>
                     <div>
-                      <p className="text-lg font-bold text-black">{venue.address}</p>
-                      <p className="text-sm text-neutral-600">{venue.area}, {venue.city} - {venue.pincode}</p>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-neutral-400 leading-none mb-1">Hub Location</p>
+                      <p className="text-sm font-black text-black leading-none">{venue.city}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 p-4 rounded-2xl bg-neutral-50">
+                    <div className="h-10 w-10 rounded-xl bg-white border border-neutral-100 flex items-center justify-center text-black">
+                      <MapPin className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-neutral-400 leading-none mb-1">Address Index</p>
+                      <p className="text-sm font-black text-black leading-none truncate w-40">{venue.address}</p>
                     </div>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-2 border-neutral-100 shadow-sm rounded-[2rem] overflow-hidden h-max">
+              <CardHeader className="bg-black px-8 py-6 border-b-2 border-neutral-900 flex flex-row items-center justify-between">
+                <CardTitle className="text-xs font-black uppercase tracking-[0.2em] text-white">Property Management</CardTitle>
+                <Users className="h-5 w-5 text-neutral-500" />
+              </CardHeader>
+              <CardContent className="p-8 space-y-6">
+                <div className="flex items-center gap-4">
+                  <div className="h-14 w-14 rounded-full bg-neutral-100 flex items-center justify-center font-black text-neutral-400 text-lg uppercase">
+                    {venue.owner?.name?.charAt(0) || 'U'}
+                  </div>
+                  <div>
+                    <p className="text-lg font-black text-black leading-tight uppercase tracking-tight">{venue.owner?.name || 'Unknown'}</p>
+                    <Badge className="mt-1 bg-black text-white text-[8px] font-black uppercase">Owner ID: #{venue.owner?.id}</Badge>
+                  </div>
+                </div>
+                <div className="space-y-4 pt-4">
+                  <div className="group flex items-center justify-between p-3 border-b border-neutral-50 cursor-pointer">
+                    <div className="flex items-center gap-3">
+                      <Mail className="h-4 w-4 text-neutral-400" />
+                      <span className="text-xs font-bold text-neutral-600">{venue.owner?.email || 'N/A'}</span>
+                    </div>
+                    <ExternalLink className="h-3 w-3 text-neutral-200 group-hover:text-black" />
+                  </div>
+                  <div className="group flex items-center justify-between p-3 border-b border-neutral-50 cursor-pointer">
+                    <div className="flex items-center gap-3">
+                      <Phone className="h-4 w-4 text-neutral-400" />
+                      <span className="text-xs font-bold text-neutral-600">{venue.owner?.phone || 'N/A'}</span>
+                    </div>
+                    <ExternalLink className="h-3 w-3 text-neutral-200 group-hover:text-black" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="gallery" className="space-y-8 mt-0 focus-visible:outline-none">
+          <Card className="border-2 border-neutral-100 shadow-sm rounded-[2rem] overflow-hidden">
+            <CardHeader className="bg-neutral-50 px-8 py-6 border-b-2 border-neutral-100 flex flex-row items-center justify-between">
+              <CardTitle className="text-xs font-black uppercase tracking-[0.2em] text-black">Property Visual Audit</CardTitle>
+              <div className="flex items-center gap-2">
+                <Badge className="bg-black text-white font-black text-[9px]">{venue.photos?.length || 0} Assets</Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="p-8">
+              {venue.photos && venue.photos.length > 0 ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                  {venue.photos.map((img: any, i: number) => (
+                    <div key={i} className="group relative aspect-video rounded-3xl overflow-hidden border-2 border-neutral-100 bg-neutral-50 hover:border-black transition-all">
+                      <img src={img.url} alt="Venue" className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                      <div className="absolute top-4 right-4">
+                        {img.isCover && <Badge className="bg-emerald-500 text-white font-black text-[8px] uppercase">Primary</Badge>}
+                      </div>
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                        <Button variant="ghost" size="icon" className="h-10 w-10 bg-white text-black hover:bg-black hover:text-white rounded-full transition-all"><Maximize2 className="h-4 w-4" /></Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-24 text-center flex flex-col items-center gap-4 text-neutral-300">
+                  <ImageIcon className="h-20 w-20" />
+                  <p className="text-[10px] font-black uppercase tracking-widest">Digital visual assets missing</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="operations" className="space-y-8 mt-0 focus-visible:outline-none">
+          <Card className="border-2 border-neutral-100 shadow-sm rounded-[2rem] overflow-hidden">
+            <CardHeader className="bg-neutral-50 px-8 py-6 border-b-2 border-neutral-100 flex flex-row items-center justify-between">
+              <CardTitle className="text-xs font-black uppercase tracking-[0.2em] text-black">Operational Stream</CardTitle>
+              <Zap className="h-5 w-5 text-neutral-300" />
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b-2 border-neutral-100 text-[9px] font-black uppercase tracking-widest text-neutral-400">
+                      <th className="py-4 px-8">Sync Date</th>
+                      <th className="py-4 px-8">Segment</th>
+                      <th className="py-4 px-8">Status</th>
+                      <th className="py-4 px-8 text-right">Reference</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-neutral-100">
+                    {venue.availabilitySlots?.map((slot: any, i: number) => (
+                      <tr key={i} className="group hover:bg-neutral-50/50 transition-colors">
+                        <td className="py-5 px-8 text-xs font-black text-black">{new Date(slot.date).toLocaleDateString()}</td>
+                        <td className="py-5 px-8 text-xs font-bold text-neutral-500">{slot.timeSlot}</td>
+                        <td className="py-5 px-8">
+                          <Badge variant="outline" className={`rounded text-[8px] font-black uppercase ${slot.status === 'AVAILABLE' ? 'border-emerald-200 text-emerald-600' : 'border-neutral-200 text-neutral-400'}`}>
+                            {slot.status}
+                          </Badge>
+                        </td>
+                        <td className="py-5 px-8 text-right text-[10px] font-bold text-neutral-300">#{slot.id}</td>
+                      </tr>
+                    ))}
+                    {(!venue.availabilitySlots || venue.availabilitySlots.length === 0) && (
+                      <tr><td colSpan={4} className="py-24 text-center text-[10px] font-black uppercase tracking-widest text-neutral-300">No operational logs found</td></tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
 
-          <Card className="border-2 border-black hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <CardTitle className="text-black flex items-center gap-2">
-                <DollarSign className="h-5 w-5" />
-                Pricing Details
-              </CardTitle>
+        <TabsContent value="kyc" className="space-y-8 mt-0 focus-visible:outline-none">
+          <Card className="border-2 border-neutral-100 shadow-sm rounded-[2rem] overflow-hidden">
+            <CardHeader className="bg-neutral-50 px-8 py-6 border-b-2 border-neutral-100 flex flex-row items-center justify-between">
+              <CardTitle className="text-xs font-black uppercase tracking-[0.2em] text-black">Asset Ownership Audit</CardTitle>
+              <ShieldCheck className={`h-5 w-5 ${venue.kyc?.status === 'VERIFIED' ? 'text-emerald-500' : 'text-amber-500'}`} />
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid md:grid-cols-3 gap-4">
-                <div className="p-4 rounded-lg border-2 border-neutral-200">
-                  <p className="text-sm font-medium text-neutral-600">Morning Slot</p>
-                  <p className="text-2xl font-bold text-black mt-2">{formatCurrency(venue.basePriceMorning)}</p>
+            <CardContent className="p-8">
+              <div className="flex items-center gap-4 p-6 rounded-2xl bg-neutral-50 border-2 border-neutral-100 mb-8 max-w-md">
+                <div className={`h-12 w-12 rounded-xl flex items-center justify-center ${venue.kyc?.status === 'VERIFIED' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>
+                  <ShieldCheck className="h-6 w-6" />
                 </div>
-                <div className="p-4 rounded-lg border-2 border-neutral-200">
-                  <p className="text-sm font-medium text-neutral-600">Evening Slot</p>
-                  <p className="text-2xl font-bold text-black mt-2">{formatCurrency(venue.basePriceEvening)}</p>
-                </div>
-                <div className="p-4 rounded-lg border-2 border-neutral-200">
-                  <p className="text-sm font-medium text-neutral-600">Full Day</p>
-                  <p className="text-2xl font-bold text-black mt-2">{formatCurrency(venue.basePriceFullDay)}</p>
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-neutral-400 leading-none mb-1">Dossier Status</p>
+                  <p className="text-lg font-black text-black leading-none">{venue.kyc?.status || 'PENDING'}</p>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 border-black hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <CardTitle className="text-black flex items-center gap-2">
-                <Star className="h-5 w-5" />
-                Amenities & Features
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-2">
-                {venue.amenities.map((amenity, index) => (
-                  <Badge key={index} className="bg-neutral-100 text-black border-neutral-300 px-3 py-1">
-                    {amenity}
-                  </Badge>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 border-black hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <CardTitle className="text-black flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Owner Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
               <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium text-neutral-600">Owner Name</p>
-                  <p className="text-lg font-bold text-black">{venue.owner}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-neutral-600">Email Address</p>
-                  <p className="text-lg font-bold text-black">{venue.email}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-neutral-600">Phone Number</p>
-                  <p className="text-lg font-bold text-black">{venue.phone}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-neutral-600">Registered On</p>
-                  <p className="text-lg font-bold text-black">
-                    {new Date(venue.createdAt).toLocaleDateString("en-IN")}
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-2 pt-4">
-                <Button variant="outline" className="border-black hover:bg-neutral-100 transition-colors">
-                  <MessageSquare className="h-4 w-4 mr-2" />
-                  Send Message
-                </Button>
-                <Button variant="outline" className="border-black hover:bg-neutral-100 transition-colors">
-                  <Eye className="h-4 w-4 mr-2" />
-                  View Profile
-                </Button>
+                {venue.kyc?.documents?.map((doc: any, i: number) => (
+                  <div key={i} className="p-6 rounded-[1.5rem] border-2 border-neutral-100 flex items-center justify-between group hover:border-black transition-all">
+                    <div className="flex items-center gap-4">
+                      <div className="h-12 w-12 rounded-xl bg-neutral-100 flex items-center justify-center text-neutral-400 group-hover:text-black transition-colors">
+                        <FileText className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-black text-black uppercase tracking-tight">{doc.docType}</p>
+                        <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest">{doc.status}</p>
+                      </div>
+                    </div>
+                    <Button variant="ghost" size="sm" className="font-black text-[10px] uppercase tracking-widest h-10 px-4 rounded-xl border border-transparent hover:border-neutral-200">View Asset</Button>
+                  </div>
+                ))}
+                {(!venue.kyc?.documents || venue.kyc.documents.length === 0) && (
+                  <div className="col-span-full py-24 text-center text-neutral-300 font-black uppercase tracking-widest text-[10px]">No verification assets found for owner ID #{venue.ownerId}</div>
+                )}
               </div>
             </CardContent>
           </Card>
-        </motion.div>
+        </TabsContent>
 
-        {/* Sidebar */}
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.3 }}
-          className="space-y-6"
-        >
-          <Card className="border-2 border-black hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <CardTitle className="text-black">Performance Metrics</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between p-3 rounded-lg bg-neutral-50">
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5 text-neutral-400" />
-                  <span className="text-sm text-neutral-600">Total Bookings</span>
+        <TabsContent value="pricing" className="space-y-8 mt-0 focus-visible:outline-none">
+          <div className="grid gap-8 md:grid-cols-3">
+            {[
+              { label: 'Morning Cluster', time: '06:00 - 12:00', price: venue.basePriceMorning, icon: Zap },
+              { label: 'Evening Cluster', time: '16:00 - 22:00', price: venue.basePriceEvening, icon: Star },
+              { label: 'Full Protocol', time: '24 Hour Block', price: venue.basePriceFullDay, icon: Maximize2 },
+            ].map((tier, i) => (
+              <Card key={i} className="border-2 border-neutral-100 shadow-sm rounded-[2rem] overflow-hidden group hover:border-black transition-all">
+                <div className="p-8 space-y-4">
+                  <div className="flex justify-between items-start">
+                    <div className="h-12 w-12 rounded-2xl bg-neutral-50 flex items-center justify-center text-black group-hover:bg-black group-hover:text-white transition-all">
+                      <tier.icon className="h-6 w-6" />
+                    </div>
+                    <Badge variant="outline" className="border-neutral-100 text-[8px] font-black uppercase">{tier.time}</Badge>
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-black uppercase tracking-widest text-neutral-400">{tier.label}</h4>
+                    <p className="text-3xl font-black text-black tracking-tighter mt-1">₹{tier.price?.toLocaleString() || '---'}</p>
+                  </div>
                 </div>
-                <span className="text-xl font-bold text-black">{venue.bookings}</span>
-              </div>
-              <div className="flex items-center justify-between p-3 rounded-lg bg-neutral-50">
-                <div className="flex items-center gap-2">
-                  <DollarSign className="h-5 w-5 text-neutral-400" />
-                  <span className="text-sm text-neutral-600">Total Revenue</span>
-                </div>
-                <span className="text-xl font-bold text-black">{formatCurrency(venue.revenue)}</span>
-              </div>
-              <div className="flex items-center justify-between p-3 rounded-lg bg-neutral-50">
-                <div className="flex items-center gap-2">
-                  <Star className="h-5 w-5 text-amber-500 fill-amber-500" />
-                  <span className="text-sm text-neutral-600">Rating</span>
-                </div>
-                <span className="text-xl font-bold text-black">{venue.rating}/5.0</span>
-              </div>
-            </CardContent>
-          </Card>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+      </Tabs>
 
-          <Card className="border-2 border-black hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <CardTitle className="text-black">Recent Activity</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-start gap-3">
-                <div className="h-2 w-2 rounded-full bg-emerald-600 mt-2" />
-                <div>
-                  <p className="text-sm font-semibold text-black">Venue Approved</p>
-                  <p className="text-xs text-neutral-600">2024-01-20</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="h-2 w-2 rounded-full bg-blue-600 mt-2" />
-                <div>
-                  <p className="text-sm font-semibold text-black">New Booking</p>
-                  <p className="text-xs text-neutral-600">2024-03-10</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="h-2 w-2 rounded-full bg-neutral-400 mt-2" />
-                <div>
-                  <p className="text-sm font-semibold text-black">Profile Updated</p>
-                  <p className="text-xs text-neutral-600">2024-03-01</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 border-black hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <CardTitle className="text-black">Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Button
-                variant="outline"
-                className="w-full border-black hover:bg-neutral-100 transition-colors justify-start"
-                onClick={() => router.push(`/dashboard/admin/venues/${venue.id}/bookings`)}
-              >
-                <Calendar className="h-4 w-4 mr-2" />
-                View Bookings
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full border-black hover:bg-neutral-100 transition-colors justify-start"
-                onClick={() => router.push(`/dashboard/admin/venues/${venue.id}/calendar`)}
-              >
-                <Calendar className="h-4 w-4 mr-2" />
-                Manage Calendar
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full border-black hover:bg-neutral-100 transition-colors justify-start"
-                onClick={() => router.push(`/dashboard/admin/venues/${venue.id}/analytics`)}
-              >
-                <TrendingUp className="h-4 w-4 mr-2" />
-                View Analytics
-              </Button>
-            </CardContent>
-          </Card>
-        </motion.div>
+      {/* Registry Metadata */}
+      <div className="grid md:grid-cols-4 gap-4">
+        <Card className="p-6 border-b-4 border-black bg-neutral-50 rounded-2xl">
+          <p className="text-[8px] font-black uppercase tracking-[0.3em] text-neutral-400 mb-1">State Updated</p>
+          <p className="text-xs font-black text-black leading-none">{new Date(venue.updatedAt).toLocaleString()}</p>
+        </Card>
+        <Card className="p-6 border-b-4 border-black bg-neutral-50 rounded-2xl">
+          <p className="text-[8px] font-black uppercase tracking-[0.3em] text-neutral-400 mb-1">Asset Complexity</p>
+          <p className="text-xs font-black text-black leading-none uppercase">High</p>
+        </Card>
+        <Card className="p-6 border-b-4 border-black bg-neutral-50 rounded-2xl">
+          <p className="text-[8px] font-black uppercase tracking-[0.3em] text-neutral-400 mb-1">Availability Hub</p>
+          <p className="text-xs font-black text-emerald-600 leading-none uppercase">Live Link</p>
+        </Card>
+        <Card className="p-6 border-b-4 border-black bg-neutral-50 rounded-2xl">
+          <p className="text-[8px] font-black uppercase tracking-[0.3em] text-neutral-400 mb-1">Relational Hash</p>
+          <p className="text-xs font-black text-black leading-none uppercase">Linked #{venue.ownerId}</p>
+        </Card>
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import { Processor, Process } from '@nestjs/bull';
+import { Processor, Process, OnQueueError } from '@nestjs/bull';
 import { Logger } from '@nestjs/common';
 import type { Job } from 'bull';
 import { AIPlannerQueueService, GeneratePlanJobData, GeneratePlanJobResult } from './ai-planner-queue.service';
@@ -12,12 +12,21 @@ import { QUEUE_CONFIG } from '../constants/ai-planner.constants';
  * - Retry: 3 attempts with exponential backoff
  * - Timeout: 10 seconds per job
  * - Concurrency: 5 workers
+ * - Special handling for quota errors (no retry)
  */
 @Processor(QUEUE_CONFIG.AI_PLANNER_QUEUE)
 export class AIPlannerProcessor {
   private readonly logger = new Logger(AIPlannerProcessor.name);
 
   constructor(private readonly queueService: AIPlannerQueueService) {}
+
+  /**
+   * Handle uncaught errors in the queue
+   */
+  @OnQueueError()
+  async handleError(error: Error): Promise<void> {
+    this.logger.error(`Queue error: ${error.message}`, error.stack);
+  }
 
   /**
    * Process AI plan generation job
@@ -55,7 +64,25 @@ export class AIPlannerProcessor {
         error instanceof Error ? error.stack : undefined,
       );
 
-      // Re-throw to trigger Bull retry mechanism
+      // Check if this is a quota/service unavailable error - do NOT retry
+      if (
+        errorMessage.includes('SERVICE_UNAVAILABLE') ||
+        errorMessage.includes('quota') ||
+        errorMessage.includes('Currently the service is unavailable')
+      ) {
+        this.logger.warn(
+          `[Job ${job.id}] Service unavailable - not retrying`,
+        );
+        
+        // Return a failed result instead of throwing to prevent retry
+        return {
+          planId: 0,
+          status: 'failed',
+          error: 'SERVICE_UNAVAILABLE',
+        };
+      }
+
+      // Re-throw other errors to trigger Bull retry mechanism
       throw error;
     }
   }

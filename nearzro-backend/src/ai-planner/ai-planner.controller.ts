@@ -180,6 +180,27 @@ export class AIPlannerController {
   }
 
   /**
+   * Get AI Plan by ID
+   * 
+   * GET /ai-planner/:id/result
+   * 
+   * Returns the full plan after a job completes.
+   * Requires authentication.
+   */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.CUSTOMER, Role.ADMIN)
+  @ApiBearerAuth()
+  @Get(':id/result')
+  @ApiOperation({ summary: 'Get AI plan by ID (requires auth)' })
+  async getPlan(@Req() req: any, @Param('id') id: string) {
+    const planId = Number(id);
+    if (isNaN(planId)) {
+      throw new BadRequestException('Invalid plan ID');
+    }
+    return this.service.getPlan(planId, req.user.userId);
+  }
+
+  /**
    * Regenerate AI Plan
    * Rate limited: 5 requests per minute
    * Requires authentication and CUSTOMER role.

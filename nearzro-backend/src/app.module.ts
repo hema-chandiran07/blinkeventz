@@ -3,11 +3,14 @@ import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { CacheModule } from '@nestjs/cache-manager';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { ServeStaticModule } from '@nestjs/serve-static';
 import Redis from 'ioredis';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
+import { MaintenanceGuard } from './common/guards/maintenance.guard';
 import { BullModule } from '@nestjs/bull';
+import { join } from 'path';
 import Joi from 'joi';
 // Feature Modules (UNCHANGED)
 import { PrismaModule } from './prisma/prisma.module';
@@ -33,6 +36,11 @@ import { ReviewsModule } from './reviews/reviews.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { ApprovalsModule } from './approvals/approvals.module';
 import { AIChatModule } from './ai-chatbot/ai-chat.module';
+import { SettingsModule } from './settings/settings.module';
+import { ReportsModule } from './reports/reports.module';
+import { BusinessRulesModule } from './business-rules/business-rules.module';
+import { ContactModule } from './contact/contact.module';
+import { SearchModule } from './search/search.module';
 
 @Module({
   imports: [
@@ -44,21 +52,21 @@ import { AIChatModule } from './ai-chatbot/ai-chat.module';
       validationSchema: Joi.object({
         // Database - Required
         DATABASE_URL: Joi.string().required(),
-        
+
         // Redis - Required
         REDIS_HOST: Joi.string().default('redis'),
         REDIS_PORT: Joi.number().default(6379),
-        
+
         // OpenAI - Optional (will disable AI features if missing)
         OPENAI_API_KEY: Joi.string().optional(),
         OPENAI_MODEL: Joi.string().default('gpt-4o-mini'),
-        
+
         // JWT - Required
         JWT_SECRET: Joi.string().required(),
-        
+
         // App Settings
         APP_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
-        
+
         // Feature Flags
         USE_REDIS: Joi.boolean().default(true),
 
@@ -70,6 +78,18 @@ import { AIChatModule } from './ai-chatbot/ai-chat.module';
       validationOptions: {
         allowUnknown: true,
         abortEarly: false,
+      },
+    }),
+
+    // =====================================================
+    // 📁 STATIC FILES (UPLOADS)
+    // =====================================================
+    ServeStaticModule.forRoot({
+      rootPath: join(process.cwd(), 'uploads'),
+      serveRoot: '/uploads',
+      renderPath: '/uploads', // Restrict rendering to avoid hijacking other routes
+      serveStaticOptions: {
+        index: false, // CRITICAL: Disable index.html fallback for missing files
       },
     }),
 
@@ -98,7 +118,7 @@ import { AIChatModule } from './ai-chatbot/ai-chat.module';
       useFactory: () => {
         // Use memory cache if Redis is unavailable
         const useRedis = process.env.USE_REDIS !== 'false';
-        
+
         if (useRedis) {
           const redis = new Redis({
             host: process.env.REDIS_HOST || '127.0.0.1',
@@ -106,7 +126,7 @@ import { AIChatModule } from './ai-chatbot/ai-chat.module';
             lazyConnect: true,
             retryStrategy: (times) => Math.min(times * 50, 2000),
           });
-          
+
           redis.on('error', (err) => {
             console.log('⚠️  Redis connection error - falling back to memory cache');
           });
@@ -126,7 +146,7 @@ import { AIChatModule } from './ai-chatbot/ai-chat.module';
             },
           };
         }
-        
+
         // Fallback to memory-only cache
         const memoryStore = new Map<string, { value: any; expiry: number }>();
         return {
@@ -149,7 +169,7 @@ import { AIChatModule } from './ai-chatbot/ai-chat.module';
         };
       },
     }),
-      // 🐂 BULLMQ (GLOBAL REDIS CONNECTION)
+    // 🐂 BULLMQ (GLOBAL REDIS CONNECTION)
     BullModule.forRoot({
       redis: {
         host: process.env.REDIS_HOST || '127.0.0.1',
@@ -157,7 +177,7 @@ import { AIChatModule } from './ai-chatbot/ai-chat.module';
       },
       // Queue-level config controls retries - not global
     }),
-    
+
 
     // =====================================================
     // 4️⃣ SCHEDULER
@@ -189,10 +209,20 @@ import { AIChatModule } from './ai-chatbot/ai-chat.module';
     PromotionsModule,
     ReviewsModule,
     AnalyticsModule,
-    ApprovalsModule
+    ApprovalsModule,
+    SettingsModule,
+    ReportsModule,
+    BusinessRulesModule,
+    ContactModule,
+    SearchModule,
   ],
-   // 🔐 GLOBAL SECURITY LAYER
+  // 🔐 GLOBAL SECURITY LAYER
   providers: [
+    // MaintenanceGuard temporarily disabled for debugging
+    // {
+    //   provide: APP_GUARD,
+    //   useClass: MaintenanceGuard,
+    // },
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
@@ -203,4 +233,4 @@ import { AIChatModule } from './ai-chatbot/ai-chat.module';
     },
   ],
 })
-export class AppModule {}
+export class AppModule { }

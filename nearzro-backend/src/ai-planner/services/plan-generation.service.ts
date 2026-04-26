@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { OpenAIProvider } from '../providers/openai.provider';
+import type { AIProvider } from '../ai-providers/ai-provider.interface';
+import { AI_PROVIDER_TOKEN } from '../openai.module';
 import { CreateAIPlanDto } from '../dto/create-ai-plan.dto';
 import { budgetSplitPrompt } from '../prompts/budget-split.prompt';
 import { cleanAndParseJSON } from '../utils/json-cleaner';
@@ -28,7 +29,7 @@ export class PlanGenerationService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly aiProvider: OpenAIProvider,
+    @Inject(AI_PROVIDER_TOKEN) private readonly aiProvider: AIProvider,
   ) {}
 
   /**
@@ -62,10 +63,37 @@ export class PlanGenerationService {
     }
 
     // Step 4: Generate AI plan
-    const planJson = await this.generateAIPlan(sanitized);
+    let planJson: any;
+    let isFallbackPlan = false;
+    
+    try {
+      planJson = await this.generateAIPlan(sanitized);
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      
+      // Check if it's a quota error and we got a fallback
+      if (
+        errorMsg.includes('quota') ||
+        errorMsg.includes('billing') ||
+        errorMsg.includes('insufficient') ||
+        errorMsg.includes('SERVICE_UNAVAILABLE') ||
+        errorMsg.includes('Currently the service is unavailable') ||
+        errorMsg.includes('AI_QUOTA_EXCEEDED')
+      ) {
+        // generateAIPlan already returns fallback, continue with it
+        planJson = await this.generateAIPlan(sanitized);
+        isFallbackPlan = true;
+      } else {
+        throw error;
+      }
+    }
 
-    // Step 5: Validate budget allocation
-    this.validateBudgetAllocation(planJson, sanitized.budget);
+    // Step 5: Validate budget allocation (skip for fallback plans)
+    if (!isFallbackPlan) {
+      this.validateBudgetAllocation(planJson, sanitized.budget);
+    } else {
+      this.logger.log('Skipping validation for fallback plan');
+    }
 
     // Step 6: Persist to database
     const plan = await this.persistPlan(userId, sanitized, planJson);
@@ -90,10 +118,63 @@ export class PlanGenerationService {
 
     // Build and execute prompt
     const prompt = budgetSplitPrompt(sanitized);
-    const aiRaw = await this.aiProvider.generate(prompt);
+    
+    try {
+      const aiRaw = await this.aiProvider.generate(prompt);
+      // Parse and validate response
+      return cleanAndParseJSON(aiRaw);
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      
+      // Check for quota/billing errors - return graceful fallback
+      if (
+        errorMsg.includes('quota') ||
+        errorMsg.includes('billing') ||
+        errorMsg.includes('insufficient') ||
+        errorMsg.includes('SERVICE_UNAVAILABLE') ||
+        errorMsg.includes('Currently the service is unavailable') ||
+        errorMsg.includes('AI_QUOTA_EXCEEDED')
+      ) {
+        this.logger.error(`OpenAI quota exceeded - returning fallback plan`);
+        // Return a mock plan so the queue doesn't crash
+        return this.generateFallbackPlan(sanitized);
+      }
+      
+      // Re-throw other errors
+      throw error;
+    }
+  }
 
-    // Parse and validate response
-    return cleanAndParseJSON(aiRaw);
+  /**
+   * Generate a fallback plan when OpenAI is unavailable
+   * Provides basic budget allocation without AI
+   */
+  private generateFallbackPlan(
+    sanitized: ReturnType<typeof InputSanitizer.sanitizeAIPlanInput>,
+  ): any {
+    const budget = sanitized.budget;
+    const guestCount = sanitized.guestCount;
+    
+    // Default allocation percentages for Indian events
+    const allocations = [
+      { category: 'Venue & Decor', amount: Math.round(budget * 0.30), notes: 'Basic venue with standard decoration' },
+      { category: 'Catering', amount: Math.round(budget * 0.35), notes: 'Vegetarian & non-vegetarian options' },
+      { category: 'Photography/Videography', amount: Math.round(budget * 0.12), notes: 'Professional coverage' },
+      { category: 'Music & Entertainment', amount: Math.round(budget * 0.08), notes: 'DJ or live band' },
+      { category: 'Invitations & Stationery', amount: Math.round(budget * 0.03), notes: 'Digital + physical invites' },
+      { category: 'Flowers & Gifts', amount: Math.round(budget * 0.05), notes: 'Floral arrangements & return gifts' },
+      { category: 'Contingency', amount: Math.round(budget * 0.07), notes: 'Emergency buffer' },
+    ];
+
+    return {
+      summary: {
+        eventType: sanitized.eventType,
+        city: sanitized.city,
+        guestCount: guestCount,
+        totalBudget: budget,
+      },
+      allocations,
+    };
   }
 
   /**

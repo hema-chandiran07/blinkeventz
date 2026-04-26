@@ -72,11 +72,13 @@ export class S3Service {
 
     // ── Upload to S3 ──
     try {
+      const fs = require('fs');
+      const buffer = file.buffer || fs.readFileSync(file.path);
       await this.s3.send(
         new PutObjectCommand({
           Bucket: this.bucket,
           Key: key,
-          Body: file.buffer,
+          Body: buffer,
           ContentType: file.mimetype,
           ServerSideEncryption: 'AES256',
           Metadata: {
@@ -85,9 +87,62 @@ export class S3Service {
           },
         }),
       );
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error('S3 upload failed', error);
-      throw new BadRequestException('File upload failed. Please try again.');
+      throw new BadRequestException(`File upload failed. Please try again. ${error.message || ''}`);
+    }
+
+    // ── Return public URL ──
+    return `https://${this.bucket}.s3.${this.region}.amazonaws.com/${key}`;
+  }
+
+  /**
+   * Upload a vendor service image to S3.
+   *
+   * - Validates MIME type (jpeg, png only for images)
+   * - Validates file size (max 5 MB)
+   * - Generates a unique filename to prevent collisions
+   * - Returns the public URL of the uploaded file
+   */
+  async uploadVendorServiceImage(file: Express.Multer.File): Promise<string> {
+    // ── Validate MIME type ──
+    if (!['image/jpeg', 'image/png'].includes(file.mimetype)) {
+      throw new BadRequestException(
+        `Invalid file type "${file.mimetype}". Allowed: image/jpeg, image/png`,
+      );
+    }
+
+    // ── Validate file size ──
+    if (file.size > MAX_FILE_SIZE) {
+      throw new BadRequestException(
+        `File size ${(file.size / 1024 / 1024).toFixed(2)} MB exceeds the 5 MB limit`,
+      );
+    }
+
+    // ── Generate unique key ──
+    const ext = path.extname(file.originalname) || this.mimeToExt(file.mimetype);
+    const key = `vendor-services/${randomUUID()}${ext}`;
+
+    // ── Upload to S3 ──
+    try {
+      const fs = require('fs');
+      const buffer = file.buffer || fs.readFileSync(file.path);
+      await this.s3.send(
+        new PutObjectCommand({
+          Bucket: this.bucket,
+          Key: key,
+          Body: buffer,
+          ContentType: file.mimetype,
+          ServerSideEncryption: 'AES256',
+          Metadata: {
+            originalName: file.originalname,
+            uploadedAt: new Date().toISOString(),
+          },
+        }),
+      );
+    } catch (error: any) {
+      this.logger.error('S3 upload failed', error);
+      throw new BadRequestException(`File upload failed. Please try again. ${error.message || ''}`);
     }
 
     // ── Return public URL ──

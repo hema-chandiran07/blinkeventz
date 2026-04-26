@@ -3,6 +3,7 @@ import {
   BadRequestException,
   ConflictException,
   NotFoundException,
+  ForbiddenException,
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -85,6 +86,108 @@ export class BankAccountService {
     }
 
     return accounts.map((acc) => this.toSafeResponse(acc));
+  }
+
+  // ──────────────────────────────────────────────────────────
+  // UPDATE BANK ACCOUNT
+  // ──────────────────────────────────────────────────────────
+
+  async updateBankAccount(userId: number, accountId: number, dto: Partial<AddBankAccountDto>) {
+    // 1️⃣ Find the account
+    const account = await this.prisma.bankAccount.findUnique({
+      where: { id: accountId },
+    });
+
+    if (!account) {
+      throw new NotFoundException('Bank account not found');
+    }
+
+    // 2️⃣ Verify ownership
+    if (account.userId !== userId) {
+      throw new ForbiddenException('You do not have permission to update this bank account');
+    }
+
+    // 3️⃣ If account number is being changed, check for duplicates
+    if (dto.accountNumber) {
+      const accountNumberHash = hash(dto.accountNumber);
+      const existingByHash = await this.prisma.bankAccount.findUnique({
+        where: { accountNumberHash },
+      });
+
+      if (existingByHash && existingByHash.id !== accountId) {
+        throw new ConflictException(
+          'This bank account number is already registered',
+        );
+      }
+
+      // Encrypt new account number
+      const encryptedAccountNumber = encrypt(dto.accountNumber);
+      
+      // Update with new account number
+      const updated = await this.prisma.bankAccount.update({
+        where: { id: accountId },
+        data: {
+          accountNumber: encryptedAccountNumber,
+          accountNumberHash,
+          accountHolder: dto.accountHolder || account.accountHolder,
+          ifsc: dto.ifsc || account.ifsc,
+          bankName: dto.bankName || account.bankName,
+          branchName: dto.branchName || account.branchName,
+        },
+      });
+
+      this.logger.log(`Bank account #${accountId} updated by userId=${userId}`);
+
+      return this.toSafeResponse(updated);
+    }
+
+    // 4️⃣ Update other fields without changing account number
+    const updated = await this.prisma.bankAccount.update({
+      where: { id: accountId },
+      data: {
+        accountHolder: dto.accountHolder || account.accountHolder,
+        ifsc: dto.ifsc || account.ifsc,
+        bankName: dto.bankName || account.bankName,
+        branchName: dto.branchName || account.branchName,
+      },
+    });
+
+    this.logger.log(`Bank account #${accountId} updated by userId=${userId}`);
+
+    return this.toSafeResponse(updated);
+  }
+
+  // ──────────────────────────────────────────────────────────
+  // DELETE BANK ACCOUNT
+  // ──────────────────────────────────────────────────────────
+
+  async deleteBankAccount(userId: number, accountId: number) {
+    // 1️⃣ Find the account
+    const account = await this.prisma.bankAccount.findUnique({
+      where: { id: accountId },
+    });
+
+    if (!account) {
+      throw new NotFoundException('Bank account not found');
+    }
+
+    // 2️⃣ Verify ownership
+    if (account.userId !== userId) {
+      throw new ForbiddenException('You do not have permission to delete this bank account');
+    }
+
+    // 3️⃣ Delete the account
+    await this.prisma.bankAccount.delete({
+      where: { id: accountId },
+    });
+
+    this.logger.log(`Bank account #${accountId} deleted by userId=${userId}`);
+
+    return {
+      success: true,
+      message: 'Bank account deleted successfully',
+      accountId,
+    };
   }
 
   // ──────────────────────────────────────────────────────────

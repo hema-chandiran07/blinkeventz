@@ -8,6 +8,7 @@ import { ExecutionContext, ForbiddenException, NotFoundException } from '@nestjs
 import { Reflector } from '@nestjs/core';
 import { VenueOwnerGuard } from './guards/venue-owner.guard';
 import { PrismaService } from '../prisma/prisma.service';
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 
 // ============================================
 // TEST UTILITIES & MOCK DATA
@@ -96,15 +97,15 @@ const mockCustomerRequest = {
 // ============================================
 
 const createMockVenuesService = () => ({
-  createVenue: jest.fn(),
-  findById: jest.fn(),
-  getApprovedVenues: jest.fn(),
-  searchVenues: jest.fn(),
-  updateVenue: jest.fn(),
-  deleteVenue: jest.fn(),
-  approveVenue: jest.fn(),
-  rejectVenue: jest.fn(),
-  getVenuesByOwner: jest.fn(),
+  createVenue: jest.fn() as any,
+  findById: jest.fn() as any,
+  getApprovedVenues: jest.fn() as any,
+  searchVenues: jest.fn() as any,
+  updateVenue: jest.fn() as any,
+  deleteVenue: jest.fn() as any,
+  approveVenue: jest.fn() as any,
+  rejectVenue: jest.fn() as any,
+  getVenuesByOwner: jest.fn() as any,
 });
 
 const createMockVenueOwnerGuard = () => ({
@@ -125,8 +126,8 @@ describe('VenuesController', () => {
     // Create mock PrismaService
     const prismaServiceMock = {
       venue: {
-        findUnique: jest.fn().mockResolvedValue({ ownerId: 100 }),
-        findFirst: jest.fn(),
+        findUnique: jest.fn().mockImplementation(() => Promise.resolve({ ownerId: 100 })),
+        findFirst: jest.fn() as any,
       },
     };
 
@@ -256,6 +257,7 @@ describe('VenuesController', () => {
       const result = await controller.createVenue(
         mockVenueOwnerRequest as any,
         validCreateVenueDto,
+        { venueImages: [], kycDocFiles: [], venueGovtCertificateFiles: [] } as any,
       );
 
       // Assert
@@ -277,6 +279,7 @@ describe('VenuesController', () => {
         1,
         mockVenueOwnerRequest as any,
         updateDto,
+        { venueImages: undefined, kycDocFiles: undefined, venueGovtCertificateFiles: undefined },
       );
 
       // Assert
@@ -367,6 +370,7 @@ describe('VenuesController', () => {
         await controller.createVenue(
           unauthenticatedRequest as any,
           validCreateVenueDto,
+          { venueImages: [], kycDocFiles: [], venueGovtCertificateFiles: [] } as any,
         );
       }).rejects.toThrow();
     });
@@ -385,7 +389,7 @@ describe('VenuesController', () => {
 
       // Act & Assert
       await expect(
-        controller.updateVenue(1, nonOwnerRequest as any, { name: 'Hacked' }),
+        controller.updateVenue(1, nonOwnerRequest as any, { name: 'Hacked' }, { venueImages: undefined, kycDocFiles: undefined, venueGovtCertificateFiles: undefined }),
       ).rejects.toThrow(NotFoundException);
     });
   });
@@ -465,7 +469,7 @@ describe('VenuesController', () => {
 
       // Assert
       await expect(
-        controller.createVenue(mockVenueOwnerRequest as any, invalidDto),
+        controller.createVenue(mockVenueOwnerRequest as any, invalidDto, { venueImages: [], kycDocFiles: [], venueGovtCertificateFiles: [] } as any),
       ).rejects.toThrow();
     });
   });
@@ -509,7 +513,7 @@ describe('VenuesController', () => {
 
       // Act & Assert - should throw TypeError because user is undefined
       expect(() => 
-        controller.createVenue(noUserRequest as any, validCreateVenueDto),
+        controller.createVenue(noUserRequest as any, validCreateVenueDto, { venueImages: [], kycDocFiles: [], venueGovtCertificateFiles: [] } as any),
       ).toThrow(TypeError);
     });
   });
@@ -631,6 +635,7 @@ describe('VenuesController', () => {
         42,
         mockVenueOwnerRequest as any,
         { name: 'Test' },
+        { venueImages: undefined, kycDocFiles: undefined, venueGovtCertificateFiles: undefined },
       );
 
       // Assert

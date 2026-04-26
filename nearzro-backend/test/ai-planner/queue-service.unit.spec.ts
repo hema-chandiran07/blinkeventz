@@ -4,6 +4,7 @@ import { PrismaService } from '../../src/prisma/prisma.service';
 import { OpenAIProvider } from '../../src/ai-planner/providers/openai.provider';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { ConfigService } from '@nestjs/config';
+import { AI_PROVIDER_TOKEN } from '../../src/ai-planner/openai.module';
 
 describe('AIPlannerQueueService', () => {
   let service: AIPlannerQueueService;
@@ -69,7 +70,7 @@ describe('AIPlannerQueueService', () => {
           useValue: mockPrisma,
         },
         {
-          provide: OpenAIProvider,
+          provide: AI_PROVIDER_TOKEN,
           useValue: mockAIProvider,
         },
         {

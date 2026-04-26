@@ -10,11 +10,15 @@ import {
   UnauthorizedException,
   Logger,
   Inject,
-  forwardRef
+  forwardRef,
+  Req
 } from '@nestjs/common';
+import type { RawBodyRequest } from '@nestjs/common';
+import type { Request } from 'express';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 import { PaymentsService } from '../payments.service';
+import { Public } from '../../common/decorators/public.decorator';
 
 interface RazorpayWebhookPayload {
   event: string;
@@ -78,6 +82,7 @@ interface RazorpayWebhookPayload {
  * - Full audit trail
  */
 @Controller('webhooks/razorpay')
+@Public()
 export class RazorpayWebhookController {
   private readonly logger = new Logger(RazorpayWebhookController.name);
   private readonly webhookSecret: string;
@@ -104,6 +109,7 @@ export class RazorpayWebhookController {
   @Post()
   @HttpCode(HttpStatus.OK)
   async handleWebhook(
+    @Req() req: RawBodyRequest<Request>,
     @Body() payload: RazorpayWebhookPayload,
     @Headers('x-razorpay-signature') signature: string,
     @Headers('x-razorpay-webhook-version') webhookVersion?: string,
@@ -141,16 +147,17 @@ export class RazorpayWebhookController {
       }
 
       // In production, always verify signature
-      // In development, verify if secret is set, otherwise skip
-      if (this.webhookSecret || this.isProduction) {
-        this.verifyWebhookSignature(payload, signature, traceId);
-      } else {
-        this.logger.warn({
-          event: 'WEBHOOK_SIGNATURE_SKIPPED',
+      // In development, verify if secret is set, otherwise reject
+      if (!this.webhookSecret) {
+        this.logger.error({
+          event: 'WEBHOOK_SECRET_NOT_CONFIGURED',
           traceId,
-          reason: 'Development mode without secret',
+          reason: 'Webhook secret is not set. All webhooks will be rejected. Set RAZORPAY_WEBHOOK_SECRET.',
         });
+        throw new UnauthorizedException('Webhook signature verification is not configured');
       }
+
+      this.verifyWebhookSignature(req.rawBody, signature, traceId);
 
       // === 3. VERIFY REQUIRED FIELDS ===
       if (!payload.event || !payload.id) {
@@ -231,7 +238,7 @@ export class RazorpayWebhookController {
    * Razorpay uses HMAC-SHA256 with webhook secret
    */
   private verifyWebhookSignature(
-    payload: RazorpayWebhookPayload,
+    rawBody: Buffer | undefined,
     signature: string,
     traceId: string,
   ): void {
@@ -243,12 +250,14 @@ export class RazorpayWebhookController {
       throw new UnauthorizedException('Missing webhook signature');
     }
 
+    if (!rawBody) throw new UnauthorizedException('Raw body missing for signature check');
+
     // Note: In production, Razorpay sends the signature in a specific format
     // The actual verification depends on how Razorpay sends the payload
     // For Razorpay, they send: sha256=signature
     const expectedSignature = crypto
       .createHmac('sha256', this.webhookSecret)
-      .update(JSON.stringify(payload))
+      .update(rawBody)
       .digest('hex');
 
     // Razorpay signature format: sha256=<signature>

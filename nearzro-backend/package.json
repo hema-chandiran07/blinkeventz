@@ -43,6 +43,7 @@
     "@nestjs/platform-express": "^10.3.8",
     "@nestjs/platform-socket.io": "^10.4.22",
     "@nestjs/schedule": "^6.1.0",
+    "@nestjs/serve-static": "^4.0.2",
     "@nestjs/swagger": "^7.0.0",
     "@nestjs/throttler": "^6.5.0",
     "@nestjs/websockets": "^10.4.22",
@@ -62,7 +63,7 @@
     "jsonwebtoken": "~9.0.3",
     "lodash": "^4.17.23",
     "multer": "~2.0.2",
-    "nodemailer": "^8.0.2",
+    "nodemailer": "^8.0.3",
     "openai": "^6.16.0",
     "passport": "~0.7.0",
     "passport-facebook": "^3.0.0",
@@ -73,7 +74,7 @@
     "rxjs": "^7.8.1",
     "socket.io": "^4.8.3",
     "swagger-ui-express": "^5.0.1",
-    "twilio": "^5.12.0"
+    "twilio": "^5.13.1"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.14",
@@ -88,6 +89,7 @@
     "@types/passport-jwt": "^4.0.1",
     "@types/socket.io": "^3.0.1",
     "@types/supertest": "^7.2.0",
+    "@types/twilio": "^3.19.2",
     "cross-env": "^10.1.0",
     "jest": "^30.2.0",
     "pg": "^8.20.0",

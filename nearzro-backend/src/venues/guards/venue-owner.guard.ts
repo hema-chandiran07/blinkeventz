@@ -35,6 +35,11 @@ export class VenueOwnerGuard implements CanActivate {
       throw new ForbiddenException('Authentication required');
     }
 
+    // Bypass ID check for the /venues/my route
+    if (request.path.includes('/venues/my')) {
+      return true;
+    }
+
     // Get venue ID from params
     const venueId = parseInt(request.params.id, 10);
 
@@ -58,8 +63,8 @@ export class VenueOwnerGuard implements CanActivate {
       throw new NotFoundException(`Venue with ID ${venueId} not found`);
     }
 
-    // Check if the current user owns the venue
-    if (venue.ownerId !== user.userId) {
+    // Check if the current user owns the venue (coerce to number for type-safe comparison)
+    if (Number(venue.ownerId) !== Number(user.userId)) {
       throw new ForbiddenException(
         'You do not have permission to modify this venue. Only the venue owner can perform this action.'
       );

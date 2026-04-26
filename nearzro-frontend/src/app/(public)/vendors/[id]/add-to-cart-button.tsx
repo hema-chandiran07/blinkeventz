@@ -55,10 +55,10 @@ export function AddToCartButton({
         },
         cartId: 0,
         venueId: null,
-        vendorServiceId: null,
+        vendorServiceId: itemType === 'vendor' ? parseInt(itemId.split('-')[1] || '0') : null,
         addonId: null,
-        date: null,
-        timeSlot: null,
+        date: metadata?.selectedDate || null,
+        timeSlot: metadata?.timeSlot || null,
         quantity: 1,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -76,10 +76,10 @@ export function AddToCartButton({
     <Button
       size="lg"
       variant={added ? "destructive" : "outline"}
-      className={`w-full h-12 ${
+      className={`w-full h-12 transition-all duration-200 ${
         added
-          ? "bg-red-500 hover:bg-red-600 border-red-500"
-          : "bg-white hover:bg-silver-50 border-silver-200 text-neutral-800"
+          ? "bg-red-500 hover:bg-red-600 hover:text-white text-white border-red-500"
+          : "bg-white hover:bg-zinc-100 hover:text-zinc-900 border-zinc-200 text-zinc-800"
       } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
       onClick={handleAddToCart}
       disabled={isAdding || disabled}

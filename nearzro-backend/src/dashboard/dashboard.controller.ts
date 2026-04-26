@@ -3,7 +3,7 @@ import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { DashboardService } from './dashboard.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../common/decorators/roles.decorator';
-import { Role } from '../common/enums/role.enum';
+import { Role } from '@prisma/client';
 import { RolesGuard } from '../common/guards/roles.guard';
 
 @ApiTags('Dashboard')
@@ -34,12 +34,33 @@ export class DashboardController {
   @Roles(Role.CUSTOMER)
   @Get('customer/stats')
   async getCustomerStats(@Req() req) {
-    return this.dashboardService.getCustomerStats(req.user.id);
+    return this.dashboardService.getCustomerStats(req.user.userId);
   }
 
   @Roles(Role.VENDOR, Role.VENUE_OWNER)
   @Get('provider/stats')
   async getProviderStats(@Req() req) {
-    return this.dashboardService.getProviderStats(req.user.id, req.user.role);
+    return this.dashboardService.getProviderStats(req.user.userId, req.user.role);
+  }
+
+  // ============================================
+  // NEW: Separate Vendor and Venue Dashboard Stats
+  // ============================================
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENDOR)
+  @Get('vendor/stats')
+  getVendorStats(@Req() req: any) {
+    return this.dashboardService.getVendorStats(req.user.userId);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENUE_OWNER)
+  @Get('venue/stats')
+  getVenueStats(@Req() req: any) {
+    return this.dashboardService.getVenueStats(req.user.userId);
   }
 }
+

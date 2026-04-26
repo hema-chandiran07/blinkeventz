@@ -1,287 +1,485 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  ArrowLeft, CheckCircle2, XCircle, Building, Store, Mail, Phone,
-  MapPin, Calendar, Users, AlertCircle, Clock
+  ArrowLeft, CheckCircle2, XCircle, Download, AlertCircle,
+  Loader2, Store, Building, FileText
 } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { useRouter, useParams } from "next/navigation";
 import { toast } from "sonner";
+import api from "@/lib/api";
 
 interface ApprovalDetail {
   id: number;
-  type: "VENUE" | "VENDOR";
+  type: 'VENDOR' | 'VENUE' | 'KYC';
   title: string;
-  owner: string;
-  email: string;
-  phone: string;
-  location: string;
-  area: string;
-  city: string;
-  description: string;
-  capacity?: number;
-  serviceType?: string;
-  price: number;
+  subtitle: string;
+  description?: string;
   status: string;
-  submittedDate: string;
+  submittedAt: string;
+  user?: {
+    name: string;
+    email: string;
+    phone?: string;
+    role: string;
+  };
+  businessName?: string;
+  venueName?: string;
+  docType?: string;
+  docNumber?: string;
+  docFileUrl?: string;
+  images?: string[];
+  city?: string;
+  area?: string;
+  rejectionReason?: string;
 }
 
-const MOCK_APPROVAL: ApprovalDetail = {
-  id: 1,
-  type: "VENUE",
-  title: "Grand Ballroom ITC",
-  owner: "ITC Hotels",
-  email: "hotels@itchotels.in",
-  phone: "+91 44 2231 1111",
-  location: "123 GST Road",
-  area: "Guindy",
-  city: "Chennai",
-  description: "Luxury ballroom with state-of-the-art facilities perfect for weddings and corporate events. Features high ceilings, premium lighting, and capacity for up to 800 guests.",
-  capacity: 800,
-  price: 150000,
-  status: "PENDING_APPROVAL",
-  submittedDate: "2024-03-15",
-};
-
-export default function ApprovalDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default function ApprovalDetailPage() {
   const router = useRouter();
-  const [approval] = useState<ApprovalDetail>(MOCK_APPROVAL);
+  const params = useParams();
+  const [loading, setLoading] = useState(true);
+  const [approval, setApproval] = useState<ApprovalDetail | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [showRejectModal, setShowRejectModal] = useState(false);
 
-  const formatCurrency = (amount: number) => {
-    if (amount >= 100000) return `₹${(amount / 100000).toFixed(2)}L`;
-    return `₹${(amount / 1000).toFixed(2)}K`;
+  useEffect(() => {
+    const controller = new AbortController();
+    loadApproval(controller.signal);
+    return () => controller.abort();
+  }, [params.id]);
+
+  const loadApproval = async (signal?: AbortSignal) => {
+    try {
+      setLoading(true);
+      // Try to load from all three sources
+      const [vendors, venues, kyc] = await Promise.all([
+        api.get("/vendors", { signal }).catch(() => ({ data: [] })),
+        api.get("/venues", { signal }).catch(() => ({ data: [] })),
+        api.get("/kyc/admin/submissions", { signal }).catch(() => ({ data: [] })),
+      ]);
+
+      const id = parseInt(params.id as string);
+      
+      // Search in vendors
+      const vendor = vendors.data.find((v: any) => v.id === id);
+      if (vendor) {
+        setApproval({
+          id: vendor.id,
+          type: 'VENDOR',
+          title: vendor.businessName,
+          subtitle: `${vendor.city}, ${vendor.area}`,
+          description: vendor.description,
+          status: vendor.verificationStatus,
+          submittedAt: vendor.createdAt,
+          user: vendor.user,
+          images: vendor.images,
+          city: vendor.city,
+          area: vendor.area,
+        });
+        return;
+      }
+
+      // Search in venues
+      const venue = venues.data.find((v: any) => v.id === id);
+      if (venue) {
+        setApproval({
+          id: venue.id,
+          type: 'VENUE',
+          title: venue.name,
+          subtitle: `${venue.city}, ${venue.area}`,
+          description: venue.description,
+          status: venue.status,
+          submittedAt: venue.createdAt,
+          user: venue.owner,
+          images: venue.images,
+          city: venue.city,
+          area: venue.area,
+        });
+        return;
+      }
+
+      // Search in KYC
+      const kycItem = kyc.data.find((k: any) => k.id === id);
+      if (kycItem) {
+        setApproval({
+          id: kycItem.id,
+          type: 'KYC',
+          title: `${kycItem.docType} - ${kycItem.user?.name}`,
+          subtitle: kycItem.docNumber,
+          status: kycItem.status,
+          submittedAt: kycItem.createdAt,
+          user: kycItem.user,
+          docType: kycItem.docType,
+          docNumber: kycItem.docNumber,
+          docFileUrl: kycItem.docFileUrl,
+        });
+        return;
+      }
+
+      toast.error("Approval not found");
+      router.push("/dashboard/admin/approvals");
+    } catch (error: any) {
+      if (error.name === 'AbortError' || error.code === 'ERR_CANCELED') return;
+      console.error("Failed to load approval:", error);
+      toast.error("Failed to load approval details");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleApprove = async () => {
-    if (confirm("Are you sure you want to approve this submission?")) {
-      try {
-        console.log(`Approving ${approval.type} ${approval.id}`);
-        toast.success(`${approval.type} approved successfully!`);
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 500));
-        router.push("/dashboard/admin/approvals");
-      } catch (error: any) {
-        console.error("Approve error:", error);
-        toast.error("Failed to approve");
-      }
+    if (!approval) return;
+    try {
+      setActionLoading(true);
+      const endpoint = approval.type === 'VENDOR'
+        ? `/vendors/${approval.id}/approve`
+        : approval.type === 'VENUE'
+        ? `/venues/${approval.id}/approve`
+        : `/kyc/admin/${approval.id}/status`;
+
+      await api.patch(endpoint, approval.type === 'KYC' ? { status: 'VERIFIED' } : {});
+      toast.success(`${approval.type} approved successfully!`);
+      router.push("/dashboard/admin/approvals");
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to approve");
+    } finally {
+      setActionLoading(false);
     }
   };
 
   const handleReject = async () => {
-    if (confirm("Are you sure you want to reject this submission?")) {
-      const reason = prompt("Please enter rejection reason:");
-      if (!reason) return;
+    if (!approval) return;
+    if (!rejectionReason.trim()) {
+      toast.error("Please enter rejection reason");
+      return;
+    }
 
-      try {
-        console.log(`Rejecting ${approval.type} ${approval.id}`);
-        toast.success(`${approval.type} rejected`);
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 500));
-        router.push("/dashboard/admin/approvals");
-      } catch (error: any) {
-        console.error("Reject error:", error);
-        toast.error("Failed to reject");
-      }
+    try {
+      setActionLoading(true);
+      const endpoint = approval.type === 'VENDOR'
+        ? `/vendors/${approval.id}/reject`
+        : approval.type === 'VENUE'
+        ? `/venues/${approval.id}/reject`
+        : `/kyc/admin/${approval.id}/status`;
+
+      await api.patch(endpoint, {
+        ...(approval.type === 'KYC' ? { status: 'REJECTED' } : {}),
+        reason: rejectionReason
+      });
+      toast.success(`${approval.type} rejected`);
+      router.push("/dashboard/admin/approvals");
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to reject");
+    } finally {
+      setActionLoading(false);
+      setShowRejectModal(false);
+      setRejectionReason("");
     }
   };
+
+  const handleDownloadDocument = async () => {
+    if (!approval?.docFileUrl) return;
+    
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+      const response = await fetch(`${apiUrl}${approval.docFileUrl}`);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${approval.docType}-${approval.docNumber}.pdf`;
+      link.click();
+      window.URL.revokeObjectURL(url);
+      toast.success("Document downloaded successfully");
+    } catch (error) {
+      toast.error("Failed to download document");
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-zinc-400" />
+          <p className="text-zinc-400">Loading approval details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!approval) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <AlertCircle className="h-16 w-16 mx-auto mb-4 text-red-400" />
+          <h3 className="text-lg font-bold text-zinc-100 mb-2">Approval Not Found</h3>
+          <Button onClick={() => router.push("/dashboard/admin/approvals")}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Approvals
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => router.back()} className="hover:bg-neutral-100">
+          <Button variant="ghost" size="sm" onClick={() => router.back()}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div>
-            <h1 className="text-3xl font-bold text-black">{approval.title}</h1>
-            <p className="text-neutral-600">Approval ID: #{approval.id}</p>
+          <div className="flex items-center gap-3">
+            {approval.type === 'VENDOR' && <Store className="h-8 w-8 text-zinc-400" />}
+            {approval.type === 'VENUE' && <Building className="h-8 w-8 text-zinc-400" />}
+            {approval.type === 'KYC' && <FileText className="h-8 w-8 text-zinc-400" />}
+            <div>
+              <h1 className="text-3xl font-bold text-zinc-100">{approval.title}</h1>
+              <p className="text-zinc-400">{approval.subtitle}</p>
+            </div>
           </div>
         </div>
-      </motion.div>
+        <Badge className={
+          approval.status === 'PENDING' || approval.status === 'PENDING_APPROVAL'
+            ? "bg-amber-950/30 text-amber-400 border border-amber-800"
+            : approval.status === 'VERIFIED' || approval.status === 'APPROVED'
+            ? "bg-emerald-950/30 text-emerald-400 border border-emerald-800"
+            : "bg-red-950/30 text-red-400 border border-red-800"
+        }>
+          {approval.status}
+        </Badge>
+      </div>
 
-      {/* Alert Banner */}
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
-        <Card className="border-2 border-amber-300 bg-amber-50">
-          <CardContent className="py-4">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="h-6 w-6 text-amber-600 mt-0.5" />
+      {/* Details */}
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card className="border border-zinc-800 bg-zinc-900/50">
+          <CardHeader>
+            <CardTitle className="text-zinc-100">Approval Information</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <p className="text-xs text-zinc-500">Type</p>
+              <p className="font-medium text-zinc-100">{approval.type}</p>
+            </div>
+            <div>
+              <p className="text-xs text-zinc-500">Title</p>
+              <p className="font-medium text-zinc-100">{approval.title}</p>
+            </div>
+            {approval.description && (
               <div>
-                <h3 className="font-semibold text-amber-900">Pending Approval</h3>
-                <p className="text-sm text-amber-800 mt-1">
-                  This {approval.type.toLowerCase()} submission is awaiting your review. Please verify all information before approving.
-                </p>
+                <p className="text-xs text-zinc-500">Description</p>
+                <p className="font-medium text-zinc-100">{approval.description}</p>
               </div>
+            )}
+            <div>
+              <p className="text-xs text-zinc-500">Location</p>
+              <p className="font-medium text-zinc-100">{approval.area}, {approval.city}</p>
+            </div>
+            <div>
+              <p className="text-xs text-zinc-500">Submitted</p>
+              <p className="font-medium text-zinc-100">{new Date(approval.submittedAt).toLocaleString()}</p>
             </div>
           </CardContent>
         </Card>
-      </motion.div>
 
-      {/* Action Buttons */}
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className="flex items-center justify-end gap-3">
-        <Button variant="outline" className="border-red-300 text-red-600 hover:bg-red-50" onClick={handleReject}>
-          <XCircle className="h-4 w-4 mr-2" /> Reject Submission
-        </Button>
-        <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={handleApprove}>
-          <CheckCircle2 className="h-4 w-4 mr-2" /> Approve {approval.type}
-        </Button>
-      </motion.div>
-
-      {/* Content Grid */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Main Details */}
-        <div className="lg:col-span-2 space-y-6">
-          <Card className="border-2 border-black hover:shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-black flex items-center gap-2">
-                {approval.type === "VENUE" ? <Building className="h-5 w-5" /> : <Store className="h-5 w-5" />}
-                {approval.type} Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+        <Card className="border border-zinc-800 bg-zinc-900/50">
+          <CardHeader>
+            <CardTitle className="text-zinc-100">User Information</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <p className="text-xs text-zinc-500">Name</p>
+              <p className="font-medium text-zinc-100">{approval.user?.name || 'N/A'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-zinc-500">Email</p>
+              <p className="font-medium text-zinc-100">{approval.user?.email || 'N/A'}</p>
+            </div>
+            {approval.user?.phone && (
               <div>
-                <p className="text-sm font-medium text-neutral-600">Description</p>
-                <p className="text-black leading-relaxed mt-1">{approval.description}</p>
+                <p className="text-xs text-zinc-500">Phone</p>
+                <p className="font-medium text-zinc-100">{approval.user.phone}</p>
               </div>
-              <div className="grid md:grid-cols-2 gap-4">
-                {approval.capacity && (
-                  <div>
-                    <p className="text-sm font-medium text-neutral-600">Capacity</p>
-                    <div className="flex items-center gap-2">
-                      <Users className="h-4 w-4 text-neutral-400" />
-                      <p className="text-lg font-bold text-black">{approval.capacity} guests</p>
-                    </div>
-                  </div>
-                )}
-                {approval.serviceType && (
-                  <div>
-                    <p className="text-sm font-medium text-neutral-600">Service Type</p>
-                    <p className="text-lg font-bold text-black">{approval.serviceType}</p>
-                  </div>
-                )}
-                <div>
-                  <p className="text-sm font-medium text-neutral-600">Base Price</p>
-                  <p className="text-2xl font-bold text-black">{formatCurrency(approval.price)}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-neutral-600">Submitted On</p>
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-neutral-400" />
-                    <p className="text-lg font-bold text-black">{new Date(approval.submittedDate).toLocaleDateString("en-IN")}</p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+            )}
+            <div>
+              <p className="text-xs text-zinc-500">Role</p>
+              <p className="font-medium text-zinc-100">{approval.user?.role || 'N/A'}</p>
+            </div>
+          </CardContent>
+        </Card>
 
-          <Card className="border-2 border-black hover:shadow-lg">
+        {approval.type === 'KYC' && (
+          <>
+            <Card className="border border-zinc-800 bg-zinc-900/50 md:col-span-2">
+              <CardHeader>
+                <CardTitle className="text-zinc-100">KYC Document Details</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-zinc-500">Document Type</p>
+                    <p className="font-medium text-zinc-100">{approval.docType}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-zinc-500">Document Number</p>
+                    <p className="font-medium text-zinc-100">{approval.docNumber}</p>
+                  </div>
+                </div>
+
+                {approval.docFileUrl && (
+                  <div className="border border-zinc-800 rounded-lg p-4 bg-zinc-950/50">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <FileText className="h-8 w-8 text-zinc-500" />
+                        <div>
+                          <p className="font-medium text-zinc-100">KYC Document</p>
+                          <p className="text-xs text-zinc-400">{approval.docFileUrl.split('/').pop()}</p>
+                        </div>
+                      </div>
+                      <Button variant="outline" size="sm" onClick={handleDownloadDocument} className="border-zinc-700 text-zinc-300 hover:bg-zinc-800">
+                        <Download className="h-4 w-4 mr-2" />
+                        Download
+                      </Button>
+                    </div>
+
+                    {approval.docFileUrl.match(/\.(jpg|jpeg|png|gif)$/i) ? (
+                      <img
+                        src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}${approval.docFileUrl}`}
+                        alt="KYC Document"
+                        className="max-w-full h-auto max-h-64 mx-auto rounded border border-zinc-800"
+                      />
+                    ) : (
+                      <div className="text-center p-8 bg-zinc-900/50 rounded-lg border border-zinc-800">
+                        <FileText className="h-12 w-12 text-zinc-600 mx-auto mb-3" />
+                        <p className="text-sm text-zinc-400 mb-4">
+                          Click download to view the document
+                        </p>
+                        <Button variant="outline" onClick={handleDownloadDocument} className="border-zinc-700 text-zinc-300 hover:bg-zinc-800">
+                          <Download className="h-4 w-4 mr-2" />
+                          Download Document
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </>
+        )}
+
+        {approval.images && approval.images.length > 0 && (
+          <Card className="border border-zinc-800 bg-zinc-900/50 md:col-span-2">
             <CardHeader>
-              <CardTitle className="text-black">Location Details</CardTitle>
+              <CardTitle className="text-zinc-100">Images</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex items-start gap-3">
-                <MapPin className="h-5 w-5 text-neutral-400 mt-0.5" />
-                <div>
-                  <p className="text-lg font-bold text-black">{approval.location}</p>
-                  <p className="text-sm text-neutral-600">{approval.area}, {approval.city}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 border-black hover:shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-black flex items-center gap-2">
-                <Users className="h-5 w-5" /> Owner Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium text-neutral-600">Owner Name</p>
-                  <p className="text-lg font-bold text-black">{approval.owner}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-neutral-600">Email Address</p>
-                  <div className="flex items-center gap-2">
-                    <Mail className="h-4 w-4 text-neutral-400" />
-                    <p className="text-lg font-bold text-black">{approval.email}</p>
+              <div className="grid grid-cols-3 gap-4">
+                {approval.images.map((img, idx) => (
+                  <div key={idx} className="aspect-video rounded-lg overflow-hidden border border-zinc-800">
+                    <img
+                      src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}${img}`}
+                      alt={`Image ${idx + 1}`}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-neutral-600">Phone Number</p>
-                  <div className="flex items-center gap-2">
-                    <Phone className="h-4 w-4 text-neutral-400" />
-                    <p className="text-lg font-bold text-black">{approval.phone}</p>
-                  </div>
-                </div>
+                ))}
               </div>
             </CardContent>
           </Card>
-        </div>
+        )}
 
-        {/* Sidebar */}
-        <div className="space-y-6">
-          <Card className="border-2 border-black hover:shadow-lg">
+        {approval.rejectionReason && (
+          <Card className="border border-red-900/50 bg-red-950/20 md:col-span-2">
             <CardHeader>
-              <CardTitle className="text-black">Submission Details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center justify-between p-3 rounded-lg bg-neutral-50">
-                <span className="text-sm text-neutral-600">Type</span>
-                <Badge className="bg-black text-white">{approval.type}</Badge>
-              </div>
-              <div className="flex items-center justify-between p-3 rounded-lg bg-neutral-50">
-                <span className="text-sm text-neutral-600">Status</span>
-                <Badge className="bg-amber-500 text-white">
-                  <Clock className="h-3 w-3 mr-1" />
-                  Pending
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between p-3 rounded-lg bg-neutral-50">
-                <span className="text-sm text-neutral-600">Submitted</span>
-                <span className="text-sm font-bold text-black">{new Date(approval.submittedDate).toLocaleDateString("en-IN")}</span>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 border-red-200 bg-red-50">
-            <CardHeader>
-              <CardTitle className="text-red-900 flex items-center gap-2">
+              <CardTitle className="text-red-400 flex items-center gap-2">
                 <AlertCircle className="h-5 w-5" />
-                Verification Required
+                Rejection Reason
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-sm text-red-800">
-                Before approving, please verify:
-              </p>
-              <ul className="space-y-2 text-sm text-red-800">
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="h-4 w-4 mt-0.5" />
-                  <span>All information is accurate and complete</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="h-4 w-4 mt-0.5" />
-                  <span>Owner contact details are verified</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="h-4 w-4 mt-0.5" />
-                  <span>Pricing is competitive and reasonable</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="h-4 w-4 mt-0.5" />
-                  <span>Location details are correct</span>
-                </li>
-              </ul>
+            <CardContent>
+              <p className="text-red-300">{approval.rejectionReason}</p>
             </CardContent>
           </Card>
-        </div>
+        )}
       </div>
+
+      {/* Actions */}
+      {(approval.status === 'PENDING' || approval.status === 'PENDING_APPROVAL') && (
+        <Card className="border border-zinc-800 bg-zinc-900/50">
+          <CardHeader>
+            <CardTitle className="text-zinc-100">Admin Actions</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-3">
+              <Button
+                variant="default"
+                className="bg-emerald-700 hover:bg-emerald-600 text-zinc-100"
+                onClick={handleApprove}
+                disabled={actionLoading}
+              >
+                <CheckCircle2 className="h-5 w-5 mr-2" />
+                Approve {approval.type}
+              </Button>
+              <Button
+                variant="outline"
+                className="border-red-800 text-red-400 hover:bg-red-950/30"
+                onClick={() => setShowRejectModal(true)}
+                disabled={actionLoading}
+              >
+                <XCircle className="h-5 w-5 mr-2" />
+                Reject
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Reject Modal */}
+      {showRejectModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-md shadow-2xl">
+            <div className="flex items-center justify-between p-5 border-b border-zinc-800">
+              <h2 className="text-xl font-bold text-zinc-100">Reject {approval.type}</h2>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-300">Rejection Reason *</label>
+                <textarea
+                  rows={4}
+                  placeholder="Please specify why this is being rejected..."
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  className="flex min-h-[100px] w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-zinc-600"
+                />
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  className="flex-1 border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+                  onClick={() => {
+                    setShowRejectModal(false);
+                    setRejectionReason("");
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  className="flex-1"
+                  onClick={handleReject}
+                >
+                  Reject
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

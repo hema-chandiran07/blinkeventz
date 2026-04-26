@@ -38,15 +38,21 @@ export default function CustomerEventsPage() {
   const [events, setEvents] = useState<Event[]>([]);
 
   useEffect(() => {
-    loadEvents();
+    const controller = new AbortController();
+    loadEvents(controller.signal);
+    return () => controller.abort();
   }, []);
 
-  const loadEvents = async () => {
+  const loadEvents = async (signal?: AbortSignal) => {
     try {
-      const response = await api.get("/events/my");
+      setLoading(true);
+      const response = await api.get("/events/my", { signal });
       const eventsData = extractArray<Event>(response);
       setEvents(eventsData);
     } catch (error: any) {
+      if (error.name === 'AbortError' || error.code === 'ERR_CANCELED') {
+        return;
+      }
       console.error("Failed to load events:", error);
       toast.error("Failed to load your events");
     } finally {
@@ -55,53 +61,25 @@ export default function CustomerEventsPage() {
   };
 
   const handleDownloadInvoice = async (eventId: number) => {
-    try {
-      const response = await api.get(`/customer/events/${eventId}/invoice`, {
-        responseType: 'blob',
-      });
-      
-      const blob = new Blob([response.data], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `invoice-event-${eventId}.pdf`;
-      link.click();
-      window.URL.revokeObjectURL(url);
-      
-      toast.success("Invoice downloaded successfully");
-    } catch (error: any) {
-      console.error("Invoice download error:", error);
-      toast.error("Failed to download invoice");
-    }
+    toast.error("Invoice download is not available yet");
   };
 
   const handleCancelEvent = async (eventId: number) => {
-    if (!confirm("Are you sure you want to cancel this event? Cancellation policies apply.")) {
-      return;
-    }
-
-    try {
-      await api.post(`/customer/events/${eventId}/cancel`);
-      toast.success("Event cancelled successfully");
-      loadEvents();
-    } catch (error: any) {
-      console.error("Cancellation error:", error);
-      toast.error(error?.response?.data?.message || "Failed to cancel event");
-    }
+    toast.error("Event cancellation is not available yet");
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "CONFIRMED":
-        return "bg-green-100 text-green-800 border-green-200";
+        return "bg-emerald-950/30 text-emerald-400 border-emerald-700";
       case "IN_PROGRESS":
-        return "bg-blue-100 text-blue-800 border-blue-200";
+        return "bg-blue-950/30 text-blue-400 border-blue-700";
       case "COMPLETED":
-        return "bg-purple-100 text-purple-800 border-purple-200";
+        return "bg-purple-950/30 text-purple-400 border-purple-700";
       case "CANCELLED":
-        return "bg-red-100 text-red-800 border-red-200";
+        return "bg-red-950/30 text-red-400 border-red-700";
       default:
-        return "bg-neutral-100 text-neutral-800 border-neutral-200";
+        return "bg-zinc-800/50 text-zinc-400 border-zinc-700";
     }
   };
 
@@ -115,8 +93,8 @@ export default function CustomerEventsPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
-          <div className="h-12 w-12 rounded-full border-4 border-neutral-200 border-t-black animate-spin mx-auto mb-4" />
-          <p className="text-black">Loading your events...</p>
+          <div className="h-12 w-12 rounded-full border-4 border-zinc-800 border-t-zinc-400 animate-spin mx-auto mb-4" />
+          <p className="text-zinc-400">Loading your events...</p>
         </div>
       </div>
     );
@@ -125,65 +103,65 @@ export default function CustomerEventsPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-black mb-2">My Events</h1>
-        <p className="text-neutral-600">View and manage your booked events</p>
+        <h1 className="text-3xl font-bold text-zinc-100 mb-2">My Events</h1>
+        <p className="text-zinc-400">View and manage your booked events</p>
       </div>
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-4 mb-8">
-        <Card>
+        <Card className="border-zinc-800 bg-zinc-900/50">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-600">Total Events</p>
-                <p className="text-2xl font-bold text-black">{events.length}</p>
+                <p className="text-sm font-medium text-zinc-400">Total Events</p>
+                <p className="text-2xl font-bold text-zinc-100">{events.length}</p>
               </div>
-              <div className="p-3 rounded-full bg-silver-100 text-neutral-700">
+              <div className="p-3 rounded-full bg-zinc-800 text-zinc-400">
                 <Calendar className="h-5 w-5" />
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-zinc-800 bg-zinc-900/50">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-600">Upcoming</p>
-                <p className="text-2xl font-bold text-blue-600">
+                <p className="text-sm font-medium text-zinc-400">Upcoming</p>
+                <p className="text-2xl font-bold text-blue-400">
                   {events.filter(e => e.status === "CONFIRMED" || e.status === "IN_PROGRESS").length}
                 </p>
               </div>
-              <div className="p-3 rounded-full bg-blue-50 text-blue-600">
+              <div className="p-3 rounded-full bg-blue-950/30 text-blue-400">
                 <Clock className="h-5 w-5" />
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-zinc-800 bg-zinc-900/50">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-600">Completed</p>
-                <p className="text-2xl font-bold text-green-600">
+                <p className="text-sm font-medium text-zinc-400">Completed</p>
+                <p className="text-2xl font-bold text-emerald-400">
                   {events.filter(e => e.status === "COMPLETED").length}
                 </p>
               </div>
-              <div className="p-3 rounded-full bg-green-50 text-green-600">
+              <div className="p-3 rounded-full bg-emerald-950/30 text-emerald-400">
                 <CheckCircle2 className="h-5 w-5" />
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-zinc-800 bg-zinc-900/50">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-neutral-600">Total Spent</p>
-                <p className="text-2xl font-bold text-black">
+                <p className="text-sm font-medium text-zinc-400">Total Spent</p>
+                <p className="text-2xl font-bold text-zinc-100">
                   {formatCurrency(events.reduce((sum, e) => sum + e.totalAmount, 0))}
                 </p>
               </div>
-              <div className="p-3 rounded-full bg-black text-white">
+              <div className="p-3 rounded-full bg-zinc-800 text-zinc-300">
                 <DollarSign className="h-5 w-5" />
               </div>
             </div>
@@ -192,19 +170,18 @@ export default function CustomerEventsPage() {
       </div>
 
       {/* Events List */}
-      <Card className="border-2 border-black">
+      <Card className="border-zinc-800 bg-zinc-900/50">
         <CardHeader>
-          <CardTitle className="text-black">Your Events</CardTitle>
+          <CardTitle className="text-zinc-100">Your Events</CardTitle>
         </CardHeader>
         <CardContent>
           {events.length === 0 ? (
             <div className="text-center py-12">
-              <AlertCircle className="h-16 w-16 mx-auto mb-4 text-neutral-300" />
-              <h3 className="text-lg font-bold text-black mb-2">No Events Yet</h3>
-              <p className="text-neutral-600 mb-6">Start planning your first event!</p>
+              <AlertCircle className="h-16 w-16 mx-auto mb-4 text-zinc-600" />
+              <h3 className="text-lg font-bold text-zinc-100 mb-2">No Events Yet</h3>
+              <p className="text-zinc-400 mb-6">Start planning your first event!</p>
               <Button
-                variant="default"
-                className="bg-black hover:bg-neutral-800"
+                variant="premium"
                 onClick={() => router.push("/plan-event")}
               >
                 Plan an Event
@@ -215,26 +192,26 @@ export default function CustomerEventsPage() {
               {events.map((event) => (
                 <div
                   key={event.id}
-                  className="flex items-center justify-between p-4 rounded-lg border border-neutral-200 hover:border-black transition-colors"
+                  className="flex items-center justify-between p-4 rounded-lg border border-zinc-800 hover:border-zinc-700 transition-colors"
                 >
                   <div className="flex items-center gap-4 flex-1">
-                    <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-silver-200 to-silver-400 flex items-center justify-center">
-                      <Calendar className="h-6 w-6 text-white" />
+                    <div className="h-12 w-12 rounded-lg bg-zinc-800 flex items-center justify-center">
+                      <Calendar className="h-6 w-6 text-zinc-300" />
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-bold text-black">{event.title}</h3>
+                        <h3 className="font-bold text-zinc-100">{event.title}</h3>
                         <Badge className={getStatusColor(event.status)}>
                           {event.status.replace("_", " ")}
                         </Badge>
                         {event.isExpress && (
-                          <Badge className="bg-amber-100 text-amber-800 border-amber-200">
+                          <Badge className="bg-amber-950/30 text-amber-400 border-amber-700">
                             <Clock className="h-3 w-3 mr-1" />
                             Express
                           </Badge>
                         )}
                       </div>
-                      <div className="flex items-center gap-4 text-sm text-neutral-600">
+                      <div className="flex items-center gap-4 text-sm text-zinc-400">
                         <span className="flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
                           {new Date(event.date).toLocaleDateString("en-IN")}
@@ -250,16 +227,16 @@ export default function CustomerEventsPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-bold text-black mb-2">
-                      {formatCurrency(event.totalAmount)}
+                    <div className="text-right">
+                    <p className="font-bold text-zinc-100 mb-2">
+                      {formatCurrency(event.totalAmount || 0)}
                     </p>
                     <div className="flex items-center gap-2">
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => router.push(`/dashboard/customer/events/${event.id}`)}
-                        className="border-black"
+                        className="border-zinc-700 text-zinc-300 hover:bg-zinc-800"
                       >
                         <Eye className="h-4 w-4 mr-1" />
                         View
@@ -267,21 +244,21 @@ export default function CustomerEventsPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleDownloadInvoice(event.id)}
-                        className="border-black"
+                        disabled
+                        className="border-zinc-700 text-zinc-500 opacity-50 cursor-not-allowed"
                       >
                         <Download className="h-4 w-4 mr-1" />
-                        Invoice
+                        Unavailable
                       </Button>
                       {(event.status === "CONFIRMED" || event.status === "IN_PROGRESS") && (
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleCancelEvent(event.id)}
-                          className="border-red-300 text-red-600 hover:bg-red-50"
+                          disabled
+                          className="border-red-800 text-red-500 opacity-50 cursor-not-allowed"
                         >
                           <XCircle className="h-4 w-4" />
-                          Cancel
+                          Unavailable
                         </Button>
                       )}
                     </div>

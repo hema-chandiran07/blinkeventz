@@ -10,33 +10,32 @@ datasource db {
 /// ///////////////////////////////////////////////////
 /// ///////////////////////////////////////////////////
 model User {
-  id                      Int                      @id @default(autoincrement())
-  name                    String
-  email                   String?                  @unique
-  phone                   String?                  @unique
-  passwordHash            String?
-  googleId                String?                  @unique
-  role                    Role                     @default(CUSTOMER)
-  isActive                Boolean                  @default(true)
-  createdAt               DateTime                 @default(now())
-  updatedAt               DateTime                 @updatedAt
-  
+  id           Int      @id @default(autoincrement())
+  name         String
+  email        String?  @unique
+  phone        String?  @unique
+  passwordHash String?
+  googleId     String?  @unique
+  role         Role     @default(CUSTOMER)
+  isActive     Boolean  @default(true)
+  image        String? // Base64 profile picture
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
   // Password reset security
-  passwordResetToken      String?                  // Hashed token - never expose
-  passwordResetExpiry     DateTime?
-  
-  // Account security
-  failedLoginAttempts    Int                       @default(0)
-  lockedUntil            DateTime?
-  lastLoginAt            DateTime?
-  
+  passwordResetToken  String? // Hashed token - never expose
+  passwordResetExpiry DateTime?
+
   // OAuth
-  facebookId              String?                  @unique
-  isEmailVerified         Boolean                  @default(false)
-  
+  facebookId      String? @unique
+  isEmailVerified Boolean @default(false)
+
+  // Account lockout security
+  lockedUntil DateTime?
+
   // Relations
   AIPlan                  AIPlan[]
-  AIConversation         AIConversation[]
+  AIConversation          AIConversation[]
   bankAccounts            BankAccount[]
   bookings                Booking[]
   Cart                    Cart[]
@@ -54,6 +53,7 @@ model User {
   vendor                  Vendor?
   venues                  Venue[]
   refreshTokens           RefreshToken[]
+  searchAudits            SearchAudit[]
 
   // Indexes for authentication queries
   @@index([email])
@@ -62,19 +62,36 @@ model User {
   @@index([passwordResetToken])
 }
 
+/// Search Audit Model - Track query performance and intent
+model SearchAudit {
+  id           Int      @id @default(autoincrement())
+  userId       Int?
+  query        String
+  filters      Json?
+  resultsCount Int
+  durationMs   Int
+  createdAt    DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([query])
+}
+
 /// Refresh Token Model for JWT refresh mechanism
 model RefreshToken {
-  id          Int       @id @default(autoincrement())
-  userId      Int
-  token       String    // Hashed token for security
-  expiresAt   DateTime
-  revoked     Boolean   @default(false)
-  revokedAt   DateTime?
-  deviceInfo  String?
-  createdAt   DateTime  @default(now())
-  
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id         Int       @id @default(autoincrement())
+  userId     Int
+  token      String // Hashed token for security
+  expiresAt  DateTime
+  revoked    Boolean   @default(false)
+  revokedAt  DateTime?
+  deviceInfo String?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   // Indexes
   @@index([userId])
   @@index([token])
@@ -93,20 +110,43 @@ model Vendor {
   id                 Int                      @id @default(autoincrement())
   userId             Int                      @unique
   businessName       String
+  ownerName          String?
+  email              String?
+  phone              String?
+  businessType       String? // PHOTOGRAPHY, CATERING, DECOR, DJ, MAKEUP, VIDEOGRAPHY, ENTERTAINMENT, OTHER
   description        String?
+  serviceCategory    String?
   city               String
   area               String
   serviceRadiusKm    Int?
+  basePrice          Int?
+  pricingModel       String?
+  experience         Int?
+  verified           Boolean                  @default(false)
   verificationStatus VendorVerificationStatus @default(PENDING)
   createdAt          DateTime                 @default(now())
   updatedAt          DateTime                 @updatedAt
   username           String?                  @unique
   rejectionReason    String?
-  images             String[]                 @default([])
-  payouts            Payout[]
-  reviews            Review[]
-  user               User                     @relation(fields: [userId], references: [id])
-  services           VendorService[]
+
+  // Business Images
+  businessImages String[] @default([])
+  images         String[] @default([])
+
+  // KYC Documents
+  kycDocType   String? // AADHAAR, PAN, PASSPORT, DRIVING_LICENSE
+  kycDocNumber String?
+  kycDocFiles  String[] @default([])
+
+  // FSSAI License (CONDITIONAL - only for CATERING)
+  foodLicenseFiles String[] @default([])
+
+  payouts           Payout[]
+  reviews           Review[]
+  user              User               @relation(fields: [userId], references: [id])
+  services          VendorService[]
+  portfolioImages   PortfolioImage[]
+  availabilitySlots AvailabilitySlot[] @relation("VendorAvailability")
 }
 
 /// ///////////////////////////////////////////////////
@@ -123,18 +163,20 @@ model VendorService {
   description  String?
   inclusions   String?
   exclusions   String?
+  images       String[]           @default([])
   isActive     Boolean            @default(true)
   createdAt    DateTime           @default(now())
   updatedAt    DateTime           @updatedAt
   cartItems    CartItem[]
   EventService EventService[]
+  events       Event[]            // Bidirectional relation with Event model
   vendor       Vendor             @relation(fields: [vendorId], references: [id])
 
   @@index([vendorId])
 }
 
 model Venue {
-  id               Int                @id @default(autoincrement())
+  id               Int         @id @default(autoincrement())
   ownerId          Int
   name             String
   type             VenueType
@@ -150,20 +192,33 @@ model Venue {
   basePriceFullDay Int?
   amenities        String?
   policies         String?
-  status           VenueStatus        @default(PENDING_APPROVAL)
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
-  username         String?            @unique
+  status           VenueStatus @default(PENDING_APPROVAL)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  username         String?     @unique
   rejectionReason  String?
-  images           String[]           @default([])
-  availability     AvailabilitySlot[]
-  cartItems        CartItem[]
-  events           Event[]
-  EventService     EventService[]
-  payouts          Payout[]
-  reviews          Review[]
-  owner            User               @relation(fields: [ownerId], references: [id])
-  photos           VenuePhoto[]
+
+  // Venue Images (main photos)
+  venueImages String[] @default([])
+
+  // KYC Documents
+  kycDocType   String? // AADHAAR, PAN, PASSPORT, DRIVING_LICENSE
+  kycDocNumber String?
+  kycDocFiles  String[] @default([])
+
+  // Trade License (MANDATORY for venues)
+  venueGovtCertificateFiles String[] @default([])
+
+  // Note: AvailabilitySlot references are polymorphic (entityType + entityId)
+  // Queried at application layer, not via Prisma relation
+  availabilitySlots AvailabilitySlot[] @relation("VenueAvailability")
+  cartItems         CartItem[]
+  events            Event[]
+  EventService      EventService[]
+  payouts           Payout[]
+  reviews           Review[]
+  owner             User               @relation(fields: [ownerId], references: [id])
+  photos            VenuePhoto[]
 
   // ============================================
   // DATABASE INDEXES FOR PERFORMANCE
@@ -177,58 +232,137 @@ model Venue {
   @@index([createdAt(sort: Desc)])
 }
 
+/// Venue Photo - Advanced Portfolio Management
 model VenuePhoto {
-  id        Int      @id @default(autoincrement())
-  venueId   Int
-  url       String
-  isCover   Boolean  @default(false)
-  createdAt DateTime @default(now())
-  venue     Venue    @relation(fields: [venueId], references: [id])
+  id          Int           @id @default(autoincrement())
+  venueId     Int
+  url         String
+  title       String? // Descriptive title for SEO and accessibility
+  description String? // Alt text and description
+  category    PhotoCategory @default(GALLERY) // GALLERY, MAIN, CERTIFICATE, BEHIND_SCENES
+  order       Int           @default(0) // Display order (lower = first)
+  isCover     Boolean       @default(false)
+  isFeatured  Boolean       @default(false) // Show on home page featured section
+  quality     ImageQuality  @default(HD) // HD, MEDIUM, THUMBNAIL
+  tags        String[]      @default([]) // Searchable tags
+  isActive    Boolean       @default(true) // Soft delete support
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @default(now())
+  venue       Venue         @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@index([venueId])
+  @@index([category])
+  @@index([order])
+  @@index([isCover])
+  @@index([isFeatured])
+  @@index([isActive])
+}
+
+/// Vendor Portfolio Image - Advanced Portfolio Management  
+model PortfolioImage {
+  id          Int           @id @default(autoincrement())
+  vendorId    Int
+  imageUrl    String
+  title       String? // Descriptive title for SEO and accessibility
+  description String? // Alt text and description
+  category    PhotoCategory @default(GALLERY) // GALLERY, MAIN, CERTIFICATE, BEHIND_SCENES, WORK_SAMPLE
+  order       Int           @default(0) // Display order (lower = first)
+  isCover     Boolean       @default(false) // Main profile image
+  isFeatured  Boolean       @default(false) // Show on home page featured section
+  quality     ImageQuality  @default(HD) // HD, MEDIUM, THUMBNAIL
+  tags        String[]      @default([]) // Searchable tags (e.g., "wedding", "corporate")
+  isActive    Boolean       @default(true) // Soft delete support
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @default(now())
+  vendor      Vendor        @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@index([vendorId])
+  @@index([category])
+  @@index([order])
+  @@index([isCover])
+  @@index([isFeatured])
+  @@index([isActive])
+}
+
+/// Photo/Image Category for classification
+enum PhotoCategory {
+  GALLERY // General gallery images
+  MAIN // Main/hero image
+  CERTIFICATE // Certificates, licenses, KYC docs
+  BEHIND_SCENES // Behind the scenes, setup process
+  WORK_SAMPLE // Portfolio work samples (vendor only)
+  WEDDING // Wedding events
+  ENGAGEMENT // Engagement events
+  RECEPTION // Reception events
+  PREWEDDING // Pre-wedding events
+  CORPORATE // Corporate events
+  BIRTHDAY // Birthday events
+  OTHER // Other events
+}
+
+/// Image Quality/Size Classification
+enum ImageQuality {
+  HD // High definition (full resolution)
+  MEDIUM // Medium resolution (web optimized)
+  THUMBNAIL // Thumbnail (small preview)
 }
 
 model AvailabilitySlot {
   id         Int        @id @default(autoincrement())
   entityType EntityType
-  entityId   Int
   date       DateTime
   timeSlot   String
   status     SlotStatus @default(AVAILABLE)
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
-  venue      Venue      @relation(fields: [entityId], references: [id])
   bookings   Booking[]
 
-  @@index([entityType, entityId, date, timeSlot])
+  // Separate FK columns — avoids PG dual-FK conflict on same column
+  venueId  Int?
+  venue    Venue?  @relation("VenueAvailability", fields: [venueId], references: [id], onDelete: Cascade)
+  vendorId Int?
+  vendor   Vendor? @relation("VendorAvailability", fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@index([venueId])
+  @@index([vendorId])
+  @@index([entityType, date, timeSlot])
 }
 
 model Booking {
-  id        Int              @id @default(autoincrement())
-  userId    Int
-  slotId    Int
-  createdAt DateTime         @default(now())
-  slot      AvailabilitySlot @relation(fields: [slotId], references: [id])
-  user      User             @relation(fields: [userId], references: [id])
+  id          Int              @id @default(autoincrement())
+  userId      Int
+  slotId      Int
+  status      BookingStatus    @default(PENDING)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  completedAt DateTime?
+  slot        AvailabilitySlot @relation(fields: [slotId], references: [id])
+  user        User             @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([slotId])
+  @@index([status])
 }
 
 model Cart {
-  id        Int         @id @default(autoincrement())
+  id        Int        @id @default(autoincrement())
   userId    Int
-  status    CartStatus  @default(ACTIVE)
+  status    CartStatus @default(ACTIVE)
+  isExpress Boolean   @default(false)
+  expressFee Int      @default(0)
   expiresAt DateTime?
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
-  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   items     CartItem[]
   Payment   Payment[]
 
-  // Ensure only one ACTIVE cart per user
-  @@unique([userId, status])
   @@index([userId])
   @@index([status])
 }
 
 model CartItem {
-  id              Int           @id @default(autoincrement())
+  id              Int            @id @default(autoincrement())
   cartId          Int
   itemType        ItemType
   venueId         Int?
@@ -236,15 +370,15 @@ model CartItem {
   addonId         Int?
   date            DateTime?
   timeSlot        String?
-  quantity        Int           @default(1)
-  unitPrice       Decimal       @db.Decimal(10, 2)  // Server-calculated only
-  totalPrice      Decimal       @db.Decimal(10, 2)  // Server-calculated only
+  quantity        Int            @default(1)
+  unitPrice       Decimal        @db.Decimal(10, 2) // Server-calculated only
+  totalPrice      Decimal        @db.Decimal(10, 2) // Server-calculated only
   meta            Json?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  cart            Cart          @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  cart            Cart           @relation(fields: [cartId], references: [id], onDelete: Cascade)
   vendorService   VendorService? @relation(fields: [vendorServiceId], references: [id])
-  venue           Venue?        @relation(fields: [venueId], references: [id])
+  venue           Venue?         @relation(fields: [venueId], references: [id])
 
   @@index([cartId])
   @@index([vendorServiceId])
@@ -252,22 +386,22 @@ model CartItem {
 }
 
 model AIPlan {
-  id         Int          @id @default(autoincrement())
-  userId     Int
-  EventId    Int?
-  budget     Int
-  city       String
-  area       String
-  guestCount Int
-  planJson   Json
-  status     AIPlanStatus @default(GENERATED)
-  shareId    String       @unique @default(uuid())  // For public sharing
-  isPublic   Boolean      @default(false)             // Enable/disable sharing
-  createdAt  DateTime     @default(now())
-  updatedAt  DateTime     @updatedAt
-  Event      Event?       @relation(fields: [EventId], references: [id])
-  user       User         @relation(fields: [userId], references: [id])
-  conversations  AIConversation[] 
+  id            Int              @id @default(autoincrement())
+  userId        Int
+  EventId       Int?
+  budget        Int
+  city          String
+  area          String
+  guestCount    Int
+  planJson      Json
+  status        AIPlanStatus     @default(GENERATED)
+  shareId       String           @unique @default(uuid()) // For public sharing
+  isPublic      Boolean          @default(false) // Enable/disable sharing
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  Event         Event?           @relation(fields: [EventId], references: [id])
+  user          User             @relation(fields: [userId], references: [id])
+  conversations AIConversation[]
 
   @@index([userId])
   @@index([EventId])
@@ -275,57 +409,57 @@ model AIPlan {
 
 /// AI Chatbot Conversation
 model AIConversation {
-  id              String               @id @default(uuid())
-  userId          Int
-  state           Json
-  status          AIConversationStatus @default(COLLECTING)
-  planId          Int?
-  generationKey   String?              @unique  // For idempotency
-  createdAt       DateTime             @default(now())
-  updatedAt       DateTime             @updatedAt
+  id            String               @id @default(uuid())
+  userId        Int
+  state         Json
+  status        AIConversationStatus @default(COLLECTING)
+  planId        Int?
+  generationKey String?              @unique // For idempotency
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
 
-  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  plan            AIPlan?             @relation(fields: [planId], references: [id])
+  user User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan AIPlan? @relation(fields: [planId], references: [id])
 
   @@index([userId])
   @@index([status])
 }
 
 model Payment {
-  id                     Int              @id @default(autoincrement())
+  id                     Int             @id @default(autoincrement())
   userId                 Int
-  cartId                 Int              @default(0)  // Default to 0 for simplified checkout (no cart)
+  cartId                 Int? // Optional for direct bookings (no cart)
   provider               PaymentProvider
-  providerOrderId        String           @unique  // Razorpay order ID
-  providerPaymentId     String?          // Razorpay payment ID
-  providerWebhookEventId String?          @unique  // Razorpay webhook event ID - for deduplication
-  signature              String?          // Payment signature (for verification)
-  amount                 Int              // Amount in paise
-  currency               String           @default("INR")
+  providerOrderId        String          @unique // Razorpay order ID
+  providerPaymentId      String? // Razorpay payment ID
+  providerWebhookEventId String?         @unique // Razorpay webhook event ID - for deduplication
+  signature              String? // Payment signature (for verification)
+  amount                 Int // Amount in paise
+  currency               String          @default("INR")
   status                 PaymentStatus
-  
+
   // Idempotency
-  idempotencyKey         String?          @unique  // Client-provided idempotency key
-  
+  idempotencyKey String? @unique // Client-provided idempotency key
+
   // Metadata
-  metadata               Json?            // Additional payment metadata
-  notes                  String?          // Internal notes
-  
+  metadata Json? // Additional payment metadata
+  notes    String? // Internal notes
+
   // Timestamps
-  createdAt              DateTime         @default(now())
-  updatedAt              DateTime         @updatedAt
-  expiresAt              DateTime?        // Payment expiry time
-  completedAt            DateTime?        // When payment was completed
-  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  expiresAt   DateTime? // Payment expiry time
+  completedAt DateTime? // When payment was completed
+
   // Relations
-  eventId                Int?
-  cart                   Cart?             @relation(fields: [cartId], references: [id])
-  event                  Event?            @relation(fields: [eventId], references: [id])
-  user                   User              @relation(fields: [userId], references: [id])
-  
+  eventId Int?
+  cart    Cart?  @relation(fields: [cartId], references: [id])
+  event   Event? @relation(fields: [eventId], references: [id])
+  user    User   @relation(fields: [userId], references: [id])
+
   // Audit trail
-  paymentEvents          PaymentEvent[]
-  
+  paymentEvents PaymentEvent[]
+
   @@index([userId])
   @@index([cartId])
   @@index([status])
@@ -336,32 +470,32 @@ model Payment {
 
 // Payment Event Audit Trail - tracks all state changes
 model PaymentEvent {
-  id              Int            @id @default(autoincrement())
+  id              Int           @id @default(autoincrement())
   paymentId       Int
-  eventType       String         // e.g., 'payment.created', 'payment.captured', 'payment.failed'
+  eventType       String // e.g., 'payment.created', 'payment.captured', 'payment.failed'
   status          PaymentStatus // Status after this event
-  providerEventId String?        // Razorpay event ID
-  
+  providerEventId String? // Razorpay event ID
+
   // Event data
-  requestId       String?        // Internal request ID for tracing
-  ipAddress       String?        // Client IP
-  userAgent       String?        // Client user agent
-  
+  requestId String? // Internal request ID for tracing
+  ipAddress String? // Client IP
+  userAgent String? // Client user agent
+
   // Raw data
-  payload         Json?          // Raw webhook payload
-  response        Json?          // Response sent
-  
+  payload  Json? // Raw webhook payload
+  response Json? // Response sent
+
   // Error handling
-  errorMessage    String?
-  retryCount      Int            @default(0)
-  
+  errorMessage String?
+  retryCount   Int     @default(0)
+
   // Timestamps
-  createdAt       DateTime       @default(now())
-  processedAt     DateTime?
-  
+  createdAt   DateTime  @default(now())
+  processedAt DateTime?
+
   // Relation
-  payment         Payment        @relation(fields: [paymentId], references: [id], onDelete: Cascade)
-  
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
   @@index([paymentId])
   @@index([eventType])
   @@index([providerEventId])
@@ -393,18 +527,19 @@ model Payout {
 /// ///////////////////////////////////////////////////
 /// ///////////////////////////////////////////////////
 model ExpressRequest {
-  id         Int             @id @default(autoincrement())
-  userId     Int
-  EventId    Int             @unique
-  planType   ExpressPlanType
-  status     ExpressStatus   @default(PENDING)
-  startedAt  DateTime
-  expiresAt  DateTime
-  expressFee Int
-  createdAt  DateTime        @default(now())
-  updatedAt  DateTime        @updatedAt
-  Event      Event           @relation(fields: [EventId], references: [id])
-  user       User            @relation(fields: [userId], references: [id])
+  id              Int             @id @default(autoincrement())
+  userId          Int
+  EventId         Int             @unique
+  planType        ExpressPlanType
+  status          ExpressStatus   @default(PENDING)
+  startedAt       DateTime
+  expiresAt       DateTime
+  expressFee      Int
+  rejectionReason String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  Event           Event           @relation(fields: [EventId], references: [id])
+  user            User            @relation(fields: [userId], references: [id])
 
   @@index([userId])
 }
@@ -463,23 +598,26 @@ model BankWebhookLog {
 /// ////////////////////////////////
 model Event {
   id                Int             @id @default(autoincrement())
-  customerId        Int
+  customerId        Int             @default(0)
   assignedManagerId Int?
-  eventType         String
+  eventType         String          @default("BOOKING")
   title             String?
   date              DateTime
   timeSlot          String
-  city              String
+  city              String          @default("Chennai")
   area              String?
   venueId           Int?
-  guestCount        Int
-  status            EventStatus     @default(CONFIRMED)
+  vendorServiceId   Int?
+  guestCount        Int             @default(1)
+  status            EventStatus     @default(PENDING_PAYMENT)
   isExpress         Boolean         @default(false)
-  subtotal          Int
+  expressFee        Int             @default(0)
+  subtotal          Int             @default(0)
   discount          Int             @default(0)
   platformFee       Int             @default(0)
   tax               Int             @default(0)
-  totalAmount       Int
+  totalAmount       Int             @default(0)
+  meta              Json?
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
   userId            Int?
@@ -490,6 +628,7 @@ model Event {
   promotion         Promotion?      @relation(fields: [promotionId], references: [id])
   User              User?           @relation(fields: [userId], references: [id])
   venue             Venue?          @relation(fields: [venueId], references: [id])
+  vendorService     VendorService?  @relation(fields: [vendorServiceId], references: [id])
   services          EventService[]
   expressRequest    ExpressRequest?
   notifications     Notification[]
@@ -535,23 +674,25 @@ model Promotion {
 }
 
 model Review {
-  id        Int          @id @default(autoincrement())
-  userId    Int
-  venueId   Int?
-  vendorId  Int?
-  eventId   Int?
-  rating    Int
-  title     String?
-  comment   String?
-  status    ReviewStatus @default(PENDING)
-  helpful   Int          @default(0)
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
-  event     Event?       @relation(fields: [eventId], references: [id])
-  user      User         @relation(fields: [userId], references: [id])
-  vendor    Vendor?      @relation(fields: [vendorId], references: [id])
-  venue     Venue?       @relation(fields: [venueId], references: [id])
-  votes     ReviewVote[]
+  id          Int          @id @default(autoincrement())
+  userId      Int
+  venueId     Int?
+  vendorId    Int?
+  eventId     Int?
+  rating      Int
+  title       String?
+  comment     String?
+  response    String?
+  respondedAt DateTime?
+  status      ReviewStatus @default(PENDING)
+  helpful     Int          @default(0)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  event       Event?       @relation(fields: [eventId], references: [id])
+  user        User         @relation(fields: [userId], references: [id])
+  vendor      Vendor?      @relation(fields: [vendorId], references: [id])
+  venue       Venue?       @relation(fields: [venueId], references: [id])
+  votes       ReviewVote[]
 
   @@index([venueId])
   @@index([vendorId])
@@ -694,6 +835,39 @@ model AuditOutbox {
   @@index([status])
 }
 
+/// Outbox Event for Cart and System Events
+model OutboxEvent {
+  id        String   @id @default(uuid())
+  eventType String
+  payload   Json
+  processed Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([processed])
+  @@index([createdAt])
+}
+
+/// System Settings for Feature Flags, Integrations, and Security
+model Settings {
+  id          Int              @id @default(autoincrement())
+  key         String           @unique
+  value       Json
+  category    SettingsCategory
+  description String?
+  updatedAt   DateTime         @default(now())
+  createdAt   DateTime         @default(now())
+
+  @@index([category])
+  @@index([key])
+}
+
+enum SettingsCategory {
+  FEATURE
+  INTEGRATION
+  SECURITY
+  SYSTEM
+}
+
 enum PayoutStatus {
   PENDING
   APPROVED
@@ -783,14 +957,14 @@ enum ItemType {
 }
 
 enum PaymentStatus {
-  PENDING       // Payment initiated, awaiting user action
-  CREATED       // Order created with provider
-  AUTHORIZED    // Payment authorized (pre-auth)
-  CAPTURED      // Payment successfully captured - FINAL SUCCESS STATE
-  FAILED        // Payment failed
-  REFUNDED      // Payment was refunded
-  CANCELLED     // Payment was cancelled
-  EXPIRED       // Payment expired (timeout)
+  PENDING // Payment initiated, awaiting user action
+  CREATED // Order created with provider
+  AUTHORIZED // Payment authorized (pre-auth)
+  CAPTURED // Payment successfully captured - FINAL SUCCESS STATE
+  FAILED // Payment failed
+  REFUNDED // Payment was refunded
+  CANCELLED // Payment was cancelled
+  EXPIRED // Payment expired (timeout)
 }
 
 enum PaymentProvider {
@@ -831,7 +1005,6 @@ enum VenueStatus {
   SUSPENDED
   DELISTED
   REJECTED
-
 }
 
 enum EntityType {
@@ -900,6 +1073,8 @@ enum ItemTypeForEvent {
 enum EventServiceStatus {
   PENDING
   CONFIRMED
+  IN_PROGRESS
+  COMPLETED
   CANCELLED
 }
 
@@ -916,6 +1091,8 @@ enum NotificationType {
   SERVICE_REJECTED
   EVENT_REMINDER
   EVENT_CANCELLED
+  KYC_APPROVED
+  KYC_REJECTED
   SYSTEM_ALERT
   OTHER
 }
@@ -948,4 +1125,14 @@ enum NotificationPriority {
   NORMAL
   HIGH
   CRITICAL
+}
+
+enum BookingStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, X } from "lucide-react";
+import { Check } from "lucide-react";
 
 interface PasswordStrengthProps {
   password: string;
@@ -8,67 +8,48 @@ interface PasswordStrengthProps {
 
 export function PasswordStrength({ password }: PasswordStrengthProps) {
   const requirements = [
-    { label: "At least 8 characters", met: password.length >= 8 },
-    { label: "Contains uppercase letter", met: /[A-Z]/.test(password) },
-    { label: "Contains lowercase letter", met: /[a-z]/.test(password) },
-    { label: "Contains number", met: /[0-9]/.test(password) },
-    { label: "Contains special character", met: /[!@#$%^&*(),.?":{}|<>]/.test(password) },
+    { label: "8+ chars", met: password.length >= 8 },
+    { label: "Uppercase", met: /[A-Z]/.test(password) },
+    { label: "Number", met: /[0-9]/.test(password) },
+    { label: "Special char", met: /[!@#$%^&*(),.?":{}|<>]/.test(password) },
   ];
 
   const metCount = requirements.filter(r => r.met).length;
-  const strength = metCount / requirements.length;
 
-  const getStrengthColor = () => {
-    if (strength < 0.4) return "bg-red-500";
-    if (strength < 0.7) return "bg-yellow-500";
-    return "bg-green-500";
-  };
-
-  const getStrengthLabel = () => {
-    if (password.length === 0) return "";
-    if (strength < 0.4) return "Weak";
-    if (strength < 0.7) return "Medium";
-    return "Strong";
+  const getSegmentColor = (index: number) => {
+    if (password.length === 0) return "bg-white/10";
+    if (index < metCount) {
+      if (metCount <= 1) return "bg-red-500";
+      if (metCount <= 2) return "bg-amber-400";
+      return "bg-emerald-500";
+    }
+    return "bg-white/10";
   };
 
   return (
     <div className="space-y-3">
-      {/* Strength Bar */}
+      {/* Segmented Strength Bar */}
       {password.length > 0 && (
-        <div className="space-y-1">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-neutral-600">Password Strength</span>
-            <span className={`font-medium ${
-              strength < 0.4 ? "text-red-600" :
-              strength < 0.7 ? "text-yellow-600" :
-              "text-green-600"
-            }`}>
-              {getStrengthLabel()}
-            </span>
-          </div>
-          <div className="h-1.5 w-full bg-neutral-200 rounded-full overflow-hidden">
+        <div className="flex gap-1.5">
+          {requirements.map((_, index) => (
             <div
-              className={`h-full ${getStrengthColor()} transition-all duration-500`}
-              style={{ width: `${strength * 100}%` }}
+              key={index}
+              className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${getSegmentColor(index)}`}
             />
-          </div>
+          ))}
         </div>
       )}
 
-      {/* Requirements */}
-      <div className="grid grid-cols-2 gap-2">
+      {/* Minimal Criteria List */}
+      <div className="flex flex-wrap gap-x-4 gap-y-1.5">
         {requirements.map((req, index) => (
           <div
             key={index}
-            className={`flex items-center gap-1.5 text-xs ${
-              req.met ? "text-green-600" : "text-neutral-400"
+            className={`flex items-center gap-1.5 text-xs transition-colors duration-300 ${
+              req.met ? "text-emerald-400" : "text-zinc-600"
             }`}
           >
-            {req.met ? (
-              <Check className="h-3 w-3" />
-            ) : (
-              <X className="h-3 w-3" />
-            )}
+            <div className={`h-1 w-1 rounded-full ${req.met ? "bg-emerald-400" : "bg-zinc-600"}`} />
             <span>{req.label}</span>
           </div>
         ))}
