@@ -256,44 +256,49 @@ export class VendorServicesService {
   /**
    * Get all services for a vendor
    */
-  async findByVendor(vendorId: number) {
-    try {
-      return await this.prisma.vendorService.findMany({
-        where: { vendorId },
-      });
-    } catch (error) {
-      // Preserve original Prisma error message
-      const message = error instanceof Error ? error.message : 'Failed to fetch vendor services';
-      throw new InternalServerErrorException(message);
-    }
-  }
-
-  /**
-   * Get all services for a vendor by user ID
-   * Used by /vendors/me/services endpoint
-   */
   async findByVendorUserId(userId: number) {
-    try {
-      const vendor = await this.prisma.vendor.findUnique({
-        where: { userId },
-      });
-
-      if (!vendor) {
-        throw new NotFoundException('Vendor profile not found');
-      }
-
-      return await this.prisma.vendorService.findMany({
-        where: { vendorId: vendor.id },
-      });
-    } catch (error) {
-      if (error instanceof NotFoundException) {
-        throw error;
-      }
+try {
+const vendor = await this.prisma.vendor.findUnique({ where: { userId } });
+if (!vendor) return [];
+return await this.prisma.vendorService.findMany({ where: { vendorId: vendor.id } });
+} catch(error) {
       // Preserve original Prisma error message
       const message = error instanceof Error ? error.message : 'Failed to fetch vendor services';
       throw new InternalServerErrorException(message);
     }
   }
+
+   /**
+    * Get all services for a vendor (public endpoint - summary list)
+    * Optimized: returns only fields needed for list views
+    */
+   async findByVendor(vendorId: number) {
+     try {
+       const services = await this.prisma.vendorService.findMany({
+         where: { vendorId },
+         select: {
+           id: true,
+           name: true,
+           baseRate: true,
+           images: true,
+         },
+       });
+
+       // Map to ServiceSummaryDto
+       return services.map(s => ({
+         id: s.id,
+         name: s.name,
+         rating: 0, // Rating can be computed from related reviews if available
+         thumbnailUrl: s.images && s.images.length > 0 ? s.images[0] : null,
+         priceFrom: s.baseRate,
+       }));
+     } catch (error) {
+       // Preserve original Prisma error message
+       const message = error instanceof Error ? error.message : 'Failed to fetch vendor services';
+       throw new InternalServerErrorException(message);
+     }
+   }
+
 
   /**
    * Get service by ID with vendor details

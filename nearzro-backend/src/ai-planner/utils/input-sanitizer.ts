@@ -15,32 +15,24 @@ export class InputSanitizer {
    * - Removes control characters
    * - Escapes potentially dangerous characters
    * - Enforces maximum length
+   * - Wraps in <user-content> tags to mark as untrusted (structural defense against prompt injection)
    */
   static sanitizeForPrompt(input: string, maxLength: number = 100): string {
     if (!input || typeof input !== 'string') {
       return '';
     }
 
-    return input
+    const sanitized = input
       .trim()
       .slice(0, maxLength)
       // Remove control characters except newlines and tabs
       .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
       // Escape JSON special characters that could break the prompt
-      .replace(/["\\]/g, (match) => `\\${match}`)
-      // Remove any markdown or code block indicators
-      .replace(/```/g, '')
-      // Remove potential prompt injection patterns
-      .replace(/ignore previous instructions/gi, '')
-      .replace(/ignore all rules/gi, '')
-      .replace(/system prompt/gi, '')
-      .replace(/you are now/gi, '')
-      .replace(/pretend to be/gi, '')
-      .replace(/roleplay/gi, '')
-      // Additional security patterns
-      .replace(/ignore.*previous/gi, '')
-      .replace(/disregard.*instructions/gi, '')
-      .replace(/forget.*rules/gi, '');
+      .replace(/["\\]/g, (match) => `\\${match}`);
+
+    // Structural defense: wrap user content in clearly delimited tags
+    // The AI system prompt will instruct to treat everything inside these tags as untrusted
+    return `<user-content>${sanitized}</user-content>`;
   }
 
   /**

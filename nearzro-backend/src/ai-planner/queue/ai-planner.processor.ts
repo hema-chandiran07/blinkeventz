@@ -6,12 +6,12 @@ import { QUEUE_CONFIG } from '../constants/ai-planner.constants';
 
 /**
  * AI Planner Processor
- * 
+ *
  * Bull processor for async AI plan generation.
  * Configuration:
  * - Retry: 3 attempts with exponential backoff
  * - Timeout: 10 seconds per job
- * - Concurrency: 5 workers
+ * - Concurrency: 5 workers (parallel job processing)
  * - Special handling for quota errors (no retry)
  */
 @Processor(QUEUE_CONFIG.AI_PLANNER_QUEUE)

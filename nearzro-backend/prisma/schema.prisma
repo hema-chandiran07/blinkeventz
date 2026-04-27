@@ -11,7 +11,7 @@ datasource db {
 /// ///////////////////////////////////////////////////
 model User {
   id           Int      @id @default(autoincrement())
-  name         String
+  name         String   @db.VarChar(255)
   email        String?  @unique
   phone        String?  @unique
   passwordHash String?
@@ -109,12 +109,12 @@ model CustomerProfile {
 model Vendor {
   id                 Int                      @id @default(autoincrement())
   userId             Int                      @unique
-  businessName       String
-  ownerName          String?
+  businessName       String                   @db.VarChar(255)
+  ownerName          String?                  @db.VarChar(255)
   email              String?
   phone              String?
   businessType       String? // PHOTOGRAPHY, CATERING, DECOR, DJ, MAKEUP, VIDEOGRAPHY, ENTERTAINMENT, OTHER
-  description        String?
+  description        String?                  @db.VarChar(2000)
   serviceCategory    String?
   city               String
   area               String
@@ -126,7 +126,7 @@ model Vendor {
   verificationStatus VendorVerificationStatus @default(PENDING)
   createdAt          DateTime                 @default(now())
   updatedAt          DateTime                 @updatedAt
-  username           String?                  @unique
+  username           String?                  @unique @db.VarChar(255)
   rejectionReason    String?
 
   // Business Images
@@ -154,13 +154,13 @@ model Vendor {
 model VendorService {
   id           Int                @id @default(autoincrement())
   vendorId     Int
-  name         String
+  name         String             @db.VarChar(255)
   serviceType  ServiceType
   pricingModel VendorPricingModel
   baseRate     Int
   minGuests    Int?
   maxGuests    Int?
-  description  String?
+  description  String?            @db.VarChar(2000)
   inclusions   String?
   exclusions   String?
   images       String[]           @default([])
@@ -178,10 +178,10 @@ model VendorService {
 model Venue {
   id               Int         @id @default(autoincrement())
   ownerId          Int
-  name             String
+  name             String      @db.VarChar(255)
   type             VenueType
-  description      String?
-  address          String
+  description      String?     @db.VarChar(2000)
+  address          String      @db.VarChar(500)
   city             String
   area             String
   pincode          String
@@ -195,7 +195,7 @@ model Venue {
   status           VenueStatus @default(PENDING_APPROVAL)
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
-  username         String?     @unique
+  username         String?     @unique @db.VarChar(255)
   rejectionReason  String?
 
   // Venue Images (main photos)
@@ -236,9 +236,9 @@ model Venue {
 model VenuePhoto {
   id          Int           @id @default(autoincrement())
   venueId     Int
-  url         String
-  title       String? // Descriptive title for SEO and accessibility
-  description String? // Alt text and description
+  url         String        @db.VarChar(500)
+  title       String?       @db.VarChar(255) // Descriptive title for SEO and accessibility
+  description String?       @db.VarChar(2000) // Alt text and description
   category    PhotoCategory @default(GALLERY) // GALLERY, MAIN, CERTIFICATE, BEHIND_SCENES
   order       Int           @default(0) // Display order (lower = first)
   isCover     Boolean       @default(false)
@@ -262,9 +262,9 @@ model VenuePhoto {
 model PortfolioImage {
   id          Int           @id @default(autoincrement())
   vendorId    Int
-  imageUrl    String
-  title       String? // Descriptive title for SEO and accessibility
-  description String? // Alt text and description
+  imageUrl    String        @db.VarChar(500)
+  title       String?       @db.VarChar(255) // Descriptive title for SEO and accessibility
+  description String?       @db.VarChar(2000) // Alt text and description
   category    PhotoCategory @default(GALLERY) // GALLERY, MAIN, CERTIFICATE, BEHIND_SCENES, WORK_SAMPLE
   order       Int           @default(0) // Display order (lower = first)
   isCover     Boolean       @default(false) // Main profile image
@@ -383,6 +383,9 @@ model CartItem {
   @@index([cartId])
   @@index([vendorServiceId])
   @@index([venueId])
+
+  // SECURITY: Atomic upsert to prevent race conditions on addItem
+  @@unique([cartId, venueId, vendorServiceId, addonId, date, timeSlot])
 }
 
 model AIPlan {
@@ -601,7 +604,7 @@ model Event {
   customerId        Int             @default(0)
   assignedManagerId Int?
   eventType         String          @default("BOOKING")
-  title             String?
+  title             String?         @db.VarChar(255)
   date              DateTime
   timeSlot          String
   city              String          @default("Chennai")
@@ -650,12 +653,15 @@ model Event {
   @@index([date, status])
   @@index([city, date])
   @@index([customerId, status])
+
+  // SECURITY: Prevent double-booking of the same venue slot
+  @@unique([venueId, date, timeSlot])
 }
 
 model Promotion {
   id            Int      @id @default(autoincrement())
   code          String   @unique
-  description   String?
+  description   String?  @db.VarChar(2000)
   discountType  String
   discountValue Int
   minCartValue  Int?
@@ -680,7 +686,7 @@ model Review {
   vendorId    Int?
   eventId     Int?
   rating      Int
-  title       String?
+  title       String?      @db.VarChar(255)
   comment     String?
   response    String?
   respondedAt DateTime?
@@ -744,7 +750,7 @@ model Notification {
   eventId              Int?
   type                 NotificationType
   priority             NotificationPriority   @default(NORMAL)
-  title                String
+  title                String                 @db.VarChar(255)
   message              String
   metadata             Json?
   read                 Boolean                @default(false)
@@ -804,7 +810,7 @@ model AuditLog {
   action         String
   severity       AuditSeverity
   source         AuditSource
-  description    String?
+  description    String?       @db.VarChar(2000)
   oldValue       Json?
   newValue       Json?
   diff           Json?
@@ -853,7 +859,7 @@ model Settings {
   key         String           @unique
   value       Json
   category    SettingsCategory
-  description String?
+  description String?          @db.VarChar(2000)
   updatedAt   DateTime         @default(now())
   createdAt   DateTime         @default(now())
 

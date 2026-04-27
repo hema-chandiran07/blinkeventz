@@ -16,8 +16,8 @@ export const envValidationSchema = Joi.object({
   // JWT - required for all environments
   JWT_SECRET: Joi.string().min(32).required(),
 
-  // Encryption key - required for all environments (exactly 32 chars)
-  ENCRYPTION_KEY: Joi.string().length(32).required(),
+  // Encryption key — AES-256-GCM requires a 32-byte key stored as 64 hex characters
+  ENCRYPTION_KEY: Joi.string().length(64).required(),
 
   // Redis configuration (optional - will fallback to in-memory if missing)
   REDIS_HOST: Joi.string().default('localhost'),

@@ -1,10 +1,17 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { ConfigService } from '@nestjs/config';
 import { PayoutStatus } from '@prisma/client';
+import axios from 'axios';
 
 @Injectable()
 export class PayoutsService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(PayoutsService.name);
+
+  constructor(
+    private prisma: PrismaService,
+    private configService: ConfigService,
+  ) {}
 
   async findAll(query: any) {
     const { status, vendorId, venueId, page = 1, limit = 20 } = query;
@@ -196,7 +203,7 @@ export class PayoutsService {
     // Enforce forward-only state machine: only PENDING can be approved
     if (payout.status !== PayoutStatus.PENDING) {
       throw new BadRequestException(
-        `Cannot approve payout in ${payout.status} state. Only PENDING payouts can be approved.`
+        `Cannot approve payout in ${payout.status} state. Only PENDING payouts can be approved.`,
       );
     }
 
@@ -219,7 +226,7 @@ export class PayoutsService {
     // Enforce forward-only state machine: only PENDING can be rejected
     if (payout.status !== PayoutStatus.PENDING) {
       throw new BadRequestException(
-        `Cannot reject payout in ${payout.status} state. Only PENDING payouts can be rejected.`
+        `Cannot reject payout in ${payout.status} state. Only PENDING payouts can be rejected.`,
       );
     }
 
@@ -241,6 +248,18 @@ export class PayoutsService {
     });
   }
 
+  /**
+   * Process an approved payout via Razorpay X.
+   *
+   * Flow:
+   *  (a) Fetch vendor's bank/UPI details from DB
+   *  (b) Create a Razorpay X fund account if one does not already exist
+   *  (c) Initiate a payout transfer to that fund account
+   *  (d) Store the provider's payout_id (in rejectionReason as a transient ref while
+   *      status=PROCESSING — a dedicated providerPayoutId column should be added via
+   *      a future migration to replace this workaround)
+   *  (e) Webhook handler (handleWebhookEvent) moves status to COMPLETED or FAILED
+   */
   async process(id: number) {
     const payout = await this.findOne(id);
 
@@ -248,14 +267,218 @@ export class PayoutsService {
       throw new BadRequestException('Payout must be approved before processing');
     }
 
-    // TODO: Integrate with payment gateway for actual payout processing
+    // ── (a) Fetch vendor bank/UPI details ──────────────────────────────────
+    if (!payout.vendorId) {
+      throw new BadRequestException('Payout does not have an associated vendor');
+    }
+
+    const vendor = await this.prisma.vendor.findUnique({
+      where: { id: payout.vendorId },
+      select: { userId: true, businessName: true },
+    });
+
+    if (!vendor) {
+      throw new NotFoundException(`Vendor ${payout.vendorId} not found`);
+    }
+
+    const bankAccount = await this.prisma.bankAccount.findFirst({
+      where: { userId: vendor.userId, isVerified: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!bankAccount) {
+      throw new BadRequestException(
+        `Vendor ${payout.vendorId} has no verified bank account. Cannot process payout.`,
+      );
+    }
+
+    // ── Razorpay X credentials ─────────────────────────────────────────────
+    const keyId = this.configService.get<string>('RAZORPAY_KEY_ID');
+    const keySecret = this.configService.get<string>('RAZORPAY_KEY_SECRET');
+    const razorpayAccountNumber = this.configService.get<string>('RAZORPAY_ACCOUNT_NUMBER');
+
+    const isDryRun =
+      !keyId ||
+      !keySecret ||
+      !razorpayAccountNumber ||
+      keyId.includes('xxxxx') ||
+      keySecret.includes('xxxx');
+
+    let providerPayoutId: string;
+
+    if (isDryRun) {
+      // ── Development / unconfigured: simulate the payout ───────────────────
+      this.logger.warn(
+        `Razorpay X not configured — simulating payout ${id} (amount: ${payout.amount} paise)`,
+      );
+      providerPayoutId = `sim_payout_${id}_${Date.now()}`;
+    } else {
+      // ── Production: Razorpay X Payouts API ────────────────────────────────
+      const authHeader = Buffer.from(`${keyId}:${keySecret}`).toString('base64');
+      const razorpayXBase = 'https://api.razorpay.com/v1';
+
+      // ── (b) Create/retrieve fund account ──────────────────────────────────
+      let fundAccountId: string;
+      try {
+        const faRes = await axios.post(
+          `${razorpayXBase}/fund_accounts`,
+          {
+            contact_id: bankAccount.referenceId, // Razorpay contact ID stored on BankAccount
+            account_type: 'bank_account',
+            bank_account: {
+              name: bankAccount.accountHolder,
+              ifsc: bankAccount.ifsc,
+              account_number: bankAccount.accountNumber,
+            },
+          },
+          {
+            headers: {
+              Authorization: `Basic ${authHeader}`,
+              'Content-Type': 'application/json',
+            },
+          },
+        );
+        fundAccountId = faRes.data.id;
+        this.logger.log(`Razorpay fund account created: ${fundAccountId}`);
+      } catch (faErr: any) {
+        // If a duplicate fund account exists, Razorpay returns HTTP 400.
+        // Fall back to listing existing fund accounts for this contact.
+        if (faErr?.response?.status === 400) {
+          const listRes = await axios.get(
+            `${razorpayXBase}/fund_accounts?contact_id=${bankAccount.referenceId}&account_type=bank_account`,
+            { headers: { Authorization: `Basic ${authHeader}` } },
+          );
+          const items: any[] = listRes.data?.items || [];
+          const match = items.find(
+            (fa: any) => fa.bank_account?.account_number === bankAccount.accountNumber,
+          );
+          if (!match) {
+            throw new BadRequestException('Failed to create or locate Razorpay fund account');
+          }
+          fundAccountId = match.id;
+          this.logger.log(`Razorpay fund account reused: ${fundAccountId}`);
+        } else {
+          throw new BadRequestException(`Razorpay fund account error: ${faErr?.message}`);
+        }
+      }
+
+      // ── (c) Initiate payout transfer ──────────────────────────────────────
+      try {
+        const payoutRes = await axios.post(
+          `${razorpayXBase}/payouts`,
+          {
+            account_number: razorpayAccountNumber,
+            fund_account_id: fundAccountId,
+            amount: payout.amount, // already in paise
+            currency: 'INR',
+            mode: 'IMPS',
+            purpose: 'payout',
+            queue_if_low_balance: true,
+            reference_id: `payout_${id}`, // used in webhook resolution
+            narration: `NearZro payout ID ${id}`,
+          },
+          {
+            headers: {
+              Authorization: `Basic ${authHeader}`,
+              'Content-Type': 'application/json',
+              'X-Payout-Idempotency': `payout_${id}`, // idempotency for retries
+            },
+          },
+        );
+        providerPayoutId = payoutRes.data.id;
+        this.logger.log(`Razorpay payout initiated: ${providerPayoutId}`);
+      } catch (payoutErr: any) {
+        throw new BadRequestException(
+          `Razorpay payout initiation failed: ${payoutErr?.message}`,
+        );
+      }
+    }
+
+    // ── (d) Persist provider payout_id and transition to PROCESSING ───────
+    // NOTE: The Payout schema has no dedicated providerPayoutId column.
+    //       The Razorpay payout ID is stored in rejectionReason prefixed with
+    //       "ref:" as a workaround. Add a providerPayoutId column via migration
+    //       to replace this field reuse.
     return this.prisma.payout.update({
       where: { id },
       data: {
         status: PayoutStatus.PROCESSING,
         processedAt: new Date(),
+        rejectionReason: `ref:${providerPayoutId}`,
       },
     });
+  }
+
+  /**
+   * Handle Razorpay X webhook callbacks to move payout status to COMPLETED or FAILED.
+   *
+   * Supported event types:
+   *   payout.processed  → COMPLETED
+   *   payout.reversed   → FAILED
+   *   payout.failed     → FAILED
+   *
+   * @param event - Raw parsed Razorpay X webhook body
+   */
+  async handleWebhookEvent(event: any): Promise<void> {
+    const eventType: string = event?.event;
+    const payoutEntity = event?.payload?.payout?.entity;
+
+    if (!payoutEntity || !eventType) {
+      this.logger.warn('Ignoring malformed Razorpay X webhook payload');
+      return;
+    }
+
+    const providerPayoutId: string = payoutEntity.id;
+    const referenceId: string | undefined = payoutEntity.reference_id; // 'payout_{id}'
+
+    // Resolve our internal payout ID from the reference_id set during process()
+    let internalId: number | null = null;
+    if (referenceId && referenceId.startsWith('payout_')) {
+      internalId = parseInt(referenceId.replace('payout_', ''), 10) || null;
+    }
+
+    if (!internalId) {
+      this.logger.warn(
+        `Razorpay X webhook: cannot resolve internal payout ID from reference_id "${referenceId}"`,
+      );
+      return;
+    }
+
+    const payout = await this.prisma.payout.findUnique({ where: { id: internalId } });
+    if (!payout) {
+      this.logger.warn(`Razorpay X webhook: payout ${internalId} not found in DB`);
+      return;
+    }
+
+    // ── (e) Transition status based on event type ─────────────────────────
+    if (eventType === 'payout.processed') {
+      await this.prisma.payout.update({
+        where: { id: internalId },
+        data: {
+          status: PayoutStatus.COMPLETED,
+          rejectionReason: `ref:${providerPayoutId}`,
+        },
+      });
+      this.logger.log(
+        `Payout ${internalId} → COMPLETED (provider: ${providerPayoutId})`,
+      );
+    } else if (eventType === 'payout.reversed' || eventType === 'payout.failed') {
+      const failReason = payoutEntity.error?.description || eventType;
+      await this.prisma.payout.update({
+        where: { id: internalId },
+        data: {
+          status: PayoutStatus.FAILED,
+          rejectionReason: `failed:${providerPayoutId}:${failReason}`,
+        },
+      });
+      this.logger.error(
+        `Payout ${internalId} → FAILED (provider: ${providerPayoutId}, reason: ${failReason})`,
+      );
+    } else {
+      this.logger.log(
+        `Payout ${internalId}: unhandled Razorpay X event "${eventType}"`,
+      );
+    }
   }
 
   async export() {

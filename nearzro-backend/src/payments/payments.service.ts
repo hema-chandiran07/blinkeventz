@@ -24,6 +24,7 @@ import {
 import { CartService } from '../cart/cart.service';
 import { SettingsService } from '../settings/settings.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { EventsService } from '../events/events.service';
 
 /**
  * Payment Service - Industry Standard Implementation
@@ -53,6 +54,7 @@ export class PaymentsService {
     private readonly cartService: CartService,
     private readonly settingsService: SettingsService,
     private readonly notificationsService: NotificationsService,
+    private readonly eventsService: EventsService,
   ) {
     this.razorpay = razorpayClient;
     this.razorpayKeySecret = this.configService.get<string>('RAZORPAY_KEY_SECRET') || '';
@@ -278,8 +280,8 @@ export class PaymentsService {
         return this.buildOrderResponse(existingPayment, traceId);
       }
 
-      // Convert amount to paise
-      const amountInPaise = Math.round(dto.amount * 100);
+      // Convert amount to paise using Decimal to avoid floating point errors
+      const amountInPaise = new Decimal(dto.amount).mul(100).toDecimalPlaces(0).toNumber();
 
       // Create Razorpay order
       const order = await this.createRazorpayOrder(
@@ -420,6 +422,7 @@ export class PaymentsService {
       }
 
       // 5. Update payment and cart atomically
+      let createdEventIds: number[] = [];
       await this.prisma.$transaction(async (tx) => {
         // Update payment
         await tx.payment.update({
@@ -432,7 +435,7 @@ export class PaymentsService {
           },
         });
 
-        // Complete cart if exists and create Events
+        // Complete cart if exists and create Events (initially QUOTED)
         if (payment.cartId && payment.cartId > 0) {
           const cart = await tx.cart.findUnique({
             where: { id: payment.cartId },
@@ -448,8 +451,8 @@ export class PaymentsService {
             data: { status: CartStatus.COMPLETED },
           });
 
-          // Create Event records from cart items
-          await this.createEventsFromCart(tx, payment, cart, traceId);
+          // Create Event records from cart items (status = QUOTED)
+          createdEventIds = await this.createEventsFromCart(tx, payment, cart, traceId);
         }
 
         // Create audit event
@@ -466,6 +469,22 @@ export class PaymentsService {
           },
         });
       });
+
+      // Transition events from QUOTED to CONFIRMED after commit
+      if (createdEventIds.length > 0) {
+        for (const eventId of createdEventIds) {
+          try {
+            await this.eventsService.updateEventStatus(eventId, 'CONFIRMED');
+          } catch (err: any) {
+            this.logger.error({
+              event: 'EVENT_TRANSITION_FAILED',
+              eventId,
+              error: err.message,
+            });
+            // Continue processing; do not throw to avoid failing response
+          }
+        }
+      }
 
       await this.sendBookingNotifications(payment, payment.cart?.items || [], traceId);
 
@@ -500,34 +519,70 @@ export class PaymentsService {
     payment: any,
     cart: any,
     traceId: string,
-  ): Promise<void> {
+  ): Promise<number[]> {
     const feeSettings = await this.settingsService.getPublicFees();
     const PLATFORM_FEE_RATE = feeSettings.platformFee;
     const TAX_RATE = feeSettings.taxRate;
+    const createdEventIds: number[] = [];
+
     for (const item of cart.items) {
       const metaData = item.meta !== null && typeof item.meta === 'object'
         ? (item.meta as Record<string, unknown>) : {};
       const startTime = (metaData as any)?.startTime || null;
       const endTime = (metaData as any)?.endTime || null;
-      const itemTotal = Number(item.totalPrice || 0);
+
+      // FIX 1: Row-level lock and availability check to prevent double booking
+      if (item.venueId) {
+        // Lock the venue row to serialize concurrent bookings
+        await tx.$queryRaw`SELECT * FROM "Venue" WHERE id = ${item.venueId} FOR UPDATE`;
+        // Check for existing conflicting event
+        const existingEvent = await tx.event.findFirst({
+          where: {
+            venueId: item.venueId,
+            date: item.date,
+            timeSlot: item.timeSlot,
+          },
+        });
+        if (existingEvent) {
+          throw new BadRequestException(`Venue already booked for date ${item.date} slot ${item.timeSlot}`);
+        }
+      } else if (item.vendorServiceId) {
+        // Lock the vendor service row
+        await tx.$queryRaw`SELECT * FROM "VendorService" WHERE id = ${item.vendorServiceId} FOR UPDATE`;
+        const existingEvent = await tx.event.findFirst({
+          where: {
+            vendorServiceId: item.vendorServiceId,
+            date: item.date,
+            timeSlot: item.timeSlot,
+          },
+        });
+        if (existingEvent) {
+          throw new BadRequestException(`Vendor service already booked for date ${item.date} slot ${item.timeSlot}`);
+        }
+      }
+
+      // FIX 2: Use Decimal for all financial calculations to avoid floating point errors
+      const itemTotal = new Decimal(item.totalPrice?.toString() || '0');
       const itemExpressFee = cart.isExpress && cart.expressFee
-        ? Math.round(cart.expressFee / cart.items.length) : 0;
-      const itemSubtotal = itemTotal - itemExpressFee;
-      const itemPlatformFee = Math.round((itemSubtotal + itemExpressFee) * PLATFORM_FEE_RATE);
-      const itemTax = Math.round((itemSubtotal + itemPlatformFee) * TAX_RATE);
-      const itemTotalAmount = itemSubtotal + itemExpressFee + itemPlatformFee + itemTax;
+        ? new Decimal(Math.round(cart.expressFee / cart.items.length))
+        : new Decimal(0);
+      const itemSubtotal = itemTotal.minus(itemExpressFee);
+      const itemPlatformFee = itemSubtotal.plus(itemExpressFee).mul(PLATFORM_FEE_RATE).toDecimalPlaces(0);
+      const itemTax = itemSubtotal.plus(itemPlatformFee).mul(TAX_RATE).toDecimalPlaces(0);
+      const itemTotalAmount = itemSubtotal.plus(itemExpressFee).plus(itemPlatformFee).plus(itemTax);
+
       const eventBase = {
         userId: payment.userId,
         customerId: payment.userId,
         date: item.date || new Date(),
         timeSlot: item.timeSlot || 'FULL_DAY',
-        status: 'CONFIRMED' as any,
+        status: 'QUOTED' as any, // FIX 6: Create initially as QUOTED
         isExpress: cart.isExpress || false,
-        expressFee: cart.expressFee || 0,
-        subtotal: itemSubtotal,
-        platformFee: itemPlatformFee,
-        tax: itemTax,
-        totalAmount: itemTotalAmount,
+        expressFee: itemExpressFee.toNumber(),
+        subtotal: itemSubtotal.toNumber(),
+        platformFee: itemPlatformFee.toNumber(),
+        tax: itemTax.toNumber(),
+        totalAmount: itemTotalAmount.toNumber(),
         meta: {
           ...metaData,
           startTime,
@@ -538,12 +593,19 @@ export class PaymentsService {
           traceId,
         },
       };
+
+      let createdEvent: any;
       if (item.venueId) {
-        await tx.event.create({ data: { ...eventBase, venueId: item.venueId } });
+        createdEvent = await tx.event.create({ data: { ...eventBase, venueId: item.venueId } });
       } else if (item.vendorServiceId) {
-        await tx.event.create({ data: { ...eventBase, vendorServiceId: item.vendorServiceId } });
+        createdEvent = await tx.event.create({ data: { ...eventBase, vendorServiceId: item.vendorServiceId } });
+      }
+      if (createdEvent?.id) {
+        createdEventIds.push(createdEvent.id);
       }
     }
+
+    return createdEventIds;
   }
 
   private async sendBookingNotifications(
@@ -631,6 +693,7 @@ export class PaymentsService {
     const eventId = payload.payload?.payment?.entity?.id;
     const orderId = payload.payload?.payment?.entity?.order_id || payload.payload?.order?.entity?.id;
     const eventType = payload.event;
+    let createdEventIds: number[] = [];
 
     this.logger.log({
       event: 'WEBHOOK_RECEIVED',
@@ -712,24 +775,17 @@ export class PaymentsService {
               where: { id: payment.cartId },
               data: { status: cartStatus },
             });
-          }
+      }
         }
 
+        // Create events (status = QUOTED)
         if (newStatus === PaymentStatus.CAPTURED && payment.cartId && payment.cartId > 0) {
-          const existingCount = await tx.event.count({
-            where: {
-              userId: payment.userId,
-              createdAt: { gte: new Date(Date.now() - 300000) },
-            },
+          const cartWithItems = await tx.cart.findUnique({
+            where: { id: payment.cartId },
+            include: { items: true },
           });
-          if (existingCount === 0) {
-            const cartWithItems = await tx.cart.findUnique({
-              where: { id: payment.cartId },
-              include: { items: true },
-            });
-            if (cartWithItems) {
-              await this.createEventsFromCart(tx, payment, cartWithItems, requestId || 'webhook');
-            }
+          if (cartWithItems) {
+            createdEventIds = await this.createEventsFromCart(tx, payment, cartWithItems, requestId || 'webhook');
           }
         }
 
@@ -747,15 +803,30 @@ export class PaymentsService {
         });
       });
 
-      if (newStatus === PaymentStatus.CAPTURED) {
-        const cartItems = payment.cartId
-          ? (await this.prisma.cart.findUnique({
-              where: { id: payment.cartId },
-              include: { items: true },
-            }))?.items || []
-          : [];
-        await this.sendBookingNotifications(payment, cartItems, requestId || 'webhook');
-      }
+       // Transition events to CONFIRMED after creation (Fix 6)
+       if (createdEventIds.length > 0) {
+         for (const eventId of createdEventIds) {
+           try {
+             await this.eventsService.updateEventStatus(eventId, 'CONFIRMED');
+           } catch (err: any) {
+             this.logger.error({
+               event: 'EVENT_TRANSITION_FAILED',
+               eventId,
+               error: err.message,
+             });
+           }
+         }
+       }
+
+       if (newStatus === PaymentStatus.CAPTURED) {
+         const cartItems = payment.cartId
+           ? (await this.prisma.cart.findUnique({
+               where: { id: payment.cartId },
+               include: { items: true },
+             }))?.items || []
+           : [];
+         await this.sendBookingNotifications(payment, cartItems, requestId || 'webhook');
+       }
 
       this.logger.log({
         event: 'WEBHOOK_PROCESSED',
@@ -921,15 +992,17 @@ export class PaymentsService {
   }
 
   /**
-   * Calculate amount from cart items (server-side)
-   */
+    * Calculate amount from cart items (server-side)
+    * Uses Decimal arithmetic to avoid floating point errors
+    */
   private calculateAmountFromItems(items: any[]): number {
     const zero = new Decimal(0);
     const total = items.reduce(
       (sum, item) => sum.add(new Decimal(item.totalPrice?.toString() || '0')),
       zero,
     );
-    return Math.round(total.toNumber() * 100); // Convert to paise
+    // Convert to paise using Decimal multiplication, avoid floating point
+    return total.mul(new Decimal(100)).toDecimalPlaces(0).toNumber();
   }
 
   /**

@@ -10,6 +10,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { CartModule } from '../cart/cart.module';
 import { SettingsModule } from '../settings/settings.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { EventsModule } from '../events/events.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     forwardRef(() => SettingsModule),
     forwardRef(() => NotificationsModule),
     ScheduleModule.forRoot(),
+    EventsModule,
   ],
   controllers: [
     PaymentsController, 

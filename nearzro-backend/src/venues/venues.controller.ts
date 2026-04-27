@@ -367,14 +367,8 @@ export class VenuesController {
   }
 
   /// 🏢 VENUE OWNER → Get my venue profile
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.VENUE_OWNER)
-  @Get('me')
-  async getMyVenue(@Req() req: any) {
-    const venues = await this.venuesService.getVenuesByOwner(req.user.userId);
-    return venues;
-  }
+  // NOTE: GET /venues/me and GET /venues/me/availability are declared above (lines 95 and 115).
+  // These duplicate handlers have been removed to prevent NestJS route-shadowing bugs.
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -396,24 +390,6 @@ export class VenuesController {
     return this.venuesService.updateVenueBookingStatus(id, body.status, req.user.userId);
   }
 
-  /// 🏢 VENUE OWNER → Get my availability
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.VENUE_OWNER)
-  @Get('me/availability')
-  async getMyAvailability(@Req() req: any) {
-    const venues = await this.venuesService.getVenuesByOwner(req.user.userId);
-    const venueIds = venues.map(v => v.id);
-
-    // Query AvailabilitySlot with venueId
-    const availability = await this.prisma.availabilitySlot.findMany({
-      where: {
-        venueId: { in: venueIds },
-      } as any,
-      orderBy: { date: 'asc' },
-    });
-    return availability;
-  }
 
   /// 🏢 VENUE OWNER → Get my analytics
   @ApiBearerAuth()

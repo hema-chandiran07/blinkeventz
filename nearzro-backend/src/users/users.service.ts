@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException, NotFoundException, UnauthorizedException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
+import { Role } from '@prisma/client';
 
 @Injectable()
 export class UsersService {
@@ -312,6 +313,15 @@ export class UsersService {
     }
 
     return updatedUser;
+  }
+
+  /**
+   * Change user role (admin only)
+   * Dedicated endpoint for role changes to avoid mass assignment
+   */
+  async changeUserRole(userId: number, role: Role, requestingAdminId: number) {
+    // Reuse updateUser logic with only role field
+    return this.updateUser(userId, { role }, requestingAdminId);
   }
 
   /**

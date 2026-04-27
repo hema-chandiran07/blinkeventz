@@ -15,7 +15,8 @@ import {
   Headers,
   ValidationPipe,
   ParseIntPipe,
-} from '@nestjs/common';
+  BadRequestException,
+  UseInterceptors} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags, ApiOperation, ApiBody, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { PaymentsService } from './payments.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -27,6 +28,7 @@ import { Public } from '../common/decorators/public.decorator';
 import { CreatePaymentDto, CreateSimplePaymentDto } from './dto/create-payment.dto';
 import { ConfirmPaymentDto } from './dto/confirm-payment.dto';
 import { PaymentOrderResponseDto, PaymentConfirmResponseDto, PaymentStatusResponseDto } from './dto/payment-response.dto';
+import { IdempotencyInterceptor } from './interceptors/idempotency.interceptor';
 
 @ApiTags('Payments')
 @Controller('payments')
@@ -99,33 +101,42 @@ export class PaymentsController {
     return this.paymentsService.getRefundHistory(id);
   }
 
-  // ============================================================
-  // ENDPOINT 1: Create Payment Order (with cart)
-  // ============================================================
+   // ============================================================
+   // ENDPOINT 1: Create Payment Order (with cart)
+   // ============================================================
 
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
-  @Post('create-order')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Create Razorpay payment order for cart',
-    description: 'Creates a payment order and locks the cart. Returns Razorpay order data for client-side payment.'
-  })
-  @ApiBody({ type: CreatePaymentDto })
-  @ApiResponse({
-    status: 200,
-    description: 'Payment order created successfully',
-    type: PaymentOrderResponseDto
-  })
-  @ApiResponse({ status: 400, description: 'Invalid cart or validation error' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async createOrder(
-    @Req() req: AuthRequest,
-    @Body(new ValidationPipe({ transform: true, whitelist: true })) dto: CreatePaymentDto,
-  ): Promise<PaymentOrderResponseDto> {
-    const requestId = this.normalizeHeader(req.headers['x-request-id']);
-    return this.paymentsService.createOrder(req.user.userId, dto, requestId);
-  }
+   @ApiBearerAuth()
+   @UseGuards(JwtAuthGuard)
+   @Post('create-order')
+   @HttpCode(HttpStatus.OK)
+   @UseInterceptors(IdempotencyInterceptor)
+   @ApiOperation({
+     summary: 'Create Razorpay payment order for cart',
+     description: 'Creates a payment order and locks the cart. Returns Razorpay order data for client-side payment. Requires Idempotency-Key header.',
+   })
+   @ApiBody({ type: CreatePaymentDto })
+   @ApiResponse({
+     status: 200,
+     description: 'Payment order created successfully',
+     type: PaymentOrderResponseDto
+   })
+   @ApiResponse({ status: 400, description: 'Invalid cart or validation error, or missing Idempotency-Key' })
+   @ApiResponse({ status: 401, description: 'Unauthorized' })
+   async createOrder(
+     @Req() req: AuthRequest,
+     @Body(new ValidationPipe({ transform: true, whitelist: true })) dto: CreatePaymentDto,
+     @Headers('idempotency-key') idempotencyKey?: string,
+     @Headers('x-idempotency-key') xIdempotencyKey?: string,
+   ): Promise<PaymentOrderResponseDto> {
+     // Require Idempotency-Key header
+     const key = idempotencyKey || xIdempotencyKey;
+     if (!key) {
+       throw new BadRequestException('Idempotency-Key header is required');
+     }
+
+     const requestId = this.normalizeHeader(req.headers['x-request-id']);
+     return this.paymentsService.createOrder(req.user.userId, dto, requestId);
+   }
 
   // ============================================================
   // ENDPOINT 2: Create Simplified Payment (no cart)

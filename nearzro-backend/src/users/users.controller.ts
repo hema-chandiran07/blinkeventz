@@ -1,16 +1,21 @@
 import { Roles } from '../common/decorators/roles.decorator';
 import { Role } from '@prisma/client';
 import { RolesGuard } from '../common/guards/roles.guard';
-import { Controller, Get, Req, UseGuards, Param, NotFoundException, ParseIntPipe, ForbiddenException, Body, Patch, Delete } from '@nestjs/common';
+import { Controller, Get, Req, UseGuards, Param, NotFoundException, ParseIntPipe, ForbiddenException, Body, Patch, Delete, Inject } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ApiBearerAuth, ApiTags, ApiParam, ApiOperation, ApiBody } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { ChangeRoleDto } from './dto/change-role.dto';
+import { AuthService } from '../auth/auth.service';
 
 @ApiTags('Users')
 @Controller('users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly authService: AuthService,
+  ) {}
 
   // ============================================================================
   // GET USERS
@@ -28,9 +33,11 @@ export class UsersController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @Get('me')
-  @ApiOperation({ summary: 'Get current user profile' })
-  getMe(@Req() req) {
-    return req.user;
+  @ApiOperation({ summary: 'Get current user profile (fresh from DB)' })
+  async getMe(@Req() req) {
+    // Fetch fresh data from DB — not the stale JWT payload.
+    // This ensures role changes, suspensions, and profile updates are reflected immediately.
+    return this.usersService.findById(req.user.userId);
   }
 
   @ApiBearerAuth()
@@ -86,7 +93,14 @@ export class UsersController {
     @Req() req: any,
     @Body() body: { currentPassword: string; newPassword: string },
   ) {
-    return this.usersService.updatePassword(req.user.userId || req.user.id, body);
+    const result = await this.usersService.updatePassword(req.user.userId || req.user.id, body);
+    
+    // Blacklist current access token on password change
+    if (req.user?.jti && req.user?.exp) {
+      await this.authService.blacklistToken(req.user.jti, req.user.exp);
+    }
+    
+    return result;
   }
 
   // ============================================================================
@@ -191,6 +205,26 @@ export class UsersController {
   @ApiOperation({ summary: 'Delete user (Admin only)' })
   async deleteUser(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
     return this.usersService.deleteUser(id, req.user.userId || req.user.id);
+  }
+
+  // 👑 SUPER_ADMIN → Change user role (separate endpoint for security)
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @Patch(':id/role')
+  @ApiParam({ name: 'id', type: Number, description: 'User ID' })
+  @ApiOperation({ summary: 'Change user role (Super Admin only)' })
+  @ApiBody({ type: ChangeRoleDto })
+  async changeUserRole(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: any,
+    @Body() body: ChangeRoleDto,
+  ) {
+    // Only allow SUPER_ADMIN to change roles
+    if (req.user.role !== Role.ADMIN) {
+      throw new ForbiddenException('Only SUPER_ADMIN can change user roles');
+    }
+    return this.usersService.changeUserRole(id, body.role, req.user.userId || req.user.id);
   }
 }
 

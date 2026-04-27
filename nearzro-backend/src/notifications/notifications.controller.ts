@@ -112,16 +112,18 @@ export class NotificationsController {
   // DEBUG ENDPOINT
   // ============================================================================
 
-  // ✅ Debug-live endpoint - sends real notifications
-  @Public()
+  // 🔒 ADMIN ONLY — debug-live sends real emails/SMS; guarded behind JWT + ADMIN role
+  // NODE_ENV === 'production' check inside the handler remains as a second safety layer
+  @ApiBearerAuth()
+  @Roles(Role.ADMIN)
   @Post('debug-live')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Send real notifications for debugging (non-production only)' })
+  @ApiOperation({ summary: '[ADMIN ONLY] Send real notifications for debugging (non-production only)' })
   @ApiResponse({ status: 200, description: 'Notifications sent successfully' })
-  @ApiResponse({ status: 403, description: 'Endpoint disabled in production' })
+  @ApiResponse({ status: 403, description: 'Endpoint disabled in production or forbidden' })
   @ApiResponse({ status: 400, description: 'Invalid input or provider not configured' })
   async debugLive(@Body() dto: DebugLiveDto) {
-    // ✅ Safety: Block in production
+    // Second-layer safety: also block in production environment
     if (process.env.NODE_ENV === 'production') {
       throw new ForbiddenException('Debug endpoint is disabled in production');
     }
@@ -199,31 +201,42 @@ export class NotificationsController {
   // GET NOTIFICATIONS
   // ============================================================================
 
-  // ✅ Get all notifications for admin (using query param for admin flag)
+  // ✅ Get all notifications for admin — dedicated route, explicit ADMIN guard
+  @ApiBearerAuth()
+  @Roles(Role.ADMIN)
+  @Get('admin/all')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 100, ttl: 60000 } })
+  @ApiOperation({ summary: '[ADMIN] Get all notifications platform-wide' })
+  async getAllNotificationsAdmin(
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '20',
+  ) {
+    const pageNum = parseInt(page, 10) || 1;
+    const limitNum = parseInt(limit, 10) || 20;
+    return this.service.getAllNotifications(pageNum, limitNum);
+  }
+
+  // ✅ Get user notifications (own notifications only — ?admin param removed)
   @ApiBearerAuth()
   @Get()
   @UseGuards(ThrottlerGuard)
-  @Throttle({ default: { limit: 100, ttl: 60000 } }) // 100 requests per minute
-  @ApiOperation({ summary: 'Get notifications (user or admin)' })
+  @Throttle({ default: { limit: 100, ttl: 60000 } })
+  @ApiOperation({ summary: 'Get notifications for the current user' })
   async getNotifications(
     @Req() req: any,
     @Query('page') page: string = '1',
     @Query('limit') limit: string = '20',
     @Query('read') read?: string,
-    @Query('admin') admin?: string,
   ) {
     const pageNum = typeof page === 'string' ? parseInt(page, 10) || 1 : page;
     const limitNum = typeof limit === 'string' ? parseInt(limit, 10) || 20 : limit;
     const readBool = read === 'true' ? true : read === 'false' ? false : undefined;
 
-    // If admin query param is present and user is admin, return all notifications
-    if (admin === 'true' && req.user.role === 'ADMIN') {
-      return this.service.getAllNotifications(pageNum, limitNum);
-    }
-
-    // Otherwise return user-specific notifications
+    // Always return only the authenticated user's own notifications
     return this.service.getUserNotifications(req.user.userId || req.user.id, pageNum, limitNum, readBool);
   }
+
 
   // ✅ Get unread count
   @ApiBearerAuth()

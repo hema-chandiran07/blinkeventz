@@ -154,8 +154,13 @@ export class ReportsService {
 
     return {
       data: users.map(u => ({
-        ...u,
         id: Number(u.id),
+        name: u.name,
+        email: u.email,
+        role: u.role,
+        isActive: u.isActive,
+        isEmailVerified: u.isEmailVerified,
+        createdAt: u.createdAt,
       })),
       page,
       limit,
@@ -218,13 +223,24 @@ export class ReportsService {
     status?: string,
   ) {
     const skip = (page - 1) * limit;
-    // Note: Vendor model might not have status field, so we'll query all
-    // In production, you'd add status to the Vendor model
+    const where: any = {};
 
+    // Note: Vendor model uses verificationStatus, not status
+    // status filter could refer to verificationStatus
+    if (status) {
+      where.verificationStatus = status;
+    }
 
     const [vendors, total] = await Promise.all([
       this.prisma.vendor.findMany({
-        include: {
+        where,
+        select: {
+          id: true,
+          businessName: true,
+          city: true,
+          area: true,
+          verificationStatus: true,
+          createdAt: true,
           user: {
             select: {
               id: true,
@@ -238,14 +254,21 @@ export class ReportsService {
         take: limit,
         orderBy: { createdAt: 'desc' },
       }),
-      this.prisma.vendor.count(),
+      this.prisma.vendor.count({ where }),
     ]);
 
     return {
       data: vendors.map(v => ({
-        ...v,
         id: Number(v.id),
-        userId: v.userId ? Number(v.userId) : null,
+        businessName: v.businessName,
+        city: v.city,
+        area: v.area,
+        verificationStatus: v.verificationStatus,
+        createdAt: v.createdAt,
+        userId: v.user ? Number(v.user.id) : null,
+        userName: v.user?.name || null,
+        userEmail: v.user?.email || null,
+        isActive: v.user?.isActive ?? false,
       })),
       page,
       limit,
@@ -343,13 +366,24 @@ export class ReportsService {
       }),
       this.prisma.venue.count(),
       this.prisma.vendor.count(),
-      this.prisma.venue.findMany({
-        take: 5,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          owner: { select: { name: true, email: true } },
-        },
-      }),
+       this.prisma.venue.findMany({
+         take: 5,
+         orderBy: { createdAt: 'desc' },
+         select: {
+           id: true,
+           name: true,
+           city: true,
+           area: true,
+           status: true,
+           createdAt: true,
+           owner: {
+             select: {
+               name: true,
+               email: true,
+             },
+           },
+         },
+       }),
       this.prisma.vendor.findMany({
         take: 5,
         orderBy: { createdAt: 'desc' },

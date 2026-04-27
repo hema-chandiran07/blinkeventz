@@ -287,7 +287,7 @@ export class AuthController {
   @Get('facebook/callback')
   @UseGuards(AuthGuard('facebook'))
   @ApiOperation({ summary: 'Facebook OAuth callback' })
-  @ApiResponse({ status: 302, description: 'Redirects to frontend with temp code' })
+  @ApiResponse({ status: 302, description: 'Redirects to frontend with access token (step=2, refresh token NOT in URL)' })
   async facebookAuthCallback(@Req() req: Request & { user?: { facebookId: string; email: string; name: string; picture?: string } }, @Res() res: Response) {
     try {
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
@@ -297,9 +297,17 @@ export class AuthController {
       }
       
       const tokens = await this.authService.handleOAuthLogin(req.user, 'facebook');
-      
-      const tempCode = Buffer.from(JSON.stringify(tokens)).toString('base64');
-      res.redirect(`${frontendUrl}/auth/callback?code=${tempCode}`);
+
+      // Safe redirect: step=2 pattern (same as Google OAuth).
+      // Only the access token goes in the URL — refresh token stays server-side.
+      const userData = {
+        id: (tokens as any).user?.id,
+        email: (tokens as any).user?.email,
+        name: (tokens as any).user?.name,
+        role: (tokens as any).user?.role,
+      };
+      const redirectUrl = `${frontendUrl}/auth/callback?step=2&token=${(tokens as any).accessToken}&provider=facebook&user=${encodeURIComponent(JSON.stringify(userData))}`;
+      res.redirect(redirectUrl);
     } catch (error) {
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
       res.redirect(`${frontendUrl}/login?error=facebook_auth_failed`);

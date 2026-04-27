@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { DatabaseStorageService } from '../storage/database-storage.service';
+import { S3Service } from '../storage/s3.service';
 import { AuditService } from '../audit/audit.service';
 import { SubmitKycDto } from './dto/submit-kyc.dto';
 import { CreateKycDto } from './dto/create-kyc.dto';
@@ -27,6 +28,7 @@ export class KycService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storageService: DatabaseStorageService,
+    private readonly s3Service: S3Service,
     private readonly auditService: AuditService,
   ) {}
 
@@ -357,8 +359,16 @@ export class KycService {
       this.prisma.kycDocument.count({ where }),
     ]);
 
+    // Convert to presigned URLs for admin access
+    const kycDocuments = await Promise.all(
+      kycDocs.map(async (doc) => ({
+        ...doc,
+        docFileUrl: await this.s3Service.getKycDocumentUrl(doc.docFileUrl),
+      }))
+    );
+
     return {
-      kycDocuments: kycDocs,
+      kycDocuments,
       pagination: {
         page,
         limit,
@@ -448,11 +458,14 @@ export class KycService {
       throw new NotFoundException('No KYC document found');
     }
 
+    // Generate presigned URL for KYC document access
+    const presignedUrl = await this.s3Service.getKycDocumentUrl(kyc.docFileUrl);
+
     return {
       id: kyc.id,
       docType: kyc.docType,
       docNumber: kyc.docNumber,
-      docFileUrl: kyc.docFileUrl,
+      docFileUrl: presignedUrl,
       status: kyc.status,
       rejectionReason: kyc.rejectionReason ?? undefined,
       createdAt: kyc.createdAt,
@@ -656,11 +669,14 @@ export class KycService {
       throw new NotFoundException('No KYC document found');
     }
 
+    // Generate presigned URL for KYC document access
+    const presignedUrl = await this.s3Service.getKycDocumentUrl(kyc.docFileUrl);
+
     return {
       id: kyc.id,
       docType: kyc.docType,
       docNumber: kyc.docNumber,
-      docFileUrl: kyc.docFileUrl,
+      docFileUrl: presignedUrl,
       status: kyc.status,
       rejectionReason: kyc.rejectionReason ?? undefined,
       createdAt: kyc.createdAt,
@@ -690,7 +706,13 @@ export class KycService {
       throw new NotFoundException('KYC document not found');
     }
 
-    return kyc;
+    // Generate presigned URL for admin access
+    const presignedUrl = await this.s3Service.getKycDocumentUrl(kyc.docFileUrl);
+
+    return {
+      ...kyc,
+      docFileUrl: presignedUrl,
+    };
   }
 
   // Get Pending KYC submissions (Admin)

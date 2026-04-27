@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Role } from '@prisma/client';
+import { Role, Prisma } from '@prisma/client';
 import { InjectQueue } from '@nestjs/bull';
 import type { Queue } from 'bull';
 
@@ -80,51 +80,53 @@ export class SearchService {
 
   private async searchVenues(query: string, requester: any) {
     // Admins see all, Owners see theirs, Customers/Guests see active
-    let whereClause = '';
+    let whereClause = Prisma.empty;
     if (requester?.role === Role.VENUE_OWNER) {
-      whereClause = `AND "ownerId" = ${requester.id}`;
+      whereClause = Prisma.sql`AND "ownerId" = ${requester.id}`;
     } else if (!requester || requester.role === Role.CUSTOMER || requester.role === Role.VENDOR) {
-      whereClause = `AND status = 'ACTIVE'`;
+      whereClause = Prisma.sql`AND status = 'ACTIVE'`;
     } else if (requester.role !== Role.ADMIN) {
-      whereClause = `AND status = 'ACTIVE'`;
+      whereClause = Prisma.sql`AND status = 'ACTIVE'`;
     }
 
-    return this.prisma.$queryRawUnsafe(`
+    return this.prisma.$queryRaw`
       SELECT id, name, city, area, address, status, "venueImages"[1] as image,
-             similarity(name, $1) as score
+             similarity(name, ${query}) as score
       FROM "Venue"
-      WHERE (name % $1 OR city % $1 OR area % $1) ${whereClause}
+      WHERE (name % ${query} OR city % ${query} OR area % ${query}) ${whereClause}
       ORDER BY score DESC
       LIMIT 10
-    `, query);
+    `;
   }
 
   private async searchVendors(query: string, requester: any) {
-    let whereClause = '';
+    let whereClause = Prisma.empty;
     if (!requester || requester.role === Role.CUSTOMER || requester.role === Role.VENDOR) {
-      whereClause = `AND "verificationStatus" = 'VERIFIED'`;
+      whereClause = Prisma.sql`AND "verificationStatus" = 'VERIFIED'`;
     }
 
-    return this.prisma.$queryRawUnsafe(`
+    return this.prisma.$queryRaw`
       SELECT id, "businessName", "businessType", city, area, verified, images[1] as image,
-             similarity("businessName", $1) as score
+             similarity("businessName", ${query}) as score
       FROM "Vendor"
-      WHERE ("businessName" % $1 OR "businessType" % $1 OR city % $1) ${whereClause}
+      WHERE ("businessName" % ${query} OR "businessType" % ${query} OR city % ${query}) ${whereClause}
       ORDER BY score DESC
       LIMIT 10
-    `, query);
+    `;
   }
 
   private async searchEvents(query: string, requester: any) {
-    let whereClause = '';
     if (!requester) {
       return []; // Guests cannot search events by default
-    } else if (requester.role === Role.CUSTOMER) {
-      whereClause = `AND "customerId" = ${requester.id}`;
+    }
+
+    let whereClause = Prisma.empty;
+    if (requester.role === Role.CUSTOMER) {
+      whereClause = Prisma.sql`AND "customerId" = ${requester.id}`;
     } else if (requester.role === Role.VENUE_OWNER) {
-      whereClause = `AND "venueId" IN (SELECT id FROM "Venue" WHERE "ownerId" = ${requester.id})`;
+      whereClause = Prisma.sql`AND "venueId" IN (SELECT id FROM "Venue" WHERE "ownerId" = ${requester.id})`;
     } else if (requester.role === Role.VENDOR) {
-      whereClause = `AND id IN (
+      whereClause = Prisma.sql`AND id IN (
         SELECT "EventId" FROM "EventService" 
         WHERE "vendorId" = (SELECT id FROM "Vendor" WHERE "userId" = ${requester.id})
       )`;
@@ -132,14 +134,14 @@ export class SearchService {
       return [];
     }
 
-    return this.prisma.$queryRawUnsafe(`
+    return this.prisma.$queryRaw`
       SELECT e.id, e.title, e."eventType", e.city, e.status, v."venueImages"[1] as image,
-             similarity(e.title, $1) as score
+             similarity(e.title, ${query}) as score
       FROM "Event" e
       LEFT JOIN "Venue" v ON e."venueId" = v.id
-      WHERE (e.title % $1 OR e."eventType" % $1 OR e.city % $1) ${whereClause}
+      WHERE (e.title % ${query} OR e."eventType" % ${query} OR e.city % ${query}) ${whereClause}
       ORDER BY score DESC
       LIMIT 10
-    `, query);
+    `;
   }
 }

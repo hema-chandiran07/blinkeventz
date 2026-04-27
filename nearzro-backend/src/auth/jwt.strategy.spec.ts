@@ -4,8 +4,10 @@
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { JwtStrategy } from './jwt.strategy';
 import { PassportModule } from '@nestjs/passport';
+import { Cache } from 'cache-manager';
 
 describe('JwtStrategy', () => {
   let strategy: JwtStrategy;
@@ -31,12 +33,16 @@ describe('JwtStrategy', () => {
 
   beforeEach(async () => {
     const mockConfigService = createMockConfigService();
-    
+    const mockCacheManager = {
+      get: jest.fn(),
+    } as unknown as Cache;
+
     const module: TestingModule = await Test.createTestingModule({
       imports: [PassportModule.register({ defaultStrategy: 'jwt' })],
       providers: [
         JwtStrategy,
         { provide: ConfigService, useValue: mockConfigService },
+        { provide: CACHE_MANAGER, useValue: mockCacheManager },
       ],
     }).compile();
 

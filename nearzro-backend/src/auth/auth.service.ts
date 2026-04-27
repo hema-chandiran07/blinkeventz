@@ -1,4 +1,6 @@
 import { Injectable, BadRequestException, UnauthorizedException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
@@ -15,6 +17,7 @@ import { S3Service } from '../storage/s3.service';
 import { DatabaseStorageService } from '../storage/database-storage.service';
 import { unlinkSync } from 'fs';
 import { EmailProvider } from '../notifications/providers/email.provider';
+import { Inject } from '@nestjs/common';
 
 // Constants for security configuration
 const BCRYPT_ROUNDS = 12; // Higher security
@@ -32,6 +35,7 @@ export class AuthService {
     private s3Service: S3Service,
     private databaseStorageService: DatabaseStorageService,
     private emailProvider: EmailProvider,
+    @Inject(CACHE_MANAGER) private cacheManager: any,
   ) {}
 
   /**
@@ -851,12 +855,14 @@ export class AuthService {
   // ============================================
 
   async generateTokens(user: { id: number; email: string; role: Role; hasVendorProfile?: boolean; hasVenueProfile?: boolean }) {
+    const jti = crypto.randomUUID(); // Unique JWT ID for revocation
     const payload = {
       sub: user.id,
       email: user.email,
       role: user.role,
       hasVendorProfile: user.hasVendorProfile || false,
       hasVenueProfile: user.hasVenueProfile || false,
+      jti, // Include JTI in token
     };
 
     const accessToken = this.jwtService.sign(payload, { expiresIn: ACCESS_TOKEN_EXPIRY });
@@ -1008,5 +1014,16 @@ export class AuthService {
 
   private hashToken(token: string): string {
     return crypto.createHash('sha256').update(token).digest('hex');
+  }
+
+  /**
+   * Blacklist a JWT token by its JTI (JWT ID)
+   * Stores in Redis with TTL equal to remaining token validity
+   */
+  async blacklistToken(jti: string, expiresAt: number): Promise<void> {
+    if (!jti) return;
+    const key = `blacklist:${jti}`;
+    const ttl = Math.max(1, Math.floor((expiresAt * 1000 - Date.now()) / 1000));
+    await this.cacheManager.set(key, 'true', ttl);
   }
 }

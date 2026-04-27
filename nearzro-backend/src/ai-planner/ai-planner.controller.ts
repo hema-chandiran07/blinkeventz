@@ -136,8 +136,10 @@ export class AIPlannerController {
    * 
    * Returns the status of a queued job.
    */
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @Get('jobs/:jobId')
-  @ApiOperation({ summary: 'Get job status by job ID' })
+  @ApiOperation({ summary: 'Get job status by job ID (requires authentication)' })
   async getJobStatus(@Param('jobId') jobId: string): Promise<JobStatusResponse> {
     if (!jobId) {
       throw new BadRequestException('Job ID is required');
@@ -153,8 +155,9 @@ export class AIPlannerController {
    * 
    * Returns health status of AI Planner components.
    */
+  @Public()
   @Get('health')
-  @ApiOperation({ summary: 'Get AI Planner health status' })
+  @ApiOperation({ summary: 'Get AI Planner health status (public — no auth required)' })
   async getHealth(): Promise<{
     redis: string;
     queue: string;

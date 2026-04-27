@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, InternalServerErrorException, Logger } from '@nestjs/common';
+import { Injectable, BadRequestException, InternalServerErrorException, Logger, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
@@ -8,8 +8,8 @@ import Twilio from 'twilio';
 @Injectable()
 export class OtpService {
   private readonly logger = new Logger(OtpService.name);
-  private otpStore: Map<string, { otp: string; expiresAt: Date }> = new Map();
-  private phoneOtpStore: Map<string, { otp: string; expiresAt: Date }> = new Map();
+  private otpStore: Map<string, { otp: string; expiresAt: Date; retryCount: number; lastSentAt: Date }> = new Map();
+  private phoneOtpStore: Map<string, { otp: string; expiresAt: Date; retryCount: number; lastSentAt: Date }> = new Map();
   private gmailUser: string;
   private gmailAppPassword: string;
   private emailFrom: string;
@@ -57,7 +57,8 @@ export class OtpService {
     // Generate real OTP and save to database
     const otp = crypto.randomInt(100000, 999999).toString();
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
-    this.otpStore.set(email, { otp, expiresAt });
+    const lastSentAt = new Date();
+    this.otpStore.set(email, { otp, expiresAt, retryCount: 0, lastSentAt });
 
     // In development, always log the real OTP
     if (this.isDevMode) {
@@ -106,7 +107,8 @@ export class OtpService {
     // Generate real OTP and save to database
     const otp = crypto.randomInt(100000, 999999).toString();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-    this.phoneOtpStore.set(phone, { otp, expiresAt });
+    const lastSentAt = new Date();
+    this.phoneOtpStore.set(phone, { otp, expiresAt, retryCount: 0, lastSentAt });
 
     // In development, always log the real OTP
     if (this.isDevMode) {
@@ -152,6 +154,18 @@ export class OtpService {
 
     // Strict validation against database
     if (storedOtp.otp !== otp) {
+      // Increment retry count
+      storedOtp.retryCount = (storedOtp.retryCount || 0) + 1;
+      
+      // Update the store with incremented retry count
+      this.phoneOtpStore.set(phone, storedOtp);
+      
+      // If 5 or more failed attempts, invalidate the OTP
+      if (storedOtp.retryCount >= 5) {
+        this.phoneOtpStore.delete(phone);
+        throw new UnauthorizedException('Too many failed attempts. OTP has been invalidated.');
+      }
+      
       throw new BadRequestException('Invalid OTP. Please try again.');
     }
 
@@ -212,6 +226,18 @@ export class OtpService {
 
     // Strict validation against database
     if (storedOtp.otp !== otp) {
+      // Increment retry count
+      storedOtp.retryCount = (storedOtp.retryCount || 0) + 1;
+      
+      // Update the store with incremented retry count
+      this.otpStore.set(email, storedOtp);
+      
+      // If 5 or more failed attempts, invalidate the OTP
+      if (storedOtp.retryCount >= 5) {
+        this.otpStore.delete(email);
+        throw new UnauthorizedException('Too many failed attempts. OTP has been invalidated.');
+      }
+      
       throw new BadRequestException('Invalid OTP');
     }
 
@@ -241,6 +267,28 @@ export class OtpService {
    * Resend OTP
    */
   async resendOtp(email: string, phone?: string): Promise<{ success: boolean; message: string }> {
+    // If email is provided, check rate limit on email OTP
+    if (email) {
+      const storedOtp = this.otpStore.get(email);
+      if (storedOtp && storedOtp.lastSentAt) {
+        const timeSinceLastSent = Date.now() - storedOtp.lastSentAt.getTime();
+        if (timeSinceLastSent < 60 * 1000) {
+          throw new BadRequestException('Too many requests. Please wait 60 seconds before resending OTP.');
+        }
+      }
+    }
+    
+    // If phone is provided, check rate limit on phone OTP
+    if (phone) {
+      const storedOtp = this.phoneOtpStore.get(phone);
+      if (storedOtp && storedOtp.lastSentAt) {
+        const timeSinceLastSent = Date.now() - storedOtp.lastSentAt.getTime();
+        if (timeSinceLastSent < 60 * 1000) {
+          throw new BadRequestException('Too many requests. Please wait 60 seconds before resending OTP.');
+        }
+      }
+    }
+    
     return this.sendOtp(email, phone);
   }
 

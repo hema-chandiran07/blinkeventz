@@ -8,6 +8,8 @@ import cookieParser from 'cookie-parser';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import * as express from 'express';
+import { VersioningType } from '@nestjs/common';
 
 // Load .env from multiple possible locations
 const possiblePaths = [
@@ -41,11 +43,14 @@ async function bootstrap() {
     logger: ['error', 'warn', 'log', 'debug', 'verbose'],
   });
 
-  // ✅ RESTORED 50MB LIMIT: (Fixes Broken Flow)
-  // Venue and Vendor registrations allow multiple 5MB images. 
-  // Limiting this to 20MB causes 413 Payload Too Large errors during registration.
-  app.useBodyParser('json', { limit: '50mb' });
-  app.useBodyParser('urlencoded', { limit: '50mb', extended: true });
+  // ✅ Enable URI-based API versioning (all routes become /api/v1/...)
+  app.enableVersioning({
+    type: VersioningType.URI,
+    defaultVersion: '1',
+  });
+
+  // ✅ Set global API prefix BEFORE route-specific middleware
+  app.setGlobalPrefix('api');
 
   // FEATURE ADDED (SECURITY MED-08): Environment-conditional CORS origins
   const appEnv = process.env.APP_ENV || process.env.NODE_ENV || 'development';
@@ -60,18 +65,23 @@ async function bootstrap() {
         process.env.FRONTEND_URL || 'http://localhost:3001',
       ];
 
-  app.enableCors({
-    origin: corsOrigins as string[],
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'idempotency-key'],
-  });
+   app.enableCors({
+     origin: corsOrigins as string[],
+     credentials: true,
+     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'idempotency-key'],
+   });
 
-  // ✅ Set global API prefix
-  app.setGlobalPrefix('api');
+   // Route-specific higher limits for file upload endpoints (for JSON fields)
+   app.use('/api/auth/register-venue-owner', express.json({ limit: '50mb' }));
+   app.use('/api/auth/register-vendor', express.json({ limit: '50mb' }));
 
-  // ✅ Enable cookies (needed for auth / refresh tokens if used later)
-  app.use(cookieParser());
+   // Global body parser limit: 200KB for JSON to mitigate large payload attacks
+   app.use(express.json({ limit: '200kb' }));
+   app.use(express.urlencoded({ extended: true, limit: '200kb' }));
+
+   // ✅ Enable cookies (needed for auth / refresh tokens if used later)
+   app.use(cookieParser());
 
   // FEATURE ADDED: Static Assets - Root (Legacy/Direct) fallback
   app.useStaticAssets(path.join(process.cwd(), 'uploads'), {

@@ -4,6 +4,7 @@ import {
   IsOptional,
   IsInt,
   Min,
+  Max,
   IsDateString,
   ValidateIf,
 } from 'class-validator';
@@ -44,10 +45,11 @@ export class AddCartItemDto {
   @IsString()
   timeSlot?: 'MORNING' | 'EVENING' | 'FULL_DAY';
 
-  @ApiProperty({ required: false, default: 1 })
+  @ApiProperty({ required: false, default: 1, minimum: 1, maximum: 100 })
   @IsOptional()
   @IsInt()
   @Min(1)
+  @Max(100)
   quantity?: number = 1;
 
   @ApiPropertyOptional({ description: 'Additional metadata for PER_PERSON pricing' })

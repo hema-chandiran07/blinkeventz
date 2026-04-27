@@ -195,66 +195,38 @@ export class CartService {
       // Fetch price and validate item exists
       const { unitPrice, name } = await this.resolveItemPrice(tx, dto);
 
-      // Check for duplicate item - merge if exists
-      const existingItem = await tx.cartItem.findFirst({
+      // FIX 3: Use atomic upsert with unique constraint to prevent race conditions
+      const upsertWhere = {
+        cartId: cart.id,
+        venueId: dto.venueId || null,
+        vendorServiceId: dto.vendorServiceId || null,
+        addonId: dto.addonId || null,
+        date: dto.date ? new Date(dto.date) : null,
+        timeSlot: dto.timeSlot || null,
+      } as any;
+
+      const item = await tx.cartItem.upsert({
         where: {
+          cartId_venueId_vendorServiceId_addonId_date_timeSlot: upsertWhere,
+        },
+        create: {
           cartId: cart.id,
           itemType: dto.itemType as any,
-          venueId: dto.venueId,
-          vendorServiceId: dto.vendorServiceId,
-          addonId: dto.addonId,
-          date: dto.date ? new Date(dto.date) : undefined,
-          timeSlot: dto.timeSlot || undefined,
+          venueId: dto.venueId || null,
+          vendorServiceId: dto.vendorServiceId || null,
+          addonId: dto.addonId || null,
+          date: dto.date ? new Date(dto.date) : null,
+          timeSlot: dto.timeSlot || null,
+          quantity: dto.quantity || 1,
+          unitPrice,
+          totalPrice: new Decimal(unitPrice).mul(dto.quantity || 1).toNumber(),
+          meta: dto.meta as Prisma.JsonObject,
+        },
+        update: {
+          quantity: { increment: dto.quantity || 1 },
+          totalPrice: { increment: unitPrice * (dto.quantity || 1) },
         },
       });
-
-      let item: CartItem;
-
-      if (existingItem) {
-        // Merge: increase quantity using Decimal operations
-        const existingQty = new Decimal(existingItem.quantity || 1);
-        const newQuantity = existingQty.plus(dto.quantity || 1);
-        const existingTotal = new Decimal(existingItem.totalPrice.toString());
-        const newTotalPrice = existingTotal.mul(newQuantity).div(existingQty);
-
-        const updated = await tx.cartItem.update({
-          where: { id: existingItem.id },
-          data: {
-            quantity: newQuantity.toNumber(),
-            totalPrice: newTotalPrice.toNumber(),
-          },
-        });
-
-        item = updated;
-      } else {
-        // Create new item
-        const quantity = dto.quantity || 1;
-        const totalPrice = new Decimal(unitPrice).mul(quantity);
-
-        try {
-          item = await tx.cartItem.create({
-            data: {
-              cartId: cart.id,
-              itemType: dto.itemType as any,
-              venueId: dto.venueId,
-              vendorServiceId: dto.vendorServiceId,
-              addonId: dto.addonId,
-              date: dto.date ? new Date(dto.date) : null,
-              timeSlot: dto.timeSlot || null,
-              quantity,
-              unitPrice,
-              totalPrice: totalPrice.toNumber(),
-              meta: dto.meta as Prisma.JsonObject,
-            },
-          });
-          this.logger.log({ itemId: item.id, cartId: cart.id }, 'CartItem created successfully');
-        } catch (createError) {
-          this.logger.error({ createError, dto }, 'Failed to create CartItem');
-          throw new InternalServerErrorException(
-            `Failed to create cart item: ${createError.message}`,
-          );
-        }
-      }
 
       // DO NOT call publishEvent inside transaction - return immediately
       return { item, name, cartId: cart.id };
