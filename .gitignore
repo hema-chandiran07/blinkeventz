@@ -25,13 +25,52 @@ node_modules/
 *.pem
 
 # --- Debug & Logs ---
+# --- Build & Output ---
+dist/
+build/
+out/
+.next/
+/generated/prisma
+*.tsbuildinfo
+next-env.d.ts
+
+# --- Dependencies ---
+node_modules/
+/*/node_modules/
+.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# --- Environment & Secrets ---
+.env
+.env.*
+!.env.example
+*.pem
+
+# --- Debug & Logs ---
 logs
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+pnpm-debug.log*
 lerna-debug.log*
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+.pnpm-debug.log*
+
+# --- Testing ---
+coverage/
+nearzro-backend/coverage/
+.nyc_output
+.jest-cache/
+
+# --- IDEs & Editors ---
+.idea/
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 .pnpm-debug.log*
 
@@ -65,11 +104,23 @@ Thumbs.db
 docker-compose.yml
 postgres_data/
 .vercel
+# --- OS & System ---
+.DS_Store
+Thumbs.db
+.temp/
+.tmp/
+
+# --- Infrastructure & Runtime ---
+docker-compose.yml
+postgres_data/
+.vercel
 pids
 *.pid
 *.seed
 *.pid.lock
 .kilo/
+.kilo/
 
+# --- Project Specific ---
 # --- Project Specific ---
 uploads/
