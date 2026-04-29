@@ -43,10 +43,10 @@ export class PromotionsController {
     return this.service.findAll({ page: pageNum, limit: limitNum });
   }
 
-  // Validate Promotion Code (Public - for cart)
+  // Validate and Apply Promotion Code (Atomic - prevents race conditions)
   @Post('validate')
   validate(@Body() dto: ValidatePromotionDto) {
-    return this.service.validateCode(dto.code, dto.cartValue);
+    return this.service.applyPromotionCode(dto.code, dto.cartValue);
   }
 
   // Get Promotion by ID (Admin Only)

@@ -12,7 +12,7 @@ const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 // Separate axios instance for public endpoints (no JWT)
 const publicApi = axios.create({
-  baseURL: `${apiBaseUrl}/api`,
+  baseURL: `${apiBaseUrl}/api/v1`,
   headers: {
     'Content-Type': 'application/json',
   },

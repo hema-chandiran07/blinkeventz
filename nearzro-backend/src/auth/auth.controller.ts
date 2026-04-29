@@ -34,6 +34,7 @@ import { ForgotPasswordDto, ResetPasswordDto, VerifyResetOtpDto } from './dto/fo
 import { SendOtpDto, VerifyOtpDto } from './dto/otp.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { GoogleAuthGuard } from '../common/guards/google-auth.guard';
+import { FacebookAuthGuard } from '../common/guards/facebook-auth.guard';
 import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import type { AuthRequest } from './auth-request.interface';
 import { JwtAuthGuard } from './jwt-auth.guard';
@@ -42,6 +43,12 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Role } from '@prisma/client';
 import { ThrottlerGuard, Throttle } from '@nestjs/throttler';
+
+// Allowed callback URLs for OAuth (for security)
+const ALLOWED_CALLBACK_URLS = (process.env.ALLOWED_CALLBACK_URLS || '')
+  .split(',')
+  .map((url: string) => url.trim())
+  .filter(Boolean);
 
 // Warn if OAuth not configured (only in development)
 if (process.env.NODE_ENV === 'development') {
@@ -61,12 +68,14 @@ export class AuthController {
     private readonly storageService: DatabaseStorageService,
   ) {}
 
-  // 👤 Normal USER registration
-  @Public()
-  @Post('register')
-  register(@Body() dto: RegisterDto) {
-    return this.authService.register(dto);
-  }
+   // 👤 Normal USER registration
+   @Public()
+   @UseGuards(ThrottlerGuard)
+   @Throttle({ default: { limit: 5, ttl: 3600000 } })
+   @Post('register')
+   register(@Body() dto: RegisterDto) {
+     return this.authService.register(dto);
+   }
 
   // 👑 ADMIN registration (requires existing admin token)
   @Roles(Role.ADMIN)
@@ -163,15 +172,17 @@ export class AuthController {
     return this.authService.registerVendor(dto, files || {});
   }
 
-  // 🔐 Login (all roles)
-  @Public()
-  @Post('login')
-  @ApiOperation({ summary: 'User login with email/username and password' })
-  @ApiResponse({ status: 200, description: 'Returns access token, refresh token, and user data' })
-  @ApiResponse({ status: 401, description: 'Invalid credentials' })
-  login(@Body() dto: LoginDto) {
-    return this.authService.login(dto);
-  }
+   // 🔐 Login (all roles)
+   @Public()
+   @UseGuards(ThrottlerGuard)
+   @Throttle({ default: { limit: 5, ttl: 3600000 } })
+   @Post('login')
+   @ApiOperation({ summary: 'User login with email/username and password' })
+   @ApiResponse({ status: 200, description: 'Returns access token, refresh token, and user data' })
+   @ApiResponse({ status: 401, description: 'Invalid credentials' })
+   login(@Body() dto: LoginDto) {
+     return this.authService.login(dto);
+   }
 
   // 🔄 Refresh access token
   @Public()
@@ -183,19 +194,23 @@ export class AuthController {
     return this.authService.refreshToken(dto.refreshToken);
   }
 
-  // 🚪 Logout
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @Post('logout')
-  @ApiOperation({ summary: 'Logout and revoke current session' })
-  @ApiResponse({ status: 200, description: 'Successfully logged out' })
-  async logout(@Req() req: AuthRequest, @Body() body: { refreshToken?: string }) {
-    // Revoke the refresh token if provided
-    if (body.refreshToken) {
-      await this.authService.revokeToken(body.refreshToken);
-    }
-    return { message: 'Logged out successfully' };
-  }
+   // 🚪 Logout
+   @UseGuards(JwtAuthGuard)
+   @ApiBearerAuth()
+   @Post('logout')
+   @ApiOperation({ summary: 'Logout and revoke current session' })
+   @ApiResponse({ status: 200, description: 'Successfully logged out' })
+   async logout(@Req() req: AuthRequest, @Body() body: { refreshToken?: string }) {
+     // Revoke the refresh token if provided
+     if (body.refreshToken) {
+       await this.authService.revokeToken(body.refreshToken);
+     }
+     // Blacklist the access token using JTI
+     if (req.user?.jti && req.user?.exp) {
+       await this.authService.blacklistToken(req.user.jti, req.user.exp);
+     }
+     return { message: 'Logged out successfully' };
+   }
 
   // 🚪 Logout from all devices
   @UseGuards(JwtAuthGuard)
@@ -245,43 +260,40 @@ export class AuthController {
     // Guard redirects to Google with state parameter forwarded
   }
 
-  // 🎯 Google callback - returns tokens to frontend
-  @Public()
-  @Get('google/callback')
-  @UseGuards(AuthGuard('google'))
-  @ApiOperation({ summary: 'Google OAuth callback' })
-  @ApiResponse({ status: 302, description: 'Redirects to frontend with tokens' })
-  async googleAuthCallback(@Req() req: any, @Res() res: Response) {
-    try {
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
-      if (!req.user) return res.redirect(`${frontendUrl}/login?error=no_user_data`);
-      
-      // Extract state data parsed by the strategy
-      const { intendedRole = 'CUSTOMER', callbackUrl = '/' } = req.user || {};
-      
-      const result = await this.authService.handleOAuthLogin(req.user, 'google', intendedRole);
-      const userData = { id: result.user.id, email: result.user.email, name: result.user.name, role: result.user.role };
-      
-      // Dynamically route back to the correct registration page at step 2
-      const redirectUrl = `${frontendUrl}${callbackUrl}?step=2&token=${result.accessToken}&user=${encodeURIComponent(JSON.stringify(userData))}`;
-      
-      return res.redirect(redirectUrl);
-    } catch (error: any) {
-      console.error("🚨 GOOGLE OAUTH CALLBACK CRASHED:", error);
-      const fallbackUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
-      return res.redirect(`${fallbackUrl}/login?error=oauth_failed`);
-    }
-  }
+   // 🎯 Google callback - returns tokens to frontend
+   @Public()
+   @Get('google/callback')
+   @UseGuards(AuthGuard('google'))
+   @ApiOperation({ summary: 'Google OAuth callback' })
+   @ApiResponse({ status: 302, description: 'Redirects to frontend with tokens' })
+   async googleAuthCallback(@Req() req: any, @Res() res: Response) {
+     try {
+       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
+       if (!req.user) return res.redirect(`${frontendUrl}/login?error=no_user_data`);
+       
+       // Extract state data parsed by the strategy
+       const { intendedRole = 'CUSTOMER', callbackUrl = '/' } = req.user || {};
+       
+       // Validate callback URL against whitelist
+       if (callbackUrl && ALLOWED_CALLBACK_URLS.length > 0 && !ALLOWED_CALLBACK_URLS.includes(callbackUrl)) {
+         return res.redirect(`${frontendUrl}/login?error=invalid_callback_url`);
+       }
 
-  // 📘 Redirect to Facebook
-  @Public()
-  @Get('facebook')
-  @UseGuards(AuthGuard('facebook'))
-  @ApiOperation({ summary: 'Initiate Facebook OAuth flow' })
-  facebookAuth() {
-    // redirects to Facebook OAuth
-  }
+       const result = await this.authService.handleOAuthLogin(req.user, 'google', intendedRole);
+       const userData = { id: result.user.id, email: result.user.email, name: result.user.name, role: result.user.role };
+       
+       // Dynamically route back to the correct registration page at step 2
+       const redirectUrl = `${frontendUrl}${callbackUrl}?step=2&token=${result.accessToken}&user=${encodeURIComponent(JSON.stringify(userData))}`;
+       
+       return res.redirect(redirectUrl);
+     } catch (error: any) {
+       console.error("🚨 GOOGLE OAUTH CALLBACK CRASHED:", error);
+       const fallbackUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
+       return res.redirect(`${fallbackUrl}/login?error=oauth_failed`);
+     }
+   }
 
+<<<<<<< Updated upstream
   // 🎯 Facebook callback - returns temporary code for secure token exchange
   @Public()
   @Get('facebook/callback')
@@ -305,6 +317,57 @@ export class AuthController {
       res.redirect(`${frontendUrl}/login?error=facebook_auth_failed`);
     }
   }
+=======
+    // 📘 Redirect to Facebook
+   @Public()
+   @Get('facebook')
+   @UseGuards(FacebookAuthGuard)
+   @ApiOperation({ summary: 'Initiate Facebook OAuth flow' })
+   facebookAuth() {
+     // redirects to Facebook OAuth
+   }
+
+   // 🎯 Facebook callback - returns temporary code for secure token exchange
+   @Public()
+   @Get('facebook/callback')
+   @UseGuards(FacebookAuthGuard)
+   @ApiOperation({ summary: 'Facebook OAuth callback' })
+   @ApiResponse({ status: 302, description: 'Redirects to frontend with access token (step=2, refresh token NOT in URL)' })
+   async facebookAuthCallback(@Req() req: any, @Res() res: Response) {
+     try {
+       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
+       
+       if (!req.user) {
+         return res.redirect(`${frontendUrl}/login?error=no_user_data`);
+       }
+       
+       // Extract intendedRole and callbackUrl from req.user (added by FacebookAuthGuard/strategy)
+       const intendedRole = (req.user as any).intendedRole;
+       const callbackUrl = (req.user as any).callbackUrl || '/';
+
+       // Validate callback URL against whitelist
+       if (callbackUrl && ALLOWED_CALLBACK_URLS.length > 0 && !ALLOWED_CALLBACK_URLS.includes(callbackUrl)) {
+         return res.redirect(`${frontendUrl}/login?error=invalid_callback_url`);
+       }
+
+       const tokens = await this.authService.handleOAuthLogin(req.user, 'facebook', intendedRole);
+
+       // Safe redirect: step=2 pattern (same as Google OAuth).
+       // Only the access token goes in the URL — refresh token stays server-side.
+       const userData = {
+         id: (tokens as any).user?.id,
+         email: (tokens as any).user?.email,
+         name: (tokens as any).user?.name,
+         role: (tokens as any).user?.role,
+       };
+       const redirectUrl = `${frontendUrl}/auth/callback?step=2&token=${(tokens as any).accessToken}&provider=facebook&user=${encodeURIComponent(JSON.stringify(userData))}`;
+       res.redirect(redirectUrl);
+     } catch (error) {
+       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
+       res.redirect(`${frontendUrl}/login?error=facebook_auth_failed`);
+     }
+   }
+>>>>>>> Stashed changes
 
   // 🔑 FORGOT PASSWORD - Send reset OTP to email (Rate limited: 5 requests/hour)
   @Public()
@@ -333,17 +396,22 @@ export class AuthController {
     return this.authService.resetPassword(dto);
   }
 
-  // 📧 SEND OTP - For registration verification
-  @Public()
-  @Post('send-otp')
-  sendOtp(@Body() dto: SendOtpDto) {
-    return this.authService.sendOtp(dto.email, dto.phone);
-  }
+   // 📧 SEND OTP - For registration verification
+   @Public()
+   @UseGuards(ThrottlerGuard)
+   @Throttle({ default: { limit: 10, ttl: 60000 } })
+   @Post('send-otp')
+   sendOtp(@Req() req: AuthRequest, @Body() dto: SendOtpDto) {
+     const ip = req.ip || (req.connection as any)?.remoteAddress || req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim();
+     return this.authService.sendOtp(dto.email, dto.phone, ip);
+   }
 
-  // ✅ VERIFY OTP - Verify OTP during registration
-  @Public()
-  @Post('verify-otp')
-  verifyOtp(@Body() dto: VerifyOtpDto) {
-    return this.authService.verifyOtp(dto.email, dto.otp);
-  }
+   // ✅ VERIFY OTP - Verify OTP during registration
+   @Public()
+   @UseGuards(ThrottlerGuard)
+   @Throttle({ default: { limit: 10, ttl: 60000 } })
+   @Post('verify-otp')
+   verifyOtp(@Body() dto: VerifyOtpDto) {
+     return this.authService.verifyOtp(dto.email, dto.otp);
+   }
 }

@@ -42,7 +42,8 @@ export class MediaService {
   async uploadImage(file: Express.Multer.File): Promise<string> {
     if (this.activeProvider === StorageProvider.S3) {
       try {
-        return await this.s3Service.uploadVendorServiceImage(file);
+        const result = await this.s3Service.uploadVendorServiceImage(file);
+        return result.imageUrl;
       } catch (error) {
         this.logger.error('S3 upload failed, falling back to local storage', error);
         return await this.localStorage.uploadVendorServiceImage(file);

@@ -4,10 +4,19 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { MaintenanceGuard } from './common/guards/maintenance.guard';
+import { CustomThrottlerGuard } from './common/guards/custom-throttler.guard';
 import cookieParser from 'cookie-parser';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
 import { NestExpressApplication } from '@nestjs/platform-express';
+<<<<<<< Updated upstream
+=======
+import * as express from 'express';
+import { VersioningType } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import helmet from 'helmet';
+import { ResponseInterceptor } from './common/interceptors/response.interceptor';
+>>>>>>> Stashed changes
 
 // Load .env from multiple possible locations
 const possiblePaths = [
@@ -36,9 +45,12 @@ if (!envLoaded) {
 }
 
 async function bootstrap() {
+  const appEnv = process.env.APP_ENV || process.env.NODE_ENV || 'development';
+  const isProduction = appEnv === 'production';
+
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     rawBody: true,
-    logger: ['error', 'warn', 'log', 'debug', 'verbose'],
+    logger: isProduction ? ['error', 'warn', 'log'] : ['error', 'warn', 'log', 'debug', 'verbose'],
   });
 
   // ✅ RESTORED 50MB LIMIT: (Fixes Broken Flow)
@@ -48,8 +60,6 @@ async function bootstrap() {
   app.useBodyParser('urlencoded', { limit: '50mb', extended: true });
 
   // FEATURE ADDED (SECURITY MED-08): Environment-conditional CORS origins
-  const appEnv = process.env.APP_ENV || process.env.NODE_ENV || 'development';
-  const isProduction = appEnv === 'production';
   const corsOrigins = isProduction
     ? [process.env.FRONTEND_URL].filter(Boolean)
     : [
@@ -60,6 +70,7 @@ async function bootstrap() {
         process.env.FRONTEND_URL || 'http://localhost:3001',
       ];
 
+<<<<<<< Updated upstream
   app.enableCors({
     origin: corsOrigins as string[],
     credentials: true,
@@ -69,9 +80,49 @@ async function bootstrap() {
 
   // ✅ Set global API prefix
   app.setGlobalPrefix('api');
+=======
+    app.enableCors({
+      origin: corsOrigins as string[],
+      credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'idempotency-key'],
+    });
+
+    // Security: Helmet.js HTTP security headers
+    app.use(
+      helmet({
+        contentSecurityPolicy: {
+          directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+            imgSrc: ["'self'", "data:", "https://res.cloudinary.com", "https://images.unsplash.com"],
+            connectSrc: ["'self'"],
+          },
+        },
+        hsts: {
+          maxAge: 63072000,
+          includeSubDomains: true,
+          preload: true,
+        },
+      }),
+    );
+
+    // Route-specific higher limits for file upload endpoints (for JSON fields)
+   app.use('/api/auth/register-venue-owner', express.json({ limit: '50mb' }));
+   app.use('/api/auth/register-vendor', express.json({ limit: '50mb' }));
+>>>>>>> Stashed changes
 
   // ✅ Enable cookies (needed for auth / refresh tokens if used later)
   app.use(cookieParser());
+
+   // ✅ Global HTTP request timeout (120 seconds)
+   app.use((req, res, next) => {
+     req.setTimeout(120000, () => {
+       res.status(408).json({ message: 'Request timeout' });
+     });
+     next();
+   });
 
   // FEATURE ADDED: Static Assets - Root (Legacy/Direct) fallback
   app.useStaticAssets(path.join(process.cwd(), 'uploads'), {
@@ -83,20 +134,23 @@ async function bootstrap() {
     prefix: '/api/uploads/',
   });
 
-  // ✅ Global validation pipe
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-      transformOptions: {
-        enableImplicitConversion: true,
-      },
-    }),
-  );
+   // ✅ Global validation pipe
+   app.useGlobalPipes(
+     new ValidationPipe({
+       whitelist: true,
+       forbidNonWhitelisted: true,
+       transform: true,
+       transformOptions: {
+         enableImplicitConversion: true,
+       },
+     }),
+   );
 
-  // ✅ Global exception filter for structured 401 responses
-  app.useGlobalFilters(new HttpExceptionFilter());
+   // ✅ Global response interceptor for standardized contracts
+   app.useGlobalInterceptors(new ResponseInterceptor());
+
+   // ✅ Global exception filter for structured 401 responses
+   app.useGlobalFilters(new HttpExceptionFilter());
 
   // ✅ Graceful shutdown
   app.enableShutdownHooks();

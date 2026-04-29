@@ -134,29 +134,52 @@ async function main() {
     }
   }
 
-  // 5. EVENT MANAGER USER
-  try {
-    await prisma.user.create({
-      data: {
-        name: 'Test Event Manager',
-        email: 'manager@test.com',
-        phone: '+91 9876543214',
-        passwordHash,
-        role: Role.EVENT_MANAGER,
-        isActive: true,
-        isEmailVerified: true,
-      },
-    });
-    console.log('✅ Event Manager: manager@test.com / test123');
-  } catch (e: any) {
-    if (e.code === 'P2002') {
-      console.log('⚠️  Event Manager already exists');
-    } else {
-      throw e;
-    }
-  }
+   // 5. EVENT MANAGER USER
+   try {
+     await prisma.user.create({
+       data: {
+         name: 'Test Event Manager',
+         email: 'manager@test.com',
+         phone: '+91 9876543214',
+         passwordHash,
+         role: Role.EVENT_MANAGER,
+         isActive: true,
+         isEmailVerified: true,
+       },
+     });
+     console.log('✅ Event Manager: manager@test.com / test123');
+   } catch (e: any) {
+     if (e.code === 'P2002') {
+       console.log('⚠️  Event Manager already exists');
+     } else {
+       throw e;
+     }
+   }
 
-  console.log('\n🎉 All test users seeded successfully!');
+   // Seed default PlatformSettings
+   try {
+     await prisma.platformSettings.upsert({
+       where: { id: 'default' },
+       update: {},
+       create: {
+         id: 'default',
+         platformFeePercent: 5,
+         gstPercent: 18,
+         expressFeeFixed: 99,
+         commissionPercent: 10,
+         tdsPercent: 1,
+       },
+     });
+     console.log('✅ PlatformSettings seeded');
+   } catch (e: any) {
+     if (e.code === 'P2002') {
+       console.log('⚠️  PlatformSettings already exists');
+     } else {
+       throw e;
+     }
+   }
+
+   console.log('\n🎉 All test users seeded successfully!');
   console.log('\n📋 Login Credentials:');
   console.log('┌─────────────────────────────────────────────────────┐');
   console.log('│ Email                    │ Password │ Role          │');

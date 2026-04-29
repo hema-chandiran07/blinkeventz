@@ -230,7 +230,7 @@ export default function PlanEventPage() {
     try {
       const token = localStorage.getItem("NearZro_token");
       
-      const response = await fetch(`${API_BASE_URL}/api/ai-chat/public/message`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/ai-chat/public/message`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -295,7 +295,7 @@ export default function PlanEventPage() {
       
       try {
         const token = localStorage.getItem("NearZro_token");
-        const statusResponse = await fetch(`${API_BASE_URL}/api/ai-planner/jobs/${jobId}`, {
+        const statusResponse = await fetch(`${API_BASE_URL}/api/v1/ai-planner/jobs/${jobId}`, {
           headers: {
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
@@ -403,10 +403,10 @@ export default function PlanEventPage() {
       const token = localStorage.getItem("NearZro_token");
       
       const [venuesRes, vendorsRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/venues?status=ACTIVE&limit=10`, {
+        fetch(`${API_BASE_URL}/api/v1/venues?status=ACTIVE&limit=10`, {
           headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         }),
-        fetch(`${API_BASE_URL}/api/ai-planner/${planId}/vendors`, {
+        fetch(`${API_BASE_URL}/api/v1/ai-planner/${planId}/vendors`, {
           headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         }),
       ]);
@@ -486,7 +486,7 @@ export default function PlanEventPage() {
     try {
       const token = localStorage.getItem("NearZro_token");
       
-      const response = await fetch(`${API_BASE_URL}/api/ai-planner/generate`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/ai-planner/generate`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -1,10 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { VenueStatus, VendorVerificationStatus } from '@prisma/client';
+import { AuditService } from '../audit/audit.service';
+import { VenueStatus, VendorVerificationStatus, AuditSeverity, AuditSource } from '@prisma/client';
 
 @Injectable()
 export class ApprovalsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private readonly auditService: AuditService) {}
 
   async findPending() {
     const [pendingVenues, pendingVendors] = await Promise.all([
@@ -104,39 +105,130 @@ export class ApprovalsService {
     throw new NotFoundException('Approval not found');
   }
 
-  async approve(id: number, approvalType: string) {
+  async approve(id: number, approvalType: string, actorId: number) {
+    let oldStatus: string | undefined;
+    let newStatus: string;
+    let entityType: 'Venue' | 'Vendor';
+    let entityId = id;
+
     if (approvalType === 'VENUE') {
-      return this.prisma.venue.update({
+      const venue = await this.prisma.venue.findUnique({
+        where: { id },
+      });
+      if (!venue) {
+        throw new NotFoundException('Venue not found');
+      }
+      oldStatus = venue.status;
+      newStatus = VenueStatus.ACTIVE;
+      const updated = await this.prisma.venue.update({
         where: { id },
         data: { status: VenueStatus.ACTIVE },
       });
+
+      await this.auditService.record({
+        entityType: 'Venue',
+        entityId: String(id),
+        action: 'VENUE_APPROVED',
+        severity: AuditSeverity.HIGH,
+        source: AuditSource.ADMIN,
+        actorId,
+        description: `Venue approved by admin #${actorId}`,
+        oldValue: { status: oldStatus },
+        newValue: { status: newStatus },
+      });
+
+      return updated;
     } else if (approvalType === 'VENDOR') {
-      return this.prisma.vendor.update({
+      const vendor = await this.prisma.vendor.findUnique({
+        where: { id },
+      });
+      if (!vendor) {
+        throw new NotFoundException('Vendor not found');
+      }
+      oldStatus = vendor.verificationStatus;
+      newStatus = VendorVerificationStatus.VERIFIED;
+      const updated = await this.prisma.vendor.update({
         where: { id },
         data: { verificationStatus: VendorVerificationStatus.VERIFIED },
       });
+
+      await this.auditService.record({
+        entityType: 'Vendor',
+        entityId: String(id),
+        action: 'VENDOR_APPROVED',
+        severity: AuditSeverity.HIGH,
+        source: AuditSource.ADMIN,
+        actorId,
+        description: `Vendor verified by admin #${actorId}`,
+        oldValue: { verificationStatus: oldStatus },
+        newValue: { verificationStatus: newStatus },
+      });
+
+      return updated;
     }
 
     throw new NotFoundException('Invalid approval type');
   }
 
-  async reject(id: number, approvalType: string, reason: string) {
+  async reject(id: number, approvalType: string, reason: string, actorId: number) {
     if (approvalType === 'VENUE') {
-      return this.prisma.venue.update({
+      const venue = await this.prisma.venue.findUnique({
+        where: { id },
+      });
+      if (!venue) {
+        throw new NotFoundException('Venue not found');
+      }
+      const oldStatus = venue.status;
+      const updated = await this.prisma.venue.update({
         where: { id },
         data: {
           status: VenueStatus.INACTIVE,
           rejectionReason: reason,
         },
       });
+
+      await this.auditService.record({
+        entityType: 'Venue',
+        entityId: String(id),
+        action: 'VENUE_REJECTED',
+        severity: AuditSeverity.HIGH,
+        source: AuditSource.ADMIN,
+        actorId,
+        description: `Venue rejected by admin #${actorId}: ${reason}`,
+        oldValue: { status: oldStatus },
+        newValue: { status: VenueStatus.INACTIVE, rejectionReason: reason },
+      });
+
+      return updated;
     } else if (approvalType === 'VENDOR') {
-      return this.prisma.vendor.update({
+      const vendor = await this.prisma.vendor.findUnique({
+        where: { id },
+      });
+      if (!vendor) {
+        throw new NotFoundException('Vendor not found');
+      }
+      const oldStatus = vendor.verificationStatus;
+      const updated = await this.prisma.vendor.update({
         where: { id },
         data: {
           verificationStatus: VendorVerificationStatus.REJECTED,
           rejectionReason: reason,
         },
       });
+
+      await this.auditService.record({
+        entityType: 'Vendor',
+        entityId: String(id),
+        action: 'VENDOR_REJECTED',
+        severity: AuditSeverity.HIGH,
+        source: AuditSource.ADMIN,
+        actorId,
+        description: `Vendor rejected by admin #${actorId}: ${reason}`,
+        oldValue: { verificationStatus: oldStatus },
+        newValue: { verificationStatus: VendorVerificationStatus.REJECTED, rejectionReason: reason },
+      });
+
+      return updated;
     }
 
     throw new NotFoundException('Invalid approval type');

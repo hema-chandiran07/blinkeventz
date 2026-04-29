@@ -32,6 +32,35 @@ export class PaymentReconciliationJob {
     private readonly paymentsService: PaymentsService,
   ) {}
 
+<<<<<<< Updated upstream
+=======
+  async onModuleInit() {
+    const redisHost = process.env.REDIS_HOST || '127.0.0.1';
+    const redisPort = Number(process.env.REDIS_PORT) || 6379;
+    const redisUrl = `redis://${redisHost}:${redisPort}`;
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const Redis = require('ioredis');
+    const client = new Redis(redisUrl);
+
+    this.redlock = new Redlock(
+      [client],
+      {
+        driftFactor: 0.01,
+        retryCount: 0, // No retries for cron
+        retryDelay: 200,
+        retryJitter: 200,
+      },
+    );
+  }
+
+  // No destroy method needed — Redlock does not provide one
+  async onModuleDestroy() {
+    // Optional: could release locks, but not required on shutdown
+    // Leaving as noop to avoid errors
+  }
+
+>>>>>>> Stashed changes
   /**
    * Run reconciliation every 10 minutes
    */

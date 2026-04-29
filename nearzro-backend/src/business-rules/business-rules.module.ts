@@ -4,17 +4,19 @@ import { PricingService } from './pricing.service';
 import { CancellationPolicyService } from './cancellation-policy.service';
 import { FraudDetectionService } from './fraud-detection.service';
 import { PaymentSplitService } from './payment-split.service';
+import { CartCalculationService } from './cart-calculation.service';
 import { PrismaModule } from '../prisma/prisma.module';
-import { NotificationsModule } from '../notifications/notifications.module';
+import { SettingsModule } from '../settings/settings.module';
 
 @Module({
-  imports: [PrismaModule, NotificationsModule],
+  imports: [PrismaModule, SettingsModule],
   providers: [
     CommissionService,
     PricingService,
     CancellationPolicyService,
     FraudDetectionService,
     PaymentSplitService,
+    CartCalculationService,
   ],
   exports: [
     CommissionService,
@@ -22,6 +24,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     CancellationPolicyService,
     FraudDetectionService,
     PaymentSplitService,
+    CartCalculationService,
   ],
 })
 export class BusinessRulesModule {}

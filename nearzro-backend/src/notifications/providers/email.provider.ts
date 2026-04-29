@@ -27,12 +27,13 @@ export class EmailProvider implements OnModuleInit {
     this.emailFrom = this.configService.get<string>('EMAIL_FROM') || 'no-reply@nearzro.com';
     
     const threshold = this.configService.get<number>('CIRCUIT_BREAKER_THRESHOLD', 5);
-    const timeout = this.configService.get<number>('CIRCUIT_BREAKER_TIMEOUT', 60000);
-    
+    const timeoutMs = this.configService.get<number>('CIRCUIT_BREAKER_TIMEOUT', 60000);
+
+    // CircuitBreaker expects config object with name, threshold (failureThreshold), and timeout in ms
     this.circuitBreaker = new CircuitBreaker({
-      threshold,
-      timeout,
       name: 'EmailProvider',
+      threshold,
+      timeout: timeoutMs,
     });
   }
 
@@ -79,43 +80,76 @@ export class EmailProvider implements OnModuleInit {
       throw new Error('Email provider not configured. Please set GMAIL_USER and GMAIL_APP_PASSWORD.');
     }
 
-    // ✅ Validate email format
+    // Validate email format
     if (!to || !this.isValidEmail(to)) {
       throw new Error(`Invalid email address: ${to}`);
     }
 
-    // ✅ Validate subject
+    // Validate subject
     if (!subject || subject.length > 998) {
       throw new Error('Subject must be 1-998 characters');
     }
 
-    // ✅ Validate message
+    // Validate message
     if (!text && !html) {
       throw new Error('Either text or html content is required');
     }
 
-    return this.circuitBreaker.execute(async () => {
-      try {
-        const info = await this.transporter!.sendMail({
-          from: this.emailFrom,
-          to,
-          subject,
-          text,
-          html: html || text,
-        });
+    // 🔄 Retry logic with exponential backoff + jitter for transient errors
+    const maxAttempts = 3;
+    let lastError: any;
 
-        this.logger.log(`✅ Email sent successfully to ${to}. Message ID: ${info.messageId}`);
-        
-        return {
-          messageId: info.messageId,
-          accepted: info.accepted || [],
-          rejected: info.rejected || [],
-        };
-      } catch (error) {
-        this.logger.error(`❌ Failed to send email to ${to}:`, error.message);
-        throw error;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        return await this.circuitBreaker.execute(async () => {
+          const info = await this.transporter!.sendMail({
+            from: this.emailFrom,
+            to,
+            subject,
+            text,
+            html: html || text,
+          });
+
+          this.logger.log(`✅ Email sent successfully to ${to}. Message ID: ${info.messageId}`);
+          
+          return {
+            messageId: info.messageId,
+            accepted: info.accepted || [],
+            rejected: info.rejected || [],
+          };
+        });
+      } catch (error: any) {
+        lastError = error;
+        const isTransient = this.isTransientError(error);
+
+        // If not a transient error or last attempt, rethrow
+        if (!isTransient || attempt === maxAttempts) {
+          throw error;
+        }
+
+        // Calculate delay: exponential backoff + jitter (2^attempt * 1s + random up to 500ms)
+        const delay = Math.pow(2, attempt) * 1000 + Math.random() * 500;
+        this.logger.warn(`Email send attempt ${attempt} failed (transient). Retrying in ${Math.round(delay)}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
-    });
+    }
+
+    throw lastError!;
+  }
+
+  /**
+   * Determine if an error is transient (network/timeout) vs permanent (validation)
+   */
+  private isTransientError(error: any): boolean {
+    // Network errors, timeouts, connection resets
+    const transientPatterns = /ECONNREFUSED|ETIMEDOUT|ENOTFOUND|ECONNRESET|network|timeout/i;
+    // SMTP 4xx codes that are transient? e.g., 421, 451, 452, 454
+    const transientSmtpCodes = /421|451|452|454/;
+    
+    const message = error.message || '';
+    const code = error.code || '';
+    
+    return transientPatterns.test(message) || transientSmtpCodes.test(code);
   }
 
   async sendOtpEmail(to: string, otp: string): Promise<EmailResult> {

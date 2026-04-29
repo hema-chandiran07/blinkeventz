@@ -2,6 +2,7 @@
 
 import { Star, User } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import DOMPurify from 'dompurify';
 
 interface Review {
   id: number;
@@ -98,13 +99,13 @@ export function ReviewList({ reviews, averageRating, totalReviews }: ReviewListP
               )}
             </div>
 
-            {review.title && (
-              <p className="font-semibold text-black mb-2">{review.title}</p>
-            )}
+             {review.title && (
+               <p className="font-semibold text-black mb-2" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(review.title) }} />
+             )}
 
-            {review.comment && (
-              <p className="text-neutral-700 leading-relaxed">{review.comment}</p>
-            )}
+             {review.comment && (
+               <p className="text-neutral-700 leading-relaxed" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(review.comment) }} />
+             )}
           </div>
         ))}
       </div>

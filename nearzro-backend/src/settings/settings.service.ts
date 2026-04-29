@@ -1,8 +1,12 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger, InternalServerErrorException, Inject } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { PrismaService } from '../prisma/prisma.service';
-import { SettingsCategory, AuditSeverity, Role } from '@prisma/client';
+import { SettingsCategory, AuditSeverity, Role, PlatformSettings } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import * as os from 'os';
+import { Decimal } from '@prisma/client/runtime/library';
+import { UpdatePlatformSettingsDto } from './dto/update-platform-settings.dto';
 
 export interface FeatureFlag {
   key: string;
@@ -30,6 +34,7 @@ export class SettingsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
   ) { }
 
   // ============================================================================
@@ -77,7 +82,66 @@ export class SettingsService {
     };
   }
 
-  async getFeatureFlags() {
+  /**
+   * Get platform-wide fee settings from DB with caching
+   */
+  async getPlatformSettings(): Promise<PlatformSettings> {
+    const cacheKey = 'platform:settings';
+    const cached = await this.cacheManager.get<PlatformSettings>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    const settings = await this.prisma.platformSettings.findFirst({
+      where: { id: 'default' },
+    });
+    if (!settings) {
+      throw new InternalServerErrorException('Platform settings not configured');
+    }
+
+    // Cache for 5 minutes (300 seconds)
+    await this.cacheManager.set(cacheKey, settings, 300);
+    return settings;
+   }
+
+   /**
+    * Update platform settings (admin only)
+    */
+   async updatePlatformSettings(dto: UpdatePlatformSettingsDto, userId: number): Promise<PlatformSettings> {
+     const data: any = {};
+     if (dto.platformFeePercent !== undefined) data.platformFeePercent = new Decimal(dto.platformFeePercent);
+     if (dto.gstPercent !== undefined) data.gstPercent = new Decimal(dto.gstPercent);
+     if (dto.expressFeeFixed !== undefined) data.expressFeeFixed = new Decimal(dto.expressFeeFixed);
+     if (dto.commissionPercent !== undefined) data.commissionPercent = new Decimal(dto.commissionPercent);
+     if (dto.tdsPercent !== undefined) data.tdsPercent = new Decimal(dto.tdsPercent);
+     data.updatedBy = String(userId);
+
+     const updated = await this.prisma.platformSettings.update({
+       where: { id: 'default' },
+       data,
+     });
+
+     // Invalidate cache
+     await this.cacheManager.del('platform:settings');
+
+     // Audit log
+     await this.auditService.record({
+       entityType: 'PlatformSettings',
+       entityId: 'default',
+       action: 'UPDATE',
+       severity: AuditSeverity.HIGH,
+       actorId: userId,
+       actorEmail: undefined,
+       actorRole: Role.ADMIN,
+       description: 'Platform settings updated',
+       oldValue: null,
+       newValue: data,
+     });
+
+     return updated;
+   }
+
+   async getFeatureFlags() {
     const settings = await this.prisma.settings.findMany({
       where: { key: { startsWith: 'FEATURE_' } },
     });

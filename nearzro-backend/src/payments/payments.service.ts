@@ -7,9 +7,9 @@ import {
   ForbiddenException,
   Logger,
   Inject,
-  forwardRef
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import * as crypto from 'crypto';
 import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaService } from '../prisma/prisma.service';
@@ -21,9 +21,14 @@ import {
   PaymentConfirmResponseDto,
   PaymentStatusResponseDto 
 } from './dto/payment-response.dto';
+<<<<<<< Updated upstream
 import { CartService } from '../cart/cart.service';
 import { SettingsService } from '../settings/settings.service';
 import { NotificationsService } from '../notifications/notifications.service';
+=======
+import { EventsService } from '../events/events.service';
+import { CartCalculationService } from '../business-rules/cart-calculation.service';
+>>>>>>> Stashed changes
 
 /**
  * Payment Service - Industry Standard Implementation
@@ -49,10 +54,16 @@ export class PaymentsService {
     private readonly prisma: PrismaService,
     @Inject('RAZORPAY_CLIENT') razorpayClient: any,
     private readonly configService: ConfigService,
+<<<<<<< Updated upstream
     @Inject(forwardRef(() => CartService))
     private readonly cartService: CartService,
     private readonly settingsService: SettingsService,
     private readonly notificationsService: NotificationsService,
+=======
+    private readonly cartCalculationService: CartCalculationService,
+    private readonly eventsService: EventsService,
+    private readonly eventEmitter: EventEmitter2,
+>>>>>>> Stashed changes
   ) {
     this.razorpay = razorpayClient;
     this.razorpayKeySecret = this.configService.get<string>('RAZORPAY_KEY_SECRET') || '';
@@ -73,7 +84,6 @@ export class PaymentsService {
         hasRazorpayKey: !!razorpayKeyId,
       });
       // Don't throw - allow startup but log critical error
-      // The system will work but payments won't process
     }
 
     this.logger.log({
@@ -98,125 +108,116 @@ export class PaymentsService {
     return false;
   }
 
-  // ============================================================
-  // STEP 1: CREATE PAYMENT ORDER (with cart)
-  // ============================================================
-  
-  /**
-   * Create a payment order for a cart
-   * Uses idempotency key to prevent duplicate orders
-   */
-  async createOrder(
-    userId: number,
-    dto: CreatePaymentDto,
-    requestId?: string,
-  ): Promise<PaymentOrderResponseDto> {
-    const idempotencyKey = dto.idempotencyKey || `order_${dto.cartId}_${Date.now()}`;
-    const traceId = requestId || this.generateRequestId();
+   // ============================================================
+   // STEP 1: CREATE PAYMENT ORDER (with cart)
+   // ============================================================
+   
+   /**
+    * Create a payment order for a cart
+    * Uses idempotency key to prevent duplicate orders
+    *
+    * RELIABILITY FIX: Razorpay API call moved OUTSIDE database transaction
+    * to prevent DB connection pool exhaustion from slow external API responses.
+    * Transaction now only wraps the actual DB writes (payment record + audit event).
+    */
+   async createOrder(
+     userId: number,
+     dto: CreatePaymentDto,
+     requestId?: string,
+   ): Promise<PaymentOrderResponseDto> {
+     const idempotencyKey = dto.idempotencyKey || `order_${dto.cartId}_${Date.now()}`;
+     const traceId = requestId || this.generateRequestId();
 
-    this.logger.log({
-      event: 'PAYMENT_CREATE_ORDER_START',
-      traceId,
-      userId,
-      cartId: dto.cartId && dto.cartId > 0 ? dto.cartId : null,
-      idempotencyKey,
-    });
+     this.logger.log({
+       event: 'PAYMENT_CREATE_ORDER_START',
+       traceId,
+       userId,
+       cartId: dto.cartId && dto.cartId > 0 ? dto.cartId : null,
+       idempotencyKey,
+     });
 
-    try {
-      // === IDEMPOTENCY CHECK (Redis + DB) ===
-      const existingPayment = await this.checkIdempotency(idempotencyKey, userId);
-      if (existingPayment) {
-        this.logger.warn({
-          event: 'PAYMENT_DUPLICATE_REQUEST',
-          traceId,
-          idempotencyKey,
-          existingPaymentId: existingPayment.id,
-        });
-        return this.buildOrderResponse(existingPayment, traceId);
-      }
+     try {
+       // === IDEMPOTENCY CHECK (Redis + DB) ===
+       const existingPayment = await this.checkIdempotency(idempotencyKey, userId);
+       if (existingPayment) {
+         this.logger.warn({
+           event: 'PAYMENT_DUPLICATE_REQUEST',
+           traceId,
+           idempotencyKey,
+           existingPaymentId: existingPayment.id,
+         });
+         return this.buildOrderResponse(existingPayment, traceId);
+       }
 
-      // === ATOMIC TRANSACTION ===
-      const result = await this.prisma.$transaction(async (tx) => {
-        // 1. Validate and lock cart (optimistic locking with version check)
-        const cart = await tx.cart.findUnique({
-          where: { id: dto.cartId },
-          include: { items: true },
-        });
+       // === VALIDATE CART (before external call) ===
+       const cart = await this.prisma.cart.findUnique({
+         where: { id: dto.cartId },
+         include: { items: true },
+       });
 
-        if (!cart || cart.userId !== userId) {
-          throw new BadRequestException('Invalid cart: not found or does not belong to user');
-        }
+       if (!cart || cart.userId !== userId) {
+         throw new BadRequestException('Invalid cart: not found or does not belong to user');
+       }
 
-        if (cart.status !== CartStatus.ACTIVE) {
-          throw new BadRequestException(`Cart is not active. Current status: ${cart.status}`);
-        }
+       if (cart.status !== CartStatus.ACTIVE) {
+         throw new BadRequestException(`Cart is not active. Current status: ${cart.status}`);
+       }
 
-        if (cart.items.length === 0) {
-          throw new BadRequestException('Cart is empty');
-        }
+       if (cart.items.length === 0) {
+         throw new BadRequestException('Cart is empty');
+       }
 
-        // 2. Check for existing pending payment on this cart
-        const existingPending = await tx.payment.findFirst({
-          where: { 
-            cartId: dto.cartId,
-            status: { in: [PaymentStatus.PENDING, PaymentStatus.CREATED] },
-          },
-        });
+       // === CALCULATE AMOUNT ===
+       const amount = this.calculateAmountFromItems(cart.items);
+       
+       if (amount <= 0) {
+         throw new BadRequestException('Invalid cart amount');
+       }
 
-        if (existingPending && existingPending.expiresAt && existingPending.expiresAt > new Date()) {
-          // Return existing order if not expired
-          return { payment: existingPending, isNew: false };
-        }
+       // 🔴 CRITICAL FIX: Call Razorpay API OUTSIDE transaction to avoid holding DB connections
+       const order = await this.createRazorpayOrder(amount, `cart_${dto.cartId}`);
 
-        // 3. Calculate amount from cart items (server-side for security)
-        const amount = this.calculateAmountFromItems(cart.items);
-        
-        if (amount <= 0) {
-          throw new BadRequestException('Invalid cart amount');
-        }
+       // === ATOMIC TRANSACTION (DB only - no external API calls inside) ===
+       const result = await this.prisma.$transaction(async (tx) => {
+         // 1. Lock cart
+         await tx.cart.update({
+           where: { id: dto.cartId },
+           data: { status: CartStatus.LOCKED },
+         });
 
-        // 4. Lock cart
-        await tx.cart.update({
-          where: { id: dto.cartId },
-          data: { status: CartStatus.LOCKED },
-        });
+         // 2. Create payment record with the orderId obtained from Razorpay
+         const expiresAt = new Date(Date.now() + this.paymentExpiryMinutes * 60 * 1000);
+         
+         const payment = await tx.payment.create({
+           data: {
+             userId,
+             cartId: dto.cartId && dto.cartId > 0 ? dto.cartId : undefined,
+             provider: PaymentProvider.RAZORPAY,
+             providerOrderId: order.id,
+             amount,
+             status: PaymentStatus.CREATED,
+             idempotencyKey,
+             expiresAt,
+             metadata: {
+               traceId,
+               receipt: `cart_${dto.cartId}`,
+             },
+           },
+         });
 
-        // 5. Create Razorpay order (or mock)
-        const order = await this.createRazorpayOrder(amount, `cart_${dto.cartId}`);
+         // 3. Create audit event
+         await tx.paymentEvent.create({
+           data: {
+             paymentId: payment.id,
+             eventType: 'payment.order.created',
+             status: PaymentStatus.CREATED,
+             requestId: traceId,
+             response: { orderId: order.id, amount },
+           },
+         });
 
-        // 6. Create payment record
-        const expiresAt = new Date(Date.now() + this.paymentExpiryMinutes * 60 * 1000);
-        
-        const payment = await tx.payment.create({
-          data: {
-            userId,
-            cartId: dto.cartId && dto.cartId > 0 ? dto.cartId : undefined,
-            provider: PaymentProvider.RAZORPAY,
-            providerOrderId: order.id,
-            amount,
-            status: PaymentStatus.CREATED,
-            idempotencyKey,
-            expiresAt,
-            metadata: {
-              traceId,
-              receipt: `cart_${dto.cartId}`,
-            },
-          },
-        });
-
-        // 7. Create audit event
-        await tx.paymentEvent.create({
-          data: {
-            paymentId: payment.id,
-            eventType: 'payment.order.created',
-            status: PaymentStatus.CREATED,
-            requestId: traceId,
-            response: { orderId: order.id, amount },
-          },
-        });
-
-        return { payment, isNew: true };
-      });
+         return { payment, isNew: true };
+       });
 
       this.logger.log({
         event: 'PAYMENT_ORDER_CREATED',
@@ -281,34 +282,36 @@ export class PaymentsService {
       // Convert amount to paise
       const amountInPaise = Math.round(dto.amount * 100);
 
-      // Create Razorpay order
+      // 🔴 CRITICAL FIX: Call Razorpay API OUTSIDE any DB transaction
       const order = await this.createRazorpayOrder(
         amountInPaise, 
         `simple_${Date.now()}`,
         dto.currency || 'INR',
       );
 
-      // Create payment record
+      // === DB TRANSACTION: Persist payment record atomically ===
       const expiresAt = new Date(Date.now() + this.paymentExpiryMinutes * 60 * 1000);
       
-      // userId is bound from JWT (no longer hardcoded to 0)
-      const payment = await this.prisma.payment.create({
-        data: {
-          userId: authenticatedUserId,
-          cartId: dto.cartId && dto.cartId > 0 ? dto.cartId : null,
-          provider: PaymentProvider.RAZORPAY,
-          providerOrderId: order.id,
-          amount: amountInPaise,
-          status: PaymentStatus.CREATED,
-          idempotencyKey,
-          expiresAt,
-          metadata: {
-            traceId,
-            type: 'simplified',
-            items: dto.items,
-            customerDetails: dto.customerDetails,
+      // Wrap in transaction for consistency (even single write)
+      const payment = await this.prisma.$transaction(async (tx) => {
+        return await tx.payment.create({
+          data: {
+            userId: authenticatedUserId,
+            cartId: dto.cartId && dto.cartId > 0 ? dto.cartId : null,
+            provider: PaymentProvider.RAZORPAY,
+            providerOrderId: order.id,
+            amount: amountInPaise,
+            status: PaymentStatus.CREATED,
+            idempotencyKey,
+            expiresAt,
+            metadata: {
+              traceId,
+              type: 'simplified',
+              items: dto.items,
+              customerDetails: dto.customerDetails,
+            },
           },
-        },
+        });
       });
 
       this.logger.log({
@@ -356,13 +359,12 @@ export class PaymentsService {
       razorpayPaymentId: dto.razorpayPaymentId,
     });
 
-    try {
-      // 1. Find payment by order ID
-      const feeSettings = await this.settingsService.getPublicFees();
-      const PLATFORM_FEE_RATE = feeSettings.platformFee;
-      const TAX_RATE = feeSettings.taxRate;
+     try {
+       // 1. Find payment by order ID
+       const PLATFORM_FEE_RATE = this.cartCalculationService.getPlatformFeeRate();
+       const TAX_RATE = this.cartCalculationService.getTaxRate();
 
-      const payment = await this.prisma.payment.findUnique({
+       const payment = await this.prisma.payment.findUnique({
         where: { providerOrderId: dto.razorpayOrderId },
         include: { cart: { include: { items: true } } },
       });
@@ -393,23 +395,7 @@ export class PaymentsService {
         throw new BadRequestException('Cannot confirm a failed payment');
       }
 
-      // 3. Check if already completed (idempotency)
-      if (payment.status === PaymentStatus.CAPTURED) {
-        this.logger.warn({
-          event: 'PAYMENT_ALREADY_CONFIRMED',
-          traceId,
-          paymentId: payment.id,
-        });
-        return {
-          success: true,
-          paymentId: String(payment.id),
-          status: payment.status,
-          razorpayPaymentId: dto.razorpayPaymentId,
-          message: 'Payment already confirmed',
-          isMock: this.isMock,
-        };
-      }
-
+      // 3. Check if already completed (idempotency) - REPLACED with atomic update
       // 4. Verify signature (skip in mock mode)
       if (!this.isMock) {
         await this.verifyPaymentSignature(
@@ -419,6 +405,7 @@ export class PaymentsService {
         );
       }
 
+<<<<<<< Updated upstream
       // 5. Update payment and cart atomically
       await this.prisma.$transaction(async (tx) => {
         // Update payment
@@ -437,36 +424,106 @@ export class PaymentsService {
           const cart = await tx.cart.findUnique({
             where: { id: payment.cartId },
             include: { items: true }
+=======
+      // 5. Atomically capture payment if not already captured
+      let createdEventIds: number[] = [];
+      let alreadyCaptured = false;
+
+      await this.prisma.$transaction(
+        async (tx) => {
+          // Atomic conditional update: only captures if currently not CAPTURED
+          const updateResult = await tx.payment.updateMany({
+            where: {
+              id: payment.id,
+              status: { not: PaymentStatus.CAPTURED },
+            },
+            data: {
+              status: PaymentStatus.CAPTURED,
+              completedAt: new Date(),
+              providerPaymentId: dto.razorpayPaymentId,
+              signature: dto.razorpaySignature,
+            },
+>>>>>>> Stashed changes
           });
-          
-          if (!cart) {
-            throw new Error(`Cart with ID ${payment.cartId} not found during payment confirmation.`);
+
+          if (updateResult.count === 0) {
+            alreadyCaptured = true;
+            return; // Skip rest; payment already captured
           }
 
-          await tx.cart.update({
-            where: { id: payment.cartId },
-            data: { status: CartStatus.COMPLETED },
-          });
+          // Complete cart if exists and create Events (initally QUOTED)
+          if (payment.cartId && payment.cartId > 0) {
+            const cart = await tx.cart.findUnique({
+              where: { id: payment.cartId },
+              include: { items: true },
+            });
 
+<<<<<<< Updated upstream
           // Create Event records from cart items
           await this.createEventsFromCart(tx, payment, cart, traceId);
         }
+=======
+            if (!cart) {
+              throw new Error(`Cart with ID ${payment.cartId} not found during payment confirmation.`);
+            }
+>>>>>>> Stashed changes
 
-        // Create audit event
-        await tx.paymentEvent.create({
-          data: {
-            paymentId: payment.id,
-            eventType: 'payment.confirmed.client',
-            status: PaymentStatus.CAPTURED,
-            requestId: traceId,
-            response: {
-              razorpayPaymentId: dto.razorpayPaymentId,
-              confirmedBy: 'client_callback',
+            await tx.cart.update({
+              where: { id: payment.cartId },
+              data: { status: CartStatus.COMPLETED },
+            });
+
+            // Create Event records from cart items (status = QUOTED)
+            createdEventIds = await this.createEventsFromCart(tx, payment, cart, traceId);
+          }
+
+          // Create audit event
+          await tx.paymentEvent.create({
+            data: {
+              paymentId: payment.id,
+              eventType: 'payment.confirmed.client',
+              status: PaymentStatus.CAPTURED,
+              requestId: traceId,
+              response: {
+                razorpayPaymentId: dto.razorpayPaymentId,
+                confirmedBy: 'client_callback',
+              },
             },
-          },
-        });
-      });
+          });
+        },
+        { isolationLevel: 'Serializable' },
+      );
 
+      if (alreadyCaptured) {
+        return {
+          success: true,
+          paymentId: String(payment.id),
+          status: PaymentStatus.CAPTURED,
+          razorpayPaymentId: dto.razorpayPaymentId,
+          message: 'Payment already confirmed',
+          isMock: this.isMock,
+        };
+      }
+
+<<<<<<< Updated upstream
+=======
+      // Transition events from QUOTED to CONFIRMED after commit
+      if (createdEventIds.length > 0) {
+        for (const eventId of createdEventIds) {
+          try {
+            await this.eventsService.updateEventStatus(eventId, 'CONFIRMED', 0);
+          } catch (err: any) {
+            this.logger.error({
+              event: 'EVENT_TRANSITION_FAILED',
+              eventId,
+              error: err.message,
+            });
+            // Continue processing; do not throw to avoid failing response
+          }
+        }
+      }
+
+>>>>>>> Stashed changes
       await this.sendBookingNotifications(payment, payment.cart?.items || [], traceId);
 
       this.logger.log({
@@ -500,15 +557,24 @@ export class PaymentsService {
     payment: any,
     cart: any,
     traceId: string,
+<<<<<<< Updated upstream
   ): Promise<void> {
     const feeSettings = await this.settingsService.getPublicFees();
     const PLATFORM_FEE_RATE = feeSettings.platformFee;
     const TAX_RATE = feeSettings.taxRate;
+=======
+  ): Promise<number[]> {
+    const PLATFORM_FEE_RATE = this.cartCalculationService.getPlatformFeeRate();
+    const TAX_RATE = this.cartCalculationService.getTaxRate();
+    const createdEventIds: number[] = [];
+
+>>>>>>> Stashed changes
     for (const item of cart.items) {
       const metaData = item.meta !== null && typeof item.meta === 'object'
         ? (item.meta as Record<string, unknown>) : {};
       const startTime = (metaData as any)?.startTime || null;
       const endTime = (metaData as any)?.endTime || null;
+<<<<<<< Updated upstream
       const itemTotal = Number(item.totalPrice || 0);
       const itemExpressFee = cart.isExpress && cart.expressFee
         ? Math.round(cart.expressFee / cart.items.length) : 0;
@@ -516,6 +582,49 @@ export class PaymentsService {
       const itemPlatformFee = Math.round((itemSubtotal + itemExpressFee) * PLATFORM_FEE_RATE);
       const itemTax = Math.round((itemSubtotal + itemPlatformFee) * TAX_RATE);
       const itemTotalAmount = itemSubtotal + itemExpressFee + itemPlatformFee + itemTax;
+=======
+
+      // FIX 1: Row-level lock and availability check to prevent double booking
+      if (item.venueId) {
+        // Lock the venue row to serialize concurrent bookings
+        await tx.$queryRaw`SELECT * FROM "Venue" WHERE id = ${item.venueId} FOR UPDATE`;
+        // Check for existing conflicting event
+        const existingEvent = await tx.event.findFirst({
+          where: {
+            venueId: item.venueId,
+            date: item.date,
+            timeSlot: item.timeSlot,
+          },
+        });
+        if (existingEvent) {
+          throw new BadRequestException(`Venue already booked for date ${item.date} slot ${item.timeSlot}`);
+        }
+      } else if (item.vendorServiceId) {
+        // Lock the vendor service row
+        await tx.$queryRaw`SELECT * FROM "VendorService" WHERE id = ${item.vendorServiceId} FOR UPDATE`;
+        const existingEvent = await tx.event.findFirst({
+          where: {
+            vendorServiceId: item.vendorServiceId,
+            date: item.date,
+            timeSlot: item.timeSlot,
+          },
+        });
+        if (existingEvent) {
+          throw new BadRequestException(`Vendor service already booked for date ${item.date} slot ${item.timeSlot}`);
+        }
+      }
+
+      // FIX 2: Use Decimal for all financial calculations to avoid floating point errors
+      const itemTotal = new Decimal(item.totalPrice?.toString() || '0');
+      const itemExpressFee = cart.isExpress && cart.expressFee && cart.items.length > 0
+        ? new Decimal(Math.round(cart.expressFee / cart.items.length))
+        : new Decimal(0);
+      const itemSubtotal = itemTotal.minus(itemExpressFee);
+      const itemPlatformFee = itemSubtotal.plus(itemExpressFee).mul(PLATFORM_FEE_RATE).toDecimalPlaces(0);
+      const itemTax = itemSubtotal.plus(itemPlatformFee).mul(TAX_RATE).toDecimalPlaces(0);
+      const itemTotalAmount = itemSubtotal.plus(itemExpressFee).plus(itemPlatformFee).plus(itemTax);
+
+>>>>>>> Stashed changes
       const eventBase = {
         userId: payment.userId,
         customerId: payment.userId,
@@ -551,49 +660,12 @@ export class PaymentsService {
     cartItems: any[],
     traceId: string,
   ): Promise<void> {
-    try {
-      for (const item of cartItems) {
-        if (item.venueId) {
-          const venue = await this.prisma.venue.findUnique({
-            where: { id: item.venueId },
-            select: { ownerId: true, name: true },
-          });
-          if (venue?.ownerId) {
-            await this.notificationsService.send({
-              userId: venue.ownerId,
-              title: 'New Booking Received',
-              message: `A new booking confirmed for ${venue.name}. Please review and respond.`,
-              type: 'BOOKING_CONFIRMED',
-              metadata: { paymentId: payment.id, venueId: item.venueId, traceId },
-            } as any);
-          }
-        }
-        if (item.vendorServiceId) {
-          const service = await this.prisma.vendorService.findUnique({
-            where: { id: item.vendorServiceId },
-            include: { vendor: { select: { userId: true, businessName: true } } },
-          });
-          if (service?.vendor?.userId) {
-            await this.notificationsService.send({
-              userId: service.vendor.userId,
-              title: 'New Service Booking',
-              message: `A booking confirmed for ${service.vendor.businessName}. Please review and respond.`,
-              type: 'BOOKING_CONFIRMED',
-              metadata: { paymentId: payment.id, vendorServiceId: item.vendorServiceId, traceId },
-            } as any);
-          }
-        }
-      }
-      await this.notificationsService.send({
-        userId: payment.userId,
-        title: 'Booking Confirmed!',
-        message: 'Your payment was successful and your booking is confirmed. Track it in your dashboard.',
-        type: 'BOOKING_CONFIRMED',
-        metadata: { paymentId: payment.id, traceId },
-      } as any);
-    } catch (notifError: any) {
-      this.logger.error({ event: 'BOOKING_NOTIFICATION_FAILED', traceId, error: notifError.message });
-    }
+    // Emit event for decoupled notification handling
+    this.eventEmitter.emit('payment.confirmed', {
+      payment,
+      cartItems,
+      traceId,
+    });
   }
 
   // ============================================================
@@ -747,6 +819,7 @@ export class PaymentsService {
         });
       });
 
+<<<<<<< Updated upstream
       if (newStatus === PaymentStatus.CAPTURED) {
         const cartItems = payment.cartId
           ? (await this.prisma.cart.findUnique({
@@ -756,6 +829,32 @@ export class PaymentsService {
           : [];
         await this.sendBookingNotifications(payment, cartItems, requestId || 'webhook');
       }
+=======
+        // Transition events to CONFIRMED after creation (Fix 6)
+        if (createdEventIds.length > 0) {
+          for (const eventId of createdEventIds) {
+            try {
+              await this.eventsService.updateEventStatus(eventId, 'CONFIRMED', 0);
+            } catch (err: any) {
+              this.logger.error({
+                event: 'EVENT_TRANSITION_FAILED',
+                eventId,
+                error: err.message,
+              });
+            }
+          }
+        }
+
+       if (newStatus === PaymentStatus.CAPTURED) {
+         const cartItems = payment.cartId
+           ? (await this.prisma.cart.findUnique({
+               where: { id: payment.cartId },
+               include: { items: true },
+             }))?.items || []
+           : [];
+         await this.sendBookingNotifications(payment, cartItems, requestId || 'webhook');
+       }
+>>>>>>> Stashed changes
 
       this.logger.log({
         event: 'WEBHOOK_PROCESSED',
@@ -775,8 +874,8 @@ export class PaymentsService {
         stack: error.stack,
       });
       
-      // Don't throw - acknowledge receipt to prevent retries
-      return { processed: false, message: 'Processing failed' };
+      // 🔴 CRITICAL FIX: Throw exception to return non-200 status so Razorpay retries webhook
+      throw new InternalServerErrorException('Processing failed');
     }
   }
 
@@ -1233,81 +1332,122 @@ export class PaymentsService {
    */
   async processRefund(paymentId: number, refundAmount: number, reason: string | undefined, adminUserId: number) {
     try {
-      // Validate refund amount
+      // === STEP 1: Validate refund amount ===
       if (refundAmount <= 0) {
         throw new BadRequestException('Refund amount must be greater than 0');
       }
 
-      // SECURITY (HIGH-06): Wrap read, external API, and write into a single transaction
-      const { refundEvent, updatedPayment, totalRefunded, isFullRefund, originalAmount } = await this.prisma.$transaction(async (tx) => {
-        // 1. Get payment with row-level lock (using raw SQL)
-        const lockedPayments = await tx.$queryRaw<any[]>`
+      // === STEP 2: Quick read of payment data (no transaction, no lock) ===
+      const payment = await this.prisma.payment.findUnique({
+        where: { id: paymentId },
+        select: { 
+          id: true, 
+          status: true, 
+          amount: true, 
+          providerPaymentId: true, 
+          userId: true 
+        },
+      });
+
+      if (!payment) {
+        throw new NotFoundException(`Payment ${paymentId} not found`);
+      }
+
+      if (payment.status !== 'CAPTURED') {
+        throw new BadRequestException(
+          `Payment cannot be refunded. Current status: ${payment.status}`
+        );
+      }
+
+      if (!this.isMock && (!payment.providerPaymentId || !payment.providerPaymentId.startsWith('pay_'))) {
+        throw new BadRequestException('Cannot refund: Invalid or missing payment gateway ID');
+      }
+
+      // === STEP 3: Calculate already refunded amount (no lock) ===
+      const existingRefunds = await this.prisma.paymentEvent.findMany({
+        where: {
+          paymentId,
+          eventType: 'REFUND_INITIATED',
+        },
+      });
+
+      const totalRefunded = existingRefunds.reduce((sum, event: any) => {
+        const eventData = event.payload || {};
+        return sum + (eventData.amount || 0);
+      }, 0);
+
+      const originalAmount = typeof payment.amount === 'number' ? payment.amount : Number(payment.amount);
+      if (refundAmount + totalRefunded > originalAmount) {
+        throw new BadRequestException(
+          `Refund amount (${refundAmount}) plus already refunded amount (${totalRefunded}) exceeds original payment (${originalAmount})`
+        );
+      }
+
+      // === 🔴 CRITICAL FIX: Call Razorpay API OUTSIDE any DB transaction ===
+      if (!this.isMock && payment.providerPaymentId) {
+        try {
+          await this.razorpay.refunds.create({
+            payment_id: payment.providerPaymentId,
+            amount: Math.round(refundAmount * 100),
+            notes: { 
+              reason: reason || 'Admin initiated refund',
+              adminId: String(adminUserId)
+            }
+          });
+        } catch (rzpError: any) {
+          this.logger.error(`Razorpay refund failed for payment ${paymentId}:`, rzpError);
+          throw new InternalServerErrorException(
+            `Payment gateway rejected refund: ${rzpError.error?.description || rzpError.message || 'Unknown error'}`
+          );
+        }
+      }
+
+      // === STEP 4: Final DB transaction with row-level lock to persist refund ===
+      const { refundEvent, updatedPayment, isFullRefund, finalTotalRefunded } = await this.prisma.$transaction(async (tx) => {
+        // 🔒 Lock payment row to prevent concurrent refunds
+        const locked = await tx.$queryRaw<any[]>`
           SELECT * FROM "Payment" 
           WHERE id = ${paymentId} 
           FOR UPDATE
         `;
 
-        if (!lockedPayments || lockedPayments.length === 0) {
+        if (!locked || locked.length === 0) {
           throw new NotFoundException(`Payment ${paymentId} not found`);
         }
 
-        const payment = lockedPayments[0];
+        const currentPayment = locked[0];
 
-        // 2. Check if payment is refundable
-        if (payment.status !== 'CAPTURED') {
+        // Re-validate status (could have changed)
+        if (currentPayment.status !== 'CAPTURED' && currentPayment.status !== 'PARTIALLY_REFUNDED') {
           throw new BadRequestException(
-            `Payment cannot be refunded. Current status: ${payment.status}`
+            `Payment cannot be refunded. Current status: ${currentPayment.status}`
           );
         }
 
-        // 3. Calculate total already refunded
-        const existingRefunds = await tx.paymentEvent.findMany({
+        // Re-calculate total refunded to catch concurrent refunds
+        const currentRefunds = await tx.paymentEvent.findMany({
           where: {
             paymentId,
             eventType: 'REFUND_INITIATED',
           },
         });
 
-        const totalRefunded = existingRefunds.reduce((sum, event: any) => {
+        const currentTotalRefunded = currentRefunds.reduce((sum, event: any) => {
           const eventData = event.payload || {};
           return sum + (eventData.amount || 0);
         }, 0);
 
-        // 4. Check if refund amount exceeds original payment
-        const originalAmount = typeof payment.amount === 'number' ? payment.amount : Number(payment.amount);
-        if (refundAmount + totalRefunded > originalAmount) {
+        if (currentTotalRefunded + refundAmount > originalAmount) {
           throw new BadRequestException(
-            `Refund amount (${refundAmount}) plus already refunded amount (${totalRefunded}) exceeds original payment (${originalAmount})`
+            `Total refund would exceed original payment due to concurrent refund`
           );
         }
 
-        // 5. Determine if this is a full or partial refund
-        const isFullRefund = refundAmount + totalRefunded >= originalAmount;
-        const newStatus = isFullRefund ? 'REFUNDED' : 'PARTIALLY_REFUNDED';
+        // Determine final status
+        const isFull = currentTotalRefunded + refundAmount >= originalAmount;
+        const newStatus = isFull ? 'REFUNDED' : 'PARTIALLY_REFUNDED';
 
-        // 6. SECURITY (CRIT-03): Integrate with Razorpay Refund API
-        if (!this.isMock && payment.providerPaymentId && payment.providerPaymentId.startsWith('pay_')) {
-          try {
-            await this.razorpay.refunds.create({
-              payment_id: payment.providerPaymentId,
-              amount: Math.round(refundAmount * 100), // Razorpay uses paise
-              notes: { 
-                reason: reason || 'Admin initiated refund',
-                adminId: String(adminUserId)
-              }
-            });
-          } catch (rzpError: any) {
-            this.logger.error(`Razorpay refund failed for payment ${paymentId}:`, rzpError);
-            throw new InternalServerErrorException(
-              `Payment gateway rejected refund: ${rzpError.error?.description || rzpError.message || 'Unknown error'}`
-            );
-          }
-        } else if (!this.isMock) {
-          this.logger.warn(`Could not refund at Razorpay level for payment ${paymentId} because providerPaymentId is missing or invalid: ${payment.providerPaymentId}`);
-          throw new BadRequestException('Cannot refund: Invalid or missing payment gateway ID');
-        }
-
-        // 7. Create refund event
+        // Create refund event
         const refundEvent = await tx.paymentEvent.create({
           data: {
             paymentId,
@@ -1318,13 +1458,13 @@ export class PaymentsService {
               reason: reason || 'Admin initiated refund',
               initiatedBy: adminUserId,
               timestamp: new Date().toISOString(),
-              isFullRefund,
-              totalRefunded: totalRefunded + refundAmount,
+              isFullRefund: isFull,
+              totalRefunded: currentTotalRefunded + refundAmount,
             },
           },
         });
 
-        // 8. Update payment status
+        // Update payment status
         const updatedPayment = await tx.payment.update({
           where: { id: paymentId },
           data: {
@@ -1342,10 +1482,15 @@ export class PaymentsService {
           },
         });
 
-        return { refundEvent, updatedPayment, totalRefunded, isFullRefund, originalAmount };
+        return { 
+          refundEvent, 
+          updatedPayment, 
+          isFullRefund: isFull, 
+          finalTotalRefunded: currentTotalRefunded + refundAmount 
+        };
       });
 
-      // Log refund
+      // === STEP 5: Log and return ===
       this.logger.log({
         event: 'REFUND_PROCESSED',
         paymentId,
@@ -1370,8 +1515,8 @@ export class PaymentsService {
         payment: {
           id: updatedPayment.id,
           status: updatedPayment.status,
-          totalRefunded: totalRefunded + refundAmount,
-          originalAmount: originalAmount,
+          totalRefunded: finalTotalRefunded,
+          originalAmount,
         },
       };
     } catch (error: any) {

@@ -8,6 +8,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { PrismaModule } from '../prisma/prisma.module';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { FacebookStrategy } from './strategies/facebook.strategy';
+import { FacebookAuthGuard } from '../common/guards/facebook-auth.guard';
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './jwt.strategy';
 import { OtpModule } from './otp.module';
@@ -58,6 +59,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     AuthService,
     GoogleStrategy,
     FacebookStrategy,
+    FacebookAuthGuard,
     JwtStrategy,
     // Apply global rate limiting guard
     {

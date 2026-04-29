@@ -169,7 +169,8 @@ export class EventsController {
   updateStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: { status: string },
+    @Req() req: any,
   ) {
-    return this.eventsService.updateEventStatus(id, body.status);
+    return this.eventsService.updateEventStatus(id, body.status, req.user.userId);
   }
 }

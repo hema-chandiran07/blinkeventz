@@ -2,6 +2,24 @@ import { Logger } from '@nestjs/common';
 import { CIRCUIT_BREAKER_CONFIG } from '../constants/ai-planner.constants';
 
 /**
+ * Circuit Breaker Exception thrown when circuit is OPEN
+ * Allows callers to handle service unavailability distinctly
+ */
+export class CircuitBreakerOpenException extends Error {
+  public readonly state: CircuitBreakerState;
+  public readonly failureCount: number;
+  public readonly resetTime: number; // timestamp (ms) when circuit will attempt reset
+
+  constructor(name: string, failureCount: number, lastFailureTime: number, resetTimeoutSeconds: number) {
+    super(`Circuit breaker [${name}] is OPEN. Service unavailable.`);
+    this.state = CircuitBreakerState.OPEN;
+    this.failureCount = failureCount;
+    this.resetTime = lastFailureTime + resetTimeoutSeconds * 1000;
+    Object.setPrototypeOf(this, CircuitBreakerOpenException.prototype);
+  }
+}
+
+/**
  * Circuit Breaker States
  */
 export enum CircuitBreakerState {
@@ -51,31 +69,37 @@ export class CircuitBreaker {
     this.logger.log(`Circuit Breaker [${this.name}] initialized with threshold: ${this.failureThreshold}`);
   }
   
-  /**
-   * Execute a function with circuit breaker protection
-   */
-  async execute<T>(fn: () => Promise<T>): Promise<T> {
-    // Check if circuit is open
-    if (this.state === CircuitBreakerState.OPEN) {
-      // Check if we should transition to half-open
-      if (this.shouldAttemptReset()) {
-        this.logger.log(`Circuit Breaker [${this.name}] transitioning to HALF-OPEN`);
-        this.state = CircuitBreakerState.HALF_OPEN;
-        this.successCount = 0;
-      } else {
-        throw new Error(`Circuit breaker [${this.name}] is OPEN. Service unavailable.`);
-      }
-    }
-    
-    try {
-      const result = await fn();
-      this.onSuccess();
-      return result;
-    } catch (error) {
-      this.onFailure();
-      throw error;
-    }
-  }
+   /**
+    * Execute a function with circuit breaker protection
+    */
+   async execute<T>(fn: () => Promise<T>): Promise<T> {
+     // Check if circuit is open
+     if (this.state === CircuitBreakerState.OPEN) {
+       // Check if we should transition to half-open
+       if (this.shouldAttemptReset()) {
+         this.logger.log(`Circuit Breaker [${this.name}] transitioning to HALF-OPEN`);
+         this.state = CircuitBreakerState.HALF_OPEN;
+         this.successCount = 0;
+       } else {
+         // Throw specialized exception with diagnostic info
+         throw new CircuitBreakerOpenException(
+           this.name,
+           this.failureCount,
+           this.lastFailureTime,
+           this.resetTimeoutSeconds,
+         );
+       }
+     }
+     
+     try {
+       const result = await fn();
+       this.onSuccess();
+       return result;
+     } catch (error) {
+       this.onFailure();
+       throw error;
+     }
+   }
   
   /**
    * Handle success event
@@ -120,12 +144,19 @@ export class CircuitBreaker {
     return timeSinceLastFailure >= (this.resetTimeoutSeconds * 1000);
   }
   
-  /**
-   * Get current circuit state
-   */
-  getState(): CircuitBreakerState {
-    return this.state;
-  }
+   /**
+    * Get current circuit state
+    */
+   getState(): CircuitBreakerState {
+     return this.state;
+   }
+   
+   /**
+    * Get current failure count
+    */
+   getFailures(): number {
+     return this.failureCount;
+   }
   
   /**
    * Check if circuit is closed (allowing requests)

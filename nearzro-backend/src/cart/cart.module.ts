@@ -7,6 +7,7 @@ import { CartEventService } from './cart-event.service';
 import { CartExpirationWorker } from './cart.expiration.worker';
 import { PrismaModule } from '../prisma/prisma.module';
 import { ConfigModule } from '../config/config.module';
+import { BusinessRulesModule } from '../business-rules/business-rules.module';
 import { SettingsModule } from '../settings/settings.module';
 
 @Module({
@@ -14,6 +15,7 @@ import { SettingsModule } from '../settings/settings.module';
     PrismaModule,
     ConfigModule,
     ScheduleModule.forRoot(),
+    BusinessRulesModule,
     SettingsModule,
   ],
   controllers: [CartController],

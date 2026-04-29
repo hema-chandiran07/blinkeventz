@@ -1,31 +1,57 @@
-# Use lightweight Node image
-FROM node:20-alpine
+# =====================================================
+# Stage 1: Dependencies
+# =====================================================
+FROM node:20-alpine AS deps
 
-# Create working directory
 WORKDIR /app
 
-# Copy package files first (better Docker caching)
+# Install build tools for native modules (sharp, bcrypt, etc.)
+RUN apk add --no-cache libc6-compat python3 make g++
+
 COPY package*.json ./
 
-# Install dependencies
+# Install all deps including dev (needed for build)
 RUN npm install
 
-# Copy project files including .env
+# Force install sharp for Linux/musl (Alpine uses musl libc)
+RUN npm install --platform=linux --libc=musl sharp
+
+# =====================================================
+# Stage 2: Builder
+# =====================================================
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Generate Prisma client (without database connection)
+# Generate Prisma client
 RUN npx prisma generate
 
-# Build NestJS project
+# Build NestJS
 RUN npm run build
 
-# Expose API port
-EXPOSE 3000
+# =====================================================
+# Stage 3: Runner
+# =====================================================
+FROM node:20-alpine AS runner
 
-# Production environment
+WORKDIR /app
+
+RUN apk add --no-cache wget
+
 ENV NODE_ENV=production
 
-# Start NestJS production server with migrations
-# Migrations run at container startup when database is available
-# prisma db push syncs schema when migrations don't cover all changes
-CMD ["sh", "-c", "npx prisma migrate deploy && npx prisma db push --accept-data-loss && npm run start:prod"]
+# Copy only what's needed to run
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/prisma ./prisma
+
+EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD wget --quiet --tries=1 --no-verbose http://localhost:3000/health -O /dev/null || exit 1
+
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/main.js"]

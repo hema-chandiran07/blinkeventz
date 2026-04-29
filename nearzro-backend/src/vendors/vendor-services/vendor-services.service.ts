@@ -2,6 +2,7 @@ import { Injectable, ForbiddenException, NotFoundException, BadRequestException,
 import { validateOrReject } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
 import { PrismaService } from '../../prisma/prisma.service';
+import { Role } from '@prisma/client';
 import { CreateVendorServiceDto } from './dto/create-vendor-service.dto';
 
 @Injectable()
@@ -268,6 +269,7 @@ export class VendorServicesService {
     }
   }
 
+<<<<<<< Updated upstream
   /**
    * Get all services for a vendor by user ID
    * Used by /vendors/me/services endpoint
@@ -281,6 +283,54 @@ export class VendorServicesService {
       if (!vendor) {
         throw new NotFoundException('Vendor profile not found');
       }
+=======
+    /**
+     * Get all services for a vendor (public endpoint - summary list)
+     * SECURITY: Only returns ACTIVE services unless caller is the vendor owner or admin
+     */
+    async findByVendor(vendorId: number, userId?: number, role?: string) {
+      try {
+        const isAdmin = role === Role.ADMIN;
+        let isOwner = false;
+
+        if (!isAdmin && userId) {
+          const vendor = await this.prisma.vendor.findUnique({
+            where: { id: vendorId },
+            select: { userId: true },
+          });
+          isOwner = vendor?.userId === userId;
+        }
+
+        // Non-owners/non-admins can only see ACTIVE services
+        const where: any = { vendorId };
+        if (!isAdmin && !isOwner) {
+          where.isActive = true;
+        }
+
+        const services = await this.prisma.vendorService.findMany({
+          where,
+          select: {
+            id: true,
+            name: true,
+            baseRate: true,
+            images: true,
+          },
+        });
+
+        // Map to ServiceSummaryDto
+        return services.map(s => ({
+          id: s.id,
+          name: s.name,
+          rating: 0,
+          thumbnailUrl: s.images && s.images.length > 0 ? s.images[0] : null,
+          priceFrom: s.baseRate,
+        }));
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to fetch vendor services';
+        throw new InternalServerErrorException(message);
+      }
+    }
+>>>>>>> Stashed changes
 
       return await this.prisma.vendorService.findMany({
         where: { vendorId: vendor.id },
@@ -636,38 +686,39 @@ export class VendorServicesService {
   /**
    * Find all services pending admin approval (inactive services)
    */
-  async findPendingForApproval() {
-    try {
-      return await this.prisma.vendorService.findMany({
-        where: { isActive: false },
-        include: {
-          vendor: {
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  name: true,
-                  email: true,
-                  phone: true,
-                }
-              }
-            }
-          }
-        },
-        orderBy: { createdAt: 'desc' },
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to fetch pending services';
-      throw new InternalServerErrorException(message);
-    }
-  }
+   async findPendingForApproval() {
+     try {
+       return await this.prisma.vendorService.findMany({
+         where: { isActive: false },
+         include: {
+           vendor: {
+             include: {
+               user: {
+                 select: {
+                   id: true,
+                   name: true,
+                   email: true,
+                   phone: true,
+                 },
+               },
+             },
+           },
+         },
+         orderBy: { createdAt: 'desc' },
+       });
+     } catch (error) {
+       const message = error instanceof Error ? error.message : 'Failed to fetch pending services';
+       throw new InternalServerErrorException(message);
+     }
+   }
 
   /**
-   * Find service by ID with full details for admin review
+   * Get service by ID with vendor details
+   * BOLA FIX: Enforces ownership check - only vendor owner or admin can access
    */
-  async findByIdWithDetails(id: number) {
+  async findByIdWithDetails(id: number, userId?: number, role?: string) {
     try {
-      return await this.prisma.vendorService.findUnique({
+      const service = await this.prisma.vendorService.findUnique({
         where: { id },
         include: {
           vendor: {
@@ -678,13 +729,41 @@ export class VendorServicesService {
                   name: true,
                   email: true,
                   phone: true,
-                }
-              }
-            }
-          }
+                },
+              },
+            },
+          },
         },
       });
+
+      if (!service) {
+        throw new NotFoundException('Service not found');
+      }
+
+      // Ownership check: if not admin, must be vendor owner
+      if (role !== 'ADMIN') {
+        if (!userId) {
+          throw new ForbiddenException('Authentication required');
+        }
+        // Check if the requesting user is the vendor owner
+        const vendor = await this.prisma.vendor.findUnique({
+          where: { id: service.vendorId },
+          select: { userId: true },
+        });
+
+        if (!vendor || vendor.userId !== userId) {
+          throw new ForbiddenException('You do not have permission to access this service');
+        }
+      }
+
+      return service;
     } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      if (error instanceof ForbiddenException) {
+        throw error;
+      }
       const message = error instanceof Error ? error.message : 'Failed to fetch service details';
       throw new InternalServerErrorException(message);
     }

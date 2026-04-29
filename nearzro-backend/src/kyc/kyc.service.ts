@@ -24,6 +24,13 @@ import { encrypt, hash } from '../common/utils/crypto.util';
 export class KycService {
   private readonly logger = new Logger(KycService.name);
 
+  // FIX 8: KYC state machine — allowed transitions
+  private static readonly VALID_KYC_TRANSITIONS: Record<string, string[]> = {
+    PENDING: ['VERIFIED', 'REJECTED'],
+    REJECTED: ['PENDING'],
+    VERIFIED: [],
+  };
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly storageService: DatabaseStorageService,
@@ -249,6 +256,13 @@ export class KycService {
     // 2️⃣ Prevent double approval
     if (kyc.status === KycStatus.VERIFIED) {
       throw new ConflictException('KYC is already verified');
+    }
+
+    // FIX 8: Validate state transition before update
+    const currentStatus = kyc.status as string;
+    const allowedTransitions = KycService.VALID_KYC_TRANSITIONS[currentStatus];
+    if (!allowedTransitions || !allowedTransitions.includes(status as string)) {
+      throw new BadRequestException('Invalid KYC state transition');
     }
 
     // Note: REJECTED KYC can be re-reviewed - this is now allowed

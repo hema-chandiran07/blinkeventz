@@ -21,17 +21,17 @@ export class OtpController {
   @Post('send-phone')
   @ApiOperation({ summary: 'Send OTP to phone number' })
   @ApiBody({ type: SendPhoneOtpDto })
-  async sendPhoneOtp(@Body() dto: SendPhoneOtpDto) {
-    return await this.otpService.sendPhoneOtp(dto.phone);
-  }
+   async sendPhoneOtp(@Body() dto: SendPhoneOtpDto) {
+     return await this.otpService.sendOtp(undefined, dto.phone, undefined);
+   }
 
   @Public()
   @Post('verify-phone')
   @ApiOperation({ summary: 'Verify phone OTP' })
   @ApiBody({ type: VerifyPhoneOtpDto })
-  async verifyPhoneOtp(@Body() dto: VerifyPhoneOtpDto) {
-    return await this.otpService.verifyPhoneOtp(dto.phone, dto.otp);
-  }
+   async verifyPhoneOtp(@Body() dto: VerifyPhoneOtpDto) {
+     return await this.otpService.verifyOtp(dto.phone, dto.otp);
+   }
 
   @Public()
   @Post('verify')
@@ -42,6 +42,7 @@ export class OtpController {
   }
 
   @Public()
+<<<<<<< Updated upstream
   @Post('resend')
   @ApiOperation({ summary: 'Resend OTP' })
   @ApiBody({ type: SendOtpDto })
@@ -59,11 +60,13 @@ export class OtpController {
         return { error: 'Phone OTP not found or not in development mode' };
       }
       return { phone, otp };
+=======
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+   @Post('resend')
+   @ApiOperation({ summary: 'Resend OTP' })
+   @ApiBody({ type: SendOtpDto })
+    async resendOtp(@Body() dto: SendOtpDto) {
+      return await this.otpService.sendOtp(dto.email, dto.phone, undefined);
+>>>>>>> Stashed changes
     }
-    const otp = this.otpService.getOtpForTesting(email);
-    if (!otp) {
-      return { error: 'OTP not found or not in development mode' };
-    }
-    return { email, otp };
-  }
-}
+ }

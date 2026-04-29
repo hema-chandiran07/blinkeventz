@@ -45,7 +45,6 @@ export interface User {
   name: string;
   email: string | null;
   phone: string | null;
-  passwordHash: string | null;
   googleId: string | null;
   role: Role;
   isActive: boolean;

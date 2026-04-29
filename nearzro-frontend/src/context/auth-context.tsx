@@ -318,7 +318,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const state = btoa(JSON.stringify(stateData));
     
     // Redirect to Google OAuth with state parameter
-    window.location.href = `${apiUrl}/api/auth/google?state=${encodeURIComponent(state)}`;
+    window.location.href = `${apiUrl}/api/v1/auth/google?state=${encodeURIComponent(state)}`;
   }, []);
 
   const facebookLogin = useCallback(() => {
@@ -336,7 +336,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     // Redirect to backend Facebook OAuth endpoint
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-    window.location.href = `${apiUrl}/api/auth/facebook`;
+    window.location.href = `${apiUrl}/api/v1/auth/facebook`;
   }, []);
 
   const setUserFromOAuth = useCallback((authUser: User) => {

@@ -14,6 +14,7 @@ import { CartConversionService } from './services/cart-conversion.service';
 import { AIPlannerQueue } from './queue/ai-planner.queue';
 import { AIPlannerProcessor } from './queue/ai-planner.processor';
 import { AIPlannerQueueService } from './queue/ai-planner-queue.service';
+import { AIPlannerDlqController } from './ai-planner.dlq.controller';
 
 import { QUEUE_CONFIG } from './constants/ai-planner.constants';
 
@@ -21,14 +22,27 @@ import { QUEUE_CONFIG } from './constants/ai-planner.constants';
   imports: [
     PrismaModule,
     OpenAIModule,
-    // Register BullMQ queue for AI Planner
-    BullModule.registerQueue(
-      {
-        name: QUEUE_CONFIG.AI_PLANNER_QUEUE,
+    // Register main AI Planner queue with configuration
+    BullModule.registerQueue({
+      name: QUEUE_CONFIG.AI_PLANNER_QUEUE,
+      defaultJobOptions: {
+        attempts: QUEUE_CONFIG.ATTEMPTS,
+        backoff: {
+          type: 'exponential',
+          delay: QUEUE_CONFIG.BACKOFF_DELAY,
+        },
+        timeout: QUEUE_CONFIG.TIMEOUT,
       },
-    ),
+    }),
+    // Register the dead-letter queue itself
+    BullModule.registerQueue({
+      name: QUEUE_CONFIG.AI_PLANNER_DLQ,
+    }),
   ],
-  controllers: [AIPlannerController],
+  controllers: [
+    AIPlannerController,
+    AIPlannerDlqController, // Admin DLQ endpoints
+  ],
   providers: [
     AIPlannerService,
     // OpenAIProvider is now provided by OpenAIModule

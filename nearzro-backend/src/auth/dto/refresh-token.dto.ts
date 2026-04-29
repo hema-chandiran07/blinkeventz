@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, MinLength } from 'class-validator';
+import { IsString, IsNotEmpty, MinLength, MaxLength } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class RefreshTokenDto {
@@ -9,6 +9,7 @@ export class RefreshTokenDto {
   @IsString()
   @IsNotEmpty()
   @MinLength(10)
+  @MaxLength(512, { message: 'refreshToken must not exceed 512 characters' })
   refreshToken: string;
 }
 

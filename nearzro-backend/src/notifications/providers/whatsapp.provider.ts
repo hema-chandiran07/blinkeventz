@@ -17,12 +17,12 @@ export class WhatsappProvider implements OnModuleInit {
 
   constructor(private readonly configService: ConfigService) {
     const threshold = this.configService.get<number>('CIRCUIT_BREAKER_THRESHOLD', 5);
-    const timeout = this.configService.get<number>('CIRCUIT_BREAKER_TIMEOUT', 60000);
-    
+    const timeoutMs = this.configService.get<number>('CIRCUIT_BREAKER_TIMEOUT', 60000);
+
     this.circuitBreaker = new CircuitBreaker({
-      threshold,
-      timeout,
       name: 'WhatsappProvider',
+      threshold,
+      timeout: timeoutMs,
     });
   }
 
@@ -53,12 +53,12 @@ export class WhatsappProvider implements OnModuleInit {
       throw new Error('WhatsApp provider not configured. Please set Twilio credentials.');
     }
 
-    // ✅ Validate phone number (E.164 format)
+    // Validate phone number (E.164 format)
     if (!to || !this.isValidPhoneNumber(to)) {
       throw new Error(`Invalid phone number: ${to}. Must be in E.164 format (e.g., +1234567890)`);
     }
 
-    // ✅ Validate message length
+    // Validate message length
     if (!message || message.length === 0) {
       throw new Error('Message cannot be empty');
     }
@@ -67,25 +67,49 @@ export class WhatsappProvider implements OnModuleInit {
       throw new Error('Message must be 4096 characters or less');
     }
 
-    return this.circuitBreaker.execute(async () => {
-      try {
-        const result = await this.client!.messages.create({
-          from: this.whatsappFrom!,
-          to: `whatsapp:${to}`,
-          body: message,
-        });
+    // 🔄 Retry logic with exponential backoff + jitter for transient errors
+    const maxAttempts = 3;
+    let lastError: any;
 
-        this.logger.log(`✅ WhatsApp sent successfully to ${to}. SID: ${result.sid}, Status: ${result.status}`);
-        
-        return {
-          sid: result.sid,
-          status: result.status,
-        };
-      } catch (error) {
-        this.logger.error(`❌ Failed to send WhatsApp to ${to}:`, error.message);
-        throw error;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        return await this.circuitBreaker.execute(async () => {
+          const result = await this.client!.messages.create({
+            from: this.whatsappFrom!,
+            to: `whatsapp:${to}`,
+            body: message,
+          });
+
+          this.logger.log(`✅ WhatsApp sent successfully to ${to}. SID: ${result.sid}, Status: ${result.status}`);
+          
+          return {
+            sid: result.sid,
+            status: result.status,
+          };
+        });
+      } catch (error: any) {
+        lastError = error;
+        const isTransient = this.isTransientError(error);
+
+        if (!isTransient || attempt === maxAttempts) {
+          throw error;
+        }
+
+        const delay = Math.pow(2, attempt) * 1000 + Math.random() * 500;
+        this.logger.warn(`WhatsApp send attempt ${attempt} failed (transient). Retrying in ${Math.round(delay)}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
-    });
+    }
+
+    throw lastError!;
+  }
+
+  /**
+   * Determines if an error is transient (network/timeout) vs permanent (validation)
+   */
+  private isTransientError(error: any): boolean {
+    const transientPatterns = /ECONNREFUSED|ETIMEDOUT|ENOTFOUND|ECONNRESET|network|timeout|status=4[012]|Service Unavailable/i;
+    return transientPatterns.test(error.message || '');
   }
 
   private isValidPhoneNumber(phone: string): boolean {

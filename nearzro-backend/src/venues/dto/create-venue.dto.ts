@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsEnum, IsOptional, IsNumber, IsNotEmpty, Min, MaxLength, IsArray } from 'class-validator';
+import { IsString, IsEnum, IsOptional, IsNumber, IsNotEmpty, Min, MaxLength, IsArray, Matches } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { VenueType } from '@prisma/client';
 
@@ -37,6 +37,7 @@ export class CreateVenueDto {
   @ApiProperty({ example: '560038', default: '000000' })
   @IsString()
   @MaxLength(10)
+  @Matches(/^[0-9]{6,10}$/, { message: 'pincode must be 6-10 digits' })
   pincode: string = '000000';
 
   @ApiProperty({ example: 100, required: false })

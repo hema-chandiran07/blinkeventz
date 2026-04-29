@@ -15,7 +15,12 @@ import { WhatsappProvider } from './providers/whatsapp.provider';
 import { PushProvider } from './providers/push.provider';
 import { InAppProvider } from './providers/inapp.provider';
 
+<<<<<<< Updated upstream
 import { NotificationGateway } from './websocket/notification.gateway';
+=======
+import { NotificationGateway, WsJwtGuard } from './websocket/notification.gateway';
+import { PaymentConfirmationListener } from './listeners/payment-confirmation.listener';
+>>>>>>> Stashed changes
 
 @Module({
   imports: [
@@ -48,6 +53,11 @@ import { NotificationGateway } from './websocket/notification.gateway';
     NotificationQueue,
     NotificationProcessor,
     NotificationGateway,
+<<<<<<< Updated upstream
+=======
+    WsJwtGuard,
+    PaymentConfirmationListener,
+>>>>>>> Stashed changes
 
     EmailProvider,
     SmsProvider,

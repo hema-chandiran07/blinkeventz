@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Star, Send, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { useAuth } from "@/context/auth-context";
 import api from "@/lib/api";
+import DOMPurify from 'dompurify';
 
 interface Review {
   id: string;
@@ -265,10 +266,10 @@ export function ReviewsSection({ venueId, venueName, initialRating }: ReviewsSec
                   <span className="text-sm text-zinc-500">{review.date}</span>
                 </div>
               </div>
-              {review.title && (
-                <p className="font-medium text-white text-sm mb-1">{review.title}</p>
-              )}
-              <p className="text-zinc-300 mb-3">{review.comment}</p>
+               {review.title && (
+                 <p className="font-medium text-white text-sm mb-1" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(review.title) }}></p>
+               )}
+               <p className="text-zinc-300 mb-3" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(review.comment) }}></p>
               <div className="flex items-center gap-3">
                 <div className="h-8 w-8 rounded-full bg-white/10 flex items-center justify-center text-white font-bold text-sm">
                   {review.author.charAt(0).toUpperCase()}

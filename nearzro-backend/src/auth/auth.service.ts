@@ -833,7 +833,7 @@ export class AuthService {
     return { success: true, message: 'Password reset successfully.' };
   }
 
-  async sendOtp(email: string, phone?: string) { return this.otpService.sendOtp(email, phone); }
+   async sendOtp(email: string, phone?: string, ip?: string) { return this.otpService.sendOtp(email, phone, ip); }
   async verifyOtp(email: string, otp: string) { return this.otpService.verifyOtp(email, otp); }
 
   async checkEmailExists(email: string): Promise<boolean> {

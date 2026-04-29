@@ -9,6 +9,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { MaintenanceGuard } from './common/guards/maintenance.guard';
+import { CustomThrottlerGuard } from './common/guards/custom-throttler.guard';
 import { BullModule } from '@nestjs/bull';
 import { join } from 'path';
 import Joi from 'joi';
@@ -216,6 +217,7 @@ import { SearchModule } from './search/search.module';
     ContactModule,
     SearchModule,
   ],
+<<<<<<< Updated upstream
   // 🔐 GLOBAL SECURITY LAYER
   providers: [
     // MaintenanceGuard temporarily disabled for debugging
@@ -232,5 +234,27 @@ import { SearchModule } from './search/search.module';
       useClass: RolesGuard,
     },
   ],
+=======
+   // 🔐 GLOBAL SECURITY LAYER
+   providers: [
+     // MaintenanceGuard temporarily disabled for debugging
+     // {
+     //   provide: APP_GUARD,
+     //   useClass: MaintenanceGuard,
+     // },
+     {
+       provide: APP_GUARD,
+       useClass: CustomThrottlerGuard,
+     },
+     {
+       provide: APP_GUARD,
+       useClass: JwtAuthGuard,
+     },
+     {
+       provide: APP_GUARD,
+       useClass: RolesGuard,
+     },
+   ],
+>>>>>>> Stashed changes
 })
 export class AppModule { }

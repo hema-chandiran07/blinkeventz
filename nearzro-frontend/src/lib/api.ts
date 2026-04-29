@@ -22,7 +22,7 @@ const getBaseUrl = () => {
 };
 
 const api = axios.create({
-  baseURL: `${getBaseUrl()}/api`,
+  baseURL: `${getBaseUrl()}/api/v1`,
   withCredentials: true,
   timeout: 30000,
 });

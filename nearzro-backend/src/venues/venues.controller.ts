@@ -727,7 +727,7 @@ export class VenuesController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.VENUE_OWNER)
   @Post('me/portfolio/images')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 15 * 1024 * 1024 } }))
   async addPortfolioImage(
     @Req() req: any,
     @UploadedFile() file: Express.Multer.File,

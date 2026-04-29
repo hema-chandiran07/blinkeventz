@@ -271,10 +271,15 @@ describe('VendorServices Integration Tests', () => {
         createServiceDto({ name: 'Service To Activate' })
       );
 
-      const activated = await vendorServicesService.activate(service.id, undefined, true);
+       const activated = await vendorServicesService.activate(service.id, undefined, true);
 
+<<<<<<< Updated upstream
       expect(activated.isActive).toBe(true);
     });
+=======
+       expect(activated.isActive).toBe(true);
+     });
+>>>>>>> Stashed changes
 
     it('should throw when service not found', async () => {
       await expect(vendorServicesService.activate(999999)).rejects.toThrow();
@@ -297,7 +302,11 @@ describe('VendorServices Integration Tests', () => {
 
       const deactivated = await vendorServicesService.deactivate(service.id);
 
+<<<<<<< Updated upstream
       expect(deactivated.isActive).toBe(false);
+=======
+       expect(deactivated.isActive).toBe(false);
+>>>>>>> Stashed changes
     });
 
     it('should throw when service not found', async () => {
@@ -384,12 +393,20 @@ describe('VendorServices Integration Tests', () => {
       // Activate
       await vendorServicesService.activate(service.id);
       let result = await vendorServicesService.findByVendor(vendor.id);
+<<<<<<< Updated upstream
       expect(result.find(s => s.id === service.id)?.isActive).toBe(true);
+=======
+       expect(result.find(s => s.id === service.id)?.isActive).toBe(true);
+>>>>>>> Stashed changes
 
       // Deactivate
       await vendorServicesService.deactivate(service.id);
       result = await vendorServicesService.findByVendor(vendor.id);
+<<<<<<< Updated upstream
       expect(result.find(s => s.id === service.id)?.isActive).toBe(false);
+=======
+       expect(result.find(s => s.id === service.id)?.isActive).toBe(false);
+>>>>>>> Stashed changes
     });
   });
 });

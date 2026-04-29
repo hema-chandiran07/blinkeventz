@@ -10,7 +10,6 @@ import {
 import { Prisma, Cart, CartItem } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaService } from '../prisma/prisma.service';
-import { SettingsService } from '../settings/settings.service';
 import { AddCartItemDto } from './dto/add-cart-item.dto';
 import { UpdateCartItemDto } from './dto/update-cart-item.dto';
 import {
@@ -25,12 +24,12 @@ import {
 } from './cart.types';
 import { CartCacheService } from './cart.cache.service';
 import { CartEventService, CartEventType } from './cart-event.service';
+import { CartCalculationService } from '../business-rules/cart-calculation.service';
 import { getMinHoursForExpressByArea } from '../express/express.rules';
 import { AREA_TIER_MAP } from '../express/express.constants';
+import { SettingsService } from '../settings/settings.service';
 
 type TransactionClient = Prisma.TransactionClient;
-
-const DEFAULT_EXPRESS_FEE = 50000;
 
 @Injectable()
 export class CartService {
@@ -40,6 +39,7 @@ export class CartService {
     private readonly prisma: PrismaService,
     private readonly cacheService: CartCacheService,
     private readonly eventService: CartEventService,
+    private readonly cartCalculationService: CartCalculationService,
     private readonly settingsService: SettingsService,
   ) {}
 
@@ -143,58 +143,31 @@ export class CartService {
       }
     }
 
-    const result = await this.prisma.$transaction(async (tx) => {
-      // Log incoming DTO for debugging
-      this.logger.debug({ dto }, 'addItem received DTO');
+    // Use SERIALIZABLE transaction for race condition prevention
+    const result = await this.prisma.$transaction(
+      async (tx) => {
+        // Log incoming DTO for debugging
+        this.logger.debug({ dto }, 'addItem received DTO');
 
-      // Validate that exactly one item reference is provided
-      const itemRefs = [dto.venueId, dto.vendorServiceId, dto.addonId].filter(
-        Boolean,
-      );
-      this.logger.debug({ itemRefs, count: itemRefs.length }, 'Item references');
-      
-      if (itemRefs.length !== 1) {
-        this.logger.error({ dto }, 'Invalid item references - must have exactly one');
-        throw new BadRequestException(
-          'Exactly one of venueId, vendorServiceId, or addonId is required',
+        // Validate that exactly one item reference is provided
+        const itemRefs = [dto.venueId, dto.vendorServiceId, dto.addonId].filter(
+          Boolean,
         );
-      }
+        this.logger.debug({ itemRefs, count: itemRefs.length }, 'Item references');
 
-      // Find or create cart (idempotent) - with P2002 race condition handling
-      let cart = await tx.cart.findFirst({
-        where: { userId, status: 'ACTIVE' },
-      });
-
-      if (!cart) {
-        try {
-          cart = await tx.cart.create({
-            data: {
-              userId,
-              status: 'ACTIVE',
-              expiresAt: this.getExpirationDate(),
-            },
-          });
-        } catch (e: any) {
-          // Handle unique constraint race condition (P2002)
-          if (e.code === 'P2002') {
-            this.logger.warn('Cart unique constraint hit, finding existing cart');
-            cart = await tx.cart.findFirst({
-              where: { userId, status: 'ACTIVE' },
-            });
-            if (!cart) {
-              throw new InternalServerErrorException('Failed to find or create cart');
-            }
-          } else {
-            throw e;
-          }
+        if (itemRefs.length !== 1) {
+          this.logger.error({ dto }, 'Invalid item references - must have exactly one');
+          throw new BadRequestException(
+            'Exactly one of venueId, vendorServiceId, or addonId is required',
+          );
         }
-      } else if (cart.status !== 'ACTIVE') {
-        throw new ForbiddenException('Cart is locked and cannot be modified');
-      }
 
-      // Fetch price and validate item exists
-      const { unitPrice, name } = await this.resolveItemPrice(tx, dto);
+        // Find or create cart (idempotent) - with P2002 race condition handling
+        let cart = await tx.cart.findFirst({
+          where: { userId, status: 'ACTIVE' },
+        });
 
+<<<<<<< Updated upstream
       // Check for duplicate item - merge if exists
       const existingItem = await tx.cartItem.findFirst({
         where: {
@@ -259,6 +232,76 @@ export class CartService {
       // DO NOT call publishEvent inside transaction - return immediately
       return { item, name, cartId: cart.id };
     });
+=======
+        if (!cart) {
+          try {
+            cart = await tx.cart.create({
+              data: {
+                userId,
+                status: 'ACTIVE',
+                expiresAt: this.getExpirationDate(),
+              },
+            });
+          } catch (e: any) {
+            // Handle unique constraint race condition (P2002)
+            if (e.code === 'P2002') {
+              this.logger.warn('Cart unique constraint hit, finding existing cart');
+              cart = await tx.cart.findFirst({
+                where: { userId, status: 'ACTIVE' },
+              });
+              if (!cart) {
+                throw new InternalServerErrorException('Failed to find or create cart');
+              }
+            } else {
+              throw e;
+            }
+          }
+        } else if (cart.status !== 'ACTIVE') {
+          throw new ForbiddenException('Cart is locked and cannot be modified');
+        }
+
+        // Fetch price and validate item exists
+        const { unitPrice, name } = await this.resolveItemPrice(tx, dto);
+
+        // FIX 3: Use atomic upsert with unique constraint to prevent race conditions
+        const upsertWhere = {
+          cartId: cart.id,
+          venueId: dto.venueId || null,
+          vendorServiceId: dto.vendorServiceId || null,
+          addonId: dto.addonId || null,
+          date: dto.date ? new Date(dto.date) : null,
+          timeSlot: dto.timeSlot || null,
+        } as any;
+
+        const item = await tx.cartItem.upsert({
+          where: {
+            cartId_venueId_vendorServiceId_addonId_date_timeSlot: upsertWhere,
+          },
+          create: {
+            cartId: cart.id,
+            itemType: dto.itemType as any,
+            venueId: dto.venueId || null,
+            vendorServiceId: dto.vendorServiceId || null,
+            addonId: dto.addonId || null,
+            date: dto.date ? new Date(dto.date) : null,
+            timeSlot: dto.timeSlot || null,
+            quantity: dto.quantity || 1,
+            unitPrice,
+            totalPrice: new Decimal(unitPrice).mul(dto.quantity || 1).toNumber(),
+            meta: dto.meta as Prisma.JsonObject,
+          },
+          update: {
+            quantity: { increment: dto.quantity || 1 },
+            totalPrice: { increment: unitPrice * (dto.quantity || 1) },
+          },
+        });
+
+        // DO NOT call publishEvent inside transaction - return immediately
+        return { item, name, cartId: cart.id };
+      },
+      { isolationLevel: 'Serializable' }
+    );
+>>>>>>> Stashed changes
 
     // FIXED: Publish event AFTER transaction commits - cannot rollback cart
     try {
@@ -683,15 +726,11 @@ export class CartService {
       new Decimal(0)
     );
 
-    // EXPRESS FEE: Fetch dynamic fee from settings if express booking
+    // EXPRESS FEE: Fetch from platform settings
     let expressFeeDecimal = new Decimal(0);
     if (cart.isExpress) {
-      try {
-        const setting = await this.settingsService.getSettingByKey('EXPRESS_FEE');
-        expressFeeDecimal = new Decimal(Number(setting?.value ?? DEFAULT_EXPRESS_FEE));
-      } catch {
-        expressFeeDecimal = new Decimal(DEFAULT_EXPRESS_FEE);
-      }
+      const settings = await this.settingsService.getPlatformSettings();
+      expressFeeDecimal = new Decimal(settings.expressFeeFixed.toNumber());
       await this.prisma.cart.update({
         where: { id: cart.id },
         data: { expressFee: expressFeeDecimal.toNumber() },
@@ -699,10 +738,20 @@ export class CartService {
     }
 
     // Platform fee calculated on (subtotal + expressFee)
-    const platformFee = subtotal.add(expressFeeDecimal).mul(PLATFORM_FEE_PERCENTAGE);
+    const settings = await this.settingsService.getPlatformSettings();
+    const platformFeeRate = settings.platformFeePercent.toNumber() / 100;
+    const platformFee = subtotal.add(expressFeeDecimal).mul(new Decimal(platformFeeRate));
+
     // Tax calculated on (subtotal + platformFee) - expressFee is NOT taxable
-    const tax = subtotal.add(platformFee).mul(TAX_PERCENTAGE);
+    const taxRate = settings.gstPercent.toNumber() / 100;
+    const tax = subtotal.add(platformFee).mul(new Decimal(taxRate));
+
     const totalAmount = subtotal.add(expressFeeDecimal).add(platformFee).add(tax);
+
+    // FIX 5: Prevent zero/negative totals after discounts
+    if (totalAmount.toNumber() <= 0) {
+      throw new BadRequestException('Invalid total after discounts');
+    }
 
     const items = validatedItems.map((item) => ({
       id: item.id,
@@ -762,36 +811,32 @@ export class CartService {
   /**
    * Toggle express booking on cart
    */
-  async toggleCartExpress(userId: number, isExpress: boolean): Promise<{ success: boolean; isExpress: boolean; expressFee: string }> {
-    const cart = await this.prisma.cart.findFirst({
-      where: { userId, status: 'ACTIVE' },
-    });
+   async toggleCartExpress(userId: number, isExpress: boolean): Promise<{ success: boolean; isExpress: boolean; expressFee: string }> {
+     const cart = await this.prisma.cart.findFirst({
+       where: { userId, status: 'ACTIVE' },
+     });
 
-    if (!cart) {
-      throw new NotFoundException('Cart not found');
-    }
+     if (!cart) {
+       throw new NotFoundException('Cart not found');
+     }
 
-    let expressFee = 0;
-    if (isExpress) {
-      try {
-        const setting = await this.settingsService.getSettingByKey('EXPRESS_FEE');
-        expressFee = Number(setting?.value ?? DEFAULT_EXPRESS_FEE);
-      } catch {
-        expressFee = DEFAULT_EXPRESS_FEE;
+      let expressFee = 0;
+      if (isExpress) {
+        const settings = await this.settingsService.getPlatformSettings();
+        expressFee = settings.expressFeeFixed.toNumber();
       }
-    }
 
-    await this.prisma.cart.update({
-      where: { id: cart.id },
-      data: { isExpress, expressFee },
-    });
+     await this.prisma.cart.update({
+       where: { id: cart.id },
+       data: { isExpress, expressFee },
+     });
 
-    await this.cacheService.invalidateCart(userId);
+     await this.cacheService.invalidateCart(userId);
 
-    this.logger.log({ userId, cartId: cart.id, isExpress, expressFee }, 'Express toggle updated');
+     this.logger.log({ userId, cartId: cart.id, isExpress, expressFee }, 'Express toggle updated');
 
-    return { success: true, isExpress, expressFee: expressFee.toString() };
-  }
+     return { success: true, isExpress, expressFee: expressFee.toString() };
+   }
 
   // ============================================
   // Private Helper Methods

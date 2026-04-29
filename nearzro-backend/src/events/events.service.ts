@@ -4,6 +4,7 @@ import {
   NotFoundException, 
   BadRequestException,
   InternalServerErrorException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
@@ -11,15 +12,15 @@ import { CreateEventDto, EventType, TimeSlot } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { EventQueryDto } from './dto/event-query.dto';
 import { AddEventServiceDto } from './dto/add-event-service.dto';
-import { EventStatus, Role } from '@prisma/client';
-import { Logger } from '@nestjs/common';
+import { EventStatus, Role, AuditSeverity, AuditSource } from '@prisma/client';
+import { AuditService } from '../audit/audit.service';
 
 /**
  * SECURITY: Event Status State Machine
  * Defines valid transitions to prevent payment-gate bypass (CRIT-02).
  * Terminal states (COMPLETED, CANCELLED) cannot transition further.
  */
-const VALID_STATUS_TRANSITIONS: Record<string, string[]> = {
+const VALID_EVENT_TRANSITIONS: Record<string, string[]> = {
   INQUIRY: ['QUOTED', 'CANCELLED'],
   QUOTED: ['CONFIRMED', 'CANCELLED'],
   CONFIRMED: ['IN_PROGRESS', 'CANCELLED'],
@@ -35,7 +36,7 @@ import {
 
 @Injectable()
 export class EventsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly auditService: AuditService) {}
 
   /**
    * Handle Prisma errors and convert to NestJS exceptions
@@ -699,7 +700,7 @@ export class EventsService {
    *
    * Updates the status of an event.
    */
-  async updateEventStatus(eventId: number, newStatus: string): Promise<any> {
+  async updateEventStatus(eventId: number, newStatus: string, actorId: number): Promise<any> {
     const logger = new Logger('EventsService');
     try {
       const event = await this.prisma.event.findUnique({
@@ -710,9 +711,11 @@ export class EventsService {
         throw new NotFoundException(`Event with ID ${eventId} not found`);
       }
 
+      const oldStatus = event.status;
+
       // SECURITY (CRIT-02): Enforce state machine — prevent arbitrary status jumps
       const currentStatus = event.status as string;
-      const allowedTransitions = VALID_STATUS_TRANSITIONS[currentStatus];
+      const allowedTransitions = VALID_EVENT_TRANSITIONS[currentStatus];
 
       if (!allowedTransitions) {
         throw new BadRequestException(
@@ -756,12 +759,31 @@ export class EventsService {
         `Event ${eventId} status transition: ${currentStatus} → ${newStatus}`
       );
 
-      return this.prisma.event.update({
+      const updatedEvent = await this.prisma.event.update({
         where: { id: eventId },
         data: {
           status: newStatus as any,
         },
       });
+
+      // FIX 10: Audit logging for state change
+      try {
+        await this.auditService.record({
+          entityType: 'Event',
+          entityId: String(eventId),
+          action: 'EVENT_STATUS_UPDATED',
+          severity: AuditSeverity.WARNING,
+          source: AuditSource.ADMIN,
+          actorId,
+          description: `Event status changed from ${oldStatus} to ${newStatus}`,
+          oldValue: { status: oldStatus },
+          newValue: { status: newStatus },
+        });
+      } catch (auditError) {
+        logger.error('Failed to record audit for event status update', auditError);
+      }
+
+      return updatedEvent;
     } catch (error) {
       if (
         error instanceof NotFoundException ||
