@@ -1,8 +1,49 @@
-import { Processor, Process, OnQueueError } from '@nestjs/bull';
+import { Processor, Process, OnQueueError, OnQueueFailed } from '@nestjs/bull';
 import { Logger } from '@nestjs/common';
 import type { Job } from 'bull';
+import { validate, IsInt, IsOptional, IsString, IsNotEmpty, Min } from 'class-validator';
+import { plainToClass } from 'class-transformer';
 import { AIPlannerQueueService, GeneratePlanJobData, GeneratePlanJobResult } from './ai-planner-queue.service';
 import { QUEUE_CONFIG } from '../constants/ai-planner.constants';
+
+/**
+ * DTO for validating Generate Plan job payload
+ */
+class GeneratePlanJobDto {
+  @IsInt()
+  userId: number;
+
+  @IsOptional()
+  @IsString()
+  conversationId?: string;
+
+  @IsInt()
+  budget: number;
+
+  @IsString()
+  @IsNotEmpty()
+  eventType: string;
+
+  @IsString()
+  @IsNotEmpty()
+  city: string;
+
+  @IsString()
+  @IsNotEmpty()
+  area: string;
+
+  @IsInt()
+  @Min(1)
+  guestCount: number;
+
+  @IsOptional()
+  @IsInt()
+  eventId?: number;
+
+  @IsOptional()
+  @IsString()
+  requestId?: string;
+}
 
 /**
  * AI Planner Processor
@@ -21,11 +62,31 @@ export class AIPlannerProcessor {
   constructor(private readonly queueService: AIPlannerQueueService) {}
 
   /**
-   * Handle uncaught errors in the queue
+   * Handle uncaught errors in the queue (e.g., connection errors)
    */
   @OnQueueError()
   async handleError(error: Error): Promise<void> {
     this.logger.error(`Queue error: ${error.message}`, error.stack);
+  }
+
+  /**
+   * Log job failures to monitoring when job exhausts all retries
+   * and moves to DLQ. Structured logging provides observability.
+   */
+  @OnQueueFailed()
+  async onQueueFailed(job: Job<GeneratePlanJobData>, error: Error): Promise<void> {
+    this.logger.error({
+      event: 'JOB_FAILED_DLQ',
+      jobId: job.id,
+      jobName: job.name,
+      attemptsMade: job.attemptsMade,
+      failReason: job.failedReason,
+      error: error.message,
+      stack: error.stack,
+      userId: job.data?.userId,
+      requestId: job.data?.requestId,
+    });
+    // Future: Could persist to a JobFailureLog table or send to external monitoring (Sentry, Datadog)
   }
 
   /**
@@ -35,6 +96,13 @@ export class AIPlannerProcessor {
   async handleGeneratePlan(
     job: Job<GeneratePlanJobData>,
   ): Promise<GeneratePlanJobResult> {
+    // Validate job payload
+    const jobDto = plainToClass(GeneratePlanJobDto, job.data);
+    const errors = await validate(jobDto);
+    if (errors.length > 0) {
+      throw new Error('Invalid job payload');
+    }
+
     const { userId } = job.data;
 
     this.logger.log(`[Job ${job.id}] Starting AI plan generation for user ${userId}`);

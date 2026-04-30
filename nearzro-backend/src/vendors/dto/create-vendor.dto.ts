@@ -83,13 +83,14 @@ export class CreateVendorDto {
   @IsString()
   email?: string;
 
-  @ApiPropertyOptional({
-    example: 'CATERING',
-    description: 'Business type',
-  })
-  @IsOptional()
-  @IsString()
-  businessType?: string;
+   @ApiPropertyOptional({
+     example: 'CATERING',
+     description: 'Business type',
+   })
+   @IsOptional()
+   @IsString()
+   @MaxLength(100, { message: 'businessType must not exceed 100 characters' })
+   businessType?: string;
 
   @ApiPropertyOptional({
     example: 5000,
@@ -107,6 +108,7 @@ export class CreateVendorDto {
   })
   @IsOptional()
   @IsString()
+  @MaxLength(50, { message: 'pricingModel must not exceed 50 characters' })
   pricingModel?: string;
 
   @ApiPropertyOptional({

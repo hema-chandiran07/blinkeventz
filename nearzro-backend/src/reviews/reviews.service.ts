@@ -7,51 +7,56 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { UpdateReviewDto } from './dto/update-review.dto';
+import sanitizeHtml from 'sanitize-html';
 
 @Injectable()
 export class ReviewsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(userId: number, dto: CreateReviewDto) {
-    // Check if user already reviewed this entity
-    const where: any = { userId };
-    if (dto.venueId) where.venueId = dto.venueId;
-    if (dto.vendorId) where.vendorId = dto.vendorId;
-    if (dto.eventId) where.eventId = dto.eventId;
+   async create(userId: number, dto: CreateReviewDto) {
+     // Check if user already reviewed this entity
+     const where: any = { userId };
+     if (dto.venueId) where.venueId = dto.venueId;
+     if (dto.vendorId) where.vendorId = dto.vendorId;
+     if (dto.eventId) where.eventId = dto.eventId;
 
-    const existing = await this.prisma.review.findFirst({ where });
-    if (existing) {
-      throw new BadRequestException('You have already reviewed this');
-    }
+     const existing = await this.prisma.review.findFirst({ where });
+     if (existing) {
+       throw new BadRequestException('You have already reviewed this');
+     }
 
-    // Auto-approve ALL reviews (bypass admin approval requirement)
-    let status: 'PENDING' | 'APPROVED' = 'APPROVED';
+     // Auto-approve ALL reviews (bypass admin approval requirement)
+     let status: 'PENDING' | 'APPROVED' = 'APPROVED';
 
-    const data: any = {
-      userId,
-      rating: dto.rating,
-      title: dto.title,
-      comment: dto.comment,
-      status,
-    };
+     // Sanitize title and comment to prevent XSS
+     const sanitizedTitle = dto.title ? sanitizeHtml(dto.title, { allowedTags: [], allowedAttributes: {} }) : undefined;
+     const sanitizedComment = dto.comment ? sanitizeHtml(dto.comment, { allowedTags: [], allowedAttributes: {} }) : undefined;
 
-    if (dto.venueId) data.venueId = dto.venueId;
-    if (dto.vendorId) data.vendorId = dto.vendorId;
-    if (dto.eventId) data.eventId = dto.eventId;
+     const data: any = {
+       userId,
+       rating: dto.rating,
+       title: sanitizedTitle,
+       comment: sanitizedComment,
+       status,
+     };
 
-    return this.prisma.review.create({
-      data,
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            image: true,
-          },
-        },
-      },
-    });
-  }
+     if (dto.venueId) data.venueId = dto.venueId;
+     if (dto.vendorId) data.vendorId = dto.vendorId;
+     if (dto.eventId) data.eventId = dto.eventId;
+
+     return this.prisma.review.create({
+       data,
+       include: {
+         user: {
+           select: {
+             id: true,
+             name: true,
+             image: true,
+           },
+         },
+       },
+     });
+   }
 
   /**
    * Check if user has a COMPLETED booking with vendor or venue
@@ -250,20 +255,29 @@ export class ReviewsService {
     });
   }
 
-  async update(id: number, userId: number, dto: UpdateReviewDto) {
-    const review = await this.prisma.review.findUnique({ where: { id } });
-    if (!review) {
-      throw new NotFoundException('Review not found');
-    }
-    if (review.userId !== userId) {
-      throw new ForbiddenException('You can only update your own reviews');
-    }
+   async update(id: number, userId: number, dto: UpdateReviewDto) {
+     const review = await this.prisma.review.findUnique({ where: { id } });
+     if (!review) {
+       throw new NotFoundException('Review not found');
+     }
+     if (review.userId !== userId) {
+       throw new ForbiddenException('You can only update your own reviews');
+     }
 
-    return this.prisma.review.update({
-      where: { id },
-      data: dto,
-    });
-  }
+     // Prepare update data, sanitizing text fields
+     const updateData: any = { ...dto };
+     if (dto.title !== undefined) {
+       updateData.title = sanitizeHtml(dto.title, { allowedTags: [], allowedAttributes: {} });
+     }
+     if (dto.comment !== undefined) {
+       updateData.comment = sanitizeHtml(dto.comment, { allowedTags: [], allowedAttributes: {} });
+     }
+
+     return this.prisma.review.update({
+       where: { id },
+       data: updateData,
+     });
+   }
 
   async remove(id: number, userId: number) {
     const review = await this.prisma.review.findUnique({ where: { id } });

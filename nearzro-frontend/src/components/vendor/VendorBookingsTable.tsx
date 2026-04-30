@@ -106,9 +106,9 @@ export function VendorBookingsTable() {
   }, []);
 
   const filteredBookings = bookings.filter(booking => {
-    const matchesSearch = 
-      booking.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      booking.eventName.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch =
+      (booking.customerName?.toLowerCase() ?? '').includes(searchQuery.toLowerCase()) ||
+      (booking.eventName?.toLowerCase() ?? '').includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'all' || booking.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -241,7 +241,7 @@ export function VendorBookingsTable() {
               initial="hidden"
               animate="visible"
             >
-              {filteredBookings.slice(0, 5).map((booking, index) => (
+               {filteredBookings.slice(0, 5).filter(Boolean).map((booking, index) => (
                 <motion.div
                   key={booking.id}
                   variants={itemVariants}
@@ -283,12 +283,12 @@ export function VendorBookingsTable() {
                         {booking.status === 'PENDING' ? (
                           <Badge className={`${getStatusColor(booking.status)} border`}>
                             {getStatusIcon(booking.status)}
-                            <span className="ml-1 capitalize">{booking.status.toLowerCase()}</span>
+                            <span className="ml-1 capitalize">{booking.status?.toLowerCase() ?? 'pending'}</span>
                           </Badge>
                         ) : (
                           <Badge variant="outline" className="text-silver-400 border-silver-700">
                             {getStatusIcon(booking.status)}
-                            <span className="ml-1 capitalize">{booking.status.toLowerCase()}</span>
+                            <span className="ml-1 capitalize">{booking.status?.toLowerCase() ?? 'pending'}</span>
                           </Badge>
                         )}
                       </div>

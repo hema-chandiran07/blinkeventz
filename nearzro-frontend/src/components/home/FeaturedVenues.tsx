@@ -67,9 +67,9 @@ export default function FeaturedVenues() {
       setError(false);
       const response = await venuesApi.getAll();
     // handle both array and object responses
-const venuesArray = Array.isArray(response.data)
-  ? response.data
-  : response.data.venues || response.data.data || [];
+    const venuesArray = Array.isArray(response.data)
+      ? response.data
+      : (response.data?.venues || []);
 
 // take first 3 venues and map properly
 const featuredVenues = venuesArray

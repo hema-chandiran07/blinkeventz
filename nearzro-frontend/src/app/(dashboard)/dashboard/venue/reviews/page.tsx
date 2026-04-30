@@ -185,13 +185,13 @@ export default function VenueReviewsPage() {
     });
   };
 
-  const filteredReviews = reviews.filter((review) => {
-    const matchesSearch =
-      review.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      review.comment?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      review.venueName?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
-  });
+   const filteredReviews = reviews.filter((review) => {
+     const matchesSearch =
+       (review.customerName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+       (review.comment?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+       (review.venueName?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+     return matchesSearch;
+   });
 
   if (loading) {
     return (

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Sparkles, Send, Bot, User, Loader2, MapPin, Users, DollarSign, AlertTriangle, ShoppingCart, Star } from "lucide-react";
 import { useCart } from "@/context/cart-context";
 import { CartItem } from "@/types";
+import api from "@/lib/api";
 
 interface EventDetails {
   eventType: string | null;
@@ -227,31 +228,17 @@ export default function PlanEventPage() {
     };
     setMessages((prev) => [...prev, aiMessage]);
 
-    try {
-      const token = localStorage.getItem("NearZro_token");
-      
-      const response = await fetch(`${API_BASE_URL}/api/ai-chat/public/message`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          message: text,
-          tempState: eventDetails.budget ? {
-            budget: eventDetails.budget,
-            guestCount: eventDetails.guestCount,
-            city: eventDetails.city,
-            eventType: eventDetails.eventType,
-          } : undefined,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`API Error: ${response.status}`);
-      }
-
-      const data = await response.json();
+     try {
+       const response = await api.post('/ai-chat/public/message', {
+         message: text,
+         tempState: eventDetails.budget ? {
+           budget: eventDetails.budget,
+           guestCount: eventDetails.guestCount,
+           city: eventDetails.city,
+           eventType: eventDetails.eventType,
+         } : undefined,
+       });
+       const data = response.data;
       
       setEventDetails({
         eventType: data.state?.eventType || eventDetails.eventType,
@@ -294,18 +281,8 @@ export default function PlanEventPage() {
       attempts++;
       
       try {
-        const token = localStorage.getItem("NearZro_token");
-        const statusResponse = await fetch(`${API_BASE_URL}/api/ai-planner/jobs/${jobId}`, {
-          headers: {
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-        });
-
-        if (!statusResponse.ok) {
-          throw new Error(`Status check failed: ${statusResponse.status}`);
-        }
-
-        const statusData = await statusResponse.json();
+        const statusResponse = await api.get(`/ai-planner/jobs/${jobId}`);
+        const statusData = statusResponse.data;
         
         setPollingStatus(statusData.status || "waiting");
 
@@ -400,23 +377,18 @@ export default function PlanEventPage() {
 
   const fetchVenuesAndVendors = async (planId: number, aiMessageId: string) => {
     try {
-      const token = localStorage.getItem("NearZro_token");
-      
       const [venuesRes, vendorsRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/venues?status=ACTIVE&limit=10`, {
-          headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        }),
-        fetch(`${API_BASE_URL}/api/ai-planner/${planId}/vendors`, {
-          headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        }),
+        api.get('/venues?status=ACTIVE&limit=10'),
+        api.get(`/ai-planner/${planId}/vendors`),
       ]);
 
       let venues: Venue[] = [];
       let vendors: Vendor[] = [];
 
-      if (venuesRes.ok) {
-        const venuesData = await venuesRes.json();
-        venues = venuesData.data?.map((v: any) => ({
+      // Process venues response
+      if (venuesRes.data) {
+        const venueList = Array.isArray(venuesRes.data) ? venuesRes.data : (venuesRes.data?.data || []);
+        venues = venueList.map((v: any) => ({
           id: v.id,
           name: v.name,
           image: v.images?.[0] || v.photos?.[0]?.url,
@@ -424,12 +396,13 @@ export default function PlanEventPage() {
           price: v.basePriceFullDay || v.basePriceEvening || v.basePriceMorning || 0,
           location: v.area || v.city,
           rating: v.averageRating,
-        })) || [];
+        }));
       }
 
-      if (vendorsRes.ok) {
-        const vendorsData = await vendorsRes.json();
-        vendors = vendorsData.map((v: any) => ({
+      // Process vendors response
+      if (vendorsRes.data) {
+        const vendorList = Array.isArray(vendorsRes.data) ? vendorsRes.data : (vendorsRes.data?.data || []);
+        vendors = vendorList.map((v: any) => ({
           id: v.id,
           name: v.name || v.vendor?.name,
           image: v.image || v.vendor?.photos?.[0]?.url,
@@ -437,7 +410,7 @@ export default function PlanEventPage() {
           price: v.baseRate || v.price || 0,
           location: v.vendor?.city || v.vendor?.area,
           rating: v.vendor?.averageRating,
-        })) || [];
+        }));
       }
 
       const resultMessage: ChatMessage = {
@@ -484,22 +457,8 @@ export default function PlanEventPage() {
     setMessages((prev) => [...prev, loadingMessage]);
 
     try {
-      const token = localStorage.getItem("NearZro_token");
-      
-      const response = await fetch(`${API_BASE_URL}/api/ai-planner/generate`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify(eventDetails),
-      });
-
-      if (!response.ok) {
-        throw new Error(`API Error: ${response.status}`);
-      }
-
-      const data = await response.json();
+      const response = await api.post('/ai-planner/generate', eventDetails);
+      const data = response.data;
       
       if (data.jobId) {
         pollForResult(data.jobId, aiMessageId);

@@ -40,6 +40,8 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       userId: payload.sub,
       email: payload.email,
       role: payload.role,
+      hasVendorProfile: payload.hasVendorProfile || false,
+      hasVenueProfile: payload.hasVenueProfile || false,
       jti: payload.jti, // Pass jti through to request.user
       exp: payload.exp, // Pass exp for blacklist TTL calculation
     };

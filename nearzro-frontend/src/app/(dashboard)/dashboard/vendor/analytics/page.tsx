@@ -66,7 +66,7 @@ export default function VendorAnalyticsPage() {
       const reviews = Array.isArray(reviewsRes.data) ? reviewsRes.data : [];
 
       // Calculate analytics from real data
-      const totalRevenue = earnings.totalEarnings || 0;
+      const totalRevenue = analyticsData?.totalEarnings || earnings.totalEarnings || 0;
       const totalBookings = analyticsData?.totalBookings || bookings.length || 0;
       const totalServices = services.length || 0;
 
@@ -153,19 +153,19 @@ export default function VendorAnalyticsPage() {
         };
       }).sort((a: ServicePerformance, b: ServicePerformance) => b.revenue - a.revenue);
 
-      const data = analyticsRes.data;
-      const reviewsData = reviewsRes.data;
-      const reviewsAnalytics = reviewsData.analytics || { averageRating: 0 };
+       const data = analyticsRes.data || {};
+       const reviewsData = reviewsRes.data || {};
+       const reviewsAnalytics = reviewsData.analytics || { averageRating: 0 };
 
-      setAnalytics({
-        totalRevenue: data.totalRevenue || 0,
-        totalBookings: data.totalBookings || 0,
-        totalServices: data.totalServices || 0,
-        averageRating: reviewsAnalytics.averageRating || 0,
-        conversionRate: data.conversionRate || 0,
-        revenueGrowth: data.revenueGrowth || 0,
-        bookingsGrowth: data.bookingsGrowth || 0,
-      });
+       setAnalytics({
+         totalRevenue: data.totalRevenue || 0,
+         totalBookings: data.totalBookings || 0,
+         totalServices: data.totalServices || 0,
+         averageRating: reviewsAnalytics.averageRating || 0,
+         conversionRate: data.conversionRate || 0,
+         revenueGrowth: data.revenueGrowth || 0,
+         bookingsGrowth: data.bookingsGrowth || 0,
+       });
 
       setMonthlyData(monthly);
       setServicePerformance(servicePerf);

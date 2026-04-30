@@ -82,12 +82,12 @@ export default function VenueOwnerDashboardPage() {
     try {
       setLoading(true);
 
-      try {
-        const venuesResponse = await api.get('/venues/me');
-        const data = venuesResponse.data;
-        // Handle both array response and wrapped response
-        setVenues(Array.isArray(data) ? data : (data?.venues || data?.data || []));
-      } catch (error) {
+        try {
+         const venuesResponse = await api.get('/venues/me');
+         const data = venuesResponse.data;
+         // Handle both array response and wrapped response
+         setVenues(Array.isArray(data) ? data : []);
+       } catch (error) {
         console.warn("Could not fetch venues");
         setVenues([]);
       }
@@ -225,7 +225,7 @@ export default function VenueOwnerDashboardPage() {
               >
                 <CardContent className="pt-6 relative">
                   <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity rotate-12">
-                     <action.icon className="h-20 w-20 text-white" />
+                    <action.icon className="h-20 w-20 text-white" />
                   </div>
                   <div className="flex flex-col items-center text-center gap-3">
                     <div className="h-12 w-12 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10 group-hover:bg-white group-hover:text-black transition-all">
@@ -272,8 +272,8 @@ export default function VenueOwnerDashboardPage() {
                   <p className="text-zinc-500 text-sm mb-8 font-medium italic">
                     Begin asset tokenization by registering your first physical location.
                   </p>
-                  <Button 
-                    onClick={() => router.push("/dashboard/venue/details")} 
+                  <Button
+                    onClick={() => router.push("/dashboard/venue/details")}
                     className="bg-white text-black hover:bg-zinc-200 font-black uppercase tracking-widest text-xs px-8 h-12"
                   >
                     <Plus className="h-5 w-5 mr-3" />
@@ -282,7 +282,7 @@ export default function VenueOwnerDashboardPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {venues.filter(v => v.name.toLowerCase().includes(searchQuery.toLowerCase())).map((venue) => (
+                   {venues.filter(v => (v.name || '').toLowerCase().includes(searchQuery.toLowerCase())).map((venue) => (
                     <div
                       key={venue.id}
                       className="flex items-center justify-between p-5 rounded-2xl border border-white/5 hover:border-white/10 hover:bg-white/5 transition-all duration-500 group"
@@ -309,8 +309,8 @@ export default function VenueOwnerDashboardPage() {
                         <Badge className={cn(
                           "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest",
                           venue.status === "ACTIVE" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
-                          venue.status === "PENDING_APPROVAL" ? "bg-amber-500/10 text-amber-400 border-amber-500/20" :
-                          "bg-zinc-800 text-zinc-500 border-zinc-700"
+                            venue.status === "PENDING_APPROVAL" ? "bg-amber-500/10 text-amber-400 border-amber-500/20" :
+                              "bg-zinc-800 text-zinc-500 border-zinc-700"
                         )}>
                           {venue.status.replace("_", " ")}
                         </Badge>

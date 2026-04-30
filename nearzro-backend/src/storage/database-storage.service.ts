@@ -2,6 +2,7 @@ import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import * as path from 'path';
 import * as fs from 'fs';
+import { promises as dnsPromises } from 'dns';
 
 // ─────────────────────────────────────────────────────────────
 // Database Storage Service — Rewritten to use File System
@@ -111,19 +112,71 @@ export class DatabaseStorageService {
     return this.storeFile(file, 'services');
   }
 
-  validateImageUrl(url: string): boolean {
-    if (!url) return false;
-    if (url.startsWith('/api/uploads/')) return true;
+  /**
+   * Validate image URL with strict allowlist and SSRF protection
+   * Throws BadRequestException for disallowed URLs
+   */
+  async validateImageUrl(url: string): Promise<boolean> {
+    if (!url) {
+      throw new BadRequestException('Image URL is required');
+    }
+    // Allow local uploads
+    if (url.startsWith('/api/uploads/')) {
+      return true;
+    }
+
+    const ALLOWED_DOMAINS = [
+      'unsplash.com',
+      'images.unsplash.com',
+      'cloudinary.com',
+      'res.cloudinary.com',
+      'imgur.com',
+      'i.imgur.com',
+    ];
+
+    const BLOCKED_IP_RANGES = [
+      /^10\./,                          // 10.0.0.0/8
+      /^172\.(1[6-9]|2[0-9]|3[0-1])\./, // 172.16.0.0/12
+      /^192\.168\./,                    // 192.168.0.0/16
+      /^127\./,                         // 127.0.0.0/8
+      /^169\.254\./,                    // 169.254.0.0/16 (link-local)
+    ];
 
     try {
       const parsed = new URL(url);
-      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
-      const imageExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.svg'];
-      const hasExtension = imageExtensions.some(ext => parsed.pathname.toLowerCase().endsWith(ext));
-      const hasImageParam = parsed.searchParams.has('image') || parsed.searchParams.has('photo');
-      return hasExtension || hasImageParam || url.includes('unsplash.com') || url.includes('cloudinary.com');
-    } catch {
-      return false;
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+        throw new BadRequestException('Only HTTP/HTTPS URLs are allowed');
+      }
+
+      const hostname = parsed.hostname;
+
+      // Domain allowlist check (exact or subdomain)
+      const isAllowed = ALLOWED_DOMAINS.some(
+        domain => hostname === domain || hostname.endsWith('.' + domain),
+      );
+
+      if (!isAllowed) {
+        throw new BadRequestException(`Domain not allowed: ${hostname}`);
+      }
+
+      // Resolve hostname to IP address
+      const addresses = await dnsPromises.lookup(hostname, {
+        family: 4, // IPv4 only
+      });
+      const ip = addresses.address;
+
+      // Check against blocked private IP ranges
+      const isBlocked = BLOCKED_IP_RANGES.some(regex => regex.test(ip));
+      if (isBlocked) {
+        throw new BadRequestException('Access to private IP ranges is blocked');
+      }
+
+      return true;
+    } catch (error: any) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException(`Invalid image URL: ${url}`);
     }
   }
 }

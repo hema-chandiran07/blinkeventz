@@ -18,6 +18,7 @@ import { PushProvider } from './providers/push.provider';
 import { InAppProvider } from './providers/inapp.provider';
 
 import { NotificationGateway, WsJwtGuard } from './websocket/notification.gateway';
+import { PaymentConfirmationListener } from './listeners/payment-confirmation.listener';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { NotificationGateway, WsJwtGuard } from './websocket/notification.gatewa
     NotificationProcessor,
     NotificationGateway,
     WsJwtGuard,
+    PaymentConfirmationListener,
 
     EmailProvider,
     SmsProvider,

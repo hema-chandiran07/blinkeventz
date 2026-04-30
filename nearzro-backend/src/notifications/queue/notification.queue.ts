@@ -9,14 +9,17 @@ export class NotificationQueue {
     public readonly queue: Queue, // ✅ Changed from private to public
   ) {}
 
-  async add(data: {
-    notificationId: number;
-    channel: 'EMAIL' | 'SMS' | 'WHATSAPP' | 'PUSH';
-  }) {
-    await this.queue.add('send', data, {
-      attempts: 3,
-      backoff: { type: 'exponential', delay: 3000 },
-      removeOnComplete: true,
-    });
-  }
+   async add(data: {
+     notificationId: number;
+     channel: 'EMAIL' | 'SMS' | 'WHATSAPP' | 'PUSH';
+   }) {
+      await this.queue.add('send', data, {
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 3000,
+        },
+        removeOnComplete: true,
+      });
+   }
 }

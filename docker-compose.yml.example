@@ -1,12 +1,12 @@
 services:
-
   postgres:
     image: postgres:15
     container_name: nearzro-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
+      # Pulls from a .env file in the same directory as docker-compose.yml
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-2006}
       POSTGRES_DB: nearzro
     ports:
       - "5432:5432"
@@ -42,7 +42,7 @@ services:
       - ./nearzro-backend/.env
     ports:
       - "3000:3000"
-      - "5555:5555"
+      - "5555:5555" # Open for manual Prisma Studio execution
     depends_on:
       postgres:
         condition: service_healthy
@@ -53,11 +53,11 @@ services:
     restart: unless-stopped
     volumes:
       - ./nearzro-backend/uploads:/app/uploads
-    # Use prisma migrate deploy for production migrations.
-    # Note: 'prisma db push' is for development only and is NOT used in production.
+    # Executes migrations securely before starting the NestJS server
     command: sh -c "npx prisma migrate deploy && npm run start:prod"
     healthcheck:
-      test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/health" ]
+      # Updated to hit the v1 global prefix
+      test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/v1/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -66,23 +66,27 @@ services:
   frontend:
     build:
       context: ./nearzro-frontend
+      # Essential: Next.js needs this DURING the build phase to bake into the client-side JS
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3000}
     container_name: nearzro-frontend
     env_file:
       - ./nearzro-frontend/.env
     ports:
       - "3001:3000"
     depends_on:
-      - api
+      api:
+        # Ensures the frontend waits until backend migrations are done and the API is fully awake
+        condition: service_healthy
     networks:
       - nearzro-network
     restart: unless-stopped
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:3000
-      API_INTERNAL_URL: http://api:3000
+      # Internal routing for SSR fetching
+      API_INTERNAL_URL: http://nearzro-api:3000
 
 volumes:
   postgres_data:
-
 
 networks:
   nearzro-network:

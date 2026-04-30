@@ -42,10 +42,10 @@ export class PaymentReconciliationJob implements OnModuleInit, OnModuleDestroy {
     );
   }
 
+  // No destroy method needed — Redlock does not provide one
   async onModuleDestroy() {
-    if (this.redlock) {
-      await this.redlock.destroy();
-    }
+    // Optional: could release locks, but not required on shutdown
+    // Leaving as noop to avoid errors
   }
 
   /**

@@ -9,6 +9,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { GoogleAuthGuard } from '../common/guards/google-auth.guard';
 import { FacebookStrategy } from './strategies/facebook.strategy';
+import { FacebookAuthGuard } from '../common/guards/facebook-auth.guard';
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './jwt.strategy';
 import { OtpModule } from './otp.module';
@@ -60,6 +61,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     GoogleStrategy,
     GoogleAuthGuard,
     FacebookStrategy,
+    FacebookAuthGuard,
     JwtStrategy,
   ],
   exports: [AuthService, JwtModule, PassportModule],

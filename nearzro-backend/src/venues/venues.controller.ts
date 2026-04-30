@@ -88,25 +88,34 @@ export class VenuesController {
     return req.user;
   }
 
-  /// 🏢 VENUE OWNER → Get my venue (Frontend Alias)
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.VENUE_OWNER)
-  @Get('my')
-  async getMyVenueAlias(@Req() req: any) {
-    const ownerId = req.user.userId;
-    const venues = await this.venuesService.getVenuesByOwner(ownerId);
-    return venues;
-  }
+   /// 🏢 VENUE OWNER → Get my venue (Frontend Alias)
+   @ApiBearerAuth()
+   @UseGuards(JwtAuthGuard, RolesGuard)
+   @Roles(Role.VENUE_OWNER)
+   @Get('my')
+   async getMyVenueAlias(@Req() req: any) {
+     const ownerId = req.user.userId;
+     const venues = await this.venuesService.getVenuesByOwner(ownerId);
+     return venues;
+   }
 
-  /// Update my venue profile (Frontend Alias for PATCH /venues/me)
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.VENUE_OWNER)
-  @Patch('me')
-  async updateMyVenueProfile(@Req() req: any, @Body() dto: Partial<CreateVenueDto>, @UploadedFiles() files: any) {
-    return this.updateMyVenue(req, dto, files);
-  }
+   /// 🏢 VENUE OWNER → Get my venue (alternative path /me)
+   @ApiBearerAuth()
+   @UseGuards(JwtAuthGuard, RolesGuard)
+   @Roles(Role.VENUE_OWNER)
+   @Get('me')
+   async getMyVenueViaMe(@Req() req: any) {
+     return this.getMyVenueAlias(req);
+   }
+
+   /// Update my venue profile (Frontend Alias for PATCH /venues/me)
+   @ApiBearerAuth()
+   @UseGuards(JwtAuthGuard, RolesGuard)
+   @Roles(Role.VENUE_OWNER)
+   @Patch('me')
+   async updateMyVenueProfile(@Req() req: any, @Body() dto: Partial<CreateVenueDto>, @UploadedFiles() files: any) {
+     return this.updateMyVenue(req, dto, files);
+   }
 
   /// Get my venue availability (Frontend Alias for GET /venues/me/availability)
   @ApiBearerAuth()
@@ -703,7 +712,7 @@ export class VenuesController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.VENUE_OWNER)
   @Post('me/portfolio/images')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 15 * 1024 * 1024 } }))
   async addPortfolioImage(
     @Req() req: any,
     @UploadedFile() file: Express.Multer.File,

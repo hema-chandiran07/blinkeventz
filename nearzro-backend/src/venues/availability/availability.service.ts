@@ -16,32 +16,36 @@ export class AvailabilityService {
   }
 
   // CREATE AVAILABILITY WITH ENTITY TYPE (New - supports VENUE or VENDOR)
+  // FIX: Atomic check-and-create using SERIALIZABLE transaction with row lock
   async createWithEntity(entityType: string, entityId: number, date: Date, timeSlot: string) {
-    // Determine whether to use venueId or vendorId
     const isVenue = entityType === 'VENUE';
-    
-    // Check for overlap
-    const overlap = await this.prisma.availabilitySlot.findFirst({
-      where: {
-        ...(isVenue ? { venueId: entityId } : { vendorId: entityId }),
-        date,
-        timeSlot,
-      },
-    });
+    const column = isVenue ? 'venueId' : 'vendorId';
 
-    if (overlap) {
-      throw new BadRequestException('Slot already exists');
-    }
+    // Wrap in SERIALIZABLE transaction to prevent race conditions
+    return this.prisma.$transaction(async (tx) => {
+      // Lock any existing slot for this entity/date/time (SELECT ... FOR UPDATE)
+      const existingSlots = await tx.$queryRaw<Array<{ id: number }>>`
+        SELECT * FROM "AvailabilitySlot"
+        WHERE "${column}" = ${entityId}
+          AND "date" = ${date}
+          AND "timeSlot" = ${timeSlot}
+          FOR UPDATE
+      `;
 
-    return this.prisma.availabilitySlot.create({
-      data: {
-        entityType: isVenue ? EntityType.VENUE : EntityType.VENDOR,
-        ...(isVenue ? { venueId: entityId } : { vendorId: entityId }),
-        date,
-        timeSlot,
-        status: SlotStatus.AVAILABLE,
-      },
-    });
+      if ((existingSlots as Array<any>).length > 0) {
+        throw new BadRequestException('Slot already exists');
+      }
+
+      return tx.availabilitySlot.create({
+        data: {
+          entityType: isVenue ? EntityType.VENUE : EntityType.VENDOR,
+          ...(isVenue ? { venueId: entityId } : { vendorId: entityId }),
+          date,
+          timeSlot,
+          status: SlotStatus.AVAILABLE,
+        },
+      });
+    }, { isolationLevel: 'Serializable' });
   }
 
   // ============================================================================

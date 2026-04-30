@@ -53,17 +53,17 @@ export default function UnifiedApprovalsPage() {
         api.get("/kyc/admin/submissions", { signal }),
       ]);
 
-      // Filter pending vendors - handling paginated response structure
-      const vendorList = Array.isArray(vendors.data) ? vendors.data : (vendors.data?.data || []);
-      const pendingVendors = vendorList.filter(
-        (v: any) => v.verificationStatus === 'PENDING'
-      );
-      
-      // Filter pending venues - handling paginated response structure
-      const venueList = Array.isArray(venues.data) ? venues.data : (venues.data?.data || []);
-      const pendingVenues = venueList.filter(
-        (v: any) => v.status === 'PENDING_APPROVAL'
-      );
+       // Filter pending vendors - handling paginated response structure
+       const vendorList = Array.isArray(vendors.data) ? vendors.data : [];
+       const pendingVendors = vendorList.filter(
+         (v: any) => v.verificationStatus === 'PENDING'
+       );
+       
+       // Filter pending venues - handling paginated response structure
+       const venueList = Array.isArray(venues.data) ? venues.data : [];
+       const pendingVenues = venueList.filter(
+         (v: any) => v.status === 'PENDING_APPROVAL'
+       );
 
       // Filter pending KYC
       const kycList = kyc.data?.kycDocuments || kyc.data || [];

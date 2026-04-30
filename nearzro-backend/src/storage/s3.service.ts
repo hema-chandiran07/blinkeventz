@@ -9,9 +9,12 @@ import {
   GetObjectCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { NodeHttpHandler } from '@smithy/node-http-handler';
 import { randomUUID } from 'crypto';
 import * as path from 'path';
 import { fileTypeFromBuffer } from 'file-type';
+import { CircuitBreaker } from '../ai-planner/utils/circuit-breaker';
+import { ImageOptimizerService } from './image-optimizer.service';
 
 // ─────────────────────────────────────────────────────────────
 // AWS S3 Upload Service — KYC Document Storage
@@ -27,8 +30,11 @@ export class S3Service {
    private readonly bucket: string;
    private readonly kycBucket: string;
    private readonly region: string;
+   private readonly circuitBreaker: CircuitBreaker;
 
-   constructor() {
+  constructor(
+    private readonly imageOptimizer: ImageOptimizerService,
+  ) {
     this.region = process.env.AWS_REGION || 'ap-south-1';
     this.bucket = process.env.AWS_S3_BUCKET || '';
     this.kycBucket = process.env.AWS_S3_KYC_BUCKET || this.bucket;
@@ -39,12 +45,24 @@ export class S3Service {
       );
     }
 
+    // Configure S3 client with timeouts via NodeHttpHandler
     this.s3 = new S3Client({
       region: this.region,
       credentials: {
         accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
         secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
       },
+      requestHandler: new NodeHttpHandler({
+        connectionTimeout: 10000, // 10 seconds
+        socketTimeout: 30000,    // 30 seconds
+      }),
+    });
+
+    // Initialize circuit breaker for S3 operations
+    this.circuitBreaker = new CircuitBreaker('s3', {
+      failureThreshold: 5,
+      resetTimeoutSeconds: 30,
+      successThreshold: 1,
     });
   }
 
@@ -89,26 +107,28 @@ export class S3Service {
        );
      }
 
-     // ── Generate unique key ──
-     const ext = path.extname(file.originalname) || this.mimeToExt(detectedMime);
-     const key = `kyc/${randomUUID()}${ext}`;
+      // ── Generate unique key ──
+      const ext = path.extname(file.originalname) || this.mimeToExt(detectedMime);
+      const key = `kyc/${randomUUID()}${ext}`;
 
-     // ── Upload to private S3 bucket (no public ACL) ──
-     try {
-       await this.s3.send(
-         new PutObjectCommand({
-           Bucket: this.kycBucket,
-           Key: key,
-           Body: buffer,
-           ContentType: detectedMime,
-           ServerSideEncryption: 'AES256',
-           // NO ACL - bucket is private, access via presigned URLs only
-         }),
-       );
-     } catch (error: any) {
-       this.logger.error('S3 upload failed', error);
-       throw new BadRequestException(`File upload failed. Please try again. ${error.message || ''}`);
-     }
+      // ── Upload to private S3 bucket with circuit breaker protection ──
+      try {
+        await this.circuitBreaker.execute(() =>
+          this.s3.send(
+            new PutObjectCommand({
+              Bucket: this.kycBucket,
+              Key: key,
+              Body: buffer,
+              ContentType: detectedMime,
+              ServerSideEncryption: 'AES256',
+              // NO ACL - bucket is private, access via presigned URLs only
+            }),
+          ),
+        );
+      } catch (error: any) {
+        this.logger.error('S3 upload failed', error);
+        throw new BadRequestException(`File upload failed. Please try again. ${error.message || ''}`);
+      }
 
      // ── Return presigned GET URL (valid 900 seconds) ──
      return this.getPresignedUrl(key, detectedMime);
@@ -143,52 +163,91 @@ export class S3Service {
    * - Generates a unique filename to prevent collisions
    * - Returns the public URL of the uploaded file
    */
-  async uploadVendorServiceImage(file: Express.Multer.File): Promise<string> {
+  /**
+   * Upload a vendor service image to S3 with optimization.
+   *
+   * - Validates MIME type (jpeg, png, webp)
+   * - Optimizes image and generates thumbnail
+   * - Returns both main and thumbnail URLs
+   */
+  async uploadVendorServiceImage(file: Express.Multer.File): Promise<{ imageUrl: string; thumbnailUrl: string }> {
     // ── Validate MIME type ──
-    if (!['image/jpeg', 'image/png'].includes(file.mimetype)) {
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype)) {
       throw new BadRequestException(
-        `Invalid file type "${file.mimetype}". Allowed: image/jpeg, image/png`,
+        `Invalid file type "${file.mimetype}". Allowed: image/jpeg, image/png, image/webp`,
       );
     }
 
-    // ── Validate file size ──
-    if (file.size > MAX_FILE_SIZE) {
+    // ── Validate file size (max 15 MB) ──
+    const MAX_SIZE = 15 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
       throw new BadRequestException(
-        `File size ${(file.size / 1024 / 1024).toFixed(2)} MB exceeds the 5 MB limit`,
+        `File size ${(file.size / 1024 / 1024).toFixed(2)} MB exceeds the 15 MB limit`,
       );
     }
 
-    // ── Generate unique key ──
-    const ext = path.extname(file.originalname) || this.mimeToExt(file.mimetype);
-    const key = `vendor-services/${randomUUID()}${ext}`;
+    // ── Get file buffer ──
+    const fs = require('fs');
+    const buffer = file.buffer || fs.readFileSync(file.path);
 
-    // ── Upload to S3 ──
+    // ── Optimize image and generate thumbnail ──
+    const optimizedBuffer = await this.imageOptimizer.optimize(buffer);
+    const thumbnailBuffer = await this.imageOptimizer.generateThumbnail(buffer);
+
+    // ── Generate unique keys (WebP format) ──
+    const baseName = `${randomUUID()}`;
+    const mainKey = `vendor-services/${baseName}.webp`;
+    const thumbKey = `vendor-services/${baseName}_thumb.webp`;
+
+    // ── Upload main image ──
     try {
-      const fs = require('fs');
-      const buffer = file.buffer || fs.readFileSync(file.path);
-      await this.s3.send(
-        new PutObjectCommand({
-          Bucket: this.bucket,
-          Key: key,
-          Body: buffer,
-          ContentType: file.mimetype,
-          ServerSideEncryption: 'AES256',
-          Metadata: {
-            originalName: file.originalname,
-            uploadedAt: new Date().toISOString(),
-          },
-        }),
+      await this.circuitBreaker.execute(() =>
+        this.s3.send(
+          new PutObjectCommand({
+            Bucket: this.bucket,
+            Key: mainKey,
+            Body: optimizedBuffer,
+            ContentType: 'image/webp',
+            ServerSideEncryption: 'AES256',
+            Metadata: {
+              originalName: file.originalname,
+              uploadedAt: new Date().toISOString(),
+            },
+          }),
+        ),
+      );
+
+      // Upload thumbnail
+      await this.circuitBreaker.execute(() =>
+        this.s3.send(
+          new PutObjectCommand({
+            Bucket: this.bucket,
+            Key: thumbKey,
+            Body: thumbnailBuffer,
+            ContentType: 'image/webp',
+            ServerSideEncryption: 'AES256',
+            Metadata: {
+              originalName: file.originalname,
+              uploadedAt: new Date().toISOString(),
+              isThumbnail: 'true',
+            },
+          }),
+        ),
       );
     } catch (error: any) {
       this.logger.error('S3 upload failed', error);
       throw new BadRequestException(`File upload failed. Please try again. ${error.message || ''}`);
     }
 
-    // ── Return public URL ──
-    return `https://${this.bucket}.s3.${this.region}.amazonaws.com/${key}`;
-  }
+    // ── Return URLs ──
+    const baseUrl = `https://${this.bucket}.s3.${this.region}.amazonaws.com`;
+    return {
+      imageUrl: `${baseUrl}/${mainKey}`,
+      thumbnailUrl: `${baseUrl}/${thumbKey}`,
+    };
+   }
 
-  private mimeToExt(mime: string): string {
+   private mimeToExt(mime: string): string {
     const map: Record<string, string> = {
       'image/jpeg': '.jpg',
       'image/png': '.png',

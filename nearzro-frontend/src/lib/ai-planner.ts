@@ -12,11 +12,24 @@ const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 // Separate axios instance for public endpoints (no JWT)
 const publicApi = axios.create({
-  baseURL: `${apiBaseUrl}/api`,
+  baseURL: `${apiBaseUrl}/api/v1`,
   headers: {
     'Content-Type': 'application/json',
   },
   timeout: 30000,
+});
+
+// Add envelope unwrapper to publicApi (same as main api instance)
+publicApi.interceptors.response.use((response) => {
+  if (
+    response.data &&
+    typeof response.data === 'object' &&
+    'success' in response.data &&
+    'data' in response.data
+  ) {
+    response.data = response.data.data;
+  }
+  return response;
 });
 import type {
   AIPlan,

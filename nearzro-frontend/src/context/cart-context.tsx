@@ -187,9 +187,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
 
     const apiPayload = {
-      itemType: item.itemType || 'VENUE',
-      venueId: venueId || undefined,
-      vendorServiceId: vendorServiceId || undefined,
+      itemType: (item.itemType || 'VENUE').toUpperCase(),
+      venueId: venueId ? Number(venueId) : undefined,
+      vendorServiceId: vendorServiceId ? Number(vendorServiceId) : undefined,
+      addonId: item.addonId ? Number(item.addonId) : undefined,
       timeSlot: item.timeSlot || undefined,
       quantity: item.quantity || 1,
       meta: item.meta || undefined,
@@ -224,15 +225,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         }
         return [...prev, { ...item, quantity: 1, ...(response.data?.id ? { backendItemId: response.data.id } : {}) }];
       });
-    } catch (error: any) {
-      console.error('Failed to add item to backend:', error);
-      if (error.response) {
-        console.error('Backend error response:', error.response.status, error.response.data);
-      }
-      const errorMessage = error.response?.data?.message || error.message || 'Unknown error';
-      toast.error(`Failed to add item: ${errorMessage}`);
-      throw error;
-    }
+     } catch (error: any) {
+       console.error('Failed to add item to backend:', error);
+       if (error.response) {
+         console.error('Backend error response:', error.response.status, error.response.data);
+       }
+       const errorMessage = error.response?.data?.message || error.message || 'Unknown error';
+       toast.error(`Failed to add item: ${errorMessage}`);
+       // Do NOT rethrow to avoid unhandled promise rejections; error is already logged and shown
+     }
   }, []);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps

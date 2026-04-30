@@ -294,15 +294,14 @@ export default function VendorPortfolioPage() {
       filtered = filtered.filter(img => img.category === selectedCategory);
     }
 
-    // Filter by search query
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(img => 
-        (img.title?.toLowerCase().includes(query)) ||
-        (img.description?.toLowerCase().includes(query)) ||
-        (img.category?.toLowerCase().includes(query))
-      );
-    }
+     if (searchQuery.trim()) {
+       const query = searchQuery.toLowerCase();
+       filtered = filtered.filter(img => 
+         (img.title?.toLowerCase() || '').includes(query) ||
+         (img.description?.toLowerCase() || '').includes(query) ||
+         (img.category?.toLowerCase() || '').includes(query)
+       );
+     }
 
     // Sort
     switch (sortBy) {

@@ -39,13 +39,15 @@ export class VendorServicesController {
   /**
    * Create a new vendor service with optional image uploads
    */
-  @ApiBearerAuth()
-  @Roles(Role.VENDOR)
-  @Post()
-  @UseInterceptors(FileFieldsInterceptor([
-    { name: 'images', maxCount: 10 },
-  ]))
-  @ApiConsumes('multipart/form-data')
+   @ApiBearerAuth()
+   @Roles(Role.VENDOR)
+   @Post()
+   @UseInterceptors(FileFieldsInterceptor([
+     { name: 'images', maxCount: 15 },
+   ], {
+     limits: { fileSize: 15 * 1024 * 1024, files: 15 },
+   }))
+   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
       type: 'object',
@@ -89,15 +91,15 @@ export class VendorServicesController {
       imageUrls = await Promise.all(uploadPromises);
     }
 
-    // Also accept image URLs from DTO (for backward compatibility with external URLs like Unsplash)
-    const existingImageUrls = dto.images || [];
+     // Also accept image URLs from DTO (for backward compatibility with external URLs like Unsplash)
+     const existingImageUrls = dto.images || [];
 
-    // Validate external URLs if provided
-    for (const url of existingImageUrls) {
-      if (url && !url.startsWith('data:') && !this.storageService.validateImageUrl(url)) {
-        throw new BadRequestException(`Invalid image URL: ${url}`);
-      }
-    }
+     // Validate external URLs if provided
+     for (const url of existingImageUrls) {
+       if (url && !url.startsWith('data:')) {
+         await this.storageService.validateImageUrl(url);
+       }
+     }
 
     return this.vendorServicesService.create(req.user.userId, {
       ...dto,
@@ -112,13 +114,15 @@ export class VendorServicesController {
   /**
    * Update vendor service with optional image uploads
    */
-  @ApiBearerAuth()
-  @Roles(Role.VENDOR, Role.ADMIN)
-  @Patch(':id')
-  @UseInterceptors(FileFieldsInterceptor([
-    { name: 'images', maxCount: 10 },
-  ]))
-  @ApiConsumes('multipart/form-data')
+   @ApiBearerAuth()
+   @Roles(Role.VENDOR, Role.ADMIN)
+   @Patch(':id')
+   @UseInterceptors(FileFieldsInterceptor([
+     { name: 'images', maxCount: 15 },
+   ], {
+     limits: { fileSize: 15 * 1024 * 1024, files: 15 },
+   }))
+   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
       type: 'object',
@@ -173,13 +177,13 @@ export class VendorServicesController {
       newImageUrls = await Promise.all(uploadPromises);
     }
 
-    // 3. Merge and Validate
-    const existingImageUrls = dto.images || [];
-    for (const url of existingImageUrls) {
-      if (url && !url.startsWith('data:') && !this.storageService.validateImageUrl(url)) {
-        throw new BadRequestException(`Invalid image URL: ${url}`);
-      }
-    }
+     // 3. Merge and Validate
+     const existingImageUrls = dto.images || [];
+     for (const url of existingImageUrls) {
+       if (url && !url.startsWith('data:')) {
+         await this.storageService.validateImageUrl(url);
+       }
+     }
 
     const allImages = [...existingImageUrls, ...newImageUrls];
 
@@ -195,17 +199,19 @@ export class VendorServicesController {
     }, isAdmin);
   }
 
-  /**
-   * Get a single vendor service by ID
-   * Used by service detail page
-   */
-  @ApiBearerAuth()
-  @Get(':id')
-  @ApiOperation({ summary: 'Get vendor service by ID' })
-  @ApiParam({ name: 'id', type: Number, description: 'Service ID' })
-  async findOne(@Param('id') id: string, @Req() req: AuthRequest) {
-    return this.vendorServicesService.findByIdWithDetails(+id);
-  }
+   /**
+    * Get a single vendor service by ID
+    * Used by service detail page
+    * BOLA FIX: Requires authentication and ownership check
+    */
+   @ApiBearerAuth()
+   @UseGuards(JwtAuthGuard)
+   @Get(':id')
+   @ApiOperation({ summary: 'Get vendor service by ID' })
+   @ApiParam({ name: 'id', type: Number, description: 'Service ID' })
+   async findOne(@Param('id') id: string, @Req() req: AuthRequest) {
+     return this.vendorServicesService.findByIdWithDetails(+id, req.user.userId, req.user.role);
+   }
 
   /**
    * Delete a vendor service
@@ -222,21 +228,19 @@ export class VendorServicesController {
     return this.vendorServicesService.delete(+id, req.user.userId, isAdmin);
   }
 
-  /**
-   * Get all services for a vendor (public endpoint)
-   */
-  @Public()
-  @Get('vendor/:vendorId')
-  findByVendor(@Param('vendorId') vendorId: string) {
-    return this.vendorServicesService.findByVendor(+vendorId);
-  }
+   /**
+    * Get all services for a vendor (authenticated - owner/admin see all, others see only active)
+    */
+   @Get('vendor/:vendorId')
+   findByVendor(@Param('vendorId') vendorId: string, @Req() req: AuthRequest) {
+     return this.vendorServicesService.findByVendor(+vendorId, req.user.userId, req.user.role);
+   }
 
-  // ALIAS: Get vendor services (frontend expects /vendors/:id/services)
-  @Public()
-  @Get('by-vendor/:vendorId')
-  findByVendorAlias(@Param('vendorId') vendorId: string) {
-    return this.vendorServicesService.findByVendor(+vendorId);
-  }
+   // ALIAS: Get vendor services (frontend expects /vendors/:id/services)
+   @Get('by-vendor/:vendorId')
+   findByVendorAlias(@Param('vendorId') vendorId: string, @Req() req: AuthRequest) {
+     return this.vendorServicesService.findByVendor(+vendorId, req.user.userId, req.user.role);
+   }
 
   /**
    * Activate a vendor service

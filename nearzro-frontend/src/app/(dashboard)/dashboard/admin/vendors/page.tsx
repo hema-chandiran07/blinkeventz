@@ -66,7 +66,7 @@ export default function AdminVendorsPage() {
   const filteredVendors = vendors.filter(vendor => {
     const searchStr = searchTerm.toLowerCase();
     const matchesSearch = vendor.businessName.toLowerCase().includes(searchStr) ||
-      vendor.user?.name.toLowerCase().includes(searchStr) ||
+      (vendor.user?.name || '').toLowerCase().includes(searchStr) ||
       vendor.city.toLowerCase().includes(searchStr);
     const matchesStatus = filterStatus === "all" || vendor.verificationStatus === filterStatus;
     return matchesSearch && matchesStatus;

@@ -124,3 +124,4 @@ pids
 # --- Project Specific ---
 # --- Project Specific ---
 uploads/
+*.yml

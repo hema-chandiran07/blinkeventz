@@ -60,11 +60,11 @@ export default function NotificationsPage() {
 
   const loadNotifications = async (signal?: AbortSignal) => {
     try {
-      const response = await api.get("/notifications?admin=true", { signal });
-      const data = response.data;
-      // Backend may return { data: [...], pagination: {...} } or just [...]
-      const notifications = Array.isArray(data) ? data : (data?.data || data?.notifications || []);
-      setNotifications(notifications);
+     const response = await api.get("/notifications?admin=true", { signal });
+       const data = response.data;
+       // Backend may return { data: [...], pagination: {...} } or just [...]
+       const notifications = Array.isArray(data) ? data : (data?.notifications || []);
+       setNotifications(notifications);
     } catch (error: any) {
       console.error("Failed to load notifications:", error);
       toast.error("Failed to load notifications");

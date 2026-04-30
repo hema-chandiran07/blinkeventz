@@ -10,6 +10,7 @@ import {
   Req,
   ParseIntPipe,
   BadRequestException,
+  UseInterceptors,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiParam, ApiBody } from '@nestjs/swagger';
 import { BookingService } from './booking.service';
@@ -18,6 +19,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '@prisma/client';
 import type { AuthRequest } from '../../auth/auth-request.interface';
+import { IdempotencyInterceptor } from '../../payments/interceptors/idempotency.interceptor';
 
 @ApiTags('Booking')
 @ApiBearerAuth()
@@ -28,6 +30,7 @@ export class BookingController {
   // Create a new booking
   @UseGuards(JwtAuthGuard)
   @Post()
+  @UseInterceptors(IdempotencyInterceptor)
   @ApiOperation({ summary: 'Create a new booking for venue or vendor service' })
   @ApiBody({
     schema: {
@@ -62,6 +65,7 @@ export class BookingController {
   // Create booking (alias for /booking/create)
   @UseGuards(JwtAuthGuard)
   @Post('create')
+  @UseInterceptors(IdempotencyInterceptor)
   @ApiOperation({ summary: 'Create a new booking (alias for POST /)' })
   async createBookingAlias(
     @Body() body: any,

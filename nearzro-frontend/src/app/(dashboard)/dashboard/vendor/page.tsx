@@ -105,11 +105,11 @@ export default function VendorDashboardPage() {
         });
       }
 
-      // Load vendor services
-      try {
-        const servicesResponse = await api.get('/vendors/me/services');
-        setServices(servicesResponse.data || []);
-      } catch (error) {
+        // Load vendor services
+       try {
+         const servicesResponse = await api.get('/vendors/me/services');
+         setServices(Array.isArray(servicesResponse.data) ? servicesResponse.data : []);
+       } catch (error) {
         console.warn("Could not fetch services");
         setServices([]);
       }
@@ -295,7 +295,7 @@ export default function VendorDashboardPage() {
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {services.filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase())).map((service) => (
+                       {services.filter(s => (s.name || '').toLowerCase().includes(searchQuery.toLowerCase())).map((service) => (
                         <div
                           key={service.id}
                           className="flex items-center justify-between p-5 rounded-2xl border border-white/5 hover:border-white/10 hover:bg-white/5 transition-all duration-500 group"

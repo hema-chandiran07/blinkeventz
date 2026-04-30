@@ -72,14 +72,14 @@ export default function CustomerBookingsPage() {
     }
   };
 
-  const filteredBookings = bookings.filter(booking => {
-    const venueName = booking.slot?.venue?.name;
-    const vendorName = booking.slot?.vendor?.name;
-    const matchesSearch = venueName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         vendorName?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = filterStatus === "all" || booking.status === filterStatus;
-    return matchesSearch && matchesStatus;
-  });
+   const filteredBookings = bookings.filter(booking => {
+     const venueName = booking.slot?.venue?.name;
+     const vendorName = booking.slot?.vendor?.name;
+     const matchesSearch = (venueName?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+                          (vendorName?.toLowerCase() || '').includes(searchQuery.toLowerCase());
+     const matchesStatus = filterStatus === "all" || booking.status === filterStatus;
+     return matchesSearch && matchesStatus;
+   });
 
   const getStatusColor = (status: string) => {
     switch (status) {

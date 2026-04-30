@@ -14,7 +14,6 @@ import {
   ArrowRight,
   Loader2,
 } from "lucide-react";
-import axios from "axios";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { SmartImage } from "@/components/ui/smart-image";
@@ -83,17 +82,15 @@ export default function CartPage() {
     calculateSummary(items);
   }, [settings.platformFee, settings.taxRate]);
 
-  const loadSettings = async () => {
-    try {
-      const { data } = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/settings/fees`
-      );
-      setSettings({
-        deliveryFee: data.deliveryFee ?? 0,
-        platformFee: data.platformFee ?? 0.02,
-        taxRate: data.taxRate ?? 0.18,
-        minOrderAmount: data.minOrderAmount ?? 0,
-      });
+   const loadSettings = async () => {
+     try {
+       const { data } = await api.get('/settings/fees');
+       setSettings({
+         deliveryFee: data.deliveryFee ?? 0,
+         platformFee: data.platformFee ?? 0.02,
+         taxRate: data.taxRate ?? 0.18,
+         minOrderAmount: data.minOrderAmount ?? 0,
+       });
     } catch (error: any) {
       console.error('[Cart] Failed to load fee settings:', error);
       toast.error(
@@ -312,7 +309,8 @@ export default function CartPage() {
     }
   };
 
-  const formatTimeSlot = (slot: string) => {
+  const formatTimeSlot = (slot: string | undefined | null) => {
+    if (!slot) return '';
     return slot
       .replace("_", " ")
       .toLowerCase()

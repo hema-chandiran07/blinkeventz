@@ -12,48 +12,49 @@ datasource db {
 model User {
   id           Int      @id @default(autoincrement())
   name         String   @db.VarChar(255)
-  email        String?  @unique
-  phone        String?  @unique
-  passwordHash String?
-  googleId     String?  @unique
+  email        String?  @unique @db.VarChar(255)
+  phone        String?  @unique @db.VarChar(20)
+  passwordHash String?  @db.VarChar(255)
+  googleId     String?  @unique @db.VarChar(255)
   role         Role     @default(CUSTOMER)
   isActive     Boolean  @default(true)
-  image        String? // Base64 profile picture
+  image        String?  @db.VarChar(500)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   // Password reset security
-  passwordResetToken  String? // Hashed token - never expose
+  passwordResetToken  String? @db.VarChar(512)
   passwordResetExpiry DateTime?
 
   // OAuth
-  facebookId      String? @unique
+  facebookId      String? @unique @db.VarChar(255)
   isEmailVerified Boolean @default(false)
 
   // Account lockout security
   lockedUntil DateTime?
 
-  // Relations
-  AIPlan                  AIPlan[]
-  AIConversation          AIConversation[]
-  bankAccounts            BankAccount[]
-  bookings                Booking[]
-  Cart                    Cart[]
-  customerProfile         CustomerProfile?
-  managedEvents           Event[]                  @relation("ManagedEvents")
-  customerEvents          Event[]                  @relation("CustomerEvents")
-  Event                   Event[]
-  ExpressRequest          ExpressRequest[]
-  KycDocument             KycDocument[]
-  notifications           Notification[]
-  notificationPreferences NotificationPreference[]
-  payments                Payment[]
-  reviews                 Review[]
-  reviewVotes             ReviewVote[]
-  vendor                  Vendor?
-  venues                  Venue[]
-  refreshTokens           RefreshToken[]
-  searchAudits            SearchAudit[]
+   // Relations
+   AIPlan                  AIPlan[]
+   AIConversation          AIConversation[]
+   bankAccounts            BankAccount[]
+   bookings                Booking[]
+   Cart                    Cart[]
+   customerProfile         CustomerProfile?
+   managedEvents           Event[]                  @relation("ManagedEvents")
+   customerEvents          Event[]                  @relation("CustomerEvents")
+   Event                   Event[]
+   ExpressRequest          ExpressRequest[]
+   KycDocument             KycDocument[]
+   notifications           Notification[]
+   notificationPreferences NotificationPreference[]
+   payments                Payment[]
+   reviews                 Review[]
+   reviewVotes             ReviewVote[]
+   vendor                  Vendor?
+   venues                  Venue[]
+   refreshTokens           RefreshToken[]
+   searchAudits            SearchAudit[]
+   otpRecords              OtpRecord[]
 
   // Indexes for authentication queries
   @@index([email])
@@ -66,7 +67,7 @@ model User {
 model SearchAudit {
   id           Int      @id @default(autoincrement())
   userId       Int?
-  query        String
+  query        String   @db.VarChar(500)
   filters      Json?
   resultsCount Int
   durationMs   Int
@@ -83,11 +84,11 @@ model SearchAudit {
 model RefreshToken {
   id         Int       @id @default(autoincrement())
   userId     Int
-  token      String // Hashed token for security
+  token      String    @db.VarChar(512) // Hashed token for security
   expiresAt  DateTime
   revoked    Boolean   @default(false)
   revokedAt  DateTime?
-  deviceInfo String?
+  deviceInfo String?   @db.VarChar(255)
   createdAt  DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -98,11 +99,31 @@ model RefreshToken {
   @@index([expiresAt])
 }
 
+model OtpRecord {
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  email     String?  @db.VarChar(255)
+  phone     String?  @db.VarChar(20)
+  otpHash   String   @db.VarChar(512)
+  expiresAt DateTime
+  attempts  Int      @default(0)
+  ipAddress String?  @db.VarChar(255)
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Indexes for cleanup and lookup
+  @@index([email])
+  @@index([phone])
+  @@index([expiresAt])
+  @@index([userId])
+}
+
 model CustomerProfile {
   id            Int     @id @default(autoincrement())
   userId        Int     @unique
-  preferredCity String?
-  notes         String?
+  preferredCity String? @db.VarChar(100)
+  notes         String? @db.VarChar(2000)
   user          User    @relation(fields: [userId], references: [id])
 }
 
@@ -111,31 +132,31 @@ model Vendor {
   userId             Int                      @unique
   businessName       String                   @db.VarChar(255)
   ownerName          String?                  @db.VarChar(255)
-  email              String?
-  phone              String?
-  businessType       String? // PHOTOGRAPHY, CATERING, DECOR, DJ, MAKEUP, VIDEOGRAPHY, ENTERTAINMENT, OTHER
+  email              String?                  @db.VarChar(255)
+  phone              String?                  @db.VarChar(20)
+  businessType       String? @db.VarChar(100) // PHOTOGRAPHY, CATERING, DECOR, DJ, MAKEUP, VIDEOGRAPHY, ENTERTAINMENT, OTHER
   description        String?                  @db.VarChar(2000)
-  serviceCategory    String?
-  city               String
-  area               String
+  serviceCategory    String? @db.VarChar(100)
+  city               String                   @db.VarChar(100)
+  area               String                   @db.VarChar(100)
   serviceRadiusKm    Int?
   basePrice          Int?
-  pricingModel       String?
+  pricingModel       String? @db.VarChar(50)
   experience         Int?
   verified           Boolean                  @default(false)
   verificationStatus VendorVerificationStatus @default(PENDING)
   createdAt          DateTime                 @default(now())
   updatedAt          DateTime                 @updatedAt
   username           String?                  @unique @db.VarChar(255)
-  rejectionReason    String?
+  rejectionReason    String?                  @db.VarChar(1000)
 
   // Business Images
   businessImages String[] @default([])
   images         String[] @default([])
 
   // KYC Documents
-  kycDocType   String? // AADHAAR, PAN, PASSPORT, DRIVING_LICENSE
-  kycDocNumber String?
+  kycDocType   String? @db.VarChar(50) // AADHAAR, PAN, PASSPORT, DRIVING_LICENSE
+  kycDocNumber String? @db.VarChar(20)
   kycDocFiles  String[] @default([])
 
   // FSSAI License (CONDITIONAL - only for CATERING)
@@ -161,8 +182,8 @@ model VendorService {
   minGuests    Int?
   maxGuests    Int?
   description  String?            @db.VarChar(2000)
-  inclusions   String?
-  exclusions   String?
+  inclusions   String?            @db.VarChar(2000)
+  exclusions   String?            @db.VarChar(2000)
   images       String[]           @default([])
   isActive     Boolean            @default(true)
   createdAt    DateTime           @default(now())
@@ -182,28 +203,28 @@ model Venue {
   type             VenueType
   description      String?     @db.VarChar(2000)
   address          String      @db.VarChar(500)
-  city             String
-  area             String
-  pincode          String
+  city             String     @db.VarChar(100)
+  area             String     @db.VarChar(100)
+  pincode          String     @db.VarChar(10)
   capacityMin      Int
   capacityMax      Int
   basePriceMorning Int?
   basePriceEvening Int?
   basePriceFullDay Int?
-  amenities        String?
-  policies         String?
+  amenities        String?    @db.VarChar(1000)
+  policies         String?    @db.VarChar(1000)
   status           VenueStatus @default(PENDING_APPROVAL)
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
   username         String?     @unique @db.VarChar(255)
-  rejectionReason  String?
+  rejectionReason  String?     @db.VarChar(1000)
 
   // Venue Images (main photos)
   venueImages String[] @default([])
 
   // KYC Documents
-  kycDocType   String? // AADHAAR, PAN, PASSPORT, DRIVING_LICENSE
-  kycDocNumber String?
+  kycDocType   String? @db.VarChar(50) // AADHAAR, PAN, PASSPORT, DRIVING_LICENSE
+  kycDocNumber String? @db.VarChar(20)
   kycDocFiles  String[] @default([])
 
   // Trade License (MANDATORY for venues)
@@ -311,7 +332,7 @@ model AvailabilitySlot {
   id         Int        @id @default(autoincrement())
   entityType EntityType
   date       DateTime
-  timeSlot   String
+  timeSlot   String     @db.VarChar(20)
   status     SlotStatus @default(AVAILABLE)
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
@@ -326,6 +347,10 @@ model AvailabilitySlot {
   @@index([venueId])
   @@index([vendorId])
   @@index([entityType, date, timeSlot])
+
+  // SECURITY: Prevent duplicate slot creation for the same entity/date/time
+  @@unique([venueId, date, timeSlot])
+  @@unique([vendorId, date, timeSlot])
 }
 
 model Booking {
@@ -342,6 +367,9 @@ model Booking {
   @@index([userId])
   @@index([slotId])
   @@index([status])
+
+  // Prevent double-booking of the same slot
+  @@unique([slotId])
 }
 
 model Cart {
@@ -393,12 +421,12 @@ model AIPlan {
   userId        Int
   EventId       Int?
   budget        Int
-  city          String
-  area          String
+  city          String           @db.VarChar(100)
+  area          String           @db.VarChar(100)
   guestCount    Int
   planJson      Json
   status        AIPlanStatus     @default(GENERATED)
-  shareId       String           @unique @default(uuid()) // For public sharing
+  shareId       String           @unique @db.VarChar(255) @default(uuid()) // For public sharing
   isPublic      Boolean          @default(false) // Enable/disable sharing
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
@@ -417,7 +445,7 @@ model AIConversation {
   state         Json
   status        AIConversationStatus @default(COLLECTING)
   planId        Int?
-  generationKey String?              @unique // For idempotency
+  generationKey String?              @unique @db.VarChar(255) // For idempotency
   createdAt     DateTime             @default(now())
   updatedAt     DateTime             @updatedAt
 
@@ -433,20 +461,20 @@ model Payment {
   userId                 Int
   cartId                 Int? // Optional for direct bookings (no cart)
   provider               PaymentProvider
-  providerOrderId        String          @unique // Razorpay order ID
-  providerPaymentId      String? // Razorpay payment ID
-  providerWebhookEventId String?         @unique // Razorpay webhook event ID - for deduplication
-  signature              String? // Payment signature (for verification)
+  providerOrderId        String          @unique @db.VarChar(255) // Razorpay order ID
+  providerPaymentId      String?         @db.VarChar(255) // Razorpay payment ID
+  providerWebhookEventId String?         @db.VarChar(255) // Razorpay webhook event ID - for deduplication
+  signature              String?         @db.VarChar(255) // Payment signature (for verification)
   amount                 Int // Amount in paise
-  currency               String          @default("INR")
+  currency               String          @db.VarChar(10) @default("INR")
   status                 PaymentStatus
 
   // Idempotency
-  idempotencyKey String? @unique // Client-provided idempotency key
+  idempotencyKey String? @unique @db.VarChar(255)
 
   // Metadata
   metadata Json? // Additional payment metadata
-  notes    String? // Internal notes
+  notes    String? @db.VarChar(1000) // Internal notes
 
   // Timestamps
   createdAt   DateTime  @default(now())
@@ -475,21 +503,21 @@ model Payment {
 model PaymentEvent {
   id              Int           @id @default(autoincrement())
   paymentId       Int
-  eventType       String // e.g., 'payment.created', 'payment.captured', 'payment.failed'
+  eventType       String        @db.VarChar(100) // e.g., 'payment.created', 'payment.captured', 'payment.failed'
   status          PaymentStatus // Status after this event
-  providerEventId String? // Razorpay event ID
+  providerEventId String?       @db.VarChar(255) // Razorpay event ID
 
   // Event data
-  requestId String? // Internal request ID for tracing
-  ipAddress String? // Client IP
-  userAgent String? // Client user agent
+  requestId String? @db.VarChar(255) // Internal request ID for tracing
+  ipAddress String? @db.VarChar(255) // Client IP
+  userAgent String? @db.VarChar(255) // Client user agent
 
   // Raw data
   payload  Json? // Raw webhook payload
   response Json? // Response sent
 
   // Error handling
-  errorMessage String?
+  errorMessage String? @db.VarChar(1000)
   retryCount   Int     @default(0)
 
   // Timestamps
@@ -512,7 +540,7 @@ model Payout {
   eventId         Int?
   amount          Int
   status          PayoutStatus @default(PENDING)
-  rejectionReason String?
+  rejectionReason String?     @db.VarChar(1000)
   approvedAt      DateTime?
   rejectedAt      DateTime?
   processedAt     DateTime?
@@ -538,7 +566,7 @@ model ExpressRequest {
   startedAt       DateTime
   expiresAt       DateTime
   expressFee      Int
-  rejectionReason String?
+  rejectionReason String?         @db.VarChar(1000)
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
   Event           Event           @relation(fields: [EventId], references: [id])
@@ -551,14 +579,14 @@ model KycDocument {
   id              Int        @id @default(autoincrement())
   userId          Int
   docType         KycDocType
-  docNumber       String
-  docFileUrl      String
+  docNumber       String     @db.VarChar(20)
+  docFileUrl      String     @db.VarChar(500)
   status          KycStatus  @default(PENDING)
   verifiedAt      DateTime?
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
-  docNumberHash   String
-  rejectionReason String?
+  docNumberHash   String     @db.VarChar(64)
+  rejectionReason String?    @db.VarChar(1000)
   user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([docType, docNumberHash], map: "unique_doc_per_type")
@@ -570,16 +598,16 @@ model KycDocument {
 model BankAccount {
   id                Int      @id @default(autoincrement())
   userId            Int
-  accountHolder     String
-  accountNumber     String
-  ifsc              String
-  bankName          String
-  branchName        String?
+  accountHolder     String   @db.VarChar(255)
+  accountNumber     String   @db.VarChar(50)
+  ifsc              String   @db.VarChar(20)
+  bankName          String   @db.VarChar(100)
+  branchName        String?  @db.VarChar(100)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
   isVerified        Boolean  @default(false)
-  referenceId       String   @unique
-  accountNumberHash String   @unique
+  referenceId       String   @unique @db.VarChar(255)
+  accountNumberHash String   @db.VarChar(64) @unique
   user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
@@ -588,9 +616,9 @@ model BankAccount {
 
 model BankWebhookLog {
   id          Int      @id @default(autoincrement())
-  referenceId String
+  referenceId String   @db.VarChar(255)
   payload     Json
-  status      String
+  status      String   @db.VarChar(50)
   createdAt   DateTime @default(now())
 
   @@index([referenceId])
@@ -603,12 +631,12 @@ model Event {
   id                Int             @id @default(autoincrement())
   customerId        Int             @default(0)
   assignedManagerId Int?
-  eventType         String          @default("BOOKING")
+  eventType         String          @db.VarChar(50) @default("BOOKING")
   title             String?         @db.VarChar(255)
   date              DateTime
-  timeSlot          String
-  city              String          @default("Chennai")
-  area              String?
+  timeSlot          String          @db.VarChar(20)
+  city              String          @default("Chennai") @db.VarChar(100)
+  area              String?         @db.VarChar(100)
   venueId           Int?
   vendorServiceId   Int?
   guestCount        Int             @default(1)
@@ -660,9 +688,9 @@ model Event {
 
 model Promotion {
   id            Int      @id @default(autoincrement())
-  code          String   @unique
+  code          String   @unique @db.VarChar(50)
   description   String?  @db.VarChar(2000)
-  discountType  String
+  discountType  String   @db.VarChar(20)
   discountValue Int
   minCartValue  Int?
   maxDiscount   Int?
@@ -687,8 +715,8 @@ model Review {
   eventId     Int?
   rating      Int
   title       String?      @db.VarChar(255)
-  comment     String?
-  response    String?
+  comment     String?      @db.VarChar(2000)
+  response    String?      @db.VarChar(2000)
   respondedAt DateTime?
   status      ReviewStatus @default(PENDING)
   helpful     Int          @default(0)
@@ -726,7 +754,7 @@ model EventService {
   addonId         Int?
   serviceType     ServiceType?
   finalPrice      Int
-  notes           String?
+  notes           String?            @db.VarChar(2000)
   status          EventServiceStatus @default(CONFIRMED)
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
@@ -751,7 +779,7 @@ model Notification {
   type                 NotificationType
   priority             NotificationPriority   @default(NORMAL)
   title                String                 @db.VarChar(255)
-  message              String
+  message              String                 @db.VarChar(2000)
   metadata             Json?
   read                 Boolean                @default(false)
   readAt               DateTime?
@@ -773,12 +801,12 @@ model NotificationDelivery {
   id             Int                 @id @default(autoincrement())
   notificationId Int
   channel        NotificationChannel
-  provider       String?
+  provider       String?             @db.VarChar(100)
   status         DeliveryStatus      @default(PENDING)
   attempts       Int                 @default(0)
   maxAttempts    Int                 @default(3)
-  providerRef    String?
-  errorMessage   String?
+  providerRef    String?             @db.VarChar(255)
+  errorMessage   String?             @db.VarChar(1000)
   sentAt         DateTime?
   deliveredAt    DateTime?
   failedAt       DateTime?
@@ -804,10 +832,10 @@ model AuditLog {
   id             BigInt        @id @default(autoincrement())
   actorId        Int?
   actorRole      Role?
-  actorEmail     String?
-  entityType     String
-  entityId       String?
-  action         String
+  actorEmail     String?       @db.VarChar(255)
+  entityType     String        @db.VarChar(100)
+  entityId       String?       @db.VarChar(255)
+  action         String        @db.VarChar(100)
   severity       AuditSeverity
   source         AuditSource
   description    String?       @db.VarChar(2000)
@@ -819,9 +847,9 @@ model AuditLog {
   createdAt      DateTime      @default(now())
   retentionUntil DateTime?
   isSensitive    Boolean       @default(false)
-  requestId      String?
-  sessionId      String?
-  traceId        String?
+  requestId      String?       @db.VarChar(255)
+  sessionId      String?       @db.VarChar(255)
+  traceId        String?       @db.VarChar(255)
 
   @@index([entityType, entityId])
   @@index([actorId])
@@ -844,7 +872,7 @@ model AuditOutbox {
 /// Outbox Event for Cart and System Events
 model OutboxEvent {
   id        String   @id @default(uuid())
-  eventType String
+  eventType String   @db.VarChar(100)
   payload   Json
   processed Boolean  @default(false)
   createdAt DateTime @default(now())
@@ -856,7 +884,7 @@ model OutboxEvent {
 /// System Settings for Feature Flags, Integrations, and Security
 model Settings {
   id          Int              @id @default(autoincrement())
-  key         String           @unique
+  key         String           @unique @db.VarChar(100)
   value       Json
   category    SettingsCategory
   description String?          @db.VarChar(2000)
@@ -865,6 +893,17 @@ model Settings {
 
   @@index([category])
   @@index([key])
+}
+
+model PlatformSettings {
+  id                  String   @id @default(cuid())
+  platformFeePercent  Decimal  @default(5.00) @db.Decimal(5,2)
+  gstPercent          Decimal  @default(18.00) @db.Decimal(5,2)
+  expressFeeFixed     Decimal  @default(99.00) @db.Decimal(10,2)
+  commissionPercent   Decimal  @default(10.00) @db.Decimal(5,2)
+  tdsPercent          Decimal  @default(1.00) @db.Decimal(5,2)
+  updatedAt           DateTime @updatedAt
+  updatedBy           String?
 }
 
 enum SettingsCategory {
@@ -1063,6 +1102,7 @@ enum AIConversationStatus {
 
 enum EventStatus {
   INQUIRY
+  QUOTED
   PENDING_PAYMENT
   CONFIRMED
   IN_PROGRESS

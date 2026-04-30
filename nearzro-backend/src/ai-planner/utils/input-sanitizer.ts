@@ -1,4 +1,5 @@
 import { createHash } from 'crypto';
+import he from 'he';
 import { INPUT_LIMITS, AI_CONFIG, ERROR_MESSAGES } from '../constants/ai-planner.constants';
 
 /**
@@ -22,13 +23,16 @@ export class InputSanitizer {
       return '';
     }
 
-    const sanitized = input
+    let sanitized = input
       .trim()
       .slice(0, maxLength)
       // Remove control characters except newlines and tabs
       .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
       // Escape JSON special characters that could break the prompt
       .replace(/["\\]/g, (match) => `\\${match}`);
+
+    // Encode HTML entities to prevent XSS in any downstream rendering
+    sanitized = he.encode(sanitized, { useNamedReferences: true });
 
     // Structural defense: wrap user content in clearly delimited tags
     // The AI system prompt will instruct to treat everything inside these tags as untrusted

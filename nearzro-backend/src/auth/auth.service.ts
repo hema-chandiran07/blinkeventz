@@ -506,22 +506,29 @@ export class AuthService {
         },
       });
 
-      const token = this.jwtService.sign({ userId: existingUser.id, role: existingUser.role });
-
-      return {
-        user: {
+       // Generate token with profile flags
+        const tokens = await this.generateTokens({
           id: existingUser.id,
-          name: existingUser.name,
-          email: existingUser.email,
+          email: existingUser.email!,
           role: existingUser.role,
-          isEmailVerified: existingUser.isEmailVerified,
           hasVendorProfile: true,
           hasVenueProfile: existingUser.venues && existingUser.venues.length > 0,
-        },
-        token,
-        requiresOtp: !existingUser.isEmailVerified,
-        message: 'Vendor profile added successfully. Please verify your email with OTP.',
-      };
+        });
+
+       return {
+         user: {
+           id: existingUser.id,
+           name: existingUser.name,
+           email: existingUser.email,
+           role: existingUser.role,
+           isEmailVerified: existingUser.isEmailVerified,
+           hasVendorProfile: true,
+           hasVenueProfile: existingUser.venues && existingUser.venues.length > 0,
+         },
+         token: tokens.accessToken,
+         requiresOtp: !existingUser.isEmailVerified,
+         message: 'Vendor profile added successfully. Please verify your email with OTP.',
+       };
     }
 
     // Create NEW user with VENDOR role
@@ -600,20 +607,28 @@ export class AuthService {
         return { user, vendor };
       });
 
-      const token = this.jwtService.sign({ userId: result.user.id, role: result.user.role });
-
-      return {
-        user: {
+        const tokens = await this.generateTokens({
           id: result.user.id,
-          name: result.user.name,
-          email: result.user.email,
+          email: result.user.email!,
           role: result.user.role,
-          isEmailVerified: false,
-        },
-        token,
-        requiresOtp: true,
-        message: 'Registration successful. Please verify your email with OTP.',
-      };
+          hasVendorProfile: true,
+          hasVenueProfile: false,
+        });
+
+       return {
+         user: {
+           id: result.user.id,
+           name: result.user.name,
+           email: result.user.email,
+           role: result.user.role,
+           isEmailVerified: false,
+           hasVendorProfile: true,
+           hasVenueProfile: false,
+         },
+         token: tokens.accessToken,
+         requiresOtp: true,
+         message: 'Registration successful. Please verify your email with OTP.',
+       };
     } catch (error: any) {
       console.error('Vendor registration failed:', error.message);
       if (error?.code === 'P2002') {
@@ -837,7 +852,7 @@ export class AuthService {
     return { success: true, message: 'Password reset successfully.' };
   }
 
-  async sendOtp(email: string, phone?: string) { return this.otpService.sendOtp(email, phone); }
+   async sendOtp(email: string, phone?: string, ip?: string) { return this.otpService.sendOtp(email, phone, ip); }
   async verifyOtp(email: string, otp: string) { return this.otpService.verifyOtp(email, otp); }
 
   async checkEmailExists(email: string): Promise<boolean> {

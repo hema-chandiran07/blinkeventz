@@ -1,15 +1,14 @@
-import { Injectable, BadRequestException, InternalServerErrorException, Logger, UnauthorizedException } from '@nestjs/common';
+import { Injectable, BadRequestException, InternalServerErrorException, Logger, UnauthorizedException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 import { EmailProvider } from '../notifications/providers/email.provider';
 import Twilio from 'twilio';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class OtpService {
   private readonly logger = new Logger(OtpService.name);
-  private otpStore: Map<string, { otp: string; expiresAt: Date; retryCount: number; lastSentAt: Date }> = new Map();
-  private phoneOtpStore: Map<string, { otp: string; expiresAt: Date; retryCount: number; lastSentAt: Date }> = new Map();
   private gmailUser: string;
   private gmailAppPassword: string;
   private emailFrom: string;
@@ -51,37 +50,76 @@ export class OtpService {
   }
 
   /**
-   * Generate and send OTP via Email (Hybrid Try/Catch)
+   * Generate and send OTP via Email/SMS
+   * Uses database-backed OtpRecord with bcrypt hashing
+   * Includes per-IP rate limiting: max 5 requests per 10 minutes
    */
-  async sendOtp(email: string, phone?: string): Promise<{ success: boolean; message: string }> {
-    // Generate real OTP and save to database
-    const otp = crypto.randomInt(100000, 999999).toString();
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
-    const lastSentAt = new Date();
-    this.otpStore.set(email, { otp, expiresAt, retryCount: 0, lastSentAt });
-
-    // In development, always log the real OTP
-    if (this.isDevMode) {
-      this.logger.log(`📧 [DEV] Real Email OTP for ${email}: ${otp}`);
+  async sendOtp(email?: string, phone?: string, ip?: string): Promise<{ success: boolean; message: string }> {
+    if (!email && !phone) {
+      throw new BadRequestException('Email or phone is required');
     }
 
-    // Hybrid Try/Catch for email sending
+    // Per-IP rate limiting: max 5 OTP requests from same IP in 10 minutes
+    if (ip) {
+      const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+      const ipCount = await this.prisma.otpRecord.count({
+        where: {
+          ipAddress: ip,
+          createdAt: { gte: tenMinutesAgo },
+        },
+      });
+
+      if (ipCount >= 5) {
+        this.logger.warn(`IP rate limit exceeded for IP: ${ip}`);
+        throw new ForbiddenException('Too many OTP requests from this IP. Please try again later.');
+      }
+    }
+
+    // Generate OTP
+    const otp = crypto.randomInt(100000, 999999).toString();
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+    const otpHash = await bcrypt.hash(otp, 10);
+
+    // Find existing user by email if provided
+    let userId: number | null = null;
+    if (email) {
+      const user = await this.prisma.user.findUnique({
+        where: { email },
+      });
+      userId = user?.id ?? null;
+    }
+
+    // Store OTP record in database
+    await this.prisma.otpRecord.create({
+      data: {
+        userId,
+        email: email || null,
+        phone: phone || null,
+        otpHash,
+        expiresAt,
+        attempts: 0,
+        ipAddress: ip || null,
+      },
+    });
+
+    // In development, log the OTP
+    if (this.isDevMode) {
+      this.logger.log(`📧 [DEV] Real Email OTP for ${email || phone}: ${otp}`);
+    }
+
+    // Send OTP via email and/or SMS
     try {
-      await this.sendEmail(email, otp);
+      if (email) {
+        await this.sendEmail(email, otp);
+      }
     } catch (error: any) {
-      // Graceful fallback in development
       if (this.isDevMode) {
         this.logger.warn(`[DEV] Email send failed: ${error.message} - OTP still valid for verification`);
-        return {
-          success: true,
-          message: 'OTP sent successfully to your email' + (phone ? ' and phone' : ''),
-        };
+      } else {
+        throw new InternalServerErrorException('Failed to send OTP email. Please try again.');
       }
-      // Throw in production
-      throw new InternalServerErrorException('Failed to send OTP email. Please try again.');
     }
 
-    // Hybrid Try/Catch for SMS sending if phone provided
     if (phone) {
       try {
         await this.sendSms(phone, otp);
@@ -101,82 +139,87 @@ export class OtpService {
   }
 
   /**
-   * Send phone OTP (Hybrid Try/Catch)
+   * Verify OTP against database record
+   * Uses bcrypt comparison and tracks attempts
    */
-  async sendPhoneOtp(phone: string): Promise<{ success: boolean; message: string }> {
-    // Generate real OTP and save to database
-    const otp = crypto.randomInt(100000, 999999).toString();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-    const lastSentAt = new Date();
-    this.phoneOtpStore.set(phone, { otp, expiresAt, retryCount: 0, lastSentAt });
+   async verifyOtp(identifier: string, otp: string): Promise<{ success: boolean; message: string; user?: any }> {
+     if (!identifier) {
+       throw new BadRequestException('Email or phone is required');
+     }
 
-    // In development, always log the real OTP
-    if (this.isDevMode) {
-      this.logger.log(`📱 [DEV] Real Phone OTP for ${phone}: ${otp}`);
-    }
+     const now = new Date();
+     const isEmail = identifier.includes('@');
+     const otpRecord = await this.prisma.otpRecord.findFirst({
+       where: isEmail
+         ? { email: identifier, expiresAt: { gt: now } }
+         : { phone: identifier, expiresAt: { gt: now } },
+       orderBy: { createdAt: 'desc' },
+     });
 
-    // Hybrid Try/Catch for SMS sending
-    try {
-      await this.sendSms(phone, otp);
-    } catch (error: any) {
-      // Graceful fallback in development
-      if (this.isDevMode) {
-        this.logger.warn(`[DEV] SMS send failed: ${error.message} - OTP still valid for verification`);
-        return {
-          success: true,
-          message: 'OTP sent to your phone',
-        };
-      }
-      // Throw in production
-      throw new InternalServerErrorException('Failed to send SMS. Please try again.');
-    }
+     if (!otpRecord) {
+       throw new BadRequestException('OTP not found or expired. Please request a new OTP.');
+     }
 
-    return {
-      success: true,
-      message: 'OTP sent to your phone',
-    };
-  }
+     // Check attempts - if 5 or more failed attempts, invalidate
+     if (otpRecord.attempts >= 5) {
+       await this.prisma.otpRecord.delete({ where: { id: otpRecord.id } });
+       throw new UnauthorizedException('Too many failed attempts. OTP has been invalidated.');
+     }
 
-  /**
-   * Verify phone OTP (strict database validation)
-   */
-  async verifyPhoneOtp(phone: string, otp: string): Promise<{ success: boolean; message: string }> {
-    const storedOtp = this.phoneOtpStore.get(phone);
+     // Verify OTP using bcrypt
+     const isValid = await bcrypt.compare(otp, otpRecord.otpHash);
+     if (!isValid) {
+       // Increment attempt count
+       await this.prisma.otpRecord.update({
+         where: { id: otpRecord.id },
+         data: { attempts: { increment: 1 } },
+       });
 
-    if (!storedOtp) {
-      throw new BadRequestException('OTP not found or expired. Please request a new OTP.');
-    }
+       const remainingAttempts = 5 - (otpRecord.attempts + 1);
+       if (remainingAttempts <= 0) {
+         await this.prisma.otpRecord.delete({ where: { id: otpRecord.id } });
+         throw new UnauthorizedException('Too many failed attempts. OTP has been invalidated.');
+       }
 
-    if (storedOtp.expiresAt < new Date()) {
-      this.phoneOtpStore.delete(phone);
-      throw new BadRequestException('OTP has expired. Please request a new OTP.');
-    }
+       throw new BadRequestException(`Invalid OTP. ${remainingAttempts} attempts remaining.`);
+     }
 
-    // Strict validation against database
-    if (storedOtp.otp !== otp) {
-      // Increment retry count
-      storedOtp.retryCount = (storedOtp.retryCount || 0) + 1;
-      
-      // Update the store with incremented retry count
-      this.phoneOtpStore.set(phone, storedOtp);
-      
-      // If 5 or more failed attempts, invalidate the OTP
-      if (storedOtp.retryCount >= 5) {
-        this.phoneOtpStore.delete(phone);
-        throw new UnauthorizedException('Too many failed attempts. OTP has been invalidated.');
-      }
-      
-      throw new BadRequestException('Invalid OTP. Please try again.');
-    }
+     // OTP is valid - delete the record (one-time use)
+     await this.prisma.otpRecord.delete({ where: { id: otpRecord.id } });
 
-    this.phoneOtpStore.delete(phone);
-    this.logger.log(`✅ Phone verified successfully for ${phone}`);
+     // If verified via email and user exists, mark email as verified
+     if (otpRecord.userId) {
+       if (isEmail) {
+         await this.prisma.user.update({
+           where: { id: otpRecord.userId },
+           data: { isEmailVerified: true },
+         });
+       }
 
-    return {
-      success: true,
-      message: 'Phone verified successfully',
-    };
-  }
+       const user = await this.prisma.user.findUnique({
+         where: { id: otpRecord.userId },
+       });
+
+       if (user) {
+         return {
+           success: true,
+           message: isEmail ? 'Email verified successfully' : 'Phone verified successfully',
+           user: {
+             id: user.id,
+             email: user.email,
+             name: user.name,
+             isEmailVerified: user.isEmailVerified,
+           },
+         };
+       }
+     }
+
+     return {
+       success: true,
+       message: isEmail ? 'Email verified successfully' : 'Phone verified successfully',
+       user: null,
+     };
+   }
 
   /**
    * Send OTP via email using Gmail SMTP
@@ -210,97 +253,14 @@ export class OtpService {
   }
 
   /**
-   * Verify OTP (strict database validation)
-   */
-  async verifyOtp(email: string, otp: string): Promise<{ success: boolean; message: string; user?: any }> {
-    const storedOtp = this.otpStore.get(email);
-
-    if (!storedOtp) {
-      throw new BadRequestException('OTP not found or expired');
-    }
-
-    if (storedOtp.expiresAt < new Date()) {
-      this.otpStore.delete(email);
-      throw new BadRequestException('OTP has expired');
-    }
-
-    // Strict validation against database
-    if (storedOtp.otp !== otp) {
-      // Increment retry count
-      storedOtp.retryCount = (storedOtp.retryCount || 0) + 1;
-      
-      // Update the store with incremented retry count
-      this.otpStore.set(email, storedOtp);
-      
-      // If 5 or more failed attempts, invalidate the OTP
-      if (storedOtp.retryCount >= 5) {
-        this.otpStore.delete(email);
-        throw new UnauthorizedException('Too many failed attempts. OTP has been invalidated.');
-      }
-      
-      throw new BadRequestException('Invalid OTP');
-    }
-
-    this.otpStore.delete(email);
-
-    const user = await this.prisma.user.findUnique({ where: { email } });
-    if (user) {
-      await this.prisma.user.update({
-        where: { email },
-        data: { isEmailVerified: true },
-      });
-    }
-
-    return {
-      success: true,
-      message: 'Email verified successfully',
-      user: user ? {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        isEmailVerified: true,
-      } : null,
-    };
-  }
-
-  /**
-   * Resend OTP
-   */
-  async resendOtp(email: string, phone?: string): Promise<{ success: boolean; message: string }> {
-    // If email is provided, check rate limit on email OTP
-    if (email) {
-      const storedOtp = this.otpStore.get(email);
-      if (storedOtp && storedOtp.lastSentAt) {
-        const timeSinceLastSent = Date.now() - storedOtp.lastSentAt.getTime();
-        if (timeSinceLastSent < 60 * 1000) {
-          throw new BadRequestException('Too many requests. Please wait 60 seconds before resending OTP.');
-        }
-      }
-    }
-    
-    // If phone is provided, check rate limit on phone OTP
-    if (phone) {
-      const storedOtp = this.phoneOtpStore.get(phone);
-      if (storedOtp && storedOtp.lastSentAt) {
-        const timeSinceLastSent = Date.now() - storedOtp.lastSentAt.getTime();
-        if (timeSinceLastSent < 60 * 1000) {
-          throw new BadRequestException('Too many requests. Please wait 60 seconds before resending OTP.');
-        }
-      }
-    }
-    
-    return this.sendOtp(email, phone);
-  }
-
-  /**
    * Get OTP for development testing
    */
   getOtpForTesting(email: string): string | null {
     if (this.appEnv !== 'development') {
       return null;
     }
-    const stored = this.otpStore.get(email);
-    return stored ? stored.otp : null;
+    // Not available for DB-backed OTP
+    return null;
   }
 
   /**
@@ -310,7 +270,20 @@ export class OtpService {
     if (this.appEnv !== 'development') {
       return null;
     }
-    const stored = this.phoneOtpStore.get(phone);
-    return stored ? stored.otp : null;
+    // Not available for DB-backed OTP
+    return null;
+  }
+
+  // Backward compatibility wrappers for removed method names
+  async sendPhoneOtp(phone: string, ip?: string): Promise<{ success: boolean; message: string }> {
+    return this.sendOtp(undefined, phone, ip);
+  }
+
+  async verifyPhoneOtp(phone: string, otp: string): Promise<{ success: boolean; message: string; user?: any }> {
+    return this.verifyOtp(phone, otp);
+  }
+
+  async resendOtp(email?: string, phone?: string): Promise<{ success: boolean; message: string }> {
+    return this.sendOtp(email, phone, undefined);
   }
 }

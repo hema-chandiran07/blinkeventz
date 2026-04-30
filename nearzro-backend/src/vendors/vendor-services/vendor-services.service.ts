@@ -2,17 +2,18 @@ import { Injectable, ForbiddenException, NotFoundException, BadRequestException,
 import { validateOrReject } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
 import { PrismaService } from '../../prisma/prisma.service';
+import { Role, VendorService } from '@prisma/client';
 import { CreateVendorServiceDto } from './dto/create-vendor-service.dto';
 
 @Injectable()
 export class VendorServicesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   /**
    * Create a new vendor service
    * Only vendors can create services for their own profile
    */
-  async create(userId: number, dto: CreateVendorServiceDto, skipValidation = false) {
+  async create(userId: number, dto: CreateVendorServiceDto, skipValidation = false): Promise<VendorService> {
     try {
       // Validate DTO manually for unit tests (controller does this automatically)
       // Skip validation in certain test scenarios
@@ -84,8 +85,8 @@ export class VendorServicesService {
       });
     } catch (error) {
       if (error instanceof ForbiddenException ||
-          error instanceof BadRequestException ||
-          error instanceof NotFoundException) {
+        error instanceof BadRequestException ||
+        error instanceof NotFoundException) {
         throw error;
       }
       // Handle Prisma errors
@@ -176,8 +177,8 @@ export class VendorServicesService {
       });
     } catch (error) {
       if (error instanceof ForbiddenException ||
-          error instanceof NotFoundException ||
-          error instanceof BadRequestException) {
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException) {
         throw error;
       }
       // Handle Prisma errors
@@ -235,8 +236,8 @@ export class VendorServicesService {
       });
     } catch (error) {
       if (error instanceof ForbiddenException ||
-          error instanceof NotFoundException ||
-          error instanceof BadRequestException) {
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException) {
         throw error;
       }
       // Handle Prisma errors
@@ -257,47 +258,68 @@ export class VendorServicesService {
    * Get all services for a vendor
    */
   async findByVendorUserId(userId: number) {
-try {
-const vendor = await this.prisma.vendor.findUnique({ where: { userId } });
-if (!vendor) return [];
-return await this.prisma.vendorService.findMany({ where: { vendorId: vendor.id } });
-} catch(error) {
+    try {
+      const vendor = await this.prisma.vendor.findUnique({ where: { userId } });
+      if (!vendor) return [];
+      return await this.prisma.vendorService.findMany({ where: { vendorId: vendor.id } });
+    } catch (error) {
       // Preserve original Prisma error message
       const message = error instanceof Error ? error.message : 'Failed to fetch vendor services';
       throw new InternalServerErrorException(message);
     }
   }
 
-   /**
-    * Get all services for a vendor (public endpoint - summary list)
-    * Optimized: returns only fields needed for list views
-    */
-   async findByVendor(vendorId: number) {
-     try {
-       const services = await this.prisma.vendorService.findMany({
-         where: { vendorId },
-         select: {
-           id: true,
-           name: true,
-           baseRate: true,
-           images: true,
-         },
-       });
+  /**
+   * Get all services for a vendor (public endpoint - summary list)
+   * SECURITY: Only returns ACTIVE services unless caller is the vendor owner or admin
+   */
+  async findByVendor(vendorId: number, userId?: number, role?: string) {
+    try {
+      const isAdmin = role === Role.ADMIN;
+      let isOwner = false;
 
-       // Map to ServiceSummaryDto
-       return services.map(s => ({
-         id: s.id,
-         name: s.name,
-         rating: 0, // Rating can be computed from related reviews if available
-         thumbnailUrl: s.images && s.images.length > 0 ? s.images[0] : null,
-         priceFrom: s.baseRate,
-       }));
-     } catch (error) {
-       // Preserve original Prisma error message
-       const message = error instanceof Error ? error.message : 'Failed to fetch vendor services';
-       throw new InternalServerErrorException(message);
-     }
-   }
+      if (!isAdmin && userId) {
+        const vendor = await this.prisma.vendor.findUnique({
+          where: { id: vendorId },
+          select: { userId: true },
+        });
+        isOwner = vendor?.userId === userId;
+      }
+
+      // Non-owners/non-admins can only see ACTIVE services
+      const where: any = { vendorId };
+      if (!isAdmin && !isOwner) {
+        where.isActive = true;
+      }
+
+      const services = await this.prisma.vendorService.findMany({
+        where,
+        select: {
+          id: true,
+          name: true,
+          serviceType: true,
+          pricingModel: true,
+          baseRate: true,
+          description: true,
+          inclusions: true,
+          images: true,
+          isActive: true,
+        },
+      });
+      // Map to ServiceSummaryDto
+      return services.map(s => ({
+        id: s.id,
+        name: s.name,
+        rating: 0,
+        thumbnailUrl: s.images && s.images.length > 0 ? s.images[0] : null,
+        priceFrom: s.baseRate,
+        isActive: s.isActive,
+      }));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to fetch vendor services';
+      throw new InternalServerErrorException(message);
+    }
+  }
 
 
   /**
@@ -470,8 +492,8 @@ return await this.prisma.vendorService.findMany({ where: { vendorId: vendor.id }
       });
     } catch (error) {
       if (error instanceof ForbiddenException ||
-          error instanceof NotFoundException ||
-          error instanceof BadRequestException) {
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException) {
         throw error;
       }
       // Handle Prisma errors
@@ -521,8 +543,8 @@ return await this.prisma.vendorService.findMany({ where: { vendorId: vendor.id }
       });
     } catch (error) {
       if (error instanceof ForbiddenException ||
-          error instanceof NotFoundException ||
-          error instanceof BadRequestException) {
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException) {
         throw error;
       }
       // Handle Prisma errors
@@ -562,7 +584,7 @@ return await this.prisma.vendorService.findMany({ where: { vendorId: vendor.id }
       // Update service to active
       const updated = await this.prisma.vendorService.update({
         where: { id },
-        data: { 
+        data: {
           isActive: true,
           updatedAt: new Date(),
         },
@@ -576,8 +598,8 @@ return await this.prisma.vendorService.findMany({ where: { vendorId: vendor.id }
       return updated;
     } catch (error) {
       if (error instanceof ForbiddenException ||
-          error instanceof NotFoundException ||
-          error instanceof BadRequestException) {
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException) {
         throw error;
       }
       const prismaError = error as any;
@@ -612,7 +634,7 @@ return await this.prisma.vendorService.findMany({ where: { vendorId: vendor.id }
       // Update service to inactive with rejection reason
       const updated = await this.prisma.vendorService.update({
         where: { id },
-        data: { 
+        data: {
           isActive: false,
           updatedAt: new Date(),
         },
@@ -625,8 +647,8 @@ return await this.prisma.vendorService.findMany({ where: { vendorId: vendor.id }
       return updated;
     } catch (error) {
       if (error instanceof ForbiddenException ||
-          error instanceof NotFoundException ||
-          error instanceof BadRequestException) {
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException) {
         throw error;
       }
       const prismaError = error as any;
@@ -654,10 +676,10 @@ return await this.prisma.vendorService.findMany({ where: { vendorId: vendor.id }
                   name: true,
                   email: true,
                   phone: true,
-                }
-              }
-            }
-          }
+                },
+              },
+            },
+          },
         },
         orderBy: { createdAt: 'desc' },
       });
@@ -668,11 +690,12 @@ return await this.prisma.vendorService.findMany({ where: { vendorId: vendor.id }
   }
 
   /**
-   * Find service by ID with full details for admin review
+   * Get service by ID with vendor details
+   * BOLA FIX: Enforces ownership check - only vendor owner or admin can access
    */
-  async findByIdWithDetails(id: number) {
+  async findByIdWithDetails(id: number, userId?: number, role?: string) {
     try {
-      return await this.prisma.vendorService.findUnique({
+      const service = await this.prisma.vendorService.findUnique({
         where: { id },
         include: {
           vendor: {
@@ -683,13 +706,41 @@ return await this.prisma.vendorService.findMany({ where: { vendorId: vendor.id }
                   name: true,
                   email: true,
                   phone: true,
-                }
-              }
-            }
-          }
+                },
+              },
+            },
+          },
         },
       });
+
+      if (!service) {
+        throw new NotFoundException('Service not found');
+      }
+
+      // Ownership check: if not admin, must be vendor owner
+      if (role !== 'ADMIN') {
+        if (!userId) {
+          throw new ForbiddenException('Authentication required');
+        }
+        // Check if the requesting user is the vendor owner
+        const vendor = await this.prisma.vendor.findUnique({
+          where: { id: service.vendorId },
+          select: { userId: true },
+        });
+
+        if (!vendor || vendor.userId !== userId) {
+          throw new ForbiddenException('You do not have permission to access this service');
+        }
+      }
+
+      return service;
     } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      if (error instanceof ForbiddenException) {
+        throw error;
+      }
       const message = error instanceof Error ? error.message : 'Failed to fetch service details';
       throw new InternalServerErrorException(message);
     }

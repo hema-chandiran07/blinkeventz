@@ -34,10 +34,9 @@ export class ExpressCron implements OnModuleInit, OnModuleDestroy {
     );
   }
 
+  // No destroy method needed — Redlock does not provide one
   async onModuleDestroy() {
-    if (this.redlock) {
-      await this.redlock.destroy();
-    }
+    // Optional cleanup - Redlock has no destroy; connections will close on process exit
   }
 
   /**
