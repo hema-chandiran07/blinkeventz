@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 
-export type CartEventType = 
+export type CartEventType =
   | 'CART_ITEM_ADDED'
   | 'CART_ITEM_REMOVED'
   | 'CART_ITEM_UPDATED'
@@ -23,7 +23,7 @@ export interface CartEventPayload extends Record<string, unknown> {
 export class CartEventService {
   private readonly logger = new Logger(CartEventService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   /**
    * Publish event to outbox table - NON-TRANSACTIONAL
@@ -38,27 +38,38 @@ export class CartEventService {
     try {
       // Use the provided transaction client or fall back to prisma
       const db = txOrPrisma || this.prisma;
-      
-      // Try to write to outbox - but NEVER let this fail the parent transaction
-      // The OutboxEvent table may not exist, so we catch and swallow any error
+
+      // Try to write to outbox
       await db.$executeRaw`
-        INSERT INTO "OutboxEvent" (id, "eventType", payload, "createdAt", processed)
-        VALUES (gen_random_uuid()::text, ${eventType}, ${JSON.stringify(payload)}::jsonb, NOW(), false)
-      `;
-      
+         INSERT INTO "OutboxEvent" (id, "eventType", payload, "createdAt", processed)
+         VALUES (gen_random_uuid()::text, ${eventType}, ${JSON.stringify(payload)}::jsonb, NOW(), false)
+       `;
+
       this.logger.debug(
         { eventType, userId: payload.userId, cartId: payload.cartId },
         'Event published to outbox',
       );
     } catch (error: any) {
-      // Log but SWALLOW - outbox is non-critical, cart operation MUST succeed
-      // Do NOT re-throw - this allows the caller to continue without rollback
-      this.logger.warn(
-        { eventType, payload, error: error.message },
-        'Failed to publish cart event to outbox (non-critical - continuing)',
-      );
-      // Explicitly return to ensure no error propagates
-      return;
+      // Outbox write failed — store in AuditOutbox as fallback for retry
+      try {
+        await this.prisma.auditOutbox.create({
+          data: {
+            payload: { eventType, payload, error: error.message, timestamp: new Date().toISOString() } as Prisma.InputJsonValue,
+            status: 'FAILED',
+          },
+        });
+        this.logger.warn(
+          { eventType, payload, error: error.message },
+          'Outbox write failed — event stored in AuditOutbox for retry',
+        );
+      } catch (auditError: any) {
+        // If even audit outbox fails, throw to avoid silent loss
+        this.logger.error(
+          { eventType, error: error.message, auditError: auditError.message },
+          'Failed to store event in AuditOutbox — event lost',
+        );
+        throw new Error('Event publish failed and fallback outbox write failed');
+      }
     }
   }
 
@@ -73,21 +84,34 @@ export class CartEventService {
     try {
       // Use the injected prisma service (not inside any transaction)
       await this.prisma.$executeRaw`
-        INSERT INTO "OutboxEvent" (id, "eventType", payload, "createdAt", processed)
-        VALUES (gen_random_uuid()::text, ${eventType}, ${JSON.stringify(payload)}::jsonb, NOW(), false)
-      `;
-      
+         INSERT INTO "OutboxEvent" (id, "eventType", payload, "createdAt", processed)
+         VALUES (gen_random_uuid()::text, ${eventType}, ${JSON.stringify(payload)}::jsonb, NOW(), false)
+       `;
+
       this.logger.debug(
         { eventType, userId: payload.userId, cartId: payload.cartId },
         'Event published to outbox after commit',
       );
     } catch (error: any) {
-      // Log but swallow - outbox failure should never affect cart operations
-      this.logger.warn(
-        { eventType, payload, error: error.message },
-        'Failed to publish event to outbox after commit (non-critical)',
-      );
-      return;
+      // Outbox write failed — store in AuditOutbox as fallback
+      try {
+        await this.prisma.auditOutbox.create({
+          data: {
+            payload: { eventType, payload, error: error.message, timestamp: new Date().toISOString() } as Prisma.InputJsonValue,
+            status: 'FAILED',
+          },
+        });
+        this.logger.warn(
+          { eventType, payload, error: error.message },
+          'Outbox write failed — event stored in AuditOutbox for retry (after commit)',
+        );
+      } catch (auditError: any) {
+        this.logger.error(
+          { eventType, error: error.message, auditError: auditError.message },
+          'Failed to store event in AuditOutbox after commit — event lost',
+        );
+        throw new Error('Event publish failed and fallback outbox write failed');
+      }
     }
   }
 
@@ -108,7 +132,7 @@ export class CartEventService {
       }
 
       const eventIds = events.map((e) => e.id);
-      
+
       // Mark as processed (in bulk)
       await this.prisma.$executeRaw`
         UPDATE "OutboxEvent"

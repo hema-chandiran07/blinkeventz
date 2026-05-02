@@ -57,27 +57,48 @@ async function bootstrap() {
     defaultVersion: '1',
   });
 
-  // ✅ Set global API prefix BEFORE route-specific middleware
-  app.setGlobalPrefix('api');
+   // ✅ Set global API prefix BEFORE route-specific middleware
+   app.setGlobalPrefix('api');
 
-  // FEATURE ADDED (SECURITY MED-08): Environment-conditional CORS origins
-  const corsOrigins = isProduction
-    ? [process.env.FRONTEND_URL].filter(Boolean)
-    : [
-      'http://localhost:3001',
-      'http://localhost:3000',
-      'http://127.0.0.1:3001',
-      'http://127.0.0.1:3000',
-      process.env.FRONTEND_URL || 'http://localhost:3001',
-    ];
+   // SECURITY (HIGH-03): Trust first proxy so req.ip reflects real client IP (X-Forwarded-For)
+   // Prevents rate-limit bypass via spoofed X-Forwarded-For
+   app.set('trust proxy', 1);
 
-  app.enableCors({
-    origin: corsOrigins as string[],
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'idempotency-key'],
-    exposedHeaders: ['Content-Type', 'Content-Length'],
-  });
+   // SECURITY: CORS origins — fail fast if FRONTEND_URL unset in production
+   const getCorsOrigins = (): string[] => {
+     if (isProduction) {
+       const frontendUrl = process.env.FRONTEND_URL;
+       if (!frontendUrl) {
+         throw new Error('FRONTEND_URL environment variable is required in production');
+       }
+       return [frontendUrl];
+     }
+     const devOrigins = [
+       'http://localhost:3001',
+       'http://localhost:3000',
+       'http://127.0.0.1:3001',
+       'http://127.0.0.1:3000',
+     ];
+     return process.env.FRONTEND_URL
+       ? [...devOrigins, process.env.FRONTEND_URL]
+       : devOrigins;
+   };
+
+   const allowedOrigins = getCorsOrigins();
+
+   app.enableCors({
+     origin: (origin: string, callback: (err: Error | null, allow?: boolean) => void) => {
+       if (!origin) return callback(null, true); // allow non-brower clients (Postman, etc.)
+       if (allowedOrigins.includes(origin)) {
+         return callback(null, true);
+       }
+       callback(new Error('Origin not allowed by CORS'));
+     },
+     credentials: true,
+     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'idempotency-key'],
+     exposedHeaders: ['Content-Type', 'Content-Length'],
+   });
 
   // Security: Helmet.js HTTP security headers
   app.use(

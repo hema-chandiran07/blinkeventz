@@ -115,65 +115,65 @@ import { SearchModule } from './search/search.module';
     // =====================================================
     // 3️⃣ REDIS CACHE (GLOBAL)
     // =====================================================
-     CacheModule.registerAsync({
-       isGlobal: true,
-       useFactory: () => {
-         // Use memory cache if Redis is unavailable
-         const useRedis = process.env.USE_REDIS !== 'false';
+    CacheModule.registerAsync({
+      isGlobal: true,
+      useFactory: () => {
+        // Use memory cache if Redis is unavailable
+        const useRedis = process.env.USE_REDIS !== 'false';
 
-         if (useRedis) {
-           const redis = new Redis({
-             host: process.env.REDIS_HOST || '127.0.0.1',
-             port: Number(process.env.REDIS_PORT) || 6379,
-             lazyConnect: true,
-             retryStrategy: (times) => Math.min(times * 50, 2000),
-           });
+        if (useRedis) {
+          const redis = new Redis({
+            host: process.env.REDIS_HOST || '127.0.0.1',
+            port: Number(process.env.REDIS_PORT) || 6379,
+            lazyConnect: true,
+            retryStrategy: (times) => Math.min(times * 50, 2000),
+          });
 
-           redis.on('error', (err) => {
-             console.log('⚠️  Redis connection error - falling back to memory cache');
-           });
+          redis.on('error', (err) => {
+            console.log('⚠️  Redis connection error - falling back to memory cache');
+          });
 
-           return {
-             store: {
-               get: async (key: string) => {
-                 const value = await redis.get(key);
-                 return value ? JSON.parse(value) : null;
-               },
-               set: async (key: string, value: any, ttl = 300) => {
-                 await redis.set(key, JSON.stringify(value), 'EX', ttl);
-               },
-               del: async (key: string) => {
-                 await redis.del(key);
-               },
-             },
-           };
-         }
+          return {
+            store: {
+              get: async (key: string) => {
+                const value = await redis.get(key);
+                return value ? JSON.parse(value) : null;
+              },
+              set: async (key: string, value: any, ttl = 300) => {
+                await redis.set(key, JSON.stringify(value), 'EX', ttl);
+              },
+              del: async (key: string) => {
+                await redis.del(key);
+              },
+            },
+          };
+        }
 
-         // Fallback to memory-only cache
-         const memoryStore = new Map<string, { value: any; expiry: number }>();
-         return {
-           store: {
-             get: async (key: string) => {
-               const item = memoryStore.get(key);
-               if (!item || item.expiry < Date.now()) {
-                 memoryStore.delete(key);
-                 return null;
-               }
-               return item.value;
-             },
-             set: async (key: string, value: any, ttl = 300) => {
-               memoryStore.set(key, { value, expiry: Date.now() + ttl * 1000 });
-             },
-             del: async (key: string) => {
-               memoryStore.delete(key);
-             },
-           },
-         };
-       },
-     }),
+        // Fallback to memory-only cache
+        const memoryStore = new Map<string, { value: any; expiry: number }>();
+        return {
+          store: {
+            get: async (key: string) => {
+              const item = memoryStore.get(key);
+              if (!item || item.expiry < Date.now()) {
+                memoryStore.delete(key);
+                return null;
+              }
+              return item.value;
+            },
+            set: async (key: string, value: any, ttl = 300) => {
+              memoryStore.set(key, { value, expiry: Date.now() + ttl * 1000 });
+            },
+            del: async (key: string) => {
+              memoryStore.delete(key);
+            },
+          },
+        };
+      },
+    }),
 
-     // Event Emitter for internal events
-     EventEmitterModule.forRoot(),
+    // Event Emitter for internal events
+    EventEmitterModule.forRoot(),
     // 🐂 BULLMQ (GLOBAL REDIS CONNECTION)
     BullModule.forRoot({
       redis: {
@@ -221,25 +221,25 @@ import { SearchModule } from './search/search.module';
     ContactModule,
     SearchModule,
   ],
-   // 🔐 GLOBAL SECURITY LAYER
-   providers: [
-     // MaintenanceGuard temporarily disabled for debugging
-     // {
-     //   provide: APP_GUARD,
-     //   useClass: MaintenanceGuard,
-     // },
-     {
-       provide: APP_GUARD,
-       useClass: CustomThrottlerGuard,
-     },
-     {
-       provide: APP_GUARD,
-       useClass: JwtAuthGuard,
-     },
-     {
-       provide: APP_GUARD,
-       useClass: RolesGuard,
-     },
-   ],
+  // 🔐 GLOBAL SECURITY LAYER
+  providers: [
+    // MaintenanceGuard temporarily disabled for debugging
+    // {
+    //   provide: APP_GUARD,
+    //   useClass: MaintenanceGuard,
+    // },
+    {
+      provide: APP_GUARD,
+      useClass: CustomThrottlerGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
+    },
+  ],
 })
 export class AppModule { }

@@ -519,45 +519,59 @@ export class PaymentsService {
     const TAX_RATE = this.cartCalculationService.getTaxRate();
     const createdEventIds: number[] = [];
 
+    // ============================================
+    // DEADLOCK PREVENTION: Acquire locks in deterministic order
+    // Lock all Venue rows first, then all VendorService rows
+    // ============================================
+    const venueItems = cart.items.filter((item: any) => item.venueId);
+    const vendorItems = cart.items.filter((item: any) => item.vendorServiceId);
+
+    // Lock all Venues in sorted ID order (consistent across transactions)
+    const uniqueVenueIds: number[] = Array.from(new Set(venueItems.map((item: any) => item.venueId as number))) as number[];
+    uniqueVenueIds.sort((a, b) => a - b);
+    for (const venueId of uniqueVenueIds) {
+      await tx.$queryRaw`SELECT * FROM "Venue" WHERE id = ${venueId} FOR UPDATE`;
+    }
+
+    // Lock all VendorServices in sorted ID order
+    const uniqueVendorIds: number[] = Array.from(new Set(vendorItems.map((item: any) => item.vendorServiceId as number))) as number[];
+    uniqueVendorIds.sort((a, b) => a - b);
+    for (const vendorServiceId of uniqueVendorIds) {
+      await tx.$queryRaw`SELECT * FROM "VendorService" WHERE id = ${vendorServiceId} FOR UPDATE`;
+    }
+
+    // Now process items in original order (locks already held)
     for (const item of cart.items) {
       const metaData = item.meta !== null && typeof item.meta === 'object'
         ? (item.meta as Record<string, unknown>) : {};
       const startTime = (metaData as any)?.startTime || null;
       const endTime = (metaData as any)?.endTime || null;
 
-      // FIX 1: Row-level lock and availability check to prevent double booking
-      if (item.venueId) {
-        // Lock the venue row to serialize concurrent bookings
-        await tx.$queryRaw`SELECT * FROM "Venue" WHERE id = ${item.venueId} FOR UPDATE`;
-        // Check for existing conflicting event only if date is provided
+      // Availability check (locks already held)
+      if (item.date) {
+        const existingEvent = await tx.event.findFirst({
+          where: {
+            venueId: item.venueId,
+            date: item.date,
+            timeSlot: item.timeSlot,
+          },
+        });
+        if (existingEvent) {
+          throw new BadRequestException(`Venue already booked for date ${item.date} slot ${item.timeSlot}`);
+        }
+      } else if (item.vendorServiceId) {
         if (item.date) {
           const existingEvent = await tx.event.findFirst({
             where: {
-              venueId: item.venueId,
+              vendorServiceId: item.vendorServiceId,
               date: item.date,
               timeSlot: item.timeSlot,
             },
           });
           if (existingEvent) {
-            throw new BadRequestException(`Venue already booked for date ${item.date} slot ${item.timeSlot}`);
+            throw new BadRequestException(`Vendor service already booked for date ${item.date} slot ${item.timeSlot}`);
           }
         }
-       } else if (item.vendorServiceId) {
-         // Lock the vendor service row
-         await tx.$queryRaw`SELECT * FROM "VendorService" WHERE id = ${item.vendorServiceId} FOR UPDATE`;
-         // Check for existing conflicting event only if date is provided
-         if (item.date) {
-           const existingEvent = await tx.event.findFirst({
-             where: {
-               vendorServiceId: item.vendorServiceId,
-               date: item.date,
-               timeSlot: item.timeSlot,
-             },
-           });
-           if (existingEvent) {
-             throw new BadRequestException(`Vendor service already booked for date ${item.date} slot ${item.timeSlot}`);
-           }
-         }
       }
 
       // FIX 2: Use Decimal for all financial calculations to avoid floating point errors
@@ -740,16 +754,31 @@ export class PaymentsService {
       }
         }
 
-        // Create events (status = QUOTED)
-        if (newStatus === PaymentStatus.CAPTURED && payment.cartId && payment.cartId > 0) {
-          const cartWithItems = await tx.cart.findUnique({
-            where: { id: payment.cartId },
-            include: { items: true },
-          });
-          if (cartWithItems) {
-            createdEventIds = await this.createEventsFromCart(tx, payment, cartWithItems, requestId || 'webhook');
-          }
-        }
+         // Create events (status = QUOTED) only if not already processed to this stage
+         if (newStatus === PaymentStatus.CAPTURED && payment.cartId && payment.cartId > 0) {
+           // Check if events already exist to ensure idempotency
+           const existingEventsCount = await tx.event.count({
+             where: {
+               userId: payment.userId,
+             },
+           });
+           if (existingEventsCount === 0) {
+             const cartWithItems = await tx.cart.findUnique({
+               where: { id: payment.cartId },
+               include: { items: true },
+             });
+             if (cartWithItems) {
+               createdEventIds = await this.createEventsFromCart(tx, payment, cartWithItems, requestId || 'webhook');
+             }
+           } else {
+             this.logger.warn({
+               event: 'EVENTS_ALREADY_EXIST',
+               paymentId: payment.id,
+               cartId: payment.cartId,
+               message: 'Skipping event creation — events already exist for this cart',
+             });
+           }
+         }
 
         // Create audit event
         await tx.paymentEvent.create({

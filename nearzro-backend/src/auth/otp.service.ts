@@ -1,10 +1,11 @@
-import { Injectable, BadRequestException, InternalServerErrorException, Logger, UnauthorizedException, ForbiddenException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { ConfigService } from '@nestjs/config';
-import * as crypto from 'crypto';
-import { EmailProvider } from '../notifications/providers/email.provider';
-import Twilio from 'twilio';
-import * as bcrypt from 'bcrypt';
+   import { Injectable, BadRequestException, InternalServerErrorException, Logger, UnauthorizedException, ForbiddenException } from '@nestjs/common';
+   import { PrismaService } from '../prisma/prisma.service';
+   import { ConfigService } from '@nestjs/config';
+   import * as crypto from 'crypto';
+   import { EmailProvider } from '../notifications/providers/email.provider';
+   import Twilio from 'twilio';
+   import * as bcrypt from 'bcrypt';
+   import { CircuitBreaker } from '../notifications/utils/circuit-breaker';
 
 @Injectable()
 export class OtpService {
@@ -17,37 +18,54 @@ export class OtpService {
   private twilioSmsFrom: string = '';
   private isDevMode: boolean = false;
 
-  constructor(
-    private prisma: PrismaService,
-    private config: ConfigService,
-    private emailProvider: EmailProvider,
-  ) {
-    this.gmailUser = this.config.get<string>('GMAIL_USER') || '';
-    this.gmailAppPassword = this.config.get<string>('GMAIL_APP_PASSWORD') || '';
-    this.emailFrom = this.config.get<string>('EMAIL_FROM') || 'no-reply@NearZro.com';
-    this.appEnv = this.config.get<string>('APP_ENV') || process.env.NODE_ENV || 'development';
-    this.isDevMode = this.appEnv === 'development';
-    
-    if (this.isDevMode) {
-      this.logger.log('🔧 Development mode - OTP verbose logging enabled');
-    }
+  // Circuit breakers for external providers
+  private readonly emailBreaker: CircuitBreaker;
+  private readonly smsBreaker: CircuitBreaker;
 
-    // Initialize Twilio client
-    const twilioSid = this.config.get<string>('TWILIO_ACCOUNT_SID') || '';
-    const twilioToken = this.config.get<string>('TWILIO_AUTH_TOKEN') || '';
-    this.twilioSmsFrom = this.config.get<string>('TWILIO_SMS_FROM') || '';
-    
-    if (twilioSid && twilioToken) {
-      try {
-        this.twilioClient = Twilio(twilioSid, twilioToken);
-        this.logger.log('✅ Twilio client initialized for SMS');
-      } catch (error) {
-        this.logger.error('❌ Failed to initialize Twilio client:', error);
-      }
-    } else {
-      this.logger.warn('⚠️ Twilio credentials not configured');
-    }
-  }
+   constructor(
+     private prisma: PrismaService,
+     private config: ConfigService,
+     private emailProvider: EmailProvider,
+   ) {
+     this.gmailUser = this.config.get<string>('GMAIL_USER') || '';
+     this.gmailAppPassword = this.config.get<string>('GMAIL_APP_PASSWORD') || '';
+     this.emailFrom = this.config.get<string>('EMAIL_FROM') || 'no-reply@NearZro.com';
+     this.appEnv = this.config.get<string>('APP_ENV') || process.env.NODE_ENV || 'development';
+     this.isDevMode = this.appEnv === 'development';
+
+     if (this.isDevMode) {
+       this.logger.log('🔧 Development mode - OTP verbose logging enabled');
+     }
+
+     // Initialize Twilio client
+     const twilioSid = this.config.get<string>('TWILIO_ACCOUNT_SID') || '';
+     const twilioToken = this.config.get<string>('TWILIO_AUTH_TOKEN') || '';
+     this.twilioSmsFrom = this.config.get<string>('TWILIO_SMS_FROM') || '';
+
+     if (twilioSid && twilioToken) {
+       try {
+         this.twilioClient = Twilio(twilioSid, twilioToken);
+         this.logger.log('✅ Twilio client initialized for SMS');
+       } catch (error) {
+         this.logger.error('❌ Failed to initialize Twilio client:', error);
+       }
+     } else {
+       this.logger.warn('⚠️ Twilio credentials not configured');
+     }
+
+     // Initialize circuit breakers
+     this.emailBreaker = new CircuitBreaker({
+       threshold: 5,
+       timeout: 30000,
+       name: 'OTP-Email',
+     });
+
+     this.smsBreaker = new CircuitBreaker({
+       threshold: 5,
+       timeout: 30000,
+       name: 'OTP-SMS',
+     });
+   }
 
   /**
    * Generate and send OTP via Email/SMS
@@ -110,7 +128,7 @@ export class OtpService {
     // Send OTP via email and/or SMS
     try {
       if (email) {
-        await this.sendEmail(email, otp);
+        await this.emailBreaker.execute(() => this.sendEmail(email, otp));
       }
     } catch (error: any) {
       if (this.isDevMode) {
@@ -122,7 +140,7 @@ export class OtpService {
 
     if (phone) {
       try {
-        await this.sendSms(phone, otp);
+        await this.smsBreaker.execute(() => this.sendSms(phone, otp));
       } catch (error: any) {
         if (this.isDevMode) {
           this.logger.warn(`[DEV] SMS send failed: ${error.message} - OTP still sent via email`);

@@ -159,17 +159,16 @@ export class DatabaseStorageService {
         throw new BadRequestException(`Domain not allowed: ${hostname}`);
       }
 
-      // Resolve hostname to IP address
-      const addresses = await dnsPromises.lookup(hostname, {
-        family: 4, // IPv4 only
-      });
-      const ip = addresses.address;
+       // Resolve hostname to ALL IPv4 addresses (defense against DNS rebinding)
+       const addresses = await dnsPromises.resolve4(hostname);
 
-      // Check against blocked private IP ranges
-      const isBlocked = BLOCKED_IP_RANGES.some(regex => regex.test(ip));
-      if (isBlocked) {
-        throw new BadRequestException('Access to private IP ranges is blocked');
-      }
+       // Check ALL resolved addresses against blocked ranges
+       for (const ip of addresses) {
+         const isBlocked = BLOCKED_IP_RANGES.some(regex => regex.test(ip));
+         if (isBlocked) {
+           throw new BadRequestException('Access to private IP ranges is blocked');
+         }
+       }
 
       return true;
     } catch (error: any) {

@@ -373,21 +373,21 @@ model Booking {
 }
 
 model Cart {
-  id        Int        @id @default(autoincrement())
-  userId    Int
-  status    CartStatus @default(ACTIVE)
-  isExpress Boolean   @default(false)
-  expressFee Int      @default(0)
-  expiresAt DateTime?
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items     CartItem[]
-  Payment   Payment[]
+   id        Int        @id @default(autoincrement())
+   userId    Int
+   status    CartStatus @default(ACTIVE)
+   isExpress Boolean   @default(false)
+   expressFee Int      @default(0)
+   expiresAt DateTime?
+   createdAt DateTime   @default(now())
+   updatedAt DateTime   @updatedAt
+   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+   items     CartItem[]
+   Payment   Payment[]
 
-  @@index([userId])
-  @@index([status])
-}
+   @@index([userId])
+   @@index([status])
+ }
 
 model CartItem {
   id              Int            @id @default(autoincrement())

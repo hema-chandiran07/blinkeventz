@@ -36,7 +36,7 @@ export class AuthService {
     private databaseStorageService: DatabaseStorageService,
     private emailProvider: EmailProvider,
     @Inject(CACHE_MANAGER) private cacheManager: any,
-  ) {}
+  ) { }
 
   /**
    * Hybrid Staging Pattern: Upload files to S3 if AWS keys exist, otherwise store as Base64 in DB
@@ -109,7 +109,7 @@ export class AuthService {
     } catch (error: any) {
       if (error?.code === 'P2002') {
         const fields = error?.meta?.target as string[];
-        
+
         if (fields?.includes('email')) {
           throw new BadRequestException('This email is already registered. Please use a different email.');
         }
@@ -124,7 +124,7 @@ export class AuthService {
         }
         throw new BadRequestException('An account with these details already exists.');
       }
-      
+
       throw new BadRequestException('Registration failed. Please check your details and try again.');
     }
 
@@ -247,7 +247,7 @@ export class AuthService {
       const venue = await this.prisma.venue.create({
         data: {
           ownerId: existingUser.id,
-          username: dto.name, 
+          username: dto.name,
           name: dto.venueName,
           type: dto.venueType as any,
           description: dto.description,
@@ -265,7 +265,7 @@ export class AuthService {
           kycDocType: kycDocType,
           kycDocNumber: kycDocNumber,
           kycDocFiles: kycDocUrls || [],
-          venueGovtCertificateFiles: govtCertUrls || [], 
+          venueGovtCertificateFiles: govtCertUrls || [],
           photos: {
             create: venueImageUrls.map((url, index) => ({
               url,
@@ -312,7 +312,7 @@ export class AuthService {
 
     // Create NEW user with VENUE_OWNER role
     const hashedPassword = await bcrypt.hash(dto.password, 10);
-    
+
     try {
       const result = await this.prisma.$transaction(async (tx) => {
         const user = await tx.user.create({
@@ -506,34 +506,34 @@ export class AuthService {
         },
       });
 
-       // Generate token with profile flags
-        const tokens = await this.generateTokens({
+      // Generate token with profile flags
+      const tokens = await this.generateTokens({
+        id: existingUser.id,
+        email: existingUser.email!,
+        role: existingUser.role,
+        hasVendorProfile: true,
+        hasVenueProfile: existingUser.venues && existingUser.venues.length > 0,
+      });
+
+      return {
+        user: {
           id: existingUser.id,
-          email: existingUser.email!,
+          name: existingUser.name,
+          email: existingUser.email,
           role: existingUser.role,
+          isEmailVerified: existingUser.isEmailVerified,
           hasVendorProfile: true,
           hasVenueProfile: existingUser.venues && existingUser.venues.length > 0,
-        });
-
-       return {
-         user: {
-           id: existingUser.id,
-           name: existingUser.name,
-           email: existingUser.email,
-           role: existingUser.role,
-           isEmailVerified: existingUser.isEmailVerified,
-           hasVendorProfile: true,
-           hasVenueProfile: existingUser.venues && existingUser.venues.length > 0,
-         },
-         token: tokens.accessToken,
-         requiresOtp: !existingUser.isEmailVerified,
-         message: 'Vendor profile added successfully. Please verify your email with OTP.',
-       };
+        },
+        token: tokens.accessToken,
+        requiresOtp: !existingUser.isEmailVerified,
+        message: 'Vendor profile added successfully. Please verify your email with OTP.',
+      };
     }
 
     // Create NEW user with VENDOR role
     const hashedPassword = await bcrypt.hash(dto.password, 10);
-    
+
     try {
       const result = await this.prisma.$transaction(async (tx) => {
         const user = await tx.user.create({
@@ -607,28 +607,28 @@ export class AuthService {
         return { user, vendor };
       });
 
-        const tokens = await this.generateTokens({
+      const tokens = await this.generateTokens({
+        id: result.user.id,
+        email: result.user.email!,
+        role: result.user.role,
+        hasVendorProfile: true,
+        hasVenueProfile: false,
+      });
+
+      return {
+        user: {
           id: result.user.id,
-          email: result.user.email!,
+          name: result.user.name,
+          email: result.user.email,
           role: result.user.role,
+          isEmailVerified: false,
           hasVendorProfile: true,
           hasVenueProfile: false,
-        });
-
-       return {
-         user: {
-           id: result.user.id,
-           name: result.user.name,
-           email: result.user.email,
-           role: result.user.role,
-           isEmailVerified: false,
-           hasVendorProfile: true,
-           hasVenueProfile: false,
-         },
-         token: tokens.accessToken,
-         requiresOtp: true,
-         message: 'Registration successful. Please verify your email with OTP.',
-       };
+        },
+        token: tokens.accessToken,
+        requiresOtp: true,
+        message: 'Registration successful. Please verify your email with OTP.',
+      };
     } catch (error: any) {
       console.error('Vendor registration failed:', error.message);
       if (error?.code === 'P2002') {
@@ -764,14 +764,14 @@ export class AuthService {
       throw new NotFoundException('No account found with this email address.');
     }
 
-    const plainOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpiry = new Date(Date.now() + 15 * 60 * 1000); 
+    const plainOtp = crypto.randomInt(100000, 1000000).toString();
+    const otpExpiry = new Date(Date.now() + 15 * 60 * 1000);
     const otpHash = await bcrypt.hash(plainOtp, 10);
 
     await this.prisma.user.update({
       where: { id: user.id },
       data: {
-        passwordResetToken: otpHash, 
+        passwordResetToken: otpHash,
         passwordResetExpiry: otpExpiry,
       },
     });
@@ -852,7 +852,7 @@ export class AuthService {
     return { success: true, message: 'Password reset successfully.' };
   }
 
-   async sendOtp(email: string, phone?: string, ip?: string) { return this.otpService.sendOtp(email, phone, ip); }
+  async sendOtp(email: string, phone?: string, ip?: string) { return this.otpService.sendOtp(email, phone, ip); }
   async verifyOtp(email: string, otp: string) { return this.otpService.verifyOtp(email, otp); }
 
   async checkEmailExists(email: string): Promise<boolean> {
@@ -925,7 +925,10 @@ export class AuthService {
     }
 
     if (!user) {
-      const userRole = intendedRole ? (intendedRole as Role) : Role.CUSTOMER;
+      const allowedRoles: Role[] = [Role.VENDOR, Role.VENUE_OWNER];
+      const userRole = intendedRole && allowedRoles.includes(intendedRole as Role)
+        ? (intendedRole as Role)
+        : Role.CUSTOMER;
       const createData = isGoogle
         ? { email: oauthUser.email, name: oauthUser.name, googleId: oauthId, role: userRole, passwordHash: null, isEmailVerified: true }
         : { email: oauthUser.email, name: oauthUser.name, facebookId: oauthId, role: userRole, passwordHash: null, isEmailVerified: true };
@@ -951,7 +954,10 @@ export class AuthService {
     const vendor = user.vendor || await this.prisma.vendor.findUnique({ where: { userId: user.id } });
     const venues = user.venues || await this.prisma.venue.findMany({ where: { ownerId: user.id } });
 
-    const finalRole = intendedRole ? (intendedRole as Role) : user.role;
+    const allowedRoles: Role[] = [Role.VENDOR, Role.VENUE_OWNER];
+    const finalRole = intendedRole && allowedRoles.includes(intendedRole as Role)
+      ? (intendedRole as Role)
+      : user.role;
 
     const tokens = await this.generateTokens({
       id: user.id,
