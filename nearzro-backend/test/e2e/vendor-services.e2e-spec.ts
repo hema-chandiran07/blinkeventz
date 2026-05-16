@@ -151,7 +151,7 @@ describe('VendorServices E2E Tests', () => {
     it('should create service with minimum required fields', async () => {
       const createServiceDto = {
         name: 'Minimal Service',
-        serviceType: 'DECORATION',
+        serviceType: 'DECOR_RENTALS',
         baseRate: 5000,
         pricingModel: 'PER_EVENT',
         minGuests: 10,
@@ -176,7 +176,7 @@ describe('VendorServices E2E Tests', () => {
       service = await prisma.vendorService.create({
         data: {
           vendorId: vendor.id,
-          serviceName: 'Inactive Service',
+          name: 'Inactive Service',
           serviceType: 'CATERING',
           baseRate: 5000,
           pricingModel: 'PER_EVENT',
@@ -226,7 +226,7 @@ describe('VendorServices E2E Tests', () => {
         data: [
           {
             vendorId: vendor.id,
-            serviceName: 'Service 1',
+            name: 'Service 1',
             serviceType: 'CATERING',
             baseRate: 5000,
             pricingModel: 'PER_EVENT',
@@ -236,8 +236,8 @@ describe('VendorServices E2E Tests', () => {
           },
           {
             vendorId: vendor.id,
-            serviceName: 'Service 2',
-            serviceType: 'DECORATION',
+            name: 'Service 2',
+            serviceType: 'DECOR_RENTALS',
             baseRate: 3000,
             pricingModel: 'PER_EVENT',
             minGuests: 10,
@@ -293,7 +293,7 @@ describe('VendorServices E2E Tests', () => {
 
     it('should reject missing baseRate', async () => {
       const createServiceDto = {
-        serviceName: 'Test Service',
+        name: 'Test Service',
         serviceType: 'CATERING',
         pricingModel: 'PER_EVENT',
         minGuests: 10,
@@ -311,7 +311,7 @@ describe('VendorServices E2E Tests', () => {
 
     it('should reject negative baseRate', async () => {
       const createServiceDto = {
-        serviceName: 'Test Service',
+        name: 'Test Service',
         serviceType: 'CATERING',
         baseRate: -1000,
         pricingModel: 'PER_EVENT',
@@ -330,7 +330,7 @@ describe('VendorServices E2E Tests', () => {
 
     it('should reject minGuests > maxGuests', async () => {
       const createServiceDto = {
-        serviceName: 'Test Service',
+        name: 'Test Service',
         serviceType: 'CATERING',
         baseRate: 5000,
         pricingModel: 'PER_EVENT',
@@ -349,7 +349,7 @@ describe('VendorServices E2E Tests', () => {
 
     it('should reject invalid serviceType', async () => {
       const createServiceDto = {
-        serviceName: 'Test Service',
+        name: 'Test Service',
         serviceType: 'INVALID_TYPE',
         baseRate: 5000,
         pricingModel: 'PER_EVENT',
@@ -403,7 +403,7 @@ describe('VendorServices E2E Tests', () => {
       otherService = await prisma.vendorService.create({
         data: {
           vendorId: otherVendor.id,
-          serviceName: 'Other Service',
+          name: 'Other Service',
           serviceType: 'CATERING',
           baseRate: 8000,
           pricingModel: 'PER_EVENT',
@@ -457,7 +457,7 @@ describe('VendorServices E2E Tests', () => {
       service = await prisma.vendorService.create({
         data: {
           vendorId: vendor.id,
-          serviceName: 'Test Service',
+          name: 'Test Service',
           serviceType: 'CATERING',
           baseRate: 5000,
           pricingModel: 'PER_EVENT',
@@ -470,8 +470,8 @@ describe('VendorServices E2E Tests', () => {
 
     it('should allow vendor to create service', async () => {
       const createServiceDto = {
-        serviceName: 'New Service',
-        serviceType: 'DECORATION',
+        name: 'New Service',
+        serviceType: 'DECOR_RENTALS',
         baseRate: 3000,
         pricingModel: 'PER_EVENT',
         minGuests: 10,
@@ -487,8 +487,8 @@ describe('VendorServices E2E Tests', () => {
 
     it('should deny customer to create service', async () => {
       const createServiceDto = {
-        serviceName: 'New Service',
-        serviceType: 'DECORATION',
+        name: 'New Service',
+        serviceType: 'DECOR_RENTALS',
         baseRate: 3000,
         pricingModel: 'PER_EVENT',
         minGuests: 10,
@@ -518,7 +518,7 @@ describe('VendorServices E2E Tests', () => {
   describe('EDGE CASE: Extreme Values', () => {
     it('should handle very large baseRate', async () => {
       const createServiceDto = {
-        serviceName: 'Expensive Service',
+        name: 'Expensive Service',
         serviceType: 'CATERING',
         baseRate: 10000000,
         pricingModel: 'PER_EVENT',
@@ -556,7 +556,7 @@ describe('VendorServices E2E Tests', () => {
 
     it('should handle zero minGuests and maxGuests', async () => {
       const createServiceDto = {
-        serviceName: 'Any Size Service',
+        name: 'Any Size Service',
         serviceType: 'CATERING',
         baseRate: 5000,
         pricingModel: 'PER_EVENT',

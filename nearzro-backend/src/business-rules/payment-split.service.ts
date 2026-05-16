@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Decimal } from '@prisma/client/runtime/library';
 import { CommissionService, CommissionBreakdown } from './commission.service';
+import { SettingsService } from '../settings/settings.service';
 
 /**
  * Payment Split Engine
@@ -47,10 +48,13 @@ export class PaymentSplitService {
     processingFeeFixed: 3,      // Rs. 3 fixed fee per transaction
   };
 
-  constructor(private readonly commissionService: CommissionService) {}
+  constructor(
+    private readonly commissionService: CommissionService,
+    private readonly settingsService: SettingsService,
+  ) {}
 
   /**
-   * Calculate payment split for a booking with vendor service
+   * Calculate payment split for a vendor booking
    */
   async calculateVendorBookingSplit(
     totalAmount: Decimal,
@@ -60,7 +64,14 @@ export class PaymentSplitService {
     const breakdown: string[] = [];
     const totalAmountNum = totalAmount.toNumber();
 
-    // 1. Calculate platform commission
+    // Fetch platform settings for GST and TDS rates
+    const settings = await this.settingsService.getPlatformSettings();
+    const gstRate = settings.gstPercent.toNumber() / 100;
+    const tdsRate = settings.tdsPercent.toNumber() / 100;
+
+    // FIX 7: Apply ROUND_HALF_EVEN after each arithmetic operation
+
+    // 1. Calculate platform commission (already rounded in commission service)
     const commission = await this.commissionService.calculateVendorCommission(
       vendorId,
       serviceType,
@@ -69,43 +80,57 @@ export class PaymentSplitService {
     const platformCommission = commission.commissionAmount;
     breakdown.push(`Platform commission (${(commission.commissionRate * 100).toFixed(1)}%): -₹${platformCommission}`);
 
-    // 2. Calculate vendor share (amount after commission)
+    // 2. Calculate vendor share (already rounded)
     const vendorShare = commission.netAmount;
     breakdown.push(`Vendor share: ₹${vendorShare}`);
 
     // 3. Calculate GST on platform commission
-    const gst = platformCommission.mul(new Decimal(this.config.gstRate));
-    breakdown.push(`GST on commission (${(this.config.gstRate * 100).toFixed(0)}%): ₹${gst}`);
+    const gst = platformCommission
+      .mul(new Decimal(gstRate))
+      .toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN);
+    breakdown.push(`GST on commission (${(gstRate * 100).toFixed(0)}%): ₹${gst}`);
 
     // 4. Calculate TDS (deducted from vendor payout)
-    const tds = vendorShare.mul(new Decimal(this.config.tdsRate));
-    breakdown.push(`TDS (${(this.config.tdsRate * 100).toFixed(0)}%): -₹${tds}`);
+    const tds = vendorShare
+      .mul(new Decimal(tdsRate))
+      .toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN);
+    breakdown.push(`TDS (${(tdsRate * 100).toFixed(0)}%): -₹${tds}`);
 
     // 5. Calculate payment processing fee
-    const processingFee = totalAmount.mul(new Decimal(this.config.processingFeeRate))
-      .add(new Decimal(this.config.processingFeeFixed));
+    const processingFeeBase = totalAmount
+      .mul(new Decimal(this.config.processingFeeRate))
+      .toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN);
+    const processingFee = processingFeeBase
+      .add(new Decimal(this.config.processingFeeFixed))
+      .toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN);
     breakdown.push(`Processing fee: -₹${processingFee}`);
 
     // 6. Calculate net payout to vendor
-    const netPayout = vendorShare.sub(tds);
+    const netPayout = vendorShare
+      .sub(tds)
+      .toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN);
     breakdown.push(`Net vendor payout: ₹${netPayout}`);
 
     // 7. Calculate platform revenue
-    const platformRevenue = platformCommission.add(gst).add(processingFee);
+    const platformRevenue = platformCommission
+      .add(gst)
+      .toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN)
+      .add(processingFee)
+      .toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN);
     breakdown.push(`Platform revenue: ₹${platformRevenue}`);
 
     const result: PaymentSplit = {
-      totalAmount,
-      platformCommission: platformCommission.toDecimalPlaces(2),
+      totalAmount: totalAmount.toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN),
+      platformCommission: platformCommission.toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN),
       platformCommissionRate: commission.commissionRate,
-      vendorShare: vendorShare.toDecimalPlaces(2),
+      vendorShare: vendorShare.toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN),
       venueShare: new Decimal(0), // No venue in this split
-      tax: gst.toDecimalPlaces(2),
-      taxRate: this.config.gstRate,
-      tds: tds.toDecimalPlaces(2),
-      tdsRate: this.config.tdsRate,
-      processingFee: processingFee.toDecimalPlaces(2),
-      netPayout: netPayout.toDecimalPlaces(2),
+      tax: gst.toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN),
+      taxRate: gstRate,
+      tds: tds.toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN),
+      tdsRate,
+      processingFee: processingFee.toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN),
+      netPayout: netPayout.toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN),
       breakdown,
     };
 
@@ -123,6 +148,11 @@ export class PaymentSplitService {
   ): Promise<PaymentSplit> {
     const breakdown: string[] = [];
 
+    // Fetch platform settings for GST and TDS rates
+    const settings = await this.settingsService.getPlatformSettings();
+    const gstRate = settings.gstPercent.toNumber() / 100;
+    const tdsRate = settings.tdsPercent.toNumber() / 100;
+
     // 1. Calculate platform commission for venue
     const commission = await this.commissionService.calculateVenueCommission(
       venueId,
@@ -136,38 +166,52 @@ export class PaymentSplitService {
     breakdown.push(`Venue share: ₹${venueShare}`);
 
     // 3. Calculate GST on platform commission
-    const gst = platformCommission.mul(new Decimal(this.config.gstRate));
-    breakdown.push(`GST on commission (${(this.config.gstRate * 100).toFixed(0)}%): ₹${gst}`);
+    const gst = platformCommission
+      .mul(new Decimal(gstRate))
+      .toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN);
+    breakdown.push(`GST on commission (${(gstRate * 100).toFixed(0)}%): ₹${gst}`);
 
     // 4. Calculate TDS (deducted from venue payout)
-    const tds = venueShare.mul(new Decimal(this.config.tdsRate));
-    breakdown.push(`TDS (${(this.config.tdsRate * 100).toFixed(0)}%): -₹${tds}`);
+    const tds = venueShare
+      .mul(new Decimal(tdsRate))
+      .toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN);
+    breakdown.push(`TDS (${(tdsRate * 100).toFixed(0)}%): -₹${tds}`);
 
     // 5. Calculate payment processing fee
-    const processingFee = totalAmount.mul(new Decimal(this.config.processingFeeRate))
-      .add(new Decimal(this.config.processingFeeFixed));
+    const processingFeeBase = totalAmount
+      .mul(new Decimal(this.config.processingFeeRate))
+      .toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN);
+    const processingFee = processingFeeBase
+      .add(new Decimal(this.config.processingFeeFixed))
+      .toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN);
     breakdown.push(`Processing fee: -₹${processingFee}`);
 
     // 6. Calculate net payout to venue
-    const netPayout = venueShare.sub(tds);
+    const netPayout = venueShare
+      .sub(tds)
+      .toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN);
     breakdown.push(`Net venue payout: ₹${netPayout}`);
 
     // 7. Calculate platform revenue
-    const platformRevenue = platformCommission.add(gst).add(processingFee);
+    const platformRevenue = platformCommission
+      .add(gst)
+      .toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN)
+      .add(processingFee)
+      .toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN);
     breakdown.push(`Platform revenue: ₹${platformRevenue}`);
 
     const result: PaymentSplit = {
-      totalAmount,
-      platformCommission: platformCommission.toDecimalPlaces(2),
+      totalAmount: totalAmount.toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN),
+      platformCommission: platformCommission.toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN),
       platformCommissionRate: commission.commissionRate,
       vendorShare: new Decimal(0), // No vendor in this split
-      venueShare: venueShare.toDecimalPlaces(2),
-      tax: gst.toDecimalPlaces(2),
-      taxRate: this.config.gstRate,
-      tds: tds.toDecimalPlaces(2),
-      tdsRate: this.config.tdsRate,
-      processingFee: processingFee.toDecimalPlaces(2),
-      netPayout: netPayout.toDecimalPlaces(2),
+      venueShare: venueShare.toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN),
+      tax: gst.toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN),
+      taxRate: gstRate,
+      tds: tds.toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN),
+      tdsRate,
+      processingFee: processingFee.toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN),
+      netPayout: netPayout.toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN),
       breakdown,
     };
 
@@ -195,10 +239,26 @@ export class PaymentSplitService {
     const venueSplit = await this.calculateVenueBookingSplit(venueAmount, venueId);
     const vendorSplit = await this.calculateVendorBookingSplit(vendorAmount, vendorId, serviceType);
 
-    // Combine for total
+    // Combine for total with strict rounding after each addition
+    const totalPlatformCommission = venueSplit.platformCommission
+      .add(vendorSplit.platformCommission)
+      .toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN);
+    const totalTax = venueSplit.tax
+      .add(vendorSplit.tax)
+      .toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN);
+    const totalTds = venueSplit.tds
+      .add(vendorSplit.tds)
+      .toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN);
+    const totalProcessingFee = venueSplit.processingFee
+      .add(vendorSplit.processingFee)
+      .toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN);
+    const totalNetPayout = venueSplit.netPayout
+      .add(vendorSplit.netPayout)
+      .toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN);
+
     const totalBreakdown: string[] = [
       '=== COMBINED BOOKING SPLIT ===',
-      `Total amount: ₹${totalAmount}`,
+      `Total amount: ₹${totalAmount.toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN)}`,
       '',
       '--- Venue Component ---',
       ...venueSplit.breakdown,
@@ -208,17 +268,17 @@ export class PaymentSplitService {
     ];
 
     const totalSplit: PaymentSplit = {
-      totalAmount,
-      platformCommission: venueSplit.platformCommission.add(vendorSplit.platformCommission).toDecimalPlaces(2),
+      totalAmount: totalAmount.toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN),
+      platformCommission: totalPlatformCommission,
       platformCommissionRate: (venueSplit.platformCommissionRate + vendorSplit.platformCommissionRate) / 2,
       vendorShare: vendorSplit.vendorShare,
       venueShare: venueSplit.venueShare,
-      tax: venueSplit.tax.add(vendorSplit.tax).toDecimalPlaces(2),
+      tax: totalTax,
       taxRate: this.config.gstRate,
-      tds: venueSplit.tds.add(vendorSplit.tds).toDecimalPlaces(2),
+      tds: totalTds,
       tdsRate: this.config.tdsRate,
-      processingFee: venueSplit.processingFee.add(vendorSplit.processingFee).toDecimalPlaces(2),
-      netPayout: venueSplit.netPayout.add(vendorSplit.netPayout).toDecimalPlaces(2),
+      processingFee: totalProcessingFee,
+      netPayout: totalNetPayout,
       breakdown: totalBreakdown,
     };
 

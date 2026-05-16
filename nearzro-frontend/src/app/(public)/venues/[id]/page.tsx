@@ -177,15 +177,12 @@ function VenueDetailContent() {
         city: venue.city,
         area: venue.area,
       },
-      cartId: 0,
       venueId: venue.id,
-      vendorServiceId: null,
-      addonId: null,
-      date: null,
+      vendorServiceId: undefined,
+      addonId: undefined,
+      date: undefined,
       timeSlot: selectedPackage.toUpperCase(),
       quantity: 1,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
     } as any);
 
     toast.success(`${venue.name} added to cart!`, {

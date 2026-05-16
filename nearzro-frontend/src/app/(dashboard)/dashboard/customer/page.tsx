@@ -77,12 +77,12 @@ export default function CustomerDashboardPage() {
     try {
       setLoading(true);
       
-      const statsResponse = await api.get("/dashboard/customer/stats", { signal });
-      const eventsResponse = await api.get("/events/my", { signal });
-      
-      const statsData = statsResponse?.data;
-      const eventsData = extractArray<Event>(eventsResponse);
-      setEvents(eventsData);
+       const statsResponse = await api.get("/dashboard/customer/stats", { signal });
+       const eventsResponse = await api.get("/events/my", { signal });
+       
+       const statsData = statsResponse?.data;
+       const eventsData = Array.isArray(eventsResponse.data) ? eventsResponse.data as Event[] : [];
+       setEvents(eventsData);
 
       setStats({
         totalEvents: statsData?.totalEvents ?? eventsData?.length ?? 0,

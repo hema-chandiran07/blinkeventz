@@ -139,11 +139,11 @@ export default function UsersReportPage() {
       setReportData(response.data);
 
       // Calculate stats from report data
-      const totalUsers = response.data.total || 0;
-      const activeUsers = response.data.data.filter(u => u.isActive).length;
+        const totalUsers = response.data.total || 0;
+        const activeUsers = response.data.data.filter(u => u.isActive).length;
 
-      // Calculate role distribution
-      const roleCounts = response.data.data.reduce((acc, user) => {
+        // Calculate role distribution
+        const roleCounts = response.data.data.reduce((acc, user) => {
         acc[user.role] = (acc[user.role] || 0) + 1;
         return acc;
       }, {} as Record<string, number>);
@@ -151,7 +151,7 @@ export default function UsersReportPage() {
       const distribution = Object.entries(roleCounts).map(([role, count]) => ({
         role: ROLE_LABELS[role] || role,
         count,
-        percentage: Math.round((count / response.data.data.length) * 100) || 0,
+         percentage: Math.round((count / response.data.data.length) * 100) || 0,
       })).sort((a, b) => b.count - a.count);
 
       setRoleDistribution(distribution);
@@ -160,13 +160,13 @@ export default function UsersReportPage() {
         totalUsers,
         growth: computeGrowthRate(response.data),
         activeUsers,
-        newUsers: response.data.data.filter(u => {
+         newUsers: response.data.data.filter(u => {
           const joinedDate = new Date(u.createdAt);
           const thirtyDaysAgo = new Date();
           thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
           return joinedDate > thirtyDaysAgo;
         }).length,
-        retentionRate: computeRetentionRate(response.data.data),
+         retentionRate: computeRetentionRate(response.data.data),
       });
     } catch (error: any) {
       console.error("Failed to load users report:", error);
@@ -236,8 +236,8 @@ export default function UsersReportPage() {
 
   const filteredUsers = reportData?.data.filter(user => {
     const matchesSearch =
-      user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase());
+      (user.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (user.email?.toLowerCase() || '').includes(searchTerm.toLowerCase());
     return matchesSearch;
   }) || [];
 

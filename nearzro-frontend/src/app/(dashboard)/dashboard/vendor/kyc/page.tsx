@@ -101,9 +101,9 @@ export default function VendorKycPage() {
 
   const loadBankDetails = async () => {
     try {
-      const response = await api.get("/bank-account/vendor");
-      // Handle both { success: true, data: {...} } and direct object responses
-      const bankData = response.data?.data || response.data;
+       const response = await api.get("/bank-account/vendor");
+       // Handle both envelope and direct object responses
+       const bankData = response.data;
       if (bankData) {
         setBankDetails(bankData);
         setBankFormData({

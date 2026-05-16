@@ -1,4 +1,4 @@
-import { IsInt, IsOptional, IsString, Min, Max, IsNotEmpty } from 'class-validator';
+import { IsInt, IsOptional, IsString, Min, Max, IsNotEmpty, MaxLength } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateReviewDto {
@@ -27,10 +27,12 @@ export class CreateReviewDto {
   @ApiProperty({ example: 'Great experience!', required: false })
   @IsString()
   @IsOptional()
+  @MaxLength(255, { message: 'title must not exceed 255 characters' })
   title?: string;
 
   @ApiProperty({ example: 'The venue was amazing and staff was very helpful...', required: false })
   @IsString()
   @IsOptional()
+  @MaxLength(2000, { message: 'comment must not exceed 2000 characters' })
   comment?: string;
 }

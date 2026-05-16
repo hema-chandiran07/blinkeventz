@@ -16,7 +16,6 @@ import {
 } from "lucide-react";
 import { CheckoutFormData, CheckoutErrors } from "@/types";
 import { toast } from "sonner";
-import axios from "axios";
 import { useCart } from "@/context/cart-context";
 import { useAuth } from "@/context/auth-context";
 import api from "@/lib/api";
@@ -97,27 +96,25 @@ export default function CheckoutPage() {
     specialNotes: "",
   });
 
-   const [promoCode, setPromoCode] = useState("");
-   const [errors, setErrors] = useState<CheckoutErrors>({});
+  const [promoCode, setPromoCode] = useState("");
+  const [errors, setErrors] = useState<CheckoutErrors>({});
 
-   const isStep1Valid = Boolean(
-     formData.firstName?.trim() &&
-     formData.email?.trim() &&
-     formData.phone?.trim() &&
-     eventDetails.eventType?.trim() &&
-     eventDetails.eventDate
-   );
+  const isStep1Valid = Boolean(
+    formData.firstName?.trim() &&
+    formData.email?.trim() &&
+    formData.phone?.trim() &&
+    eventDetails.eventType?.trim() &&
+    eventDetails.eventDate
+  );
 
-   useEffect(() => {
-     loadSettings();
-     loadCheckoutData();
-   }, []);
+  useEffect(() => {
+    loadSettings();
+    loadCheckoutData();
+  }, []);
 
   const loadSettings = async () => {
     try {
-      const { data } = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/settings/fees`
-      );
+      const { data } = await api.get('/settings/fees');
       setSettings({
         deliveryFee: data.deliveryFee ?? 0,
         platformFee: data.platformFee ?? 0.02,
@@ -130,7 +127,7 @@ export default function CheckoutPage() {
     }
   };
 
-   const storedBooking = useSyncExternalStore(
+  const storedBooking = useSyncExternalStore(
     (subscribe) => {
       const handler = () => subscribe();
       window.addEventListener("storage", handler);
@@ -157,7 +154,7 @@ export default function CheckoutPage() {
   const loadCheckoutData = async () => {
     try {
       setIsLoadingCheckout(true);
-      await api.post("/cart/unlock").catch(() => {});
+      await api.post("/cart/unlock").catch(() => { });
       const response = await api.get("/cart");
       const cartData = response.data;
 
@@ -235,7 +232,7 @@ export default function CheckoutPage() {
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) newErrors.email = "Invalid email";
     if (!formData.phone.trim()) newErrors.phone = "Phone is required";
     else if (!/^\d{10}$/.test(formData.phone.replace(/\D/g, ''))) newErrors.phone = "Invalid phone";
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -254,17 +251,20 @@ export default function CheckoutPage() {
     setCurrentStep("payment");
   };
 
-   const initiateRazorpayPayment = async () => {
-     if (!checkoutPayload) return;
+  const initiateRazorpayPayment = async () => {
+    if (!checkoutPayload) return;
 
-     setIsProcessing(true);
+    setIsProcessing(true);
 
-     try {
-       const { data } = await api.post('/payments/create-order', {
-         cartId: Number(checkoutPayload.cartId)
-       });
+    try {
+      const idempotencyKey = `pay_${checkoutPayload.cartId}_${Date.now()}`;
+      const { data } = await api.post(
+        '/payments/create-order',
+        { cartId: Number(checkoutPayload.cartId) },
+        { headers: { 'Idempotency-Key': idempotencyKey } }
+      );
 
-       const order = data;
+      const order = data;
 
       const cleanItems = cartItems
         .filter((item: any) => item !== null && item !== undefined)
@@ -304,7 +304,7 @@ export default function CheckoutPage() {
 
             setPaymentSuccess(true);
             toast.success("PAYMENT SECURED. EVENT CONFIRMED.");
-            
+
             try {
               await clearCart();
             } catch (clearError) {
@@ -329,7 +329,7 @@ export default function CheckoutPage() {
         theme: { color: "#000000" },
         modal: {
           ondismiss: async () => {
-            await api.post("/cart/unlock").catch(() => {});
+            await api.post("/cart/unlock").catch(() => { });
             setIsProcessing(false);
             toast.info("Payment cancelled");
           },
@@ -337,20 +337,20 @@ export default function CheckoutPage() {
       });
 
       rzp1.on("payment.failed", async (response: any) => {
-        await api.post("/cart/unlock").catch(() => {});
+        await api.post("/cart/unlock").catch(() => { });
         setPaymentSuccess(false);
         setIsProcessing(false);
         toast.error(`PAYMENT FAILED: ${response.error.description || "Please try again"}`);
       });
 
-       rzp1.open();
-     } catch (error: any) {
-       console.error("Payment initiation error:", error);
-       await api.post("/cart/unlock").catch(() => {});
-       toast.error(error.message || "Failed to initiate payment");
-       setIsProcessing(false);
-     }
-   };
+      rzp1.open();
+    } catch (error: any) {
+      console.error("Payment initiation error:", error);
+      await api.post("/cart/unlock").catch(() => { });
+      toast.error(error.message || "Failed to initiate payment");
+      setIsProcessing(false);
+    }
+  };
 
   const subtotal = parseFloat(checkoutPayload?.subtotal || "0");
   const platformFee = parseFloat(checkoutPayload?.platformFee || "0");
@@ -386,51 +386,51 @@ export default function CheckoutPage() {
     </div>
   );
 
-   const renderOrderSummary = () => (
-     <div className="bg-gradient-to-b from-zinc-900/80 to-zinc-950 border border-zinc-800 rounded-2xl p-6 sm:p-8 sticky top-8">
-       <h2 className="text-xl font-bold text-white tracking-tight mb-6">ORDER SUMMARY</h2>
+  const renderOrderSummary = () => (
+    <div className="bg-gradient-to-b from-zinc-900/80 to-zinc-950 border border-zinc-800 rounded-2xl p-6 sm:p-8 sticky top-8">
+      <h2 className="text-xl font-bold text-white tracking-tight mb-6">ORDER SUMMARY</h2>
 
-       <div className="space-y-4 mb-6">
-         {cartItems.map((item: any, index: number) => (
-            <div key={item.id || index} className="flex items-center gap-4 p-3 bg-zinc-900/50 border border-zinc-800 rounded-xl">
-              {/* SINGLE IMAGE CONTAINER */}
-              <div className="w-16 h-16 shrink-0 rounded-lg overflow-hidden border border-white/10 bg-zinc-800 flex items-center justify-center">
-                {item.image ? (
-                  <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
-                ) : (
-                  <ShoppingBag className="w-6 h-6 text-zinc-500" />
-                )}
-              </div>
-              
-              {/* ITEM DETAILS */}
-              <div className="flex-1 min-w-0">
-                <h4 className="text-white text-sm font-semibold truncate">{item.name}</h4>
-                <p className="text-zinc-400 text-xs mt-0.5">• {item.type || item.itemType || 'EVENT'}
-                  {item.timeSlot ? ` | ${item.timeSlot}` : ''}
-                </p>
-              </div>
-              
-              {/* PRICE */}
-              <div className="text-right">
-                <p className="text-white font-medium">₹{Number(item.totalPrice || item.price || 0).toFixed(2)}</p>
-              </div>
+      <div className="space-y-4 mb-6">
+        {cartItems.map((item: any, index: number) => (
+          <div key={item.id || index} className="flex items-center gap-4 p-3 bg-zinc-900/50 border border-zinc-800 rounded-xl">
+            {/* SINGLE IMAGE CONTAINER */}
+            <div className="w-16 h-16 shrink-0 rounded-lg overflow-hidden border border-white/10 bg-zinc-800 flex items-center justify-center">
+              {item.image ? (
+                <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+              ) : (
+                <ShoppingBag className="w-6 h-6 text-zinc-500" />
+              )}
             </div>
-         ))}
-       </div>
+
+            {/* ITEM DETAILS */}
+            <div className="flex-1 min-w-0">
+              <h4 className="text-white text-sm font-semibold truncate">{item.name}</h4>
+              <p className="text-zinc-400 text-xs mt-0.5">• {item.type || item.itemType || 'EVENT'}
+                {item.timeSlot ? ` | ${item.timeSlot}` : ''}
+              </p>
+            </div>
+
+            {/* PRICE */}
+            <div className="text-right">
+              <p className="text-white font-medium">₹{Number(item.totalPrice || item.price || 0).toFixed(2)}</p>
+            </div>
+          </div>
+        ))}
+      </div>
 
       <div className="space-y-3 border-t border-zinc-800 pt-4">
         <div className="flex justify-between text-sm">
           <span className="text-zinc-400">Subtotal</span>
           <span className="text-white font-medium">{formatCurrency(subtotal)}</span>
         </div>
-         {checkoutPayload?.isExpress && (
-           <div className="flex justify-between text-sm">
-             <span className="text-zinc-400 flex items-center gap-1">
-               <Zap className="h-3 w-3 text-yellow-500 animate-pulse" /> Express Fee
-             </span>
-             <span className="text-white font-medium">{formatCurrency(expressFee)}</span>
-           </div>
-         )}
+        {checkoutPayload?.isExpress && (
+          <div className="flex justify-between text-sm">
+            <span className="text-zinc-400 flex items-center gap-1">
+              <Zap className="h-3 w-3 text-yellow-500 animate-pulse" /> Express Fee
+            </span>
+            <span className="text-white font-medium">{formatCurrency(expressFee)}</span>
+          </div>
+        )}
         <div className="flex justify-between text-sm">
           <span className="text-zinc-400">Platform Fee ({(settings.platformFee * 100).toFixed(0)}%)</span>
           <span className="text-white font-medium">{formatCurrency(platformFee)}</span>
@@ -491,9 +491,9 @@ export default function CheckoutPage() {
     );
   }
 
-   return (
-     <div className="min-h-screen bg-zinc-950">
-       <style jsx>{`
+  return (
+    <div className="min-h-screen bg-zinc-950">
+      <style jsx>{`
          @keyframes shimmer {
            0% { transform: translateX(-100%); }
            100% { transform: translateX(100%); }
@@ -502,13 +502,13 @@ export default function CheckoutPage() {
            animation: shimmer 2s infinite;
          }
        `}</style>
-       <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
-       <motion.div
-         initial={{ opacity: 0, y: 20 }}
-         animate={{ opacity: 1, y: 0 }}
-         transition={{ duration: 0.6, ease: "easeOut" }}
-         className="max-w-7xl mx-auto px-4 py-8"
-       >
+      <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+        className="max-w-7xl mx-auto px-4 py-8"
+      >
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-white tracking-tight">CHECKOUT</h1>
         </div>
@@ -519,96 +519,95 @@ export default function CheckoutPage() {
           <div className="lg:col-span-8">
             {currentStep === "details" && (
               <div className="space-y-6">
-                 <div className="bg-gradient-to-b from-zinc-900/80 to-zinc-950 border border-zinc-800 rounded-2xl p-6">
-                   <h2 className="text-xl font-bold text-white tracking-tight mb-6">CONTACT DETAILS</h2>
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                     <div>
-                       <Label className="text-zinc-400 text-sm uppercase tracking-wider">First Name</Label>
-                       <Input
-                         name="firstName"
-                         value={formData.firstName}
-                         onChange={handleInputChange}
-                         className="bg-zinc-900/50 border-white/10 text-white focus:border-white/50 focus:ring-1 focus:ring-white/20 transition-all duration-500 rounded-xl px-4 py-3 mt-1"
-                         placeholder="First Name"
-                       />
-                       {errors.firstName && <p className="text-red-500 text-xs mt-1">{errors.firstName}</p>}
-                     </div>
-                     <div>
-                       <Label className="text-zinc-400 text-sm uppercase tracking-wider">Last Name</Label>
-                       <Input
-                         name="lastName"
-                         value={formData.lastName}
-                         onChange={handleInputChange}
-                         className="bg-zinc-900/50 border-white/10 text-white focus:border-white/50 focus:ring-1 focus:ring-white/20 transition-all duration-500 rounded-xl px-4 py-3 mt-1"
-                         placeholder="Last Name"
-                       />
-                       {errors.lastName && <p className="text-red-500 text-xs mt-1">{errors.lastName}</p>}
-                     </div>
-                     <div>
-                       <Label className="text-zinc-400 text-sm uppercase tracking-wider">Email</Label>
-                       <Input
-                         name="email"
-                         type="email"
-                         value={formData.email}
-                         onChange={handleInputChange}
-                         className="bg-zinc-900/50 border-white/10 text-white focus:border-white/50 focus:ring-1 focus:ring-white/20 transition-all duration-500 rounded-xl px-4 py-3 mt-1"
-                         placeholder="Email Address"
-                       />
-                       {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
-                     </div>
-                     <div>
-                       <Label className="text-zinc-400 text-sm uppercase tracking-wider">Phone</Label>
-                       <Input
-                         name="phone"
-                         value={formData.phone}
-                         onChange={handleInputChange}
-                         className="bg-zinc-900/50 border-white/10 text-white focus:border-white/50 focus:ring-1 focus:ring-white/20 transition-all duration-500 rounded-xl px-4 py-3 mt-1"
-                         placeholder="Phone Number"
-                       />
-                       {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
-                     </div>
-                   </div>
-                 </div>
+                <div className="bg-gradient-to-b from-zinc-900/80 to-zinc-950 border border-zinc-800 rounded-2xl p-6">
+                  <h2 className="text-xl font-bold text-white tracking-tight mb-6">CONTACT DETAILS</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-zinc-400 text-sm uppercase tracking-wider">First Name</Label>
+                      <Input
+                        name="firstName"
+                        value={formData.firstName}
+                        onChange={handleInputChange}
+                        className="bg-zinc-900/50 border-white/10 text-white focus:border-white/50 focus:ring-1 focus:ring-white/20 transition-all duration-500 rounded-xl px-4 py-3 mt-1"
+                        placeholder="First Name"
+                      />
+                      {errors.firstName && <p className="text-red-500 text-xs mt-1">{errors.firstName}</p>}
+                    </div>
+                    <div>
+                      <Label className="text-zinc-400 text-sm uppercase tracking-wider">Last Name</Label>
+                      <Input
+                        name="lastName"
+                        value={formData.lastName}
+                        onChange={handleInputChange}
+                        className="bg-zinc-900/50 border-white/10 text-white focus:border-white/50 focus:ring-1 focus:ring-white/20 transition-all duration-500 rounded-xl px-4 py-3 mt-1"
+                        placeholder="Last Name"
+                      />
+                      {errors.lastName && <p className="text-red-500 text-xs mt-1">{errors.lastName}</p>}
+                    </div>
+                    <div>
+                      <Label className="text-zinc-400 text-sm uppercase tracking-wider">Email</Label>
+                      <Input
+                        name="email"
+                        type="email"
+                        value={formData.email}
+                        onChange={handleInputChange}
+                        className="bg-zinc-900/50 border-white/10 text-white focus:border-white/50 focus:ring-1 focus:ring-white/20 transition-all duration-500 rounded-xl px-4 py-3 mt-1"
+                        placeholder="Email Address"
+                      />
+                      {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
+                    </div>
+                    <div>
+                      <Label className="text-zinc-400 text-sm uppercase tracking-wider">Phone</Label>
+                      <Input
+                        name="phone"
+                        value={formData.phone}
+                        onChange={handleInputChange}
+                        className="bg-zinc-900/50 border-white/10 text-white focus:border-white/50 focus:ring-1 focus:ring-white/20 transition-all duration-500 rounded-xl px-4 py-3 mt-1"
+                        placeholder="Phone Number"
+                      />
+                      {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
+                    </div>
+                  </div>
+                </div>
 
-                 <div className="bg-gradient-to-b from-zinc-900/80 to-zinc-950 border border-zinc-800 rounded-2xl p-6">
-                   <h2 className="text-xl font-bold text-white tracking-tight mb-6">EVENT DETAILS</h2>
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                     <div>
-                       <Label className="text-zinc-400 text-sm uppercase tracking-wider">Event Type</Label>
-                         <Input
-                         value={eventDetails.eventType}
-                         onChange={(e) => setEventDetails(prev => ({ ...prev, eventType: e.target.value }))}
-                         className="bg-zinc-900/50 border-white/10 text-white focus:border-white/50 focus:ring-1 focus:ring-white/20 transition-all duration-500 rounded-xl px-4 py-3 mt-1"
-                         placeholder="Wedding, Birthday, Corporate..."
-                       />
-                     </div>
-                     <div>
-                       <Label className="text-zinc-400 text-sm uppercase tracking-wider">Event Date</Label>
-                       <Input
-                         type="date"
-                         value={eventDetails.eventDate}
-                         onChange={(e) => setEventDetails(prev => ({ ...prev, eventDate: e.target.value }))}
-                         className="bg-zinc-900/50 border-white/10 text-white focus:border-white/50 focus:ring-1 focus:ring-white/20 transition-all duration-500 rounded-xl px-4 py-3 mt-1"
-                       />
-                     </div>
-                     <div className="md:col-span-2">
-                       <Label className="text-zinc-400 text-sm uppercase tracking-wider">Special Notes</Label>
-                       <Input
-                         value={eventDetails.specialNotes}
-                         onChange={(e) => setEventDetails(prev => ({ ...prev, specialNotes: e.target.value }))}
-                         className="bg-zinc-900/50 border-white/10 text-white focus:border-white/50 focus:ring-1 focus:ring-white/20 transition-all duration-500 rounded-xl px-4 py-3 mt-1"
-                         placeholder="Any special requirements..."
-                       />
-                     </div>
-                   </div>
-                 </div>
+                <div className="bg-gradient-to-b from-zinc-900/80 to-zinc-950 border border-zinc-800 rounded-2xl p-6">
+                  <h2 className="text-xl font-bold text-white tracking-tight mb-6">EVENT DETAILS</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-zinc-400 text-sm uppercase tracking-wider">Event Type</Label>
+                      <Input
+                        value={eventDetails.eventType}
+                        onChange={(e) => setEventDetails(prev => ({ ...prev, eventType: e.target.value }))}
+                        className="bg-zinc-900/50 border-white/10 text-white focus:border-white/50 focus:ring-1 focus:ring-white/20 transition-all duration-500 rounded-xl px-4 py-3 mt-1"
+                        placeholder="Wedding, Birthday, Corporate..."
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-zinc-400 text-sm uppercase tracking-wider">Event Date</Label>
+                      <Input
+                        type="date"
+                        value={eventDetails.eventDate}
+                        onChange={(e) => setEventDetails(prev => ({ ...prev, eventDate: e.target.value }))}
+                        className="bg-zinc-900/50 border-white/10 text-white focus:border-white/50 focus:ring-1 focus:ring-white/20 transition-all duration-500 rounded-xl px-4 py-3 mt-1"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <Label className="text-zinc-400 text-sm uppercase tracking-wider">Special Notes</Label>
+                      <Input
+                        value={eventDetails.specialNotes}
+                        onChange={(e) => setEventDetails(prev => ({ ...prev, specialNotes: e.target.value }))}
+                        className="bg-zinc-900/50 border-white/10 text-white focus:border-white/50 focus:ring-1 focus:ring-white/20 transition-all duration-500 rounded-xl px-4 py-3 mt-1"
+                        placeholder="Any special requirements..."
+                      />
+                    </div>
+                  </div>
+                </div>
 
                 <Button
                   onClick={handleContinueToConfirm}
                   disabled={!isStep1Valid}
-                  className={`relative overflow-hidden group bg-white text-black font-bold uppercase tracking-wider py-5 flex items-center justify-center gap-2 transition-all ${
-                    !isStep1Valid ? 'opacity-50 cursor-not-allowed' : 'hover:scale-[1.02] active:scale-[0.98]'
-                  }`}
+                  className={`relative overflow-hidden group bg-white text-black font-bold uppercase tracking-wider py-5 flex items-center justify-center gap-2 transition-all ${!isStep1Valid ? 'opacity-50 cursor-not-allowed' : 'hover:scale-[1.02] active:scale-[0.98]'
+                    }`}
                 >
                   <span className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-shimmer" />
                   CONTINUE TO REVIEW
@@ -632,7 +631,7 @@ export default function CheckoutPage() {
                             <ShoppingBag className="w-6 h-6 text-zinc-500" />
                           )}
                         </div>
-                        
+
                         {/* ITEM DETAILS */}
                         <div className="flex-1 min-w-0">
                           <h4 className="text-white text-sm font-semibold truncate">{item.name}</h4>
@@ -640,7 +639,7 @@ export default function CheckoutPage() {
                             {item.timeSlot ? ` | ${item.timeSlot}` : ''}
                           </p>
                         </div>
-                        
+
                         {/* PRICE */}
                         <div className="text-right">
                           <p className="text-white font-medium">₹{Number(item.totalPrice || item.price || 0).toFixed(2)}</p>
@@ -663,27 +662,26 @@ export default function CheckoutPage() {
                   </p>
                 </div>
 
-                 <div className="flex gap-4">
-                   <Button
-                     onClick={() => setCurrentStep("details")}
-                     variant="outline"
-                     className="flex-1 border-zinc-700 text-zinc-400 hover:bg-zinc-800 hover:text-white py-5"
-                   >
-                     <ArrowLeft className="h-5 w-5 mr-2" />
-                     BACK
-                   </Button>
-                    <Button
-                      onClick={handleContinueToPayment}
-                      disabled={!acceptTerms}
-                      className={`relative overflow-hidden group flex-1 bg-white text-black font-bold uppercase tracking-wider py-5 flex items-center justify-center gap-2 transition-all ${
-                        !acceptTerms ? 'opacity-50 cursor-not-allowed' : 'hover:scale-[1.02] active:scale-[0.98]'
+                <div className="flex gap-4">
+                  <Button
+                    onClick={() => setCurrentStep("details")}
+                    variant="outline"
+                    className="flex-1 border-zinc-700 text-zinc-400 hover:bg-zinc-800 hover:text-white py-5"
+                  >
+                    <ArrowLeft className="h-5 w-5 mr-2" />
+                    BACK
+                  </Button>
+                  <Button
+                    onClick={handleContinueToPayment}
+                    disabled={!acceptTerms}
+                    className={`relative overflow-hidden group flex-1 bg-white text-black font-bold uppercase tracking-wider py-5 flex items-center justify-center gap-2 transition-all ${!acceptTerms ? 'opacity-50 cursor-not-allowed' : 'hover:scale-[1.02] active:scale-[0.98]'
                       }`}
-                    >
-                      <span className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-shimmer" />
-                      PROCEED TO PAY
-                      <ArrowRight className="h-5 w-5 relative z-10" />
-                    </Button>
-                 </div>
+                  >
+                    <span className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-shimmer" />
+                    PROCEED TO PAY
+                    <ArrowRight className="h-5 w-5 relative z-10" />
+                  </Button>
+                </div>
               </div>
             )}
 
@@ -704,23 +702,23 @@ export default function CheckoutPage() {
                     <ArrowLeft className="h-5 w-5 mr-2" />
                     BACK
                   </Button>
-                   <Button
-                     onClick={initiateRazorpayPayment}
-                     disabled={isProcessing}
-                     className="relative overflow-hidden group flex-1 bg-white text-black font-bold uppercase tracking-wider py-5 flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
-                   >
-                     <span className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-shimmer" />
-                     {isProcessing ? (
-                       <>
-                         <Loader2 className="h-5 w-5 animate-spin relative z-10" />
-                         PROCESSING...
-                       </>
-                     ) : (
-                       <>
-                         PAY SECURELY WITH RAZORPAY
-                       </>
-                     )}
-                   </Button>
+                  <Button
+                    onClick={initiateRazorpayPayment}
+                    disabled={isProcessing}
+                    className="relative overflow-hidden group flex-1 bg-white text-black font-bold uppercase tracking-wider py-5 flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <span className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-shimmer" />
+                    {isProcessing ? (
+                      <>
+                        <Loader2 className="h-5 w-5 animate-spin relative z-10" />
+                        PROCESSING...
+                      </>
+                    ) : (
+                      <>
+                        PAY SECURELY WITH RAZORPAY
+                      </>
+                    )}
+                  </Button>
                 </div>
               </div>
             )}
@@ -728,9 +726,9 @@ export default function CheckoutPage() {
 
           <div className="lg:col-span-4">
             {renderOrderSummary()}
-           </div>
-         </div>
-       </motion.div>
-     </div>
-   );
- }
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+}

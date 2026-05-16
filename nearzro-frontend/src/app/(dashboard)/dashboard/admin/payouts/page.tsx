@@ -93,8 +93,8 @@ export default function AdminPayoutsPage() {
         signal,
       });
 
-      const data = response.data;
-      const payoutList = data?.data || data?.payouts || data || [];
+       const data = response.data;
+       const payoutList = Array.isArray(data) ? data : (data?.payouts || []);
 
       if (!Array.isArray(payoutList)) {
         console.warn("Payouts data is not an array:", payoutList);

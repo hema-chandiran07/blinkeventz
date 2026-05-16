@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bull';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { PrismaModule } from '../prisma/prisma.module';
+import { ConfigModule } from '@nestjs/config';
+import { JwtModule } from '@nestjs/jwt';
 
 import { NotificationsService } from './notifications.service';
 import { NotificationsController } from './notifications.controller';
@@ -15,11 +17,14 @@ import { WhatsappProvider } from './providers/whatsapp.provider';
 import { PushProvider } from './providers/push.provider';
 import { InAppProvider } from './providers/inapp.provider';
 
-import { NotificationGateway } from './websocket/notification.gateway';
+import { NotificationGateway, WsJwtGuard } from './websocket/notification.gateway';
+import { PaymentConfirmationListener } from './listeners/payment-confirmation.listener';
 
 @Module({
   imports: [
     PrismaModule,
+    ConfigModule,
+    JwtModule,
 
     // ✅ Rate limiting
     ThrottlerModule.forRoot([{
@@ -48,6 +53,8 @@ import { NotificationGateway } from './websocket/notification.gateway';
     NotificationQueue,
     NotificationProcessor,
     NotificationGateway,
+    WsJwtGuard,
+    PaymentConfirmationListener,
 
     EmailProvider,
     SmsProvider,

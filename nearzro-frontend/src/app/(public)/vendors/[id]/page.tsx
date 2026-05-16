@@ -49,7 +49,7 @@ interface VendorService {
   name: string;
   serviceType: string;
   pricingModel: string;
-  baseRate: number;
+  baseRate: number | null;
   description: string;
   inclusions?: string;
   exclusions?: string;
@@ -89,13 +89,13 @@ function VendorDetailContent() {
   const [selectedService, setSelectedService] = useState<VendorService | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
-  const vendorImages = vendor?.businessImages?.length 
-    ? vendor.businessImages 
-    : vendor?.portfolioImages?.map(p => p.imageUrl) || [];
+  const vendorImages = vendor?.businessImages?.length
+    ? vendor.businessImages.filter(Boolean)
+    : (vendor?.portfolioImages?.map(p => p.imageUrl) ?? []).filter(Boolean);
 
-  const allImages = vendorImages.length > 0 
-    ? vendorImages 
-    : [fallbackImages[vendor?.businessName?.toUpperCase() || 'CATERING'] || fallbackImages.CATERING];
+  const allImages = vendorImages.length > 0
+    ? vendorImages.filter(Boolean)
+    : [fallbackImages[vendor?.businessName?.toUpperCase() || ''] ?? fallbackImages.CATERING];
 
   const mainImage = getImageUrl(allImages[currentImageIndex]) || allImages[currentImageIndex];
 
@@ -118,10 +118,10 @@ function VendorDetailContent() {
         setVendor(vendorResponse.data);
 
         try {
-          const servicesResponse = await api.get(`/vendor-services/vendor/${vendorResponse.data.id}`);
-          const allServices = extractArray<VendorService>(servicesResponse);
-          const activeServices = allServices.filter((s: VendorService) => s.isActive);
-          setServices(activeServices);
+           const servicesResponse = await api.get(`/vendor-services/vendor/${vendorResponse.data.id}`);
+            const allServices = Array.isArray(servicesResponse.data) ? servicesResponse.data as VendorService[] : [];
+           const activeServices = allServices.filter((s: VendorService) => s.isActive);
+           setServices(activeServices);
           if (activeServices.length > 0) {
             setSelectedService(activeServices[0]);
           }
@@ -232,7 +232,7 @@ function VendorDetailContent() {
     addItem(cartItem as any);
 
     toast.success("Service added to cart!", {
-      description: `₹${selectedService?.baseRate.toLocaleString()}`,
+      description: `₹${(selectedService?.baseRate ?? 0).toLocaleString()}`,
     });
   };
 
@@ -389,8 +389,8 @@ function VendorDetailContent() {
                           <p className="text-sm text-zinc-500">{service.serviceType}</p>
                         </div>
                         <div className="text-right">
-                          <p className="text-lg font-bold text-white">₹{service.baseRate.toLocaleString()}</p>
-                          <p className="text-xs text-zinc-500">per {service.pricingModel.toLowerCase()}</p>
+                           <p className="text-lg font-bold text-white">₹{(service.baseRate ?? 0).toLocaleString()}</p>
+                           <p className="text-xs text-zinc-500">per {(service.pricingModel ?? 'event').toLowerCase()}</p>
                         </div>
                       </div>
                       <p className="text-sm text-zinc-400 mb-2">{service.description}</p>
@@ -451,25 +451,25 @@ function VendorDetailContent() {
                       </div>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-zinc-400">Price</span>
-                      <span className="text-2xl font-bold text-white">₹{selectedService.baseRate.toLocaleString()}</span>
-                    </div>
-                    <p className="text-xs text-zinc-500 mt-2">per {selectedService.pricingModel.toLowerCase()}</p>
+                       <span className="text-zinc-400">Price</span>
+                       <span className="text-2xl font-bold text-white">₹{(selectedService.baseRate ?? 0).toLocaleString()}</span>
+                     </div>
+                     <p className="text-xs text-zinc-500 mt-2">per {(selectedService.pricingModel ?? 'event').toLowerCase()}</p>
                   </div>
 
                   <div className="border-t border-white/[0.05] pt-4 space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-zinc-400">Service Fee</span>
-                      <span className="font-medium text-white">₹{selectedService.baseRate.toLocaleString()}</span>
-                    </div>
+                     <div className="flex justify-between items-center">
+                       <span className="text-zinc-400">Service Fee</span>
+                       <span className="font-medium text-white">₹{(selectedService.baseRate ?? 0).toLocaleString()}</span>
+                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-zinc-400">Platform Fee</span>
                       <span className="font-medium text-white">₹199</span>
                     </div>
-                    <div className="border-t border-white/[0.05] pt-2 flex justify-between font-bold text-lg">
-                      <span className="text-white">Total</span>
-                      <span className="text-white">₹{(selectedService.baseRate + 199).toLocaleString()}</span>
-                    </div>
+                     <div className="border-t border-white/[0.05] pt-2 flex justify-between font-bold text-lg">
+                       <span className="text-white">Total</span>
+                       <span className="text-white">₹{((selectedService.baseRate ?? 0) + 199).toLocaleString()}</span>
+                     </div>
                   </div>
 
                   <div className="space-y-2 mt-4">

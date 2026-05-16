@@ -10,7 +10,6 @@ import {
 import { Prisma, Cart, CartItem } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaService } from '../prisma/prisma.service';
-import { SettingsService } from '../settings/settings.service';
 import { AddCartItemDto } from './dto/add-cart-item.dto';
 import { UpdateCartItemDto } from './dto/update-cart-item.dto';
 import {
@@ -25,12 +24,12 @@ import {
 } from './cart.types';
 import { CartCacheService } from './cart.cache.service';
 import { CartEventService, CartEventType } from './cart-event.service';
+import { CartCalculationService } from '../business-rules/cart-calculation.service';
 import { getMinHoursForExpressByArea } from '../express/express.rules';
 import { AREA_TIER_MAP } from '../express/express.constants';
+import { SettingsService } from '../settings/settings.service';
 
 type TransactionClient = Prisma.TransactionClient;
-
-const DEFAULT_EXPRESS_FEE = 50000;
 
 @Injectable()
 export class CartService {
@@ -40,8 +39,9 @@ export class CartService {
     private readonly prisma: PrismaService,
     private readonly cacheService: CartCacheService,
     private readonly eventService: CartEventService,
+    private readonly cartCalculationService: CartCalculationService,
     private readonly settingsService: SettingsService,
-  ) {}
+  ) { }
 
   /**
    * Get cart with all items and calculated totals
@@ -50,7 +50,7 @@ export class CartService {
    */
   async getCart(userId: number): Promise<CartResponse> {
     const startTime = Date.now();
-    
+
     // Try cache first
     const cached = await this.cacheService.getCart(userId);
     if (cached) {
@@ -92,7 +92,7 @@ export class CartService {
 
       const response = this.formatCartResponse(newCart);
       await this.cacheService.setCart(userId, response);
-      
+
       this.logger.debug(
         { userId, duration: Date.now() - startTime, source: 'db_new' },
         'New cart created',
@@ -110,15 +110,15 @@ export class CartService {
     }
 
     const response = this.formatCartResponse(cart);
-    
+
     // Cache the response
     await this.cacheService.setCart(userId, response);
-    
+
     this.logger.debug(
       { userId, duration: Date.now() - startTime, source: 'db', itemCount: cart.items.length },
       'Cart retrieved from database',
     );
-    
+
     return response;
   }
 
@@ -132,7 +132,7 @@ export class CartService {
     idempotencyKey?: string,
   ): Promise<CartItemResponse> {
     const startTime = Date.now();
-    
+
     // Check idempotency
     if (idempotencyKey) {
       const isDuplicate = await this.cacheService.checkAndSetIdempotencyKey(
@@ -143,149 +143,151 @@ export class CartService {
       }
     }
 
-    const result = await this.prisma.$transaction(async (tx) => {
-      // Log incoming DTO for debugging
-      this.logger.debug({ dto }, 'addItem received DTO');
-
-      // Validate that exactly one item reference is provided
-      const itemRefs = [dto.venueId, dto.vendorServiceId, dto.addonId].filter(
-        Boolean,
-      );
-      this.logger.debug({ itemRefs, count: itemRefs.length }, 'Item references');
-      
-      if (itemRefs.length !== 1) {
-        this.logger.error({ dto }, 'Invalid item references - must have exactly one');
-        throw new BadRequestException(
-          'Exactly one of venueId, vendorServiceId, or addonId is required',
-        );
-      }
-
-      // Find or create cart (idempotent) - with P2002 race condition handling
-      let cart = await tx.cart.findFirst({
-        where: { userId, status: 'ACTIVE' },
-      });
-
-      if (!cart) {
-        try {
-          cart = await tx.cart.create({
-            data: {
-              userId,
-              status: 'ACTIVE',
-              expiresAt: this.getExpirationDate(),
-            },
-          });
-        } catch (e: any) {
-          // Handle unique constraint race condition (P2002)
-          if (e.code === 'P2002') {
-            this.logger.warn('Cart unique constraint hit, finding existing cart');
-            cart = await tx.cart.findFirst({
-              where: { userId, status: 'ACTIVE' },
-            });
-            if (!cart) {
-              throw new InternalServerErrorException('Failed to find or create cart');
-            }
-          } else {
-            throw e;
-          }
-        }
-      } else if (cart.status !== 'ACTIVE') {
-        throw new ForbiddenException('Cart is locked and cannot be modified');
-      }
-
-      // Fetch price and validate item exists
-      const { unitPrice, name } = await this.resolveItemPrice(tx, dto);
-
-      // Check for duplicate item - merge if exists
-      const existingItem = await tx.cartItem.findFirst({
-        where: {
-          cartId: cart.id,
-          itemType: dto.itemType as any,
-          venueId: dto.venueId,
-          vendorServiceId: dto.vendorServiceId,
-          addonId: dto.addonId,
-          date: dto.date ? new Date(dto.date) : undefined,
-          timeSlot: dto.timeSlot || undefined,
-        },
-      });
-
-      let item: CartItem;
-
-      if (existingItem) {
-        // Merge: increase quantity using Decimal operations
-        const existingQty = new Decimal(existingItem.quantity || 1);
-        const newQuantity = existingQty.plus(dto.quantity || 1);
-        const existingTotal = new Decimal(existingItem.totalPrice.toString());
-        const newTotalPrice = existingTotal.mul(newQuantity).div(existingQty);
-
-        const updated = await tx.cartItem.update({
-          where: { id: existingItem.id },
-          data: {
-            quantity: newQuantity.toNumber(),
-            totalPrice: newTotalPrice.toNumber(),
-          },
-        });
-
-        item = updated;
-      } else {
-        // Create new item
-        const quantity = dto.quantity || 1;
-        const totalPrice = new Decimal(unitPrice).mul(quantity);
-
-        try {
-          item = await tx.cartItem.create({
-            data: {
-              cartId: cart.id,
-              itemType: dto.itemType as any,
-              venueId: dto.venueId,
-              vendorServiceId: dto.vendorServiceId,
-              addonId: dto.addonId,
-              date: dto.date ? new Date(dto.date) : null,
-              timeSlot: dto.timeSlot || null,
-              quantity,
-              unitPrice,
-              totalPrice: totalPrice.toNumber(),
-              meta: dto.meta as Prisma.JsonObject,
-            },
-          });
-          this.logger.log({ itemId: item.id, cartId: cart.id }, 'CartItem created successfully');
-        } catch (createError) {
-          this.logger.error({ createError, dto }, 'Failed to create CartItem');
-          throw new InternalServerErrorException(
-            `Failed to create cart item: ${createError.message}`,
-          );
-        }
-      }
-
-      // DO NOT call publishEvent inside transaction - return immediately
-      return { item, name, cartId: cart.id };
-    });
-
-    // FIXED: Publish event AFTER transaction commits - cannot rollback cart
     try {
-      await this.eventService.publishEvent(this.prisma, 'CART_ITEM_ADDED', {
-        userId,
-        cartId: result.cartId,
-        itemId: result.item.id,
-      });
-    } catch (eventError) {
-      // Already logged inside publishEvent - non-critical, continue
-      this.logger.debug({ eventError }, 'Event publishing failed but cart operation succeeded');
+      // Use SERIALIZABLE transaction for race condition prevention
+      const result = await this.prisma.$transaction(
+        async (tx) => {
+          // Log incoming DTO for debugging
+          this.logger.debug({ dto }, 'addItem received DTO');
+
+          // Validate that exactly one item reference is provided
+          const itemRefs = [dto.venueId, dto.vendorServiceId, dto.addonId].filter(
+            Boolean,
+          );
+          this.logger.debug({ itemRefs, count: itemRefs.length }, 'Item references');
+
+          if (itemRefs.length !== 1) {
+            this.logger.error({ dto }, 'Invalid item references - must have exactly one');
+            throw new BadRequestException(
+              'Exactly one of venueId, vendorServiceId, or addonId is required',
+            );
+          }
+
+          // Find or create cart (idempotent) - with P2002 race condition handling
+          let cart = await tx.cart.findFirst({
+            where: { userId, status: 'ACTIVE' },
+          });
+
+          if (!cart) {
+            try {
+              cart = await tx.cart.create({
+                data: {
+                  userId,
+                  status: 'ACTIVE',
+                  expiresAt: this.getExpirationDate(),
+                },
+              });
+            } catch (e: any) {
+              // Handle unique constraint race condition (P2002)
+              if (e.code === 'P2002') {
+                this.logger.warn('Cart unique constraint hit, finding existing cart');
+                cart = await tx.cart.findFirst({
+                  where: { userId, status: 'ACTIVE' },
+                });
+                if (!cart) {
+                  throw new InternalServerErrorException('Failed to find or create cart');
+                }
+              } else {
+                throw e;
+              }
+            }
+          } else if (cart.status !== 'ACTIVE') {
+            throw new ForbiddenException('Cart is locked and cannot be modified');
+          }
+
+          // Fetch price and validate item exists
+          const { unitPrice, name } = await this.resolveItemPrice(tx, dto);
+
+          // FIX: Replace upsert with manual findFirst + create/update
+          // Reason: Prisma upsert cannot match composite unique keys containing NULLs
+          // because PostgreSQL treats NULL != NULL, causing phantom duplicate inserts.
+          const existingItem = await tx.cartItem.findFirst({
+            where: {
+              cartId: cart.id,
+              venueId: dto.venueId ?? null,
+              vendorServiceId: dto.vendorServiceId ?? null,
+              addonId: dto.addonId ?? null,
+              date: dto.date ? new Date(dto.date) : null,
+              timeSlot: dto.timeSlot ?? null,
+            },
+          });
+
+          const item = existingItem
+            ? await tx.cartItem.update({
+                where: { id: existingItem.id },
+                data: {
+                  quantity: { increment: dto.quantity || 1 },
+                  totalPrice: { increment: unitPrice * (dto.quantity || 1) },
+                },
+              })
+            : await tx.cartItem.create({
+                data: {
+                  cartId: cart.id,
+                  itemType: dto.itemType as any,
+                  venueId: dto.venueId ?? null,
+                  vendorServiceId: dto.vendorServiceId ?? null,
+                  addonId: dto.addonId ?? null,
+                  date: dto.date ? new Date(dto.date) : null,
+                  timeSlot: dto.timeSlot ?? null,
+                  quantity: dto.quantity || 1,
+                  unitPrice,
+                  totalPrice: new Decimal(unitPrice).mul(dto.quantity || 1).toNumber(),
+                  meta: dto.meta as Prisma.JsonObject,
+                },
+              });
+
+          // DO NOT call publishEvent inside transaction - return immediately
+          return { item, name, cartId: cart.id };
+        },
+        { isolationLevel: 'Serializable' }
+      );
+
+      // FIXED: Publish event AFTER transaction commits - cannot rollback cart
+      try {
+        await this.eventService.publishEvent(this.prisma, 'CART_ITEM_ADDED', {
+          userId,
+          cartId: result.cartId,
+          itemId: result.item.id,
+        });
+      } catch (eventError) {
+        // Already logged inside publishEvent - non-critical, continue
+        this.logger.debug({ eventError }, 'Event publishing failed but cart operation succeeded');
+      }
+
+      // Invalidate cache
+      await this.cacheService.invalidateCart(userId);
+
+      this.logger.log(
+        {
+          userId,
+          cartId: result.cartId,
+          itemId: result.item.id,
+          duration: Date.now() - startTime,
+        },
+        'Item added to cart',
+      );
+
+      return this.formatCartItemResponse(result.item, result.name);
+    } catch (error: any) {
+      // Log detailed error for debugging
+      this.logger.error(
+        `Failed to add item to cart for user ${userId}. DTO: ${JSON.stringify(dto)} Error: ${error.message}`,
+        error.stack,
+      );
+
+      // Translate known Prisma errors into user-friendly messages
+      if (error.code === 'P2003') {
+        // Foreign key constraint failure
+        throw new BadRequestException('One of the referenced items (venue, service, or addon) does not exist.');
+      }
+      if (error.code === 'P2002') {
+        // Unique constraint violation (should be handled by upsert, but just in case)
+        throw new BadRequestException('This item is already in your cart.');
+      }
+
+      // Re-throw as 500 for unexpected errors
+      throw new InternalServerErrorException('Something went wrong on our end. Please try again later.');
     }
-
-    // Invalidate cache
-    await this.cacheService.invalidateCart(userId);
-
-    this.logger.log(
-      { 
-        userId, 
-        cartId: result.cartId, 
-        itemId: result.item.id,
-        duration: Date.now() - startTime,
-      },
-      'Item added to cart',
-    );
-
-    return this.formatCartItemResponse(result.item, result.name);
   }
 
   /**
@@ -333,7 +335,7 @@ export class CartService {
         if (!venue) {
           throw new NotFoundException('Venue is no longer available');
         }
-        
+
         // Get price based on timeSlot
         if (item.timeSlot === 'MORNING') {
           currentUnitPrice = venue.basePriceMorning || 0;
@@ -354,7 +356,7 @@ export class CartService {
         if (!vendorService) {
           throw new NotFoundException('Service is no longer available');
         }
-        
+
         if (!vendorService.isActive) {
           throw new BadRequestException('This service is no longer available');
         }
@@ -595,7 +597,7 @@ export class CartService {
         const eventTime = new Date(eventDate).getTime();
         const now = Date.now();
         const hoursUntilEvent = (eventTime - now) / (1000 * 60 * 60);
-        
+
         if (hoursUntilEvent < minHours) {
           const message = `Express booking for area "${area}" requires at least ${minHours} hour(s) before the event. Current lead time: ${hoursUntilEvent.toFixed(1)} hours`;
           throw new BadRequestException(message);
@@ -618,7 +620,7 @@ export class CartService {
       validatedPrice: number;
       itemName: string;
     }
-    
+
     const validatedItems: ValidatedCartItem[] = [];
     for (const item of cart.items) {
       let validatedPrice: number;
@@ -638,9 +640,9 @@ export class CartService {
           validatedPrice = venue.basePriceFullDay || venue.basePriceEvening || venue.basePriceMorning || 0;
         }
         itemName = venue.name;
-      } 
+      }
       else if (item.vendorServiceId) {
-        const service = await this.prisma.vendorService.findUnique({ 
+        const service = await this.prisma.vendorService.findUnique({
           where: { id: item.vendorServiceId },
           include: { vendor: { select: { businessName: true } } }
         });
@@ -649,7 +651,7 @@ export class CartService {
         }
         validatedPrice = service.baseRate;
         itemName = `${service.name} (${service.vendor?.businessName})`;
-      } 
+      }
       else {
         validatedPrice = Number(item.totalPrice);
         itemName = 'Item';
@@ -683,15 +685,11 @@ export class CartService {
       new Decimal(0)
     );
 
-    // EXPRESS FEE: Fetch dynamic fee from settings if express booking
+    // EXPRESS FEE: Fetch from platform settings
     let expressFeeDecimal = new Decimal(0);
     if (cart.isExpress) {
-      try {
-        const setting = await this.settingsService.getSettingByKey('EXPRESS_FEE');
-        expressFeeDecimal = new Decimal(Number(setting?.value ?? DEFAULT_EXPRESS_FEE));
-      } catch {
-        expressFeeDecimal = new Decimal(DEFAULT_EXPRESS_FEE);
-      }
+      const settings = await this.settingsService.getPlatformSettings();
+      expressFeeDecimal = new Decimal(settings.expressFeeFixed.toNumber());
       await this.prisma.cart.update({
         where: { id: cart.id },
         data: { expressFee: expressFeeDecimal.toNumber() },
@@ -699,10 +697,20 @@ export class CartService {
     }
 
     // Platform fee calculated on (subtotal + expressFee)
-    const platformFee = subtotal.add(expressFeeDecimal).mul(PLATFORM_FEE_PERCENTAGE);
+    const settings = await this.settingsService.getPlatformSettings();
+    const platformFeeRate = settings.platformFeePercent.toNumber() / 100;
+    const platformFee = subtotal.add(expressFeeDecimal).mul(new Decimal(platformFeeRate));
+
     // Tax calculated on (subtotal + platformFee) - expressFee is NOT taxable
-    const tax = subtotal.add(platformFee).mul(TAX_PERCENTAGE);
+    const taxRate = settings.gstPercent.toNumber() / 100;
+    const tax = subtotal.add(platformFee).mul(new Decimal(taxRate));
+
     const totalAmount = subtotal.add(expressFeeDecimal).add(platformFee).add(tax);
+
+    // FIX 5: Prevent zero/negative totals after discounts
+    if (totalAmount.toNumber() <= 0) {
+      throw new BadRequestException('Invalid total after discounts');
+    }
 
     const items = validatedItems.map((item) => ({
       id: item.id,
@@ -737,9 +745,9 @@ export class CartService {
     await this.cacheService.invalidateCart(userId);
 
     this.logger.log(
-      { 
-        userId, 
-        cartId: cart.id, 
+      {
+        userId,
+        cartId: cart.id,
         totalAmount: totalAmount.toString(),
         duration: Date.now() - startTime,
       },
@@ -773,12 +781,8 @@ export class CartService {
 
     let expressFee = 0;
     if (isExpress) {
-      try {
-        const setting = await this.settingsService.getSettingByKey('EXPRESS_FEE');
-        expressFee = Number(setting?.value ?? DEFAULT_EXPRESS_FEE);
-      } catch {
-        expressFee = DEFAULT_EXPRESS_FEE;
-      }
+      const settings = await this.settingsService.getPlatformSettings();
+      expressFee = settings.expressFeeFixed.toNumber();
     }
 
     await this.prisma.cart.update({
@@ -899,17 +903,17 @@ export class CartService {
     const tax = subtotal.add(platformFee).mul(TAX_PERCENTAGE);
     const total = subtotal.add(platformFee).add(tax);
 
-    return { 
-      subtotal, 
-      platformFee, 
-      tax, 
-      total 
+    return {
+      subtotal,
+      platformFee,
+      tax,
+      total
     };
   }
 
-/**
-    * Format cart response - FIXED to resolve item names from relations
-    */
+  /**
+      * Format cart response - FIXED to resolve item names from relations
+      */
   private formatCartResponse(
     cart: Cart & { items: CartItemWithRelations[] },
   ): CartResponse {

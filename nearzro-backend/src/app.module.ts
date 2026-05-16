@@ -4,11 +4,13 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { CacheModule } from '@nestjs/cache-manager';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ServeStaticModule } from '@nestjs/serve-static';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import Redis from 'ioredis';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { MaintenanceGuard } from './common/guards/maintenance.guard';
+import { CustomThrottlerGuard } from './common/guards/custom-throttler.guard';
 import { BullModule } from '@nestjs/bull';
 import { join } from 'path';
 import Joi from 'joi';
@@ -169,6 +171,9 @@ import { SearchModule } from './search/search.module';
         };
       },
     }),
+
+    // Event Emitter for internal events
+    EventEmitterModule.forRoot(),
     // 🐂 BULLMQ (GLOBAL REDIS CONNECTION)
     BullModule.forRoot({
       redis: {
@@ -223,6 +228,10 @@ import { SearchModule } from './search/search.module';
     //   provide: APP_GUARD,
     //   useClass: MaintenanceGuard,
     // },
+    {
+      provide: APP_GUARD,
+      useClass: CustomThrottlerGuard,
+    },
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,

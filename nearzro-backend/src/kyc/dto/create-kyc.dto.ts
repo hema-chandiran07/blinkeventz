@@ -102,6 +102,7 @@ export class CreateKycDto {
   @ApiPropertyOptional({ description: 'Bank account number' })
   @IsOptional()
   @IsString()
+  @MaxLength(20, { message: 'bankAccountNumber must not exceed 20 characters' })
   @Matches(/^[0-9\s\-]{8,18}$/, { message: 'Account number must be 8-18 digits' })
   bankAccountNumber?: string;
 

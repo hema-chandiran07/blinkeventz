@@ -34,17 +34,43 @@ export class RolesGuard implements CanActivate {
       throw new UnauthorizedException('Authentication required');
     }
 
-    if (!user.role) {
+    if (!user.role && !user.hasVendorProfile && !user.hasVenueProfile) {
       this.logger.error(`User ${user.userId || user.id} has no role defined.`);
       throw new ForbiddenException('Access denied - role not found');
     }
 
-    // CRITICAL: Ensure case-insensitive comparison or exact match based on Enum string values
-    const hasRole = requiredRoles.some(role => String(role) === String(user.role));
+    // Build a comprehensive set of roles the user possesses
+    const userRoles = new Set<string>();
+
+    // Primary role from token (singular)
+    if (user.role) {
+      userRoles.add(String(user.role).toUpperCase());
+    }
+
+    // If roles are provided as an array (future-proof)
+    if (Array.isArray(user.roles)) {
+      user.roles.forEach((r: any) => userRoles.add(String(r).toUpperCase()));
+    }
+
+    // Boolean profile flags for multi-role capability
+    if (user.hasVendorProfile) {
+      userRoles.add(Role.VENDOR);
+    }
+    if (user.hasVenueProfile) {
+      userRoles.add(Role.VENUE_OWNER);
+    }
+
+    // Debug/info logging
+    this.logger.debug(
+      `User ${user.email} (roles: ${Array.from(userRoles).join(', ')}) accessing resource requiring [${requiredRoles.join(', ')}]`,
+    );
+
+    // Check if any of the required roles match the user's roles
+    const hasRole = requiredRoles.some(role => userRoles.has(String(role).toUpperCase()));
 
     if (!hasRole) {
       this.logger.warn(
-        `Access Denied: User ${user.email} (Role: ${user.role}) attempted to access resource requiring [${requiredRoles.join(', ')}]`
+        `Access Denied: User ${user.email} (roles: ${Array.from(userRoles).join(', ')}) attempted to access resource requiring [${requiredRoles.join(', ')}]`,
       );
       throw new ForbiddenException(`Insufficient permissions. Required: ${requiredRoles.join(', ')}`);
     }

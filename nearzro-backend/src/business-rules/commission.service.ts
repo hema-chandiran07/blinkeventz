@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Decimal } from '@prisma/client/runtime/library';
+import { SettingsService } from '../settings/settings.service';
 
 /**
  * Commission Calculation Engine
@@ -57,80 +58,99 @@ export class CommissionService {
     categoryRates: {}, // Venues don't have category-based rates
   };
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly settingsService: SettingsService,
+  ) {}
 
-  /**
-   * Calculate commission for a vendor service booking
-   */
-  async calculateVendorCommission(
-    vendorId: number,
-    serviceType: string,
-    amount: Decimal,
-  ): Promise<CommissionBreakdown> {
-    const config = this.vendorCommissionConfig;
-    
-    // Get vendor's monthly volume
-    const monthlyVolume = await this.getVendorMonthlyVolume(vendorId);
-    
-    // Determine tier
-    const tier = this.getTier(monthlyVolume, config.tierThresholds);
-    let commissionRate = config.tierRates[tier] || config.baseRate;
-    
-    // Apply category-specific rate if higher (prevent rate arbitrage)
-    const categoryRate = config.categoryRates[serviceType] || config.baseRate;
-    commissionRate = Math.max(commissionRate, categoryRate);
-    
-    // Calculate commission
-    const commissionAmount = amount.mul(new Decimal(commissionRate));
-    const netAmount = amount.sub(commissionAmount);
-    
-    const result: CommissionBreakdown = {
-      grossAmount: amount,
-      commissionRate,
-      commissionAmount,
-      netAmount,
-      tier,
-      reason: this.getTierReason(tier, monthlyVolume, serviceType, categoryRate),
-    };
-    
-    this.logger.log(`Commission calculated for vendor ${vendorId}: ${commissionRate * 100}% (Tier ${tier})`);
-    
-    return result;
-  }
+   /**
+    * Calculate commission for a vendor service booking
+    */
+   async calculateVendorCommission(
+     vendorId: number,
+     serviceType: string,
+     amount: Decimal,
+   ): Promise<CommissionBreakdown> {
+     // Fetch dynamic base rate from platform settings
+     const settings = await this.settingsService.getPlatformSettings();
+     const dynamicBaseRate = settings.commissionPercent.toNumber() / 100;
 
-  /**
-   * Calculate commission for a venue booking
-   */
-  async calculateVenueCommission(
-    venueId: number,
-    amount: Decimal,
-  ): Promise<CommissionBreakdown> {
-    const config = this.venueCommissionConfig;
-    
-    // Get venue's monthly volume
-    const monthlyVolume = await this.getVenueMonthlyVolume(venueId);
-    
-    // Determine tier
-    const tier = this.getTier(monthlyVolume, config.tierThresholds);
-    const commissionRate = config.tierRates[tier] || config.baseRate;
-    
-    // Calculate commission
-    const commissionAmount = amount.mul(new Decimal(commissionRate));
-    const netAmount = amount.sub(commissionAmount);
-    
-    const result: CommissionBreakdown = {
-      grossAmount: amount,
-      commissionRate,
-      commissionAmount,
-      netAmount,
-      tier,
-      reason: `Volume tier ${tier} (Monthly volume: ₹${monthlyVolume})`,
-    };
-    
-    this.logger.log(`Commission calculated for venue ${venueId}: ${commissionRate * 100}% (Tier ${tier})`);
-    
-    return result;
-  }
+     const config = { ...this.vendorCommissionConfig, baseRate: dynamicBaseRate };
+
+     // Get vendor's monthly volume
+     const monthlyVolume = await this.getVendorMonthlyVolume(vendorId);
+
+     // Determine tier
+     const tier = this.getTier(monthlyVolume, config.tierThresholds);
+     let commissionRate = config.tierRates[tier] ?? config.baseRate;
+
+     // Apply category-specific rate if higher (prevent rate arbitrage)
+     const categoryRate = config.categoryRates[serviceType] ?? config.baseRate;
+     commissionRate = Math.max(commissionRate, categoryRate);
+
+     // Calculate commission with ROUND_HALF_EVEN after each operation
+     const commissionAmount = amount
+       .mul(new Decimal(commissionRate))
+       .toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN);
+     const netAmount = amount
+       .sub(commissionAmount)
+       .toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN);
+
+     const result: CommissionBreakdown = {
+       grossAmount: amount.toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN),
+       commissionRate,
+       commissionAmount,
+       netAmount,
+       tier,
+       reason: this.getTierReason(tier, monthlyVolume, serviceType, categoryRate),
+     };
+
+     this.logger.log(`Commission calculated for vendor ${vendorId}: ${commissionRate * 100}% (Tier ${tier})`);
+
+     return result;
+   }
+
+   /**
+    * Calculate commission for a venue booking
+    */
+   async calculateVenueCommission(
+     venueId: number,
+     amount: Decimal,
+   ): Promise<CommissionBreakdown> {
+     // Fetch dynamic base rate from platform settings
+     const settings = await this.settingsService.getPlatformSettings();
+     const dynamicBaseRate = settings.commissionPercent.toNumber() / 100;
+
+     const config = { ...this.venueCommissionConfig, baseRate: dynamicBaseRate };
+
+     // Get venue's monthly volume
+     const monthlyVolume = await this.getVenueMonthlyVolume(venueId);
+
+     // Determine tier
+     const tier = this.getTier(monthlyVolume, config.tierThresholds);
+     const commissionRate = config.tierRates[tier] ?? config.baseRate;
+
+     // Calculate commission with ROUND_HALF_EVEN after each operation
+     const commissionAmount = amount
+       .mul(new Decimal(commissionRate))
+       .toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN);
+     const netAmount = amount
+       .sub(commissionAmount)
+       .toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN);
+
+     const result: CommissionBreakdown = {
+       grossAmount: amount.toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN),
+       commissionRate,
+       commissionAmount,
+       netAmount,
+       tier,
+       reason: `Volume tier ${tier} (Monthly volume: ₹${monthlyVolume})`,
+     };
+
+     this.logger.log(`Commission calculated for venue ${venueId}: ${commissionRate * 100}% (Tier ${tier})`);
+
+     return result;
+   }
 
   /**
    * Get vendor's total booking volume for current month

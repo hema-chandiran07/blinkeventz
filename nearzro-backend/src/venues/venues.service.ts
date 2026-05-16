@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, Logger, Inject, BadRequestException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateVenueDto } from './dto/create-venue.dto';
 import { VenueQueryDto, VenueSearchQueryDto } from './dto/venue-query.dto';
@@ -36,6 +37,7 @@ export class VenuesService {
   constructor(
     private prisma: PrismaService,
     @Inject(CACHE_MANAGER) private cache: Cache,
+    private eventEmitter: EventEmitter2,
   ) { }
 
   /**
@@ -575,22 +577,25 @@ export class VenuesService {
             category: 'GALLERY' as any,
           })),
         } : undefined,
-      },
-      include: {
-        photos: true,
-      },
-    });
+       },
+       include: {
+         photos: true,
+       },
+     });
 
-    // Invalidate caches
-    await this.invalidateVenueCache(id);
-    await this.invalidateListCache();
+     // Invalidate caches
+     await this.invalidateVenueCache(id);
+     await this.invalidateListCache();
 
-    return this.mapToResponseDto(updated);
-  }
+     // Emit event for cart cache invalidation
+     this.eventEmitter.emit('venue.price.updated', { venueId: id });
 
-  /**
-   * Delete venue - Owner only
-   */
+     return this.mapToResponseDto(updated);
+   }
+
+   /**
+    * Delete venue - Owner only
+    */
   async deleteVenue(id: number, ownerId: number): Promise<void> {
     const venue = await this.prisma.venue.findUnique({
       where: { id },

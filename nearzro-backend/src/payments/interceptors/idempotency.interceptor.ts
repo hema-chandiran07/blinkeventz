@@ -30,7 +30,7 @@ import type { Cache } from 'cache-manager';
 @Injectable()
 export class IdempotencyInterceptor implements NestInterceptor {
   private readonly logger = new Logger(IdempotencyInterceptor.name);
-  private readonly TTL_SECONDS = 3600; // 1 hour
+  private readonly TTL_SECONDS = 86400; // 24 hours
 
   constructor(
     @Inject(CACHE_MANAGER) private cacheManager: Cache,

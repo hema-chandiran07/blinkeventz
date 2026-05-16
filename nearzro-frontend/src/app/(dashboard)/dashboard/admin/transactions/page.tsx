@@ -94,8 +94,8 @@ export default function AdminTransactionsPage() {
         signal,
       });
 
-      const data = response.data;
-      const payments = data?.payments || data?.data || data || [];
+       const data = response.data;
+       const payments = Array.isArray(data) ? data : (data?.payments || []);
 
       if (!Array.isArray(payments)) {
         console.warn("Payments data is not an array:", payments);
@@ -162,16 +162,16 @@ export default function AdminTransactionsPage() {
     return () => controller.abort();
   }, [loadTransactions]);
 
-  // Filter transactions
-  const filteredTransactions = transactions.filter(t => {
-    const matchesSearch = 
-      t.customer?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      t.customerEmail?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      t.event?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = filterStatus === "all" || t.status === filterStatus;
-    const matchesType = filterType === "all" || t.type === filterType;
-    return matchesSearch && matchesStatus && matchesType;
-  });
+   // Filter transactions
+   const filteredTransactions = transactions.filter(t => {
+     const matchesSearch = 
+       (t.customer?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+       (t.customerEmail?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+       (t.event?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+     const matchesStatus = filterStatus === "all" || t.status === filterStatus;
+     const matchesType = filterType === "all" || t.type === filterType;
+     return matchesSearch && matchesStatus && matchesType;
+   });
 
   // Format currency
   const formatCurrency = (amount: number) => {

@@ -38,13 +38,15 @@ export class ApprovalsController {
 
   @Roles(Role.ADMIN)
   @Patch(':id/approve')
-  approveApproval(@Param('id') id: string, @Body() body: { approvalType: string }) {
-    return this.approvalsService.approve(+id, body.approvalType);
+  approveApproval(@Param('id') id: string, @Body() body: { approvalType: string }, @Req() req: any) {
+    const adminId = req.user?.id;
+    return this.approvalsService.approve(+id, body.approvalType, adminId);
   }
 
   @Roles(Role.ADMIN)
   @Patch(':id/reject')
-  rejectApproval(@Param('id') id: string, @Body() body: { approvalType: string; reason: string }) {
-    return this.approvalsService.reject(+id, body.approvalType, body.reason);
+  rejectApproval(@Param('id') id: string, @Body() body: { approvalType: string; reason: string }, @Req() req: any) {
+    const adminId = req.user?.id;
+    return this.approvalsService.reject(+id, body.approvalType, body.reason, adminId);
   }
 }

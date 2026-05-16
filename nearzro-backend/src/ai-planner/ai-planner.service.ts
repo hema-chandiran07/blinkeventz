@@ -6,6 +6,7 @@ import {
 
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateAIPlanDto } from './dto/create-ai-plan.dto';
+import { z } from 'zod';
 
 /**
  * AI Planner Service
@@ -30,6 +31,23 @@ type AIPlanJSON = {
     notes?: string;
   }[];
 };
+
+// Zod schema for validating AI plan JSON structure
+const AIPlanSchema = z.object({
+  summary: z.object({
+    eventType: z.string(),
+    city: z.string(),
+    guestCount: z.number().int().positive(),
+    totalBudget: z.number().nonnegative(),
+  }),
+  allocations: z.array(
+    z.object({
+      category: z.string(),
+      amount: z.number().nonnegative(),
+      notes: z.string().optional(),
+    })
+  ).min(1),
+});
 
 @Injectable()
 export class AIPlannerService {
@@ -137,6 +155,18 @@ export class AIPlannerService {
     }
 
     const planJson = plan.planJson as unknown as AIPlanJSON;
+
+    // Validate the AI plan structure using Zod
+    const parseResult = AIPlanSchema.safeParse(planJson);
+    if (!parseResult.success) {
+      throw new BadRequestException({
+        message: 'Invalid AI plan structure',
+        errors: (parseResult.error as any).errors.map(err => ({
+          path: err.path.join('.'),
+          message: err.message,
+        })),
+      });
+    }
 
     if (!planJson.allocations?.length) {
       throw new BadRequestException('Cannot create cart from empty plan');

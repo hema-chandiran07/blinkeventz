@@ -5,7 +5,9 @@ import {
   Min, 
   MaxLength,
   IsEnum,
-  IsObject
+  IsObject,
+  IsInt,
+  Max
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type, Transform } from 'class-transformer';
@@ -53,10 +55,13 @@ export class CreateSimplePaymentDto {
     type: Number, 
     description: 'Amount in rupees (not paise)',
     minimum: 1,
+    maximum: 10000000,
     example: 599.00
   })
   @IsNumber({}, { message: 'Amount must be a number' })
+  @IsInt({ message: 'Amount must be an integer' })
   @Min(1, { message: 'Amount must be at least 1 rupee' })
+  @Max(10_000_000, { message: 'Amount cannot exceed 10,000,000 rupees' })
   @Type(() => Number)
   amount!: number;
 

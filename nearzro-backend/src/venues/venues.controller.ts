@@ -88,25 +88,34 @@ export class VenuesController {
     return req.user;
   }
 
-  /// 🏢 VENUE OWNER → Get my venue (Frontend Alias)
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.VENUE_OWNER)
-  @Get('my')
-  async getMyVenueAlias(@Req() req: any) {
-    const ownerId = req.user.userId;
-    const venues = await this.venuesService.getVenuesByOwner(ownerId);
-    return venues;
-  }
+   /// 🏢 VENUE OWNER → Get my venue (Frontend Alias)
+   @ApiBearerAuth()
+   @UseGuards(JwtAuthGuard, RolesGuard)
+   @Roles(Role.VENUE_OWNER)
+   @Get('my')
+   async getMyVenueAlias(@Req() req: any) {
+     const ownerId = req.user.userId;
+     const venues = await this.venuesService.getVenuesByOwner(ownerId);
+     return venues;
+   }
 
-  /// Update my venue profile (Frontend Alias for PATCH /venues/me)
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.VENUE_OWNER)
-  @Patch('me')
-  async updateMyVenueProfile(@Req() req: any, @Body() dto: Partial<CreateVenueDto>, @UploadedFiles() files: any) {
-    return this.updateMyVenue(req, dto, files);
-  }
+   /// 🏢 VENUE OWNER → Get my venue (alternative path /me)
+   @ApiBearerAuth()
+   @UseGuards(JwtAuthGuard, RolesGuard)
+   @Roles(Role.VENUE_OWNER)
+   @Get('me')
+   async getMyVenueViaMe(@Req() req: any) {
+     return this.getMyVenueAlias(req);
+   }
+
+   /// Update my venue profile (Frontend Alias for PATCH /venues/me)
+   @ApiBearerAuth()
+   @UseGuards(JwtAuthGuard, RolesGuard)
+   @Roles(Role.VENUE_OWNER)
+   @Patch('me')
+   async updateMyVenueProfile(@Req() req: any, @Body() dto: Partial<CreateVenueDto>, @UploadedFiles() files: any) {
+     return this.updateMyVenue(req, dto, files);
+   }
 
   /// Get my venue availability (Frontend Alias for GET /venues/me/availability)
   @ApiBearerAuth()
@@ -367,14 +376,8 @@ export class VenuesController {
   }
 
   /// 🏢 VENUE OWNER → Get my venue profile
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.VENUE_OWNER)
-  @Get('me')
-  async getMyVenue(@Req() req: any) {
-    const venues = await this.venuesService.getVenuesByOwner(req.user.userId);
-    return venues;
-  }
+  // NOTE: GET /venues/me and GET /venues/me/availability are declared above (lines 95 and 115).
+  // These duplicate handlers have been removed to prevent NestJS route-shadowing bugs.
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -396,24 +399,6 @@ export class VenuesController {
     return this.venuesService.updateVenueBookingStatus(id, body.status, req.user.userId);
   }
 
-  /// 🏢 VENUE OWNER → Get my availability
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.VENUE_OWNER)
-  @Get('me/availability')
-  async getMyAvailability(@Req() req: any) {
-    const venues = await this.venuesService.getVenuesByOwner(req.user.userId);
-    const venueIds = venues.map(v => v.id);
-
-    // Query AvailabilitySlot with venueId
-    const availability = await this.prisma.availabilitySlot.findMany({
-      where: {
-        venueId: { in: venueIds },
-      } as any,
-      orderBy: { date: 'asc' },
-    });
-    return availability;
-  }
 
   /// 🏢 VENUE OWNER → Get my analytics
   @ApiBearerAuth()
@@ -727,7 +712,7 @@ export class VenuesController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.VENUE_OWNER)
   @Post('me/portfolio/images')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 15 * 1024 * 1024 } }))
   async addPortfolioImage(
     @Req() req: any,
     @UploadedFile() file: Express.Multer.File,

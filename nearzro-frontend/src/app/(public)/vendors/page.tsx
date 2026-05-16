@@ -139,16 +139,16 @@ function VendorsContent() {
   const hasActiveFilters = typeFilter !== "all" || searchTerm || advancedFilters.minBudget || advancedFilters.maxBudget || advancedFilters.location;
 
   // Local frontend filtering — guarantees UI reacts instantly regardless of backend query param support
-  const displayedVendors = vendors.filter((vendor) => {
-    const matchesSearch =
-      vendor.businessName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      vendor.description?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType =
-      typeFilter === "all" ||
-      vendor.services?.some((s: any) => s.serviceType === typeFilter) ||
-      vendor.businessType === typeFilter;
-    return matchesSearch && matchesType;
-  });
+   const displayedVendors = vendors.filter((vendor) => {
+     const matchesSearch =
+       (vendor.businessName ?? '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+       (vendor.description?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+     const matchesType =
+       typeFilter === "all" ||
+       vendor.services?.some((s: any) => s.serviceType === typeFilter) ||
+       vendor.businessType === typeFilter;
+     return matchesSearch && matchesType;
+   });
 
   return (
     <motion.div

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Param, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, UseGuards, Req, BadRequestException } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiProperty, ApiParam, ApiBody } from '@nestjs/swagger';
 import { SettingsService } from './settings.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -197,14 +197,21 @@ export class SettingsController {
 
   @Post('initialize')
   @Roles(Role.ADMIN)
-  @ApiOperation({ summary: 'Factory Reset: Initialize default system protocols' })
-  async initializeDefaultSettings(@Req() req: any) {
+  @ApiOperation({ summary: 'Factory Reset: Initialize default system protocols (requires confirmation token in body)' })
+  async initializeDefaultSettings(@Req() req: any, @Body() body: { confirmReset?: string }) {
+    // Safety gate: require explicit confirmation to prevent accidental/CSRF resets
+    if (body?.confirmReset !== 'CONFIRM_FACTORY_RESET') {
+      throw new BadRequestException(
+        'Factory reset requires body: { "confirmReset": "CONFIRM_FACTORY_RESET" }',
+      );
+    }
     await this.settingsService.initializeDefaultSettings();
     return {
       message: 'System protocols re-initialized to factory defaults',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
   }
+
 
   @Get('kernel')
   @Roles(Role.ADMIN)

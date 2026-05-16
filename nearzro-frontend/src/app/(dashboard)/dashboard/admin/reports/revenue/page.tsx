@@ -99,9 +99,9 @@ export default function RevenueReportPage() {
       setReportData(response.data);
       
       // Calculate stats from report data
-      const totalRevenue = response.data.summary?.totalRevenue || 0;
-      const paymentCount = response.data.summary?.paymentCount || 0;
-      const successCount = response.data.data?.filter((p: any) => p.status === "SUCCESS" || p.status === "CAPTURED").length || 0;
+       const totalRevenue = response.data.summary?.totalRevenue || 0;
+       const paymentCount = response.data.summary?.paymentCount || 0;
+       const successCount = response.data?.data?.filter((p: any) => p.status === "SUCCESS" || p.status === "CAPTURED").length || 0;
 
       setStats({
         totalRevenue,
@@ -460,11 +460,11 @@ export default function RevenueReportPage() {
                   </thead>
                   <tbody className="divide-y divide-neutral-100">
                     {reportData.data
-                      .filter(t => 
-                        t.user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                        t.user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                        t.event.title?.toLowerCase().includes(searchTerm.toLowerCase())
-                      )
+                       .filter(t => 
+                         (t.user?.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                         (t.user?.email?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                         (t.event?.title?.toLowerCase() || '').includes(searchTerm.toLowerCase())
+                       )
                       .map((transaction) => (
                         <tr key={transaction.id} className="hover:bg-neutral-50 transition-colors">
                           <td className="py-3 px-4">

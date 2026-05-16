@@ -29,7 +29,7 @@ import { extname } from 'path';
 import { Audit, AUDIT_META_KEY } from '../audit/decorators/audit.decorator';
 import { AuditSeverity, AuditSource } from '@prisma/client';
 import { ThrottlerGuard, Throttle } from '@nestjs/throttler';
-import { createHash, randomUUID } from 'crypto';
+import { createHash, randomBytes, createCipheriv, randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 
 // Simple crypto helpers
@@ -37,8 +37,27 @@ function hash(data: string): string {
   return createHash('sha256').update(data).digest('hex');
 }
 
+/**
+ * AES-256-GCM encryption.
+ * Requires ENCRYPTION_KEY env var — a 64-character hex string (32 bytes).
+ * Output format: iv_hex:authTag_hex:ciphertext_hex
+ *
+ * Backward-compat: if ENCRYPTION_KEY is absent (legacy), falls back to base64
+ * so existing code keeps working without breaking deployments.
+ */
 function encrypt(data: string): string {
-  return Buffer.from(data).toString('base64');
+  const keyHex = process.env.ENCRYPTION_KEY;
+  if (!keyHex || keyHex.length !== 64) {
+    // Legacy fallback — log a warning so ops teams notice missing key
+    console.warn('[SECURITY] ENCRYPTION_KEY not configured — account number stored with weak encoding. Set a 64-char hex ENCRYPTION_KEY immediately.');
+    return Buffer.from(data).toString('base64');
+  }
+  const key = Buffer.from(keyHex, 'hex');
+  const iv = randomBytes(16);
+  const cipher = createCipheriv('aes-256-gcm', key, iv);
+  const encrypted = Buffer.concat([cipher.update(data, 'utf8'), cipher.final()]);
+  const authTag = cipher.getAuthTag();
+  return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted.toString('hex')}`;
 }
 
 // File filter function for security

@@ -197,11 +197,11 @@ export default function VenueOwnerRegisterPage() {
       intendedRole: "VENUE_OWNER",
       callbackUrl: "/register/venue-owner?step=3"
     }));
-    window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/google?state=${state}`;
+    window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/google?state=${state}`;
   };
 
   const handleFacebookLogin = () => {
-    window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/facebook`;
+    window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/facebook`;
   };
 
   const validateStep1 = () => {

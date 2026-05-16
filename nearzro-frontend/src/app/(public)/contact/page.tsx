@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { ArrowLeft, Mail, Phone, MapPin, Send } from "lucide-react";
+import api from "@/lib/api";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
@@ -18,16 +19,9 @@ export default function ContactPage() {
     e.preventDefault();
     setStatus("loading");
 
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/contact`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) throw new Error("Failed to send");
-
-      setStatus("success");
+     try {
+       const response = await api.post('/contact', formData);
+       setStatus("success");
       setFormData({ name: "", email: "", message: "" });
     } catch (error) {
       console.error("Contact form error:", error);

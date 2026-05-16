@@ -5,9 +5,11 @@ import {
   Logger,
   NotFoundException,
   ForbiddenException,
+  ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { SlotStatus, EntityType, BookingStatus } from '@prisma/client';
+import { AuditService } from '../../audit/audit.service';
+import { SlotStatus, EntityType, BookingStatus, AuditSeverity, AuditSource } from '@prisma/client';
 
 /**
  * Booking Service - Production Ready
@@ -19,204 +21,220 @@ import { SlotStatus, EntityType, BookingStatus } from '@prisma/client';
 export class BookingService {
   private readonly logger = new Logger(BookingService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private readonly auditService: AuditService) {}
 
   // ============================================================================
   // CREATE BOOKINGS (Advanced with full business logic)
   // ============================================================================
 
-  /**
-   * Create a new booking with advanced validation and business logic
-   * CORRECTED to match actual database schema:
-   * - Booking table has: id, userId, slotId, status, createdAt, updatedAt, completedAt
-   * - AvailabilitySlot has: venueId, vendorId, date, timeSlot, status
-   *
-   * Flow: Find/Create slot → Check availability → Create booking → Update slot status
-   */
-  async createBooking(data: {
-    customerId: number;
-    entityType?: 'VENUE' | 'VENDOR';
-    entityId?: number;
-    venueId?: number;
-    vendorId?: number;
-    date: string;
-    timeSlot: string;
-    guestCount?: number;
-  }) {
-    const { customerId, entityType: inputEntityType, entityId: inputEntityId, venueId: inputVenueId, vendorId: inputVendorId, date, timeSlot, guestCount } = data;
+   /**
+    * Create a new booking with advanced validation and business logic
+    * CORRECTED to match actual database schema:
+    * - Booking table has: id, userId, slotId, status, createdAt, updatedAt, completedAt
+    * - AvailabilitySlot has: venueId, vendorId, date, timeSlot, status
+    *
+    * Flow: Find/Create slot → Check availability → Create booking → Update slot status
+    */
+   async createBooking(data: {
+     customerId: number;
+     entityType?: 'VENUE' | 'VENDOR';
+     entityId?: number;
+     venueId?: number;
+     vendorId?: number;
+     date: string;
+     timeSlot: string;
+     guestCount?: number;
+   }) {
+     const { customerId, entityType: inputEntityType, entityId: inputEntityId, venueId: inputVenueId, vendorId: inputVendorId, date, timeSlot, guestCount } = data;
 
-    // Determine entityType and IDs
-    const entityType = inputEntityType || 'VENUE';
-    const venueId = inputVenueId || inputEntityId;
-    const vendorId = inputVendorId;
+     // Determine entityType and IDs
+     const entityType = inputEntityType || 'VENUE';
+     const venueId = inputVenueId || inputEntityId;
+     const vendorId = inputVendorId;
 
-    if (!venueId && !vendorId) {
-      throw new BadRequestException('venueId, vendorId, or entityId is required');
-    }
+     if (!venueId && !vendorId) {
+       throw new BadRequestException('venueId, vendorId, or entityId is required');
+     }
 
-    // Validate date is in the future
-    const bookingDate = new Date(date);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    if (bookingDate < today) {
-      throw new BadRequestException('Booking date must be in the future');
-    }
+     // Validate date is in the future
+     const bookingDate = new Date(date);
+     const today = new Date();
+     today.setHours(0, 0, 0, 0);
+     
+     if (bookingDate < today) {
+       throw new BadRequestException('Booking date must be in the future');
+     }
 
-    // Validate time slot
-    const validTimeSlots = ['MORNING', 'EVENING', 'FULL_DAY'];
-    if (!validTimeSlots.includes(timeSlot)) {
-      throw new BadRequestException('Invalid time slot. Must be MORNING, EVENING, or FULL_DAY');
-    }
+     // Validate time slot
+     const validTimeSlots = ['MORNING', 'EVENING', 'FULL_DAY'];
+     if (!validTimeSlots.includes(timeSlot)) {
+       throw new BadRequestException('Invalid time slot. Must be MORNING, EVENING, or FULL_DAY');
+     }
 
-    return this.prisma.$transaction(async (tx) => {
-      // Step 1: Find or create AvailabilitySlot
-      let slot = await tx.availabilitySlot.findFirst({
-        where: {
-          ...(venueId ? { venueId } : { vendorId }),
-          date: bookingDate,
-          timeSlot,
-        },
-      });
+     try {
+       return await this.prisma.$transaction(async (tx) => {
+         // Step 1: Find or create AvailabilitySlot
+         let slot = await tx.availabilitySlot.findFirst({
+           where: {
+             ...(venueId ? { venueId } : { vendorId }),
+             date: bookingDate,
+             timeSlot,
+           },
+         });
 
-      if (!slot) {
-        // Create new slot as AVAILABLE
-        slot = await tx.availabilitySlot.create({
-          data: {
-            entityType: entityType as any,
-            ...(venueId ? { venueId } : { vendorId }),
-            date: bookingDate,
-            timeSlot,
-            status: 'AVAILABLE' as any,
-          },
-        });
-      }
+         if (!slot) {
+           // Create new slot as AVAILABLE
+           slot = await tx.availabilitySlot.create({
+             data: {
+               entityType: entityType as any,
+               ...(venueId ? { venueId } : { vendorId }),
+               date: bookingDate,
+               timeSlot,
+               status: 'AVAILABLE' as any,
+             },
+           });
+         }
 
-      // Step 2: Check slot is available
-      if (slot.status !== 'AVAILABLE') {
-        throw new BadRequestException(
-          `Slot is no longer available. Current status: ${slot.status}`
-        );
-      }
+         // Step 2: Check slot is available
+         if (slot.status !== 'AVAILABLE') {
+           throw new BadRequestException(
+             `Slot is no longer available. Current status: ${slot.status}`
+           );
+         }
 
-      // Step 3: Check for existing booking (prevent double booking)
-      const existingBooking = await tx.booking.findFirst({
-        where: {
-          slotId: slot.id,
-          status: { not: 'CANCELLED' as any },
-        },
-      });
+         // Step 3: Check for existing booking (prevent double booking)
+         const existingBooking = await tx.booking.findFirst({
+           where: {
+             slotId: slot.id,
+             status: { not: 'CANCELLED' as any },
+           },
+         });
 
-      if (existingBooking) {
-        throw new BadRequestException(
-          `${entityType} is already booked for ${date} ${timeSlot}`
-        );
-      }
+         if (existingBooking) {
+           throw new BadRequestException(
+             `${entityType} is already booked for ${date} ${timeSlot}`
+           );
+         }
 
-      // Step 4: Get customer info
-      const customer = await tx.user.findUnique({
-        where: { id: customerId },
-        select: { id: true, name: true, email: true, phone: true },
-      });
+         // Step 4: Get customer info
+         const customer = await tx.user.findUnique({
+           where: { id: customerId },
+           select: { id: true, name: true, email: true, phone: true },
+         });
 
-      if (!customer) {
-        throw new NotFoundException('Customer not found');
-      }
+         if (!customer) {
+           throw new NotFoundException('Customer not found');
+         }
 
-      // Step 5: Get entity owner info for notification
-      let entityOwnerId: number;
-      let entityName: string;
+         // Step 5: Get entity owner info for notification
+         let entityOwnerId: number;
+         let entityName: string;
 
-      if (entityType === 'VENUE') {
-        const venue = await tx.venue.findUnique({
-          where: { id: venueId },
-          select: { id: true, name: true, ownerId: true },
-        });
+         if (entityType === 'VENUE') {
+           const venue = await tx.venue.findUnique({
+             where: { id: venueId },
+             select: { id: true, name: true, ownerId: true },
+           });
 
-        if (!venue) {
-          throw new NotFoundException(`Venue ID ${venueId} not found`);
-        }
+           if (!venue) {
+             throw new NotFoundException(`Venue ID ${venueId} not found`);
+           }
 
-        entityOwnerId = venue.ownerId;
-        entityName = venue.name;
-      } else {
-        throw new BadRequestException('Only VENUE bookings are supported currently');
-      }
+           entityOwnerId = venue.ownerId;
+           entityName = venue.name;
+         } else {
+           throw new BadRequestException('Only VENUE bookings are supported currently');
+         }
 
-      // Step 6: Create booking (with slotId, NOT entityType/entityId)
-      const booking = await tx.booking.create({
-        data: {
-          userId: customerId,
-          slotId: slot.id,
-          status: 'PENDING' as any,
-        },
-        include: {
-          slot: true,
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            },
-          },
-        },
-      });
+         // Step 6: Create booking (with slotId, NOT entityType/entityId)
+         const booking = await tx.booking.create({
+           data: {
+             userId: customerId,
+             slotId: slot.id,
+             status: 'PENDING' as any,
+           },
+           include: {
+             slot: true,
+             user: {
+               select: {
+                 id: true,
+                 name: true,
+                 email: true,
+               },
+             },
+           },
+         });
 
-      // Step 7: Update slot status to BOOKED
-      await tx.availabilitySlot.update({
-        where: { id: slot.id },
-        data: { status: 'BOOKED' as any },
-      });
+         // Step 7: Update slot status to BOOKED
+         await tx.availabilitySlot.update({
+           where: { id: slot.id },
+           data: { status: 'BOOKED' as any },
+         });
 
-      // Step 8: Create notification for entity owner
-      await tx.notification.create({
-        data: {
-          userId: entityOwnerId,
-          type: 'SYSTEM_ALERT',
-          title: 'New Booking Request',
-          message: `${customer.name} has requested to book ${entityName} for ${date} (${timeSlot})`,
-          priority: 'HIGH',
-          metadata: {
-            bookingId: booking.id,
-            entityType,
-            venueId,
-            vendorId,
-            date,
-            timeSlot,
-            guestCount,
-          },
-        },
-      });
+         // Step 8: Create notification for entity owner
+         await tx.notification.create({
+           data: {
+             userId: entityOwnerId,
+             type: 'SYSTEM_ALERT',
+             title: 'New Booking Request',
+             message: `${customer.name} has requested to book ${entityName} for ${date} (${timeSlot})`,
+             priority: 'HIGH',
+             metadata: {
+               bookingId: booking.id,
+               entityType,
+               venueId,
+               vendorId,
+               date,
+               timeSlot,
+               guestCount,
+             },
+           },
+         });
 
-      // Step 9: Create notification for customer
-      await tx.notification.create({
-        data: {
-          userId: customerId,
-          type: 'SYSTEM_ALERT',
-          title: 'Booking Request Submitted',
-          message: `Your booking request for ${entityName} on ${date} (${timeSlot}) has been submitted. Awaiting confirmation.`,
-          priority: 'NORMAL',
-          metadata: {
-            bookingId: booking.id,
-            entityType,
-            venueId,
-            vendorId,
-          },
-        },
-      });
+         // Step 9: Create notification for customer
+         await tx.notification.create({
+           data: {
+             userId: customerId,
+             type: 'SYSTEM_ALERT',
+             title: 'Booking Request Submitted',
+             message: `Your booking request for ${entityName} on ${date} (${timeSlot}) has been submitted. Awaiting confirmation.`,
+             priority: 'NORMAL',
+             metadata: {
+               bookingId: booking.id,
+               entityType,
+               venueId,
+               vendorId,
+             },
+           },
+         });
 
-      this.logger.log(
-        `Booking created: Customer ${customerId} booked slot ${slot.id} (${entityType} venueId:${venueId} vendorId:${vendorId}) for ${date} ${timeSlot}`
-      );
+         this.logger.log(
+           `Booking created: Customer ${customerId} booked slot ${slot.id} (${entityType} venueId:${venueId} vendorId:${vendorId}) for ${date} ${timeSlot}`
+         );
 
-      return {
-        success: true,
-        booking,
-        slotId: slot.id,
-        message: 'Booking request submitted successfully. Awaiting confirmation.',
-      };
-    });
-  }
+         return {
+           success: true,
+           booking,
+           slotId: slot.id,
+           message: 'Booking request submitted successfully. Awaiting confirmation.',
+         };
+       });
+     } catch (error: any) {
+       // Handle Prisma unique constraint violation (P2002)
+       if (error.code === 'P2002' || (error.message && error.message.includes('unique constraint'))) {
+         throw new ConflictException('This slot is already booked');
+       }
+       // Re-throw known errors
+       if (error instanceof BadRequestException ||
+           error instanceof NotFoundException ||
+           error instanceof ForbiddenException ||
+           error instanceof ConflictException) {
+         throw error;
+       }
+       this.logger.error(`Create booking failed: ${error.message}`, error.stack);
+       throw new InternalServerErrorException('Failed to create booking. Please try again.');
+     }
+   }
 
   // ============================================================================
   // GET BOOKINGS
@@ -370,75 +388,94 @@ export class BookingService {
   // UPDATE BOOKING STATUS
   // ============================================================================
 
-  /**
-   * Update booking status
-   */
-  async updateBookingStatus(bookingId: number, status: string, userId: number, role: string) {
-    const booking = await this.prisma.booking.findUnique({
-      where: { id: bookingId },
-      include: { slot: true },
-    });
+   /**
+    * Update booking status
+    */
+   async updateBookingStatus(bookingId: number, status: string, userId: number, role: string) {
+     const booking = await this.prisma.booking.findUnique({
+       where: { id: bookingId },
+       include: { slot: true },
+     });
 
-    if (!booking) {
-      throw new NotFoundException('Booking not found');
-    }
+     if (!booking) {
+       throw new NotFoundException('Booking not found');
+     }
 
-    // Check permission
-    if (role !== 'ADMIN') {
-      if (!booking.slot.venueId) {
-        throw new ForbiddenException('You do not have permission to update this booking');
-      }
-      const venue = await this.prisma.venue.findFirst({
-        where: {
-          id: booking.slot.venueId,
-          ownerId: userId,
-        },
-      });
+     // Check permission
+     if (role !== 'ADMIN') {
+       if (!booking.slot.venueId) {
+         throw new ForbiddenException('You do not have permission to update this booking');
+       }
+       const venue = await this.prisma.venue.findFirst({
+         where: {
+           id: booking.slot.venueId,
+           ownerId: userId,
+         },
+       });
 
-      if (!venue) {
-        throw new ForbiddenException('You do not have permission to update this booking');
-      }
-    }
+       if (!venue) {
+         throw new ForbiddenException('You do not have permission to update this booking');
+       }
+     }
 
-    // Validate status transition
-    const validStatuses = ['PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED'];
-    if (!validStatuses.includes(status)) {
-      throw new BadRequestException('Invalid status');
-    }
+     // Validate status transition
+     const validStatuses = ['PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED'];
+     if (!validStatuses.includes(status)) {
+       throw new BadRequestException('Invalid status');
+     }
 
-    // Prevent invalid transitions
-    if (booking.status === 'CANCELLED' && status !== 'CANCELLED') {
-      throw new BadRequestException('Cannot change status of a cancelled booking');
-    }
-    if (booking.status === 'COMPLETED' && status !== 'COMPLETED') {
-      throw new BadRequestException('Cannot change status of a completed booking');
-    }
+     // Prevent invalid transitions
+     if (booking.status === 'CANCELLED' && status !== 'CANCELLED') {
+       throw new BadRequestException('Cannot change status of a cancelled booking');
+     }
+     if (booking.status === 'COMPLETED' && status !== 'COMPLETED') {
+       throw new BadRequestException('Cannot change status of a completed booking');
+     }
 
-    // Build update data
-    const updateData: any = { status: status as any };
-    if (status === 'COMPLETED') {
-      updateData.completedAt = new Date();
-    }
+     const oldStatus = booking.status;
 
-    // Actually update the booking in the database
-    const updatedBooking = await this.prisma.booking.update({
-      where: { id: bookingId },
-      data: updateData,
-      include: {
-        slot: true,
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-          },
-        },
-      },
-    });
+     // Build update data
+     const updateData: any = { status: status as any };
+     if (status === 'COMPLETED') {
+       updateData.completedAt = new Date();
+     }
 
-    return updatedBooking;
-  }
+     // Actually update the booking in the database
+     const updatedBooking = await this.prisma.booking.update({
+       where: { id: bookingId },
+       data: updateData,
+       include: {
+         slot: true,
+         user: {
+           select: {
+             id: true,
+             name: true,
+             email: true,
+             phone: true,
+           },
+         },
+       },
+     });
+
+     // FIX 10: Audit logging for state change
+     try {
+        await this.auditService.record({
+          entityType: 'Booking',
+          entityId: String(bookingId),
+          action: 'BOOKING_STATUS_UPDATED',
+          severity: AuditSeverity.WARNING,
+          source: role === 'ADMIN' ? AuditSource.ADMIN : AuditSource.USER,
+          actorId: userId,
+          description: `Booking status changed from ${oldStatus} to ${status}`,
+          oldValue: { status: oldStatus },
+          newValue: { status },
+        });
+     } catch (auditError) {
+       this.logger.error('Failed to record audit for booking status update', auditError);
+     }
+
+     return updatedBooking;
+   }
 
   /**
    * Cancel booking

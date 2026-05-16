@@ -48,12 +48,13 @@ export type KycDocType = 'AADHAAR' | 'PAN' | 'PASSPORT' | 'DRIVING_LICENSE';
 
 export type KycStatus = 'PENDING' | 'VERIFIED' | 'REJECTED';
 
-export type EventStatus = 
-  | 'INQUIRY' 
-  | 'PENDING_PAYMENT' 
-  | 'CONFIRMED' 
-  | 'IN_PROGRESS' 
-  | 'COMPLETED' 
+export type EventStatus =
+  | 'INQUIRY'
+  | 'QUOTED'
+  | 'PENDING_PAYMENT'
+  | 'CONFIRMED'
+  | 'IN_PROGRESS'
+  | 'COMPLETED'
   | 'CANCELLED';
 
 export type ItemTypeForEvent = 'VENUE' | 'VENDOR_SERVICE' | 'ADDON';
@@ -97,7 +98,6 @@ export interface User {
   name: string;
   email: string | null;
   phone: string | null;
-  passwordHash: string | null;
   googleId: string | null;
   role: Role;
   isActive: boolean;

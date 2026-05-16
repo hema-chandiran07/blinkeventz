@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { useAuth } from "@/context/auth-context";
+import DOMPurify from 'dompurify';
 
 interface Review {
   id: number;
@@ -252,8 +253,8 @@ export function ReviewsSection({ vendorId, vendorName, initialRating }: ReviewsS
                   <span className="text-sm text-zinc-500">{formatDate(review.createdAt)}</span>
                 </div>
               </div>
-              {review.title && <h4 className="font-semibold text-zinc-100 mb-1">{review.title}</h4>}
-              <p className="text-zinc-300 mb-3">{review.comment}</p>
+               {review.title && <h4 className="font-semibold text-zinc-100 mb-1" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(review.title) }}></h4>}
+               <p className="text-zinc-300 mb-3" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(review.comment ?? '') }}></p>
               <div className="flex items-center gap-3">
                 <div className="h-8 w-8 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-300 font-bold text-sm">
                   {review.user?.name?.charAt(0).toUpperCase() || 'A'}

@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { KycService } from './kyc.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { S3Service } from '../storage/s3.service';
+import { DatabaseStorageService } from '../storage/database-storage.service';
 import { AuditService } from '../audit/audit.service';
 import {
   NotFoundException,
@@ -11,10 +11,12 @@ import {
 } from '@nestjs/common';
 import { KycStatus, KycDocType } from '@prisma/client';
 
+const mockS3Service = { uploadKycDocument: jest.fn() };
+
 describe('KycService', () => {
   let service: KycService;
   let prisma: any;
-  let s3Service: any;
+  let storageService: any;
   let auditService: any;
 
   // Mock data
@@ -51,9 +53,9 @@ describe('KycService', () => {
     $transaction: jest.fn(async (callback: any) => callback(mockPrisma)),
   };
 
-  // Mock S3 Service
-  const mockS3Service = {
-    uploadKycDocument: jest.fn().mockResolvedValue('https://s3-bucket/kyc/document.pdf'),
+  // Mock Database Storage Service
+  const mockStorageService = {
+    storeFile: jest.fn().mockResolvedValue('data-url'),
   };
 
   // Mock Audit Service
@@ -66,14 +68,14 @@ describe('KycService', () => {
       providers: [
         KycService,
         { provide: PrismaService, useValue: mockPrisma },
-        { provide: S3Service, useValue: mockS3Service },
+        { provide: DatabaseStorageService, useValue: mockStorageService },
         { provide: AuditService, useValue: mockAuditService },
       ],
     }).compile();
 
     service = module.get<KycService>(KycService);
     prisma = module.get(PrismaService);
-    s3Service = module.get(S3Service);
+    storageService = module.get(DatabaseStorageService);
     auditService = module.get(AuditService);
 
     jest.clearAllMocks();
@@ -109,11 +111,11 @@ describe('KycService', () => {
       const result = await service.createKyc(mockUserId, mockDto, mockFile);
 
       // Assert
-      expect(result).toBeDefined();
-      expect(result.id).toBe(mockKycId);
-      expect(result.status).toBe(KycStatus.PENDING);
-      expect(result.docType).toBe(mockDto.docType);
-      expect(s3Service.uploadKycDocument).toHaveBeenCalledWith(mockFile);
+       expect(result).toBeDefined();
+       expect(result.id).toBe(mockKycId);
+       expect(result.status).toBe(KycStatus.PENDING);
+       expect(result.docType).toBe(mockDto.docType);
+       expect(storageService.storeFile).toHaveBeenCalledWith(mockFile);
     });
 
     // =====================================================

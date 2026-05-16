@@ -12,15 +12,15 @@ import { motion } from "framer-motion";
 
 interface VenueReport {
   id: number;
-  name: string;
-  type: string;
-  city: string;
-  area: string;
+  name?: string | null;
+  type?: string | null;
+  city?: string | null;
+  area?: string | null;
   capacity: number;
   totalBookings: number;
   totalRevenue: number;
   occupancyRate: number;
-  status: string;
+  status?: string | null;
   ownerName: string;
 }
 
@@ -43,7 +43,7 @@ export default function VenueReportsPage() {
         api.get("/booking/my").catch(() => ({ data: [] }))
       ]);
       
-      const venueData = venuesRes.data?.data || venuesRes.data || [];
+      const venueData = Array.isArray(venuesRes.data) ? venuesRes.data : [];
       const bookings = bookingsRes.data || [];
       
       // Calculate metrics for each venue
@@ -86,8 +86,10 @@ export default function VenueReportsPage() {
   };
 
   const filteredVenues = venues.filter(venue => {
-    const matchesSearch = venue.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         venue.area.toLowerCase().includes(searchQuery.toLowerCase());
+    const nameLower = venue.name?.toLowerCase() ?? '';
+    const areaLower = venue.area?.toLowerCase() ?? '';
+    const matchesSearch = nameLower.includes(searchQuery.toLowerCase()) ||
+                          areaLower.includes(searchQuery.toLowerCase());
     const matchesCity = filterCity === "all" || venue.city === filterCity;
     const matchesStatus = filterStatus === "all" || venue.status === filterStatus;
     return matchesSearch && matchesCity && matchesStatus;
@@ -116,7 +118,7 @@ export default function VenueReportsPage() {
   const totalBookings = venues.reduce((sum, v) => sum + v.totalBookings, 0);
   const avgOccupancy = venues.length > 0 ? Math.round(venues.reduce((sum, v) => sum + v.occupancyRate, 0) / venues.length) : 0;
 
-  const cities = Array.from(new Set(venues.map(v => v.city)));
+   const cities = Array.from(new Set(venues.map(v => v.city).filter((city): city is string => city != null)));
 
   if (loading) {
     return (
@@ -316,9 +318,11 @@ export default function VenueReportsPage() {
                         <Badge className={
                           venue.status === "ACTIVE" ? "bg-green-100 text-green-700 border-green-300" :
                           venue.status === "PENDING_APPROVAL" ? "bg-yellow-100 text-yellow-700 border-yellow-300" :
-                          "bg-red-100 text-red-700 border-red-300"
+                          venue.status === "INACTIVE" ? "bg-red-100 text-red-700 border-red-300" :
+                          venue.status === "SUSPENDED" ? "bg-red-100 text-red-700 border-red-300" :
+                          "bg-silver-100 text-silver-700 border-silver-300"
                         }>
-                          {venue.status.replace('_', ' ')}
+                          {venue.status?.replace('_', ' ') || 'Unknown'}
                         </Badge>
                       </td>
                     </tr>

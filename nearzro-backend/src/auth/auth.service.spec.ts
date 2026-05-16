@@ -4,16 +4,30 @@
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { AuthService } from './auth.service';
-import { PrismaService } from '../prisma/prisma.service';
-import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
 import { BadRequestException, UnauthorizedException, ForbiddenException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import * as bcrypt from 'bcrypt';
 import { Role } from '@prisma/client';
 import { OtpService } from './otp.service';
 import { EmailProvider } from '../notifications/providers/email.provider';
 import * as crypto from 'crypto';
+import { AuthService } from './auth.service';
+import { PrismaService } from '../prisma/prisma.service';
+
+// Mock S3Service and DatabaseStorageService at module level to avoid AWS SDK initialization errors
+jest.mock('../storage/s3.service', () => ({
+  S3Service: jest.fn().mockImplementation(() => ({
+    uploadKycDocument: jest.fn().mockResolvedValue('https://s3.mock'),
+  })),
+}));
+
+jest.mock('../storage/database-storage.service', () => ({
+  DatabaseStorageService: jest.fn().mockImplementation(() => ({
+    storeFile: jest.fn().mockResolvedValue('data-url'),
+  })),
+}));
 
 // Mock crypto module at module level
 jest.mock('crypto', () => ({
@@ -22,6 +36,7 @@ jest.mock('crypto', () => ({
     update: jest.fn(() => ({ digest: jest.fn(() => 'hash') })),
   })),
   randomInt: jest.fn(() => 123456),
+  randomUUID: jest.fn(() => 'uuid-1234'),
 }));
 
 // Mock bcrypt
@@ -43,6 +58,7 @@ describe('AuthService - Comprehensive Unit Tests', () => {
       create: jest.fn(),
       update: jest.fn(),
       updateMany: jest.fn(),
+      count: jest.fn().mockResolvedValue(1),
     },
     vendor: {
       findUnique: jest.fn(),
@@ -103,6 +119,11 @@ describe('AuthService - Comprehensive Unit Tests', () => {
     sendOtpEmail: jest.fn().mockResolvedValue(true),
   };
 
+  const mockCacheManager = {
+    get: jest.fn(),
+    set: jest.fn(),
+  } as unknown as Cache;
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -112,6 +133,7 @@ describe('AuthService - Comprehensive Unit Tests', () => {
         { provide: ConfigService, useValue: mockConfigService },
         { provide: OtpService, useValue: mockOtpService },
         { provide: EmailProvider, useValue: mockEmailProvider },
+        { provide: CACHE_MANAGER, useValue: mockCacheManager },
       ],
     }).compile();
 

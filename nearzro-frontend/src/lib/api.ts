@@ -22,7 +22,7 @@ const getBaseUrl = () => {
 };
 
 const api = axios.create({
-  baseURL: `${getBaseUrl()}/api`,
+  baseURL: `${getBaseUrl()}/api/v1`,
   withCredentials: true,
   timeout: 30000,
 });
@@ -44,7 +44,7 @@ api.interceptors.request.use(
       // Default to JSON for other requests
       config.headers['Content-Type'] = 'application/json';
     }
-    
+
     if (typeof window !== 'undefined') {
       const user = localStorage.getItem('NearZro_user');
       if (user) {
@@ -59,12 +59,12 @@ api.interceptors.request.use(
         }
       }
     }
-    
+
     // Remove Content-Type header for FormData (axios will set it automatically with boundary)
     if (config.data instanceof FormData) {
       config.headers['Content-Type'] = undefined;
     }
-    
+
     return config;
   },
   (error) => {
@@ -72,13 +72,34 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor - Handle errors properly
+// Response interceptor - Unwrap envelope + handle errors
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // ✅ Unwrap NestJS ResponseInterceptor envelope globally
+    // Backend wraps every response as: { success: true, data: T, timestamp: string }
+    // We unwrap here so every page receives response.data = T directly
+    // This means pages do: const res = await api.get(...); res.data → clean data
+    if (
+      response.data &&
+      typeof response.data === 'object' &&
+      'success' in response.data &&
+      'data' in response.data
+    ) {
+      response.data = response.data.data;
+    }
+    return response;
+  },
   (error) => {
     const status = error.response?.status;
-    const data = error.response?.data;
-    const message = data?.message || data?.error?.message;
+
+    // ✅ Unwrap error message from envelope if present
+    // Backend error shape: { success: false, data: { message: string } }
+    // or standard: { message: string }
+    const rawData = error.response?.data;
+    const message =
+      rawData?.data?.message ||
+      rawData?.message ||
+      rawData?.error?.message;
 
     if (status === 401) {
       if (typeof window !== 'undefined') {

@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { DatabaseStorageService } from '../storage/database-storage.service';
+import { S3Service } from '../storage/s3.service';
 import { AuditService } from '../audit/audit.service';
 import { SubmitKycDto } from './dto/submit-kyc.dto';
 import { CreateKycDto } from './dto/create-kyc.dto';
@@ -24,9 +25,17 @@ import { encrypt, hash } from '../common/utils/crypto.util';
 export class KycService {
   private readonly logger = new Logger(KycService.name);
 
+  // FIX 8: KYC state machine — allowed transitions
+  private static readonly VALID_KYC_TRANSITIONS: Record<string, string[]> = {
+    PENDING: ['VERIFIED', 'REJECTED'],
+    REJECTED: ['PENDING'],
+    VERIFIED: [],
+  };
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly storageService: DatabaseStorageService,
+    private readonly s3Service: S3Service,
     private readonly auditService: AuditService,
   ) {}
 
@@ -251,6 +260,13 @@ export class KycService {
       throw new ConflictException('KYC is already verified');
     }
 
+    // FIX 8: Validate state transition before update
+    const currentStatus = kyc.status as string;
+    const allowedTransitions = KycService.VALID_KYC_TRANSITIONS[currentStatus];
+    if (!allowedTransitions || !allowedTransitions.includes(status as string)) {
+      throw new BadRequestException('Invalid KYC state transition');
+    }
+
     // Note: REJECTED KYC can be re-reviewed - this is now allowed
     // Users can submit new KYC after rejection, and admins can review those
 
@@ -357,8 +373,16 @@ export class KycService {
       this.prisma.kycDocument.count({ where }),
     ]);
 
+    // Convert to presigned URLs for admin access
+    const kycDocuments = await Promise.all(
+      kycDocs.map(async (doc) => ({
+        ...doc,
+        docFileUrl: await this.s3Service.getKycDocumentUrl(doc.docFileUrl),
+      }))
+    );
+
     return {
-      kycDocuments: kycDocs,
+      kycDocuments,
       pagination: {
         page,
         limit,
@@ -448,11 +472,14 @@ export class KycService {
       throw new NotFoundException('No KYC document found');
     }
 
+    // Generate presigned URL for KYC document access
+    const presignedUrl = await this.s3Service.getKycDocumentUrl(kyc.docFileUrl);
+
     return {
       id: kyc.id,
       docType: kyc.docType,
       docNumber: kyc.docNumber,
-      docFileUrl: kyc.docFileUrl,
+      docFileUrl: presignedUrl,
       status: kyc.status,
       rejectionReason: kyc.rejectionReason ?? undefined,
       createdAt: kyc.createdAt,
@@ -656,11 +683,14 @@ export class KycService {
       throw new NotFoundException('No KYC document found');
     }
 
+    // Generate presigned URL for KYC document access
+    const presignedUrl = await this.s3Service.getKycDocumentUrl(kyc.docFileUrl);
+
     return {
       id: kyc.id,
       docType: kyc.docType,
       docNumber: kyc.docNumber,
-      docFileUrl: kyc.docFileUrl,
+      docFileUrl: presignedUrl,
       status: kyc.status,
       rejectionReason: kyc.rejectionReason ?? undefined,
       createdAt: kyc.createdAt,
@@ -690,7 +720,13 @@ export class KycService {
       throw new NotFoundException('KYC document not found');
     }
 
-    return kyc;
+    // Generate presigned URL for admin access
+    const presignedUrl = await this.s3Service.getKycDocumentUrl(kyc.docFileUrl);
+
+    return {
+      ...kyc,
+      docFileUrl: presignedUrl,
+    };
   }
 
   // Get Pending KYC submissions (Admin)

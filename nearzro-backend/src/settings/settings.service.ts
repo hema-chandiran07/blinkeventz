@@ -1,8 +1,12 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger, InternalServerErrorException, Inject } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { PrismaService } from '../prisma/prisma.service';
-import { SettingsCategory, AuditSeverity, Role } from '@prisma/client';
+import { SettingsCategory, AuditSeverity, Role, PlatformSettings } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import * as os from 'os';
+import { Decimal } from '@prisma/client/runtime/library';
+import { UpdatePlatformSettingsDto } from './dto/update-platform-settings.dto';
 
 export interface FeatureFlag {
   key: string;
@@ -30,6 +34,7 @@ export class SettingsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
   ) { }
 
   // ============================================================================
@@ -75,6 +80,65 @@ export class SettingsService {
       taxRate: taxRate ? Number(taxRate.value) : 0.18,
       minOrderAmount: minOrderAmountSetting ? Number(minOrderAmountSetting.value) : 0,
     };
+  }
+
+  /**
+   * Get platform-wide fee settings from DB with caching
+   */
+  async getPlatformSettings(): Promise<PlatformSettings> {
+    const cacheKey = 'platform:settings';
+    const cached = await this.cacheManager.get<PlatformSettings>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    const settings = await this.prisma.platformSettings.findFirst({
+      where: { id: 'default' },
+    });
+    if (!settings) {
+      throw new InternalServerErrorException('Platform settings not configured');
+    }
+
+    // Cache for 5 minutes (300 seconds)
+    await this.cacheManager.set(cacheKey, settings, 300);
+    return settings;
+  }
+
+  /**
+   * Update platform settings (admin only)
+   */
+  async updatePlatformSettings(dto: UpdatePlatformSettingsDto, userId: number): Promise<PlatformSettings> {
+    const data: any = {};
+    if (dto.platformFeePercent !== undefined) data.platformFeePercent = new Decimal(dto.platformFeePercent);
+    if (dto.gstPercent !== undefined) data.gstPercent = new Decimal(dto.gstPercent);
+    if (dto.expressFeeFixed !== undefined) data.expressFeeFixed = new Decimal(dto.expressFeeFixed);
+    if (dto.commissionPercent !== undefined) data.commissionPercent = new Decimal(dto.commissionPercent);
+    if (dto.tdsPercent !== undefined) data.tdsPercent = new Decimal(dto.tdsPercent);
+    data.updatedBy = String(userId);
+
+    const updated = await this.prisma.platformSettings.update({
+      where: { id: 'default' },
+      data,
+    });
+
+    // Invalidate cache
+    await this.cacheManager.del('platform:settings');
+
+    // Audit log
+    await this.auditService.record({
+      entityType: 'PlatformSettings',
+      entityId: 'default',
+      action: 'UPDATE',
+      severity: AuditSeverity.HIGH,
+      actorId: userId,
+      actorEmail: undefined,
+      actorRole: Role.ADMIN,
+      description: 'Platform settings updated',
+      oldValue: null,
+      newValue: data,
+    });
+
+    return updated;
   }
 
   async getFeatureFlags() {
@@ -129,23 +193,23 @@ export class SettingsService {
 
   async updateSettings(settings: Record<string, any>, actorId?: number, actorEmail?: string) {
     const results: { success: string[]; failed: string[] } = { success: [], failed: [] };
-    
+
     for (const [key, value] of Object.entries(settings)) {
       try {
         const existing = await this.prisma.settings.findUnique({ where: { key } });
         const isNew = !existing;
-        
+
         await this.prisma.settings.upsert({
           where: { key },
           update: { value },
-          create: { 
-            key, 
-            value, 
+          create: {
+            key,
+            value,
             category: 'SYSTEM' as SettingsCategory,
             description: this.getSettingDescription(key, value),
           },
         });
-        
+
         // Audit log
         await this.auditService.record({
           entityType: 'SETTINGS',
@@ -159,14 +223,14 @@ export class SettingsService {
           newValue: { value },
           description: `Administrator ${actorEmail || 'System'} modified system setting: ${key}`,
         });
-        
+
         results.success.push(key);
       } catch (error) {
         this.logger.error({ key, error }, 'Failed to update setting');
         results.failed.push(key);
       }
     }
-    
+
     return results;
   }
 
@@ -297,7 +361,7 @@ export class SettingsService {
       });
     }
 
-// Now initialize clean defaults
+    // Now initialize clean defaults
     this.logger.log('Initializing industrialized system settings...');
 
     const defaultSettings: Array<{
@@ -313,10 +377,10 @@ export class SettingsService {
         { key: 'FEATURE_AUTO_APPROVE_VENUES', value: false, description: 'Autonomous venue approval protocol', category: SettingsCategory.FEATURE },
         { key: 'FEATURE_MAINTENANCE_MODE', value: false, description: 'Lock platform for core maintenance', category: SettingsCategory.FEATURE },
 
-      // System Fees
-      { key: 'EXPRESS_FEE', value: 50000, description: 'Express booking fee in paise (₹500)', category: SettingsCategory.SYSTEM },
-      { key: 'PLATFORM_FEE_PERCENTAGE', value: 0.02, description: 'Platform fee as decimal (2%)', category: SettingsCategory.SYSTEM },
-      { key: 'TAX_PERCENTAGE', value: 0.18, description: 'GST/Tax as decimal (18%)', category: SettingsCategory.SYSTEM },
+        // System Fees
+        { key: 'EXPRESS_FEE', value: 50000, description: 'Express booking fee in paise (₹500)', category: SettingsCategory.SYSTEM },
+        { key: 'PLATFORM_FEE_PERCENTAGE', value: 0.02, description: 'Platform fee as decimal (2%)', category: SettingsCategory.SYSTEM },
+        { key: 'TAX_PERCENTAGE', value: 0.18, description: 'GST/Tax as decimal (18%)', category: SettingsCategory.SYSTEM },
 
         // Uplinks (Integrations)
         { key: 'INTEGRATION_RAZORPAY', value: { enabled: false, keyId: '', keySecret: '' }, category: SettingsCategory.INTEGRATION },

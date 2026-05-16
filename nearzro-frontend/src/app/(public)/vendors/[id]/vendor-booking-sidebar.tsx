@@ -63,7 +63,7 @@ export function VendorBookingSidebar({ vendor }: VendorBookingSidebarProps) {
   };
 
   const basePrice = vendor.basePrice || 35000;
-  const selectedPrice = selectedSlot 
+  const selectedPrice = selectedSlot
     ? Math.round(basePrice * TIME_SLOT_MULTIPLIERS[selectedSlot])
     : basePrice;
 

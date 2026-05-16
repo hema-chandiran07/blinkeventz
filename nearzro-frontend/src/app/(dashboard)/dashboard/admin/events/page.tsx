@@ -82,8 +82,8 @@ export default function AdminEventsPage() {
   const [loadingState, setLoadingState] = useState<Record<string, boolean>>({});
 
   const filteredEvents = events.filter(event => {
-    const matchesSearch = event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         event.customer?.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (event.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (event.customer?.name?.toLowerCase() || '').includes(searchTerm.toLowerCase());
     const matchesStatus = filterStatus === "all" || event.status === filterStatus;
     return matchesSearch && matchesStatus;
   });

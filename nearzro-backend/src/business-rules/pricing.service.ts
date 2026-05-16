@@ -151,6 +151,14 @@ export class PricingService {
       factors.push(`Guest count: ${(guestCountMultiplier * 100).toFixed(0)}%`);
     }
 
+    // FIX 6: Apply max discount cap — price cannot drop below 20% of basePrice
+    // This prevents compounding discounts from driving price to zero or negative.
+    const minPrice = basePrice.mul(new Decimal(0.20));
+    if (adjustedPrice.lt(minPrice)) {
+      factors.push('Maximum discount cap applied (80% off)');
+      adjustedPrice = minPrice;
+    }
+
     // Round to 2 decimal places
     const finalPrice = adjustedPrice.toDecimalPlaces(2);
 

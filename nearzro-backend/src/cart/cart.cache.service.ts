@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { OnEvent } from '@nestjs/event-emitter';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 
@@ -142,22 +143,64 @@ export class CartCacheService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  /**
-   * Check and store idempotency key
-   * Returns true if key already exists (duplicate request)
-   */
-  async checkAndSetIdempotencyKey(key: string, ttl: number = 3600): Promise<boolean> {
-    if (!this.isRedisAvailable || !this.redis) {
-      return false;
-    }
+   /**
+    * Check and store idempotency key
+    * Returns true if key already exists (duplicate request)
+    */
+   async checkAndSetIdempotencyKey(key: string, ttl: number = 3600): Promise<boolean> {
+     if (!this.isRedisAvailable || !this.redis) {
+       return false;
+     }
 
-    try {
-      const idemKey = this.getIdempotencyKey(key);
-      const exists = await this.redis.set(idemKey, '1', 'EX', ttl, 'NX');
-      return exists === null; // Returns true if key already existed
-    } catch (error) {
-      this.logger.error({ key, error: String(error) }, 'Idempotency check error');
-      return false;
-    }
-  }
-}
+     try {
+       const idemKey = this.getIdempotencyKey(key);
+       const exists = await this.redis.set(idemKey, '1', 'EX', ttl, 'NX');
+       return exists === null; // Returns true if key already existed
+     } catch (error) {
+       this.logger.error({ key, error: String(error) }, 'Idempotency check error');
+       return false;
+     }
+   }
+
+   /**
+    * Listen for venue price updates and invalidate affected carts
+    */
+   @OnEvent('venue.price.updated')
+   async onVenuePriceUpdated(payload: { venueId: number }): Promise<void> {
+     if (!this.isRedisAvailable || !this.redis) {
+       return;
+     }
+
+     const { venueId } = payload;
+     this.logger.debug({ venueId }, 'Invalidating carts for venue price update');
+
+     try {
+       // Scan all cart keys
+       const keys = await this.redis.keys('cart:*');
+       let invalidated = 0;
+
+       for (const key of keys) {
+         const data = await this.redis.get(key);
+         if (data) {
+           try {
+             const cart = JSON.parse(data) as CartCacheData;
+             // Check if any cart item has this venueId
+             const hasVenue = cart.items.some((item: any) => item?.venueId === venueId);
+             if (hasVenue) {
+               await this.redis.del(key);
+               invalidated++;
+             }
+           } catch (parseErr) {
+             // Ignore malformed cart data
+           }
+         }
+       }
+
+       if (invalidated > 0) {
+         this.logger.log({ venueId, invalidated }, 'Carts invalidated due to venue price update');
+       }
+     } catch (error) {
+       this.logger.error({ venueId, error: String(error) }, 'Failed to invalidate carts for venue');
+     }
+   }
+ }

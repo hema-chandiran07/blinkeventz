@@ -141,12 +141,12 @@ export default function VenueCalendarPage() {
 
   const isBlocked = (date: Date, slot?: TimeSlotType) => {
     const dateStr = date.toISOString().split('T')[0];
-    if (slot) {
-      return blockedSlots.some(b =>
-        b.date === dateStr &&
-        (b.timeSlot as string).toLowerCase() === slot.toLowerCase()
-      );
-    }
+     if (slot) {
+       return blockedSlots.some(b =>
+         b.date === dateStr &&
+         ((b.timeSlot || '').toLowerCase() === slot.toLowerCase())
+       );
+     }
     return blockedSlots.some(b => b.date === dateStr);
   };
 

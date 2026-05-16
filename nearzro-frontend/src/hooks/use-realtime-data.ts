@@ -129,29 +129,21 @@ export function useRealtimeVendors(): RealtimeHookResult<Vendor[]> & {
     }
   }, []);
 
-  useEffect(() => {
+   useEffect(() => {
     loadVendors();
 
     const unsubscribe = WebSocketService.onStatusChange(setConnectionStatus);
 
     const handleVendorUpdate = (data: { id: number; verificationStatus: string }) => {
-      setVendors(prev =>
-        prev.map(v =>
+      setVendors(prev => {
+        const updated = prev.map(v =>
           v.id === data.id ? { ...v, verificationStatus: data.verificationStatus } : v
-        )
-      );
-      setLastUpdated(new Date());
-      
-      // Update pending count
-      setPendingCount(prev => {
-        const vendor = vendors.find(v => v.id === data.id);
-        if (vendor?.verificationStatus === 'PENDING' && data.verificationStatus !== 'PENDING') {
-          return prev - 1;
-        } else if (vendor?.verificationStatus !== 'PENDING' && data.verificationStatus === 'PENDING') {
-          return prev + 1;
-        }
-        return prev;
+        );
+        // Update pending count based on the new vendors list
+        setPendingCount(updated.filter(v => v.verificationStatus === 'PENDING').length);
+        return updated;
       });
+      setLastUpdated(new Date());
     };
 
     const unsubscribeVendor = WebSocketService.subscribe(
@@ -163,7 +155,7 @@ export function useRealtimeVendors(): RealtimeHookResult<Vendor[]> & {
       unsubscribe();
       unsubscribeVendor();
     };
-  }, [loadVendors, vendors]);
+  }, [loadVendors]); // Removed 'vendors' from dependencies to prevent memory leak
 
   return {
     data: vendors,

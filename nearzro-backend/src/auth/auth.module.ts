@@ -7,7 +7,9 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { PrismaModule } from '../prisma/prisma.module';
 import { GoogleStrategy } from './strategies/google.strategy';
+import { GoogleAuthGuard } from '../common/guards/google-auth.guard';
 import { FacebookStrategy } from './strategies/facebook.strategy';
+import { FacebookAuthGuard } from '../common/guards/facebook-auth.guard';
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './jwt.strategy';
 import { OtpModule } from './otp.module';
@@ -57,13 +59,10 @@ import { NotificationsModule } from '../notifications/notifications.module';
   providers: [
     AuthService,
     GoogleStrategy,
+    GoogleAuthGuard,
     FacebookStrategy,
+    FacebookAuthGuard,
     JwtStrategy,
-    // Apply global rate limiting guard
-    {
-      provide: APP_GUARD,
-      useClass: ThrottlerGuard,
-    },
   ],
   exports: [AuthService, JwtModule, PassportModule],
 })

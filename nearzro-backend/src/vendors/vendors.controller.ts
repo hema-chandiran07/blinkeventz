@@ -129,7 +129,7 @@ export class VendorsController {
   @Get('me/dashboard-stats')
   @ApiOperation({ summary: 'Get vendor dashboard statistics' })
   async getDashboardStats(@Req() req: AuthRequest) {
-    return this.vendorsService.getVendorByUserId(req.user.userId);
+    return this.getDashboardStatsLegacy(req);
   }
 
   /// 🧑‍🔧 VENDOR → Get my analytics

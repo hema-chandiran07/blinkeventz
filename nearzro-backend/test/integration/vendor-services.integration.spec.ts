@@ -62,11 +62,11 @@ describe('VendorServices Integration Tests', () => {
 
     app = moduleFixture.createNestApplication();
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }));
-    
+
     // Connect to database
     prisma = app.get<PrismaService>(PrismaService);
     await prisma.$connect();
-    
+
     await app.init();
 
     vendorServicesService = app.get<VendorServicesService>(VendorServicesService);
@@ -98,9 +98,9 @@ describe('VendorServices Integration Tests', () => {
   beforeEach(async () => {
     // Clean vendor services first, then vendors, then users
     // This ensures proper cleanup order for foreign key constraints
-    await prisma.vendorService.deleteMany().catch(() => {});
-    await prisma.vendor.deleteMany().catch(() => {});
-    await prisma.user.deleteMany().catch(() => {});
+    await prisma.vendorService.deleteMany().catch(() => { });
+    await prisma.vendor.deleteMany().catch(() => { });
+    await prisma.user.deleteMany().catch(() => { });
   });
 
   // ============================================
@@ -109,9 +109,9 @@ describe('VendorServices Integration Tests', () => {
 
   async function cleanupDatabase(prisma: PrismaService) {
     // Clean in correct order: child tables first, then parent tables
-    await prisma.vendorService.deleteMany().catch(() => {});
-    await prisma.vendor.deleteMany().catch(() => {});
-    await prisma.user.deleteMany().catch(() => {});
+    await prisma.vendorService.deleteMany().catch(() => { });
+    await prisma.vendor.deleteMany().catch(() => { });
+    await prisma.user.deleteMany().catch(() => { });
   }
 
   // Each test creates its own user and vendor for complete isolation
@@ -128,7 +128,7 @@ describe('VendorServices Integration Tests', () => {
         isActive: true,
       }
     });
-    
+
     // Create vendor for this user
     const vendor = await prisma.vendor.create({
       data: {
@@ -139,7 +139,7 @@ describe('VendorServices Integration Tests', () => {
         serviceRadiusKm: 10
       }
     });
-    
+
     return { user, vendor };
   }
 
@@ -150,7 +150,7 @@ describe('VendorServices Integration Tests', () => {
   describe('create()', () => {
     it('should create a vendor service with valid data', async () => {
       const { user, vendor } = await createTestUserWithVendor();
-      
+
       const dto = createServiceDto();
       // The service create method expects userId to look up the vendor
       const service = await vendorServicesService.create(user.id, dto);
@@ -164,7 +164,7 @@ describe('VendorServices Integration Tests', () => {
 
     it('should create service with minimal required fields', async () => {
       const { user } = await createTestUserWithVendor();
-      
+
       const dto = createMinimalServiceDto();
       const service = await vendorServicesService.create(user.id, dto);
 
@@ -174,7 +174,7 @@ describe('VendorServices Integration Tests', () => {
 
     it('should create service with per-event pricing', async () => {
       const { user } = await createTestUserWithVendor();
-      
+
       const dto = createServiceDto({
         pricingModel: VendorPricingModel.PER_EVENT,
         baseRate: 15000,
@@ -187,7 +187,7 @@ describe('VendorServices Integration Tests', () => {
 
     it('should create service with per-day pricing', async () => {
       const { user } = await createTestUserWithVendor();
-      
+
       const dto = createServiceDto({
         pricingModel: VendorPricingModel.PER_DAY,
         baseRate: 25000,
@@ -210,9 +210,9 @@ describe('VendorServices Integration Tests', () => {
           isActive: true,
         }
       });
-      
+
       const dto = createServiceDto();
-      
+
       await expect(
         vendorServicesService.create(user.id, dto)
       ).rejects.toThrow('Vendor profile not found');
@@ -226,7 +226,7 @@ describe('VendorServices Integration Tests', () => {
   describe('findByVendor()', () => {
     it('should get all services for vendor', async () => {
       const { user, vendor } = await createTestUserWithVendor();
-      
+
       // Create multiple services
       await vendorServicesService.create(user.id, createServiceDto({ name: 'Service One' }));
       await vendorServicesService.create(user.id, createServiceDto({ name: 'Service Two' }));
@@ -238,9 +238,9 @@ describe('VendorServices Integration Tests', () => {
 
     it('should return empty array when no services exist', async () => {
       const { vendor } = await createTestUserWithVendor();
-      
+
       const services = await vendorServicesService.findByVendor(vendor.id);
-      
+
       expect(services).toEqual([]);
     });
   });
@@ -252,7 +252,7 @@ describe('VendorServices Integration Tests', () => {
   describe('activate()', () => {
     it('should activate a service', async () => {
       const { user } = await createTestUserWithVendor();
-      
+
       const service = await vendorServicesService.create(
         user.id,
         createServiceDto({ name: 'Service To Activate' })
@@ -265,7 +265,7 @@ describe('VendorServices Integration Tests', () => {
 
     it('should allow admin to activate any service', async () => {
       const { user } = await createTestUserWithVendor();
-      
+
       const service = await vendorServicesService.create(
         user.id,
         createServiceDto({ name: 'Service To Activate' })
@@ -288,7 +288,7 @@ describe('VendorServices Integration Tests', () => {
   describe('deactivate()', () => {
     it('should deactivate a service', async () => {
       const { user } = await createTestUserWithVendor();
-      
+
       const service = await vendorServicesService.create(
         user.id,
         createServiceDto({ name: 'Service To Deactivate' })
@@ -312,7 +312,7 @@ describe('VendorServices Integration Tests', () => {
   describe('Edge Cases', () => {
     it('should handle very large baseRate', async () => {
       const { user } = await createTestUserWithVendor();
-      
+
       const dto = createServiceDto({ baseRate: 10000000 });
       const service = await vendorServicesService.create(user.id, dto);
 
@@ -321,7 +321,7 @@ describe('VendorServices Integration Tests', () => {
 
     it('should handle zero baseRate', async () => {
       const { user } = await createTestUserWithVendor();
-      
+
       const dto = createServiceDto({ baseRate: 0 });
       const service = await vendorServicesService.create(user.id, dto);
 
@@ -330,7 +330,7 @@ describe('VendorServices Integration Tests', () => {
 
     it('should handle zero guest counts', async () => {
       const { user } = await createTestUserWithVendor();
-      
+
       const dto = createServiceDto({ minGuests: 0, maxGuests: 0 });
       const service = await vendorServicesService.create(user.id, dto);
 
@@ -340,7 +340,7 @@ describe('VendorServices Integration Tests', () => {
 
     it('should handle large guest capacity', async () => {
       const { user } = await createTestUserWithVendor();
-      
+
       const dto = createServiceDto({ minGuests: 100, maxGuests: 10000 });
       const service = await vendorServicesService.create(user.id, dto);
 
@@ -350,7 +350,7 @@ describe('VendorServices Integration Tests', () => {
 
     it('should handle long description', async () => {
       const { user } = await createTestUserWithVendor();
-      
+
       const longDescription = 'A'.repeat(2000);
       const dto = createServiceDto({ description: longDescription });
       const service = await vendorServicesService.create(user.id, dto);
@@ -360,7 +360,7 @@ describe('VendorServices Integration Tests', () => {
 
     it('should handle multiple services for same vendor', async () => {
       const { user, vendor } = await createTestUserWithVendor();
-      
+
       const count = 5;
       for (let i = 0; i < count; i++) {
         await vendorServicesService.create(
@@ -375,7 +375,7 @@ describe('VendorServices Integration Tests', () => {
 
     it('should toggle service status correctly', async () => {
       const { user, vendor } = await createTestUserWithVendor();
-      
+
       const service = await vendorServicesService.create(
         user.id,
         createServiceDto({ name: 'Toggle Test Service' })

@@ -138,7 +138,7 @@ export default function AdminKycApprovalsPage() {
 
       const data = response.data;
       let submissionList: any[] = [];
-      let totalPagesVal = 1;
+      let totalPagesVal: number = 1;
 
       if (data?.kycDocuments && Array.isArray(data.kycDocuments)) {
         submissionList = data.kycDocuments.map((kyc: any) => ({
@@ -158,11 +158,12 @@ export default function AdminKycApprovalsPage() {
           venue: null,
         }));
         totalPagesVal = data.pagination?.totalPages || 1;
-      } else if (Array.isArray(data?.data)) {
+      } else if (data && Array.isArray(data.data)) {
         submissionList = data.data;
-        totalPagesVal = data.totalPages || data.pagination?.totalPages || 1;
+        totalPagesVal = data.totalPages ?? data.pagination?.totalPages ?? 1;
       } else if (Array.isArray(data)) {
         submissionList = data;
+        totalPagesVal = 1;
       }
 
       setSubmissions(submissionList);
@@ -198,14 +199,14 @@ export default function AdminKycApprovalsPage() {
     return () => controller.abort();
   }, [loadSubmissions]);
 
-  // Filter submissions
-  const filteredSubmissions = submissions.filter(s => {
-    const name = s.user?.name || s.vendor?.businessName || s.venue?.name || "";
-    const matchesSearch = name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         s.docNumber.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = filterType === "all" || s.entityType === filterType;
-    return matchesSearch && matchesType;
-  });
+   // Filter submissions
+   const filteredSubmissions = submissions.filter(s => {
+     const name = s.user?.name || s.vendor?.businessName || s.venue?.name || "";
+     const matchesSearch = name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          (s.docNumber || '').toLowerCase().includes(searchTerm.toLowerCase());
+     const matchesType = filterType === "all" || s.entityType === filterType;
+     return matchesSearch && matchesType;
+   });
 
   // Format date
   const formatDate = (dateString: string) => {

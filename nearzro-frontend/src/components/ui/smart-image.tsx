@@ -32,7 +32,7 @@ export function SmartImage({
 
   const getFallback = () => {
     if (fallbackSrc) return fallbackSrc;
-    const altLower = alt.toLowerCase();
+    const altLower = (alt || '').toLowerCase();
     if (altLower.includes('venue')) return DEFAULT_FALLBACKS.venue;
     if (altLower.includes('vendor') || altLower.includes('service')) return DEFAULT_FALLBACKS.vendor;
     return DEFAULT_FALLBACKS.profile;

@@ -30,9 +30,9 @@ export function NetworkStatusIndicator({
   const { error, success, warning } = useToast();
   const [hasShownOfflineToast, setHasShownOfflineToast] = useState(false);
 
-  const checkConnection = useCallback(async () => {
-    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-    const healthEndpoint = `${apiBaseUrl}/api/health`;
+   const checkConnection = useCallback(async () => {
+     const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+     const healthEndpoint = `${apiBaseUrl}/api/v1/health`;
 
     try {
       const controller = new AbortController();

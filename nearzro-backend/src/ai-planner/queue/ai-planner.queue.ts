@@ -48,7 +48,7 @@ export class AIPlannerQueue {
       'generate-plan',
       data,
       {
-        // Retry configuration: 3 attempts with exponential backoff
+        // Retry configuration: 3 attempts with exponential backoff + jitter
         attempts: QUEUE_CONFIG.ATTEMPTS,
         backoff: {
           type: 'exponential',

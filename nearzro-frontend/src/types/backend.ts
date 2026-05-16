@@ -26,12 +26,13 @@ export type VenueType = 'HALL' | 'MANDAPAM' | 'LAWN' | 'RESORT' | 'BANQUET';
 
 export type VenueStatus = 'PENDING_APPROVAL' | 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'DELISTED';
 
-export type EventStatus = 
-  | 'INQUIRY' 
-  | 'PENDING_PAYMENT' 
-  | 'CONFIRMED' 
-  | 'IN_PROGRESS' 
-  | 'COMPLETED' 
+export type EventStatus =
+  | 'INQUIRY'
+  | 'QUOTED'
+  | 'PENDING_PAYMENT'
+  | 'CONFIRMED'
+  | 'IN_PROGRESS'
+  | 'COMPLETED'
   | 'CANCELLED';
 
 export type PaymentStatus = 'PENDING' | 'AUTHORIZED' | 'SUCCESS' | 'FAILED' | 'REFUNDED';
@@ -45,7 +46,6 @@ export interface User {
   name: string;
   email: string | null;
   phone: string | null;
-  passwordHash: string | null;
   googleId: string | null;
   role: Role;
   isActive: boolean;
