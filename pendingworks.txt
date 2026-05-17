@@ -1,0 +1,13 @@
+Pending Works 
+Home Page – Image , Remove Multiple Logo , change original contents in About us , contact , privacy policy , terms of service 
+Vendors , Venues listing page – Improvement in filters 
+Vendors , venue selecting page – add express fee , time slot display detailed  information about vendor, venue 
+Cart page – promo code usage , venue , vendor image fallback 
+Checkout page – double display of items 
+Vendor dashboard  broken 
+Venue owner dashboard broken
+Customer dashboard broken and missing 
+Admin dashboard broken 
+For all the dashboards inside working like event , kyc , notification , etc..
+Overall connection between all the dashboards , and users 
+Overall UI  mismatch , layout mismatch , color mismatch , transitions mismatch
